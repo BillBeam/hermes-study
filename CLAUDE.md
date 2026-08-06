@@ -59,14 +59,25 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
 
 ```
 CLAUDE.md                  # 本文件:目标、验收、边界、恢复方式
-reports/round-N-*.md       # 每轮报告(第一轮含全仓测绘 + 能力点清单 + 学习方案)
+reports/round-1-survey.md  # 第一轮主卷:测绘 + 能力点(目录+精选详述)+ 学习方案 + 建议
+reports/round-1-capabilities-full.md  # 第一轮附卷:170 条能力点全字段 + 代码摘录
 data/inventory.tsv         # 全仓文件盘点(path/kind/lines/bytes),inventory.py 生成
 data/ledger.tsv            # 覆盖台账(path/kind/lines/layer/round/status)
-data/capability-mining.json# 第一轮 14 路子系统挖掘的结构化原始产出
+data/capability-mining.json# 14 路子系统挖掘的结构化原始产出(能力点的数据源)
 scripts/inventory.py       # 盘点脚本(行数规则的唯一权威定义)
 scripts/assign_layers.py   # 分层规则(首条匹配生效;不匹配即报错,保证全覆盖)
 scripts/verify_ledger.py   # 台账校验(文件集一致 + 行数复核 + 分层加总 = 全仓总行数)
-notes/                     # 后续轮次的机制笔记(按子系统组织)
+scripts/render_capabilities.py   # JSON → 附卷渲染
+scripts/render_main_report.py    # JSON → 主卷能力点章节渲染(--compact 出会话消息版)
+notes/                     # 后续轮次的机制笔记(按机制组织)
+```
+
+## 测试环境(可选,恢复后按需重建)
+
+```bash
+python3 -m venv /home/user/hermes-venv && /home/user/hermes-venv/bin/pip install -e "/home/user/hermes-agent[dev]"
+cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python bash scripts/run_tests.sh tests/agent/<file> 
+# 已验证可用(第一轮);模型凭据不需要,也不得自行配置。
 ```
 
 ## 学习方案索引

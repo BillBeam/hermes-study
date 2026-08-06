@@ -3597,5 +3597,2985 @@
   ],
   "module": "CLI 前端(cli.py + hermes_cli/)",
   "overview": "Hermes 的 CLI 前端由 18555 行的 cli.py(HermesCLI:prompt_toolkit 全屏 REPL/TUI,含流式渲染、状态栏、审批/澄清/秘密输入三类模态、语音+唤醒词、pet 吉祥物、worktree 管理)与 hermes_cli/ 下 262 个文件的命令行工具箱组成,main.py 的 argparse 全树挂了几十个子命令(setup/model/gateway/dashboard/update/doctor/kanban/curator/profile/plugins/skills/...)。架构核心是三个「单一事实源」:commands.py 的 COMMAND_REGISTRY 同时驱动 CLI 分发、gateway busy 策略、Telegram/Slack 菜单和 tab 补全五个消费方(slash_exec.py 再为信息类命令提供表面无关执行器);config.py 的分层加载器族(load_config/load_config_readonly/read_raw_config/read_user_config_raw)带 last-known-good 回退与 managed-scope 管理员覆盖;skin_engine.py 的 YAML 皮肤一份定义同步 CLI/TUI/桌面三表面。此外还有 import 前预解析 -p 的多 profile 实例机制、插件系统向 argparse 与会话斜杠双通道注入命令、_startup_fast/meta_path 惰性补丁等启动延迟工程、带双重验证与自动回滚的自更新管线,以及 17k 行 FastAPI dashboard(把同一 `hermes --tui` 二进制经 PTY-over-WebSocket 嵌进浏览器并支持断线重连)。文档覆盖总体良好(AGENTS.md/website 对注册表、皮肤、插件均有专章),但 slash_exec 执行器层、配置 LKG 回退、启动优化和更新回滚验证均为代码独有;发现两处文档与代码不符(前缀歧义解析规则、PTY 桥的 Windows 支持)。"
+ },
+ {
+  "capabilities": [
+   {
+    "name": "单进程多平台适配器总线(~30+ 平台,注册表 + 惰性加载 + 动态枚举)",
+    "problem": "一个 agent 需要同时驻留在 Telegram/Discord/Slack/WhatsApp/Signal/飞书/企微/QQ/iMessage 等几十个消息平台上,但不能为每个平台起一个进程,也不能让每次 `hermes chat` 启动都 import 几十个重型平台 SDK。",
+    "implementation": "GatewayRunner.start() 在单个 asyncio 事件循环里遍历 config.platforms,逐个 _create_adapter 并统一挂上 message_handler/fatal_error_handler/busy_session_handler/authorization_check;适配器统一继承 gateway/platforms/base.py 的 BasePlatformAdapter。平台来源三层:gateway/platforms/ 内置 9 个直连适配器(signal、weixin、bluebubbles、qqbot、yuanbao、whatsapp_cloud、msgraph_webhook、webhook、api_server)+ gateway/relay/ 通用 relay 适配器 + plugins/platforms/ 下 22 个插件平台(telegram、discord、slack、matrix、feishu、wecom、teams、line、irc、ntfy、photon、a2a 等)。插件平台经 platform_registry 注册,且注册的是 register_deferred 惰性 loader——真正 import SDK 推迟到 gateway 启动/发送时;Platform 枚举用 _missing_ 为插件平台动态造 pseudo-member,保证 Platform(\"irc\") is Platform(\"irc\")。连接失败的平台进入 _failed_platforms 由 reconnect watcher 兜底。",
+    "evidence": [
+     {
+      "loc": "gateway/run.py:11051-11054",
+      "excerpt": "        for platform, platform_config in self.config.platforms.items():\n            if await self._abort_startup_if_shutdown_requested():\n                return True\n            if not platform_config.enabled:\n                continue"
+     },
+     {
+      "loc": "gateway/platform_registry.py:187",
+      "excerpt": "    def register_deferred(self, name: str, loader: Callable[[], None]) -> None:"
+     },
+     {
+      "loc": "gateway/run.py:11093-11096",
+      "excerpt": "            adapter.set_message_handler(self._primary_message_handler())\n            adapter.set_fatal_error_handler(self._handle_adapter_fatal_error)\n            adapter.set_session_store(self.session_store)\n            adapter.set_busy_session_handler(self._handle_active_session_busy_message)"
+     }
+    ],
+    "scale": "gateway/run.py 27146 行 + base.py 6861 行 + platform_registry.py 332 行 + 22 个插件适配器(telegram 10147 行、discord 10138 行、slack 9088 行……),总量超 10 万行;复杂度极高",
+    "learning_value": "high",
+    "learning_reason": "这是把一个 agent loop 挂到任意多个消息前端的标准范式:统一 MessageEvent 抽象 + 基类适配器 + 注册表/惰性加载,值得任何多前端 harness 借鉴;惰性 loader 解决的『CLI 启动被平台 SDK 拖慢数秒』是真实工程痛点。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "website/docs/developer-guide/gateway-internals.md:9 说 \"20+ external messaging platforms\";实测 plugins/platforms/ 22 个 + gateway/platforms/ 9 个内置 + relay + wecom_callback,逻辑平台超 30 个,文档口径偏小(用户文档 messaging/index.md 的能力矩阵列了 28 个聊天平台,未含 api_server/webhook/relay)。"
+   },
+   {
+    "name": "确定性会话键与多档案命名空间路由",
+    "problem": "同一条消息必须稳定地映射到唯一会话(DM 按人隔离、群按 chat/人隔离、线程共享),否则会出现跨用户历史串线;多 profile 复用同一进程时还不能让两个 profile 的同平台会话相撞。",
+    "implementation": "gateway/session.py 的 build_session_key() 是会话键唯一事实来源:格式 agent:<ns>:<platform>:<chat_type>:...,DM 附 chat_id/参与者 id/thread_id,群聊按 group_sessions_per_user 附 user_id,thread 默认全员共享;Slack 额外插 workspace scope_id,WhatsApp 做 JID/LID canonical 化防止别名翻转裂成两个会话,Discord 用 prospective_thread_id 把『频道首条消息』与其自动线程后续消息并成同一会话。_session_key_namespace() 把 profile 塞进历史上恒为 \"main\" 的槽位:default→agent:main 字节级兼容旧键,命名 profile→agent:<profile>,positional parser 不变。adapter 侧(base.py handle_message)与 runner 侧(_session_key_for_source)各自调它,保证两层守卫 key 一致。",
+    "evidence": [
+     {
+      "loc": "gateway/session.py:1053-1055",
+      "excerpt": "    if not profile or profile == \"default\":\n        return \"agent:main\"\n    return f\"agent:{profile}\""
+     },
+     {
+      "loc": "gateway/session.py:1058-1063",
+      "excerpt": "def build_session_key(\n    source: SessionSource,\n    group_sessions_per_user: bool = True,\n    thread_sessions_per_user: bool = False,\n    profile: Optional[str] = None,\n) -> str:"
+     },
+     {
+      "loc": "gateway/session.py:1156-1159",
+      "excerpt": "    effective_thread_id = source.thread_id or source.prospective_thread_id\n    chat_type_slot = source.chat_type\n    if source.prospective_thread_id and not source.thread_id:\n        chat_type_slot = \"thread\""
+     }
+    ],
+    "scale": "session.py 3490 行(键构造约 120 行,其余为 SessionStore 持久化/恢复);概念密度高",
+    "learning_value": "high",
+    "learning_reason": "『路由键 = 平台×会话形态×隔离策略』的组合学是所有消息型 harness 的地基;把 profile 塞进兼容槽位而非改 schema 的做法,是零迁移多租户化的教科书案例。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "gateway-internals.md:78 给的示例键是 `agent:main:telegram:private:123456789`,但代码里 chat_type 是 \"dm\"(session.py:1103 `if source.chat_type == \"dm\":`),从不产生 \"private\" 槽;multiplex 下的 agent:<profile> 命名空间也未在该文档提及。"
+   },
+   {
+    "name": "双重消息守卫 + busy 策略(steer/redirect/queue/interrupt 与自动降级)",
+    "problem": "agent 跑长任务时用户还在继续发消息:既不能丢、不能乱序、不能把控制命令(/stop、/approve)当聊天文本吞掉,也不能让一句闲聊把跑了几分钟的子代理任务全部打断。",
+    "implementation": "第一层守卫在 BasePlatformAdapter.handle_message:_active_sessions 持 per-key guard,活跃时新消息进 _pending_messages 合并/去抖(照片连拍合并、文本 debounce),但 /stop、/approve、/deny 等 bypass 命令与 clarify 回答走 inline 直达 runner(否则死锁);第二层在 GatewayRunner._handle_active_session_busy_message:先做鉴权与 draining 检查,再把裸词 \"yes/no\" 路由到审批 handler,然后按 busy_input_mode 分派——steer 用 running_agent.steer() 中途注入、interrupt 优先尝试 running_agent.redirect(),不行才真 interrupt;当 agent 有活跃子代理(#30170)或压缩进行中(#56391)时把 interrupt 自动降级为 queue。落队消息走 _queue_or_replace_pending_event FIFO,每条文本保持独立回合边界(#43066)。",
+    "evidence": [
+     {
+      "loc": "gateway/platforms/base.py:5736-5741",
+      "excerpt": "                logger.debug(\n                    \"[%s] New message while session %s is active — queuing follow-up \"\n                    \"(no interrupt, will cascade after current turn)\",\n                    self.name,\n                    session_key,\n                )"
+     },
+     {
+      "loc": "gateway/run.py:8905-8908",
+      "excerpt": "        demoted_for_subagents = (\n            effective_mode == \"interrupt\"\n            and self._agent_has_active_subagents(running_agent)\n        )"
+     },
+     {
+      "loc": "gateway/platforms/base.py:5610-5616",
+      "excerpt": "            if should_bypass_active_session(cmd):\n                # /stop, /new, /reset must cancel the in-flight adapter task\n                # and preserve ordering of queued follow-ups.  Route those\n                # through the dedicated handoff path that serializes\n                # cancellation + runner response + pending drain.\n                # (Registry-derived: busy_policy == \"interrupt_then_dispatch\".)\n                if cmd and is_interrupt_then_dispatch(cmd):"
+     }
+    ],
+    "scale": "base.py handle_message + busy 分支约 1200 行,run.py 侧 busy handler 约 450 行;是网关最精细的状态机",
+    "learning_value": "high",
+    "learning_reason": "这是『运行中 agent 如何接续收消息』问题的最完整实现:双层守卫 + 命令旁路 + steer/redirect/queue 谱系 + 子代理保护降级,几乎每个分支都对应一个真实事故编号,可直接当消息型 harness 的需求清单。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "gateway-internals.md:86 称第一层守卫『queues the message in _pending_messages and sets an interrupt event』、:88 称第二层『Everything else triggers running_agent.interrupt()』;代码里默认是排队不打断(base.py:5736-5748),interrupt 只是 busy_input_mode 的一种,还有 steer/redirect,且子代理/压缩期间会强制降级为 queue——文档描述的是早期行为。"
+   },
+   {
+    "name": "流式输出桥 GatewayStreamConsumer(sync delta → 限速编辑/原生 draft)",
+    "problem": "LLM 的 token 流来自 agent 工作线程(同步回调),而消息平台没有 token 流概念,只能反复 editMessageText 或用 Telegram sendMessageDraft;还要处理平台限长、flood control、思维链标签过滤、截断代码栅栏。",
+    "implementation": "GatewayStreamConsumer.on_delta() 线程安全入 queue.Queue,异步 run() 任务批量 drain 后按 edit_interval/buffer_threshold 限速编辑同一条消息;传输可选 edit/draft(_resolve_draft_streaming,Telegram DM 用递增 draft_id 动画,最终答案落一条真消息)、fresh_final_after_seconds 让长回合的最终回复另发新消息校正时间戳;_filter_and_accumulate 剥 <think> 系标签,ensure_closed_code_fences 修补被截断的 ``` 栅栏,_is_partial_silence_marker 阻止 NO_REPLY 这类静默标记闪现,flood control 连续 3 次失败后永久停编辑,_FLUSH 屏障让 clarify 交互提示不被缓冲文本超车。run.py TurnRunner 把 consumer.on_delta 装为 agent 的 stream_delta_callback,并 tee 给 streaming-TTS 消费者。",
+    "evidence": [
+     {
+      "loc": "gateway/stream_consumer.py:786-789",
+      "excerpt": "        self._use_draft_streaming = self._resolve_draft_streaming()\n        if self._use_draft_streaming:\n            type(self)._draft_id_counter += 1\n            self._draft_id = type(self)._draft_id_counter"
+     },
+     {
+      "loc": "gateway/stream_consumer.py:863-872",
+      "excerpt": "                if not self.cfg.buffer_only:\n                    should_edit = should_edit or (\n                        (elapsed >= self._current_edit_interval\n                            and self._accumulated)\n                        # buffer_threshold is intentionally codepoint-based:\n                        # it's a debounce heuristic (\"send updates roughly\n                        # every N visible characters\"), not a platform-limit\n                        # check. _len_fn is reserved for overflow detection.\n                        or len(self._accumulated) >= self.cfg.buffer_threshold\n                    )"
+     },
+     {
+      "loc": "gateway/run.py:4526-4528",
+      "excerpt": "                        def _stream_delta_cb(text: str) -> None:\n                            if ctx._run_still_current():\n                                _stream_consumer.on_delta(text)"
+     }
+    ],
+    "scale": "stream_consumer.py 2410 行 + stream_dispatch.py 132 + stream_events.py 171 + streaming_tts_consumer.py 423;中高复杂度",
+    "learning_value": "high",
+    "learning_reason": "『token 流→消息平台』的阻抗匹配是消息型 agent 的核心工程题,这里给出限速编辑、draft 传输、UTF-16 长度函数、栅栏修复、静默抑制、flush 屏障等一整套可复用手法。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "投递义务台账(delivery ledger:crash 后最终回复不丢、诚实 at-least-once)",
+    "problem": "回合已烧完 token、最终回复只存在于 Python 局部变量里,gateway 在 finalize 与平台 ACK 之间崩溃/重启就会无痕丢失这条回复(#58818 等)。",
+    "implementation": "base.py 在发送最终文本前把 (session_key, message_ref, content) 哈希成 obligation_id,依次写 state.db 三个检查点 record_obligation(pending)→mark_attempting→mark_delivered/mark_failed,全部 best-effort 不阻塞真实发送;启动时 run.py:_redeliver_pending_obligations 先于 resume 扫描,sweep_recoverable() 用 owner_pid+进程启动时间判活、原子改 owner 防止双 gateway 重复认领,只认领本次 boot 已连接平台的行以免白烧 attempts;pending 行直接重发,attempting/failed 行(可能已送达)带可见 \"♻️ Recovered reply\" 前缀,attempts 上限 3 + 24h stale 转 abandoned 防毒行;重投后 clear_resume_pending 防止 resume 路径再花钱重跑同一回合。",
+    "evidence": [
+     {
+      "loc": "gateway/delivery_ledger.py:68-71",
+      "excerpt": "RECOVERED_MARKER = (\n    \"♻️ Recovered reply — the gateway restarted during delivery, \"\n    \"so this may be a duplicate:\\n\\n\"\n)"
+     },
+     {
+      "loc": "gateway/platforms/base.py:6087",
+      "excerpt": "                                await asyncio.to_thread(mark_attempting, _obligation_id)"
+     },
+     {
+      "loc": "gateway/run.py:10374-10379",
+      "excerpt": "            _deliverable = {\n                getattr(p, \"value\", str(p)) for p in self.adapters\n            }\n            claimed = await asyncio.to_thread(\n                sweep_recoverable, None, deliverable_platforms=_deliverable\n            )"
+     }
+    ],
+    "scale": "delivery_ledger.py 374 行 + base.py 记账段约 70 行 + run.py 重投约 105 行;中等复杂度、契约设计极精",
+    "learning_value": "high",
+    "learning_reason": "把『发出的最终回复』当成分布式义务来记账,pending/attempting 语义区分 + 可见重复标记的 honest at-least-once 契约,是 LLM 场景下 exactly-once 不可得时的最佳工程答案(前一版 outbox 因静默重发被否决,#61790)。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "回合租约 SessionTurnLeaseRegistry(按 resolved session_id 串行化转写)",
+    "problem": "busy 守卫都按路由键(routing key)加锁,但 /resume、Telegram topic tip-walk、异步委托 pinning 会让多个路由键映射到同一个 session_id——两个回合在两份 agent 对象上并发写同一转写,产生永久 user;user 交替楔子(#64934)。",
+    "implementation": "在会话解析定案之后、加载转写之前,按 resolved session_id 申请 asyncio 租约(run.py:16584),路由键守卫保证同键消息到不了这里,所以只有别名键路由才会真正竞争;超时 fail-open 返回 degraded token(宁可退回旧的不串行行为也不楔死会话);token 记 (owner_key, generation),release 做身份校验保证陈旧 unwind 不会释放新回合的租约;压缩中途轮换 session_id 时 rebind() 把同一把锁登记到新 id 下,关闭 rotation-alias 窗口;注册表上限 512、只驱逐 idle 项。",
+    "evidence": [
+     {
+      "loc": "gateway/run.py:16584-16589",
+      "excerpt": "            _lease_token = await _lease_registry.acquire(\n                session_entry.session_id,\n                owner_key=_quick_key,\n                generation=run_generation,\n                timeout=_float_env(\"HERMES_AGENT_TIMEOUT\", 1800),\n            )"
+     },
+     {
+      "loc": "gateway/turn_lease.py:190-192",
+      "excerpt": "        try:\n            await asyncio.wait_for(lease.lock.acquire(), timeout=wait)\n        except asyncio.TimeoutError:"
+     },
+     {
+      "loc": "gateway/turn_lease.py:29-33",
+      "excerpt": "- **Generation-scoped, identity-checked release.** A token records its owner\n  (routing key, run generation) and release only frees the lease when that\n  exact token is the current holder — a stale unwind can never release a\n  newer turn's lease (the #28686 ownership lesson applied). Release is\n  idempotent."
+     }
+    ],
+    "scale": "turn_lease.py 302 行 + run.py 挂接/释放/rebind 约 120 行;小而精",
+    "learning_value": "high",
+    "learning_reason": "教科书级的并发课:锁的粒度必须跟『被保护资源的身份』(session_id)对齐而非跟路由键对齐;fail-open + generation 校验 + mid-flight rebind 三件套对任何有 alias 路由的 harness 都适用。",
+    "hidden_from_docs": true,
+    "doc_mismatch": null
+   },
+   {
+    "name": "DM 配对安全(盐化哈希配对码 + 限速/锁定 + allowlist 镜像)",
+    "problem": "静态 user-id allowlist 运维成本高,但开放 DM 又会被陌生人白嫖;需要一个陌生人可自助发起、只有 owner 能批准、且防爆破防骚扰的授权握手。",
+    "implementation": "陌生用户 DM 时(unauthorized_dm_behavior=\"pair\",默认 pairing)runner 用 PairingStore.generate_code 发一个 8 位无歧义字母表配对码给该用户,提示其转给 owner 执行 `hermes pairing approve <platform> <code>`;码只存盐化 SHA-256(pending 文件泄露也不暴露码),1 小时过期、每用户 10 分钟 1 次限速、每平台最多 3 个 pending、5 次失败批准触发 1 小时锁定,文件 0600。批准后若运营者已配置该平台 allowlist env,则把用户镜像写进 allowlist 保持单一可见事实源;未配置 allowlist 的开放网关不会因首次配对被悄悄锁死(option i)。multiplex 下每 profile 一个 PairingStore,授权检查按 source.profile 路由到对应白名单;WhatsApp 做 JID 别名展开匹配。",
+    "evidence": [
+     {
+      "loc": "gateway/pairing.py:641-645",
+      "excerpt": "            code = \"\".join(secrets.choice(ALPHABET) for _ in range(CODE_LENGTH))\n\n            # Hash the code with a random salt before storing\n            salt = os.urandom(16)\n            code_hash = self._hash_code(code, salt)"
+     },
+     {
+      "loc": "gateway/run.py:14496-14499",
+      "excerpt": "                            f\"Here's your pairing code: `{code}`\\n\\n\"\n                            f\"Ask the bot owner to run:\\n\"\n                            f\"`hermes {profile_arg}pairing approve \"\n                            f\"{platform_name} {code}`\""
+     },
+     {
+      "loc": "gateway/pairing.py:186-189",
+      "excerpt": "    env_var = _allowlist_env_for_platform(platform)\n    if not env_var:\n        return\n    current = _read_allowlist_env(env_var)"
+     }
+    ],
+    "scale": "pairing.py 905 行 + run.py 接入约 70 行;中等复杂度,安全设计对标 OWASP/NIST SP 800-63-4",
+    "learning_value": "medium",
+    "learning_reason": "自助码 + owner 带外批准的授权握手可直接移植到任何 bot;『grant 镜像进运营者自己的 allowlist、开放网关不因配对被锁死』体现了对配置事实源漂移的深思。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "gateway-internals.md:104-108 描述为『Admin: /pair → Gateway 给 admin 一个码 → 新用户回码即配对』;代码里不存在 /pair 命令,方向相反:陌生用户 DM 自动收到码(run.py:14479-14500),owner 在 CLI 上 `hermes pairing approve` 批准。用户文档 messaging/index.md:344-358 与代码一致,开发者文档写反了。"
+   },
+   {
+    "name": "多层授权联合与 upstream 委托(含 busy 路径同等鉴权)",
+    "problem": "几十个平台各有身份/allowlist 形态(env、config.yaml、群级、bot 消息、无 user_id 的频道广播、relay 上游已鉴权流量),必须统一成一个 default-deny 的联合判定,且忙碌路径不能有比冷路径更松的洞。",
+    "implementation": "GatewayAuthorizationMixin._is_user_authorized 按序检查:HOMEASSISTANT/WEBHOOK 由连接/HMAC 自身鉴权直接放行;delivered_via_upstream_relay is True(显式 bool 身份检查,防 MagicMock 真值失守)或适配器声明 authorization_is_upstream 时委托给已认证上游;群/论坛/频道级 chat allowlist(TELEGRAM_GROUP_ALLOWED_CHATS 等)在 no-user-id 守卫之前跑;{PLATFORM}_ALLOW_BOTS 放行 bot 流量;然后 per-platform allow-all → env/config allowlist → pairing 批准表 → GATEWAY_ALLOW_ALL_USERS → 默认拒绝。multiplex 下 _platform_gate_env 走 profile secret scope,scope 里没有的键返回 default 而不是回落进程 env,防止 profile A 的 allowlist 泄进 profile B(#72348)。busy 路径 _handle_active_session_busy_message 第一行复刻同样检查,堵住『共享线程里未授权用户向活跃会话注入消息』(#17775)。",
+    "evidence": [
+     {
+      "loc": "gateway/authz_mixin.py:435-439",
+      "excerpt": "        if source.delivered_via_upstream_relay is True or self._adapter_authorization_is_upstream(\n            source.platform,\n            profile=adapter_profile,\n        ):\n            return True"
+     },
+     {
+      "loc": "gateway/run.py:8748-8750",
+      "excerpt": "        if not self._is_user_authorized(event.source):\n            logger.warning(\n                \"Dropping message from unauthorized user in active session: \""
+     },
+     {
+      "loc": "gateway/authz_mixin.py:64-69",
+      "excerpt": "        scope = current_secret_scope()\n        if scope is not None and is_multiplex_active():\n            val = scope.get(name)\n            if val is None:\n                return default\n            return str(val).strip()"
+     }
+    ],
+    "scale": "authz_mixin.py 888 行 + pairing 联动;分支多、每个例外都有事故号",
+    "learning_value": "high",
+    "learning_reason": "展示了真实世界 default-deny 授权的全部毛边:匿名管理员、bot 消息、上游已鉴权 relay、多 profile secret 隔离、热/冷路径一致性——是给 agent 加多平台门禁时的完整 checklist。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "gateway-internals.md:94-100 只列了 5 层(allow-all/allowlist/pairing/global/deny);代码里还有 relay upstream 委托、群级 chat allowlist、ALLOW_BOTS、HA/Webhook 免检等文档未列的层级。"
+   },
+   {
+    "name": "Scale-to-zero 闲置休眠(relay dormant + 平台级 suspend)",
+    "problem": "托管在 Fly 这类按运行计费的平台时,空闲 gateway 也占一台常驻机器;要能在无回合、无入站、无后台工作时把流量降到零让平台挂起机器,又不能丢消息、不能误伤直连平台的长连接。",
+    "implementation": "纯函数层 scale_to_zero.py 定义三重武装条件(HERMES_SCALE_TO_ZERO Labs env 戳 + 消息面仅 relay 或无平台 + 已注册 wakeUrl)与 idle 谓词(无 running agent + 超时无入站 + 无活跃后台工作:bg delegate/kanban/bg terminal/cron/API run);run.py:_scale_to_zero_watcher 每 30s 检查,满足即标记 runtime status=draining 并调 relay adapter.go_dormant()——只关 socket、保留 reconnect supervisor,绝不走 disconnect()/stop 排水路径,进程保活由 Fly autostop:\"suspend\" 冻结、wakeUrl poke 自动唤醒后 supervisor 重拨、connector 回放缓冲积压;唤醒后设 cooldown 防止刚 drain 完积压又立刻再休眠。",
+    "evidence": [
+     {
+      "loc": "gateway/scale_to_zero.py:104",
+      "excerpt": "    return bool(enabled) and bool(relay_only_or_absent) and bool(wake_url)"
+     },
+     {
+      "loc": "gateway/run.py:7638-7643",
+      "excerpt": "                adapter = self._relay_adapter_for_dormancy()\n                if adapter is None:\n                    continue\n                go_dormant = getattr(adapter, \"go_dormant\", None)\n                if not callable(go_dormant):\n                    continue"
+     },
+     {
+      "loc": "gateway/scale_to_zero.py:120-124",
+      "excerpt": "    if running_agent_count > 0:\n        return False\n    if has_live_background_work:\n        return False\n    return seconds_since_last_inbound >= idle_timeout_seconds"
+     }
+    ],
+    "scale": "scale_to_zero.py 124 行(纯函数)+ run.py watcher/前提检查约 250 行;小体量高设计密度",
+    "learning_value": "medium",
+    "learning_reason": "『行为层消费传输层原语』的分层范式(gateway 决策 idle,relay 提供 buffered-flip/go_dormant,平台负责真正 suspend)以及把每个决策编号写进 docstring 的做法值得学习;serverless 化 agent 的关键路径。",
+    "hidden_from_docs": true,
+    "doc_mismatch": "官方文档只在 Chronos 托管 cron 语境提到 scale-to-zero(cron-internals.md:132),gateway 侧的 HERMES_SCALE_TO_ZERO 开关、idle 谓词与 go_dormant 休眠序列在 README/AGENTS.md/website docs 均无记载。"
+   },
+   {
+    "name": "断线重连与重启体系(指数退避 + 重启环路断路器 + resume-pending)",
+    "problem": "平台 socket 掉线、进程被 SIGTERM、agent 自己把 gateway 重启进死循环——这三类中断都要自愈,且重启后被打断的会话要接着跑而不是丢失。",
+    "implementation": "_platform_reconnect_watcher 对 _failed_platforms 30s→300s 封顶指数退避无限重试(可重试错误永不放弃、坏凭据立即出队;自动熔断已被移除,因为它曾让 DNS 抖动后的 bot 静默死亡),重连时 is_reconnect=True 保留平台侧离线消息队列(#46621);重启路径分层:/restart 或 SIGUSR1 先等活跃回合(after_turn_timeout)再 stop() 内排水(drain_timeout),supervisor 场景用 exit 75(EX_TEMPFAIL)请求服务管理器重启、exit 78 表致命配置错误停止重启;restart_loop_guard 把『带 restart-interrupted 会话的 boot』时间戳持久化到 restart_loop.json,60s 内 ≥3 次即跳过 auto-resume 打断 SIGTERM respawn 死循环(#30719 defense-3);启动时 _redeliver_pending_obligations → _schedule_resume_pending_sessions 恢复被打断会话,resume 又受 freshness window 与 stale redelivery 检查约束。",
+    "evidence": [
+     {
+      "loc": "gateway/run.py:12479-12481",
+      "excerpt": "                    success = await self._connect_adapter_with_timeout(\n                        adapter, platform, is_reconnect=True\n                    )"
+     },
+     {
+      "loc": "gateway/restart_loop_guard.py:136-137",
+      "excerpt": "    boots = record_restart_interrupted_boot(window_seconds, now=now)\n    tripped = len(boots) >= max_restarts if max_restarts > 0 else False"
+     },
+     {
+      "loc": "gateway/restart.py:10",
+      "excerpt": "GATEWAY_SERVICE_RESTART_EXIT_CODE = 75"
+     }
+    ],
+    "scale": "reconnect watcher ~210 行 + restart 路径(run.py 9698-10330 一带)~600 行 + restart.py 120 + restart_loop_guard.py 150;高复杂度",
+    "learning_value": "high",
+    "learning_reason": "自治 agent 最危险的故障模式是『它有能力重启自己』;这里的三层防御 + 持久化 boot 窗口断路器 + sysexits 与 supervisor 的约定,是长时运行 harness 生存性设计的范本。",
+    "hidden_from_docs": true,
+    "doc_mismatch": null
+   },
+   {
+    "name": "关机数据保全(pending flush + 转写抢救 + 关机取证/看门狗)",
+    "problem": "关机瞬间,内存里的 _pending_messages 和 agent 未落库的 _session_messages 是仅存副本,FTS5 损坏或 clear() 会造成永久用户数据丢失;此外还要能事后解释『谁杀了 gateway』和『关机为何卡死』。",
+    "implementation": "shutdown_flush.py 三个钩子:flush_pending_to_file 在 clear() 之前把非空 pending 槽原子写入 <hermes_home>/pending_messages/(0600 + 目录 fsync);recover_pending_to_db 启动后经 SessionDB.append_message 回灌(FTS/元数据走正路)并删除 flush 文件;flush_agent_history_to_file 在 _flush_messages_to_session_db 抛错时兜底转储活体转写(#72680)。shutdown_forensics.py 在收到信号时快照 /proc 里 parent/兄弟进程线索定位杀手并可 spawn 异步诊断,check_systemd_timing_alignment 检查 drain 超时与 TimeoutStopSec 的错位;shutdown_watchdog.py 用独立线程定时器在事件循环卡死时转储所有线程栈,loop_heartbeat 心跳文件供跨进程判活。",
+    "evidence": [
+     {
+      "loc": "gateway/shutdown_flush.py:10-12",
+      "excerpt": "1. ``flush_pending_to_file()`` — called BEFORE ``_pending_messages.clear()``\n   during shutdown.  Serialises any non-empty pending slots to a JSON file\n   under ``<hermes_home>/pending_messages/``."
+     },
+     {
+      "loc": "gateway/shutdown_flush.py:82-86",
+      "excerpt": "def flush_pending_to_file(\n    pending: Dict[str, Any],\n    *,\n    reason: str = \"shutdown\",\n) -> int:"
+     },
+     {
+      "loc": "gateway/shutdown_forensics.py:104",
+      "excerpt": "def snapshot_shutdown_context(received_signal: Any = None) -> Dict[str, Any]:"
+     }
+    ],
+    "scale": "shutdown_flush.py 321 + shutdown_forensics.py 462 + shutdown_watchdog.py 457,合计约 1240 行;中等复杂度",
+    "learning_value": "medium",
+    "learning_reason": "『关机路径是数据丢失高发区』的系统性回答:先落盘再 clear、启动回灌、取证快照、卡死看门狗四件套,适合任何持久会话 harness 抄作业。",
+    "hidden_from_docs": true,
+    "doc_mismatch": null
+   },
+   {
+    "name": "多 profile 复用 multiplex + profile 路由(单进程多租户)",
+    "problem": "一台机器上跑多个人格/配置(不同模型、技能、记忆、凭据)的 agent,如果各起一个 gateway 会浪费资源且 bot token 冲突;还要能把同一 Discord 服务器的不同频道路由到不同 profile。",
+    "implementation": "gateway.multiplex_profiles 开启后,_start_secondary_profile_adapters 在同一进程为每个非活跃 profile 在其自己的 HERMES_HOME + secret scope(_profile_runtime_scope)下创建并连接适配器,存入 _profile_adapters[profile],message handler 先 stamp source.profile 再进共享 _handle_message,使该回合解析到对应 profile 的配置/技能/凭据;这是唯一同时看到所有 profile 凭据的点,故在此做凭据指纹与监听端口的冲突检测(两个 profile 轮询同一 bot token 直接拒绝);默认 profile 上没有 token 的平台被跳过而不是进死循环重连(#64674);每 profile 一个 PairingStore。另一维度 profile_routing.py 按 platform+guild/chat/thread 的 specificity(2/4/8 加权)最specific-first 匹配 profile_routes,Discord 线程经 parent_chat_id 继承频道路由。",
+    "evidence": [
+     {
+      "loc": "gateway/run.py:13195-13196",
+      "excerpt": "        if not getattr(self.config, \"multiplex_profiles\", False):\n            return 0"
+     },
+     {
+      "loc": "gateway/run.py:11063",
+      "excerpt": "            if _multiplex_on and not _platform_has_bot_credential(platform, platform_config):"
+     },
+     {
+      "loc": "gateway/profile_routing.py:96-98",
+      "excerpt": "        if self.thread_id and self.thread_id != thread_id:\n            return False\n        if self.chat_id and self.chat_id != chat_id and self.chat_id != parent_chat_id:"
+     }
+    ],
+    "scale": "run.py multiplex 段约 450 行 + profile_routing.py 166 + authz/pairing/session key 的 profile 分支散布全网关;高复杂度横切关注点",
+    "learning_value": "high",
+    "learning_reason": "单进程多租户的完整横切改造:命名空间化会话键、per-profile secret scope、凭据冲突仲裁、per-profile 白名单——展示了在成熟单租户系统上做多租户化时每一层都要动的位置。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "后台完成事件唤醒(wake:push 注入 vs API self-POST 双策略)",
+    "problem": "后台任务(delegate_task background、bg terminal)完成时要把结果注入原会话继续对话;push 型平台可以造合成消息,但无状态的 API server 会话若走常规路径会落进一个键不匹配的平行会话,结果永远不可见。",
+    "implementation": "wake.py 按 adapter.supports_async_delivery 分流:push 型平台构造 MessageEvent(internal=True) 走 adapter.handle_message 原路注入(internal 事件在 busy 时静默排队、绝不打断当前回合);API server 型改为向本机 /v1/chat/completions 自 POST,带原始 X-Hermes-Session-Id 头走真实入口恢复真会话,403 缺 API key 时宁可 raise 也不落进无人查看的指纹会话;瞬时错误(429 并发帽、连接错)按 2/5/10s 退避重试,失败上抛让调用方回卷游标重试而不是默默丢事件。",
+    "evidence": [
+     {
+      "loc": "gateway/wake.py:80-86",
+      "excerpt": "        synth_event = MessageEvent(\n            text=text,\n            message_type=MessageType.TEXT,\n            source=source,\n            internal=True,\n        )\n        await adapter.handle_message(synth_event)"
+     },
+     {
+      "loc": "gateway/wake.py:116-121",
+      "excerpt": "    if not api_key:\n        raise RuntimeError(\n            \"wake self-post requires API_SERVER_KEY: session continuation via \"\n            \"X-Hermes-Session-Id is rejected (403) on an unauthenticated API \"\n            \"server, so the wake cannot reach the target session\"\n        )"
+     },
+     {
+      "loc": "gateway/run.py:8878-8879",
+      "excerpt": "        if getattr(event, \"internal\", False):\n            return False"
+     }
+    ],
+    "scale": "wake.py 184 行 + run.py 各 watcher(_async_delegation_watcher/_run_process_watcher/completion 分类投递)约 600 行;中等复杂度",
+    "learning_value": "medium",
+    "learning_reason": "『后台完成如何回到对话』是 agent harness 常见盲区;这里的 push/自 POST 双策略、internal 事件不打断不致谢的语义、失败上抛回卷游标,构成一套完整的事件重入契约。",
+    "hidden_from_docs": true,
+    "doc_mismatch": null
+   }
+  ],
+  "doc_conflicts": [
+   {
+    "claim": "website/docs/developer-guide/gateway-internals.md:86-88:第一层守卫『queues the message in `_pending_messages` and sets an interrupt event』,第二层『Everything else triggers `running_agent.interrupt()`』",
+    "reality": "base adapter 默认排队且明确不打断(日志原文 \"no interrupt, will cascade after current turn\");是否打断由 runner 的 busy_input_mode(interrupt/steer/queue)决定,interrupt 模式还优先尝试 redirect(),且在有活跃子代理(#30170)或压缩进行中(#56391)时自动降级为 queue",
+    "evidence_loc": "gateway/platforms/base.py:5736"
+   },
+   {
+    "claim": "website/docs/developer-guide/gateway-internals.md:104-108:DM 配对流程为『Admin: /pair → Gateway 发码给 admin → 新用户回码 ABC123 → Paired!』",
+    "reality": "不存在 /pair 命令且方向相反:未授权用户 DM 时 gateway 自动 generate_code 把码发给该用户,并提示『Ask the bot owner to run: hermes pairing approve <platform> <code>』——由 owner 在 CLI 带外批准(用户文档 messaging/index.md:344-358 的描述才与代码一致)",
+    "evidence_loc": "gateway/run.py:14496"
+   },
+   {
+    "claim": "website/docs/developer-guide/gateway-internals.md:78:会话键示例 `agent:main:telegram:private:123456789`",
+    "reality": "键的 chat_type 槽取自 source.chat_type,DM 分支判定条件是 `if source.chat_type == \"dm\":`,生成 `agent:main:telegram:dm:<chat_id>`,从不产生 \"private\";且 multiplex 下命名空间可为 agent:<profile>,文档未提",
+    "evidence_loc": "gateway/session.py:1103"
+   },
+   {
+    "claim": "website/docs/developer-guide/gateway-internals.md:9:『connects Hermes to 20+ external messaging platforms』;README.md:25 只列『Telegram, Discord, Slack, WhatsApp, Signal, and CLI』",
+    "reality": "实测 plugins/platforms/ 有 22 个插件平台目录(全部 kind: platform),gateway/platforms/ 另有 9 个内置适配器(signal、weixin、bluebubbles、qqbot、yuanbao、whatsapp_cloud、msgraph_webhook、webhook、api_server)加 gateway/relay/ 通用 relay 与 wecom_callback,逻辑平台总数 30+",
+    "evidence_loc": "gateway/config.py:272"
+   }
+  ],
+  "key_files": [
+   {
+    "path": "gateway/run.py",
+    "lines": 27146,
+    "role": "GatewayRunner 神文件:启动/连接全部平台、_handle_message 主分发、busy 处理、TurnRunner 回合执行与进度回调、restart/drain/resume、multiplex、各类后台 watcher(reconnect、stall、expiry、handoff、async delegation、scale-to-zero)。"
+   },
+   {
+    "path": "gateway/platforms/base.py",
+    "lines": 6861,
+    "role": "BasePlatformAdapter 与 MessageEvent/SendResult 抽象:第一层消息守卫、pending 合并/去抖、媒体缓存与投递路径校验、_send_with_retry、delivery ledger 记账点、typing/TTS/ephemeral 公共逻辑。"
+   },
+   {
+    "path": "gateway/session.py",
+    "lines": 3490,
+    "role": "build_session_key 单一事实来源 + SessionSource/SessionEntry/SessionStore(state.db 恢复、路由代际、profile 命名空间、continuity note)。"
+   },
+   {
+    "path": "gateway/config.py",
+    "lines": 2688,
+    "role": "Platform 枚举(_missing_ 动态插件成员)、PlatformConfig/GatewayConfig、YAML→env 桥接与 env 覆盖。"
+   },
+   {
+    "path": "gateway/stream_consumer.py",
+    "lines": 2410,
+    "role": "GatewayStreamConsumer:同步 delta→异步限速编辑/Telegram 原生 draft 流式、栅栏修复、think 标签过滤、静默标记抑制、flood 降级。"
+   },
+   {
+    "path": "gateway/slash_commands.py",
+    "lines": 5693,
+    "role": "GatewaySlashCommandsMixin:/new /stop /model /approve /deny /platform /restart 等网关侧命令处理器。"
+   },
+   {
+    "path": "gateway/authz_mixin.py",
+    "lines": 888,
+    "role": "GatewayAuthorizationMixin:多层 default-deny 授权联合、relay upstream 委托、multiplex secret-scope 隔离读取、adapter 解析。"
+   },
+   {
+    "path": "gateway/pairing.py",
+    "lines": 905,
+    "role": "PairingStore:盐化哈希配对码、限速/锁定、allowlist 镜像、per-profile 存储与目录迁移。"
+   },
+   {
+    "path": "gateway/delivery.py",
+    "lines": 646,
+    "role": "DeliveryRouter/DeliveryTransport:cron 与后台产物按显式目标/home channel/origin 路由,relay 可代投,静默叙述过滤,截断策略。"
+   },
+   {
+    "path": "gateway/delivery_ledger.py",
+    "lines": 374,
+    "role": "最终回复投递义务台账:state.db 四态检查点、死进程回收、attempts/stale 界限、♻️ 恢复标记。"
+   },
+   {
+    "path": "gateway/turn_lease.py",
+    "lines": 302,
+    "role": "SessionTurnLeaseRegistry:按 resolved session_id 串行化回合,fail-open、身份校验释放、mid-turn rebind。"
+   },
+   {
+    "path": "gateway/scale_to_zero.py",
+    "lines": 124,
+    "role": "scale-to-zero 纯函数层:武装条件与 idle 谓词(env 戳 + relay-only + wakeUrl)。"
+   },
+   {
+    "path": "gateway/restart.py",
+    "lines": 120,
+    "role": "重启常量与 supervisor 检测:exit 75/78 sysexits 约定、drain/after-turn 超时解析。"
+   },
+   {
+    "path": "gateway/restart_loop_guard.py",
+    "lines": 150,
+    "role": "auto-resume 重启环路断路器:持久化 boot 窗口,60s 内 3 次即跳过 auto-resume。"
+   },
+   {
+    "path": "gateway/shutdown_flush.py",
+    "lines": 321,
+    "role": "关机前把 pending 消息与活体转写原子落盘、启动后回灌 state.db(#72680)。"
+   },
+   {
+    "path": "gateway/shutdown_forensics.py",
+    "lines": 462,
+    "role": "关机取证:信号来源 /proc 快照、异步诊断、systemd 超时错位检查。"
+   },
+   {
+    "path": "gateway/shutdown_watchdog.py",
+    "lines": 457,
+    "role": "事件循环卡死看门狗:线程定时器栈转储 + loop 心跳文件。"
+   },
+   {
+    "path": "gateway/wake.py",
+    "lines": 184,
+    "role": "后台完成唤醒:push 平台合成 internal MessageEvent,API server 自 POST /v1/chat/completions 恢复真会话。"
+   },
+   {
+    "path": "gateway/mirror.py",
+    "lines": 206,
+    "role": "跨会话投递镜像:send_message/cron 发出的消息按角色规约写入目标会话转写(assistant vs user 防交替违规)。"
+   },
+   {
+    "path": "gateway/profile_routing.py",
+    "lines": 166,
+    "role": "profile_routes 分层匹配:platform+guild/chat/thread specificity 加权、Discord parent-chain 继承。"
+   },
+   {
+    "path": "gateway/platform_registry.py",
+    "lines": 332,
+    "role": "平台注册表:PlatformEntry 元数据(auth env、cron 投递、standalone sender)+ register_deferred 惰性加载。"
+   },
+   {
+    "path": "gateway/hooks.py",
+    "lines": 227,
+    "role": "HookRegistry:~/.hermes/hooks/ 目录发现 HOOK.yaml+handler.py,gateway/session/agent/command:* 生命周期事件,emit_collect 决策钩子。"
+   },
+   {
+    "path": "gateway/status.py",
+    "lines": 2260,
+    "role": "PID/运行时状态/scoped token 锁:进程判活(pid+start time)、restart storm 检测、profile 归属判定。"
+   },
+   {
+    "path": "gateway/session_state.py",
+    "lines": 476,
+    "role": "SessionState/TurnState 聚合:per-key 运行态(agent、generation、lease token、queue)。"
+   },
+   {
+    "path": "gateway/stream_dispatch.py",
+    "lines": 132,
+    "role": "GatewayEventDispatcher:把 StreamEvent(MessageChunk/MessageStop/Commentary)分发到 consumer。"
+   },
+   {
+    "path": "gateway/stream_events.py",
+    "lines": 171,
+    "role": "流事件数据类型定义。"
+   },
+   {
+    "path": "gateway/streaming_tts_consumer.py",
+    "lines": 423,
+    "role": "流式 TTS 消费者:LLM delta tee 到语音合成管道。"
+   },
+   {
+    "path": "gateway/channel_directory.py",
+    "lines": 637,
+    "role": "聊天 ID→人类可读名录,供 cron deliver 目标解析。"
+   },
+   {
+    "path": "gateway/kanban_watchers.py",
+    "lines": 1493,
+    "role": "GatewayKanbanWatchersMixin:看板任务在网关内派发执行。"
+   },
+   {
+    "path": "gateway/drain_control.py",
+    "lines": 273,
+    "role": "外部 drain 控制文件协议(进入/退出 drain 的跨进程信号)。"
+   },
+   {
+    "path": "gateway/dead_targets.py",
+    "lines": 143,
+    "role": "投递死目标登记,避免向已失效 chat 反复重试。"
+   },
+   {
+    "path": "gateway/relay/adapter.py",
+    "lines": 2144,
+    "role": "通用 relay 适配器:WS 连接连接器、CapabilityDescriptor 协商、go_dormant 休眠、代投多逻辑平台。"
+   },
+   {
+    "path": "gateway/platforms/api_server.py",
+    "lines": 7188,
+    "role": "OpenAI 兼容 REST API server 适配器(X-Hermes-Session-Id 会话续接、429 并发帽)。"
+   },
+   {
+    "path": "gateway/platforms/webhook.py",
+    "lines": 1412,
+    "role": "入站/出站 webhook 适配器(HMAC 鉴权)。"
+   },
+   {
+    "path": "plugins/platforms/telegram/adapter.py",
+    "lines": 10147,
+    "role": "最大插件适配器:长轮询/webhook、forum topic、draft 流式、rich 消息。"
+   },
+   {
+    "path": "plugins/platforms/discord/adapter.py",
+    "lines": 10138,
+    "role": "Discord 适配器:auto-thread、语音频道、voice_mixer。"
+   },
+   {
+    "path": "plugins/platforms/slack/adapter.py",
+    "lines": 9088,
+    "role": "Slack Socket Mode 适配器 + block_kit 渲染。"
+   },
+   {
+    "path": "gateway/platforms/ADDING_A_PLATFORM.md",
+    "lines": 68,
+    "role": "内部添加平台指南(与 website 开发者文档互补)。"
+   }
+  ],
+  "module": "消息网关(gateway/ + gateway/platforms/ + plugins/platforms/,多平台单进程 messaging gateway)",
+  "overview": "gateway/ 是 hermes-agent 的常驻消息网关:单个 asyncio 进程同时连接 30+ 个消息平台(gateway/platforms/ 内置 9 个直连适配器 + relay 通用连接器 + plugins/platforms/ 22 个插件适配器,经 platform_registry 惰性加载),把各平台事件归一为 MessageEvent,按 build_session_key 确定性路由到会话并驱动 AIAgent 回合。围绕这条主链,它实现了消息型 harness 的一整套生存性机制:双层 busy 守卫(adapter _active_sessions/_pending_messages + runner busy_input_mode 的 interrupt/steer/redirect/queue 谱系,含子代理/压缩自动降级与 /approve、clarify 旁路)、按 resolved session_id 的回合租约防转写交错、GatewayStreamConsumer 把同步 token 流限速编辑/Telegram draft 流式投到平台、delivery ledger 用 state.db 四态检查点保证最终回复 crash 后诚实 at-least-once 重投、DM 配对(盐化哈希码 + owner CLI 批准)与多层 default-deny 授权联合、scale-to-zero 闲置休眠、指数退避重连 + 重启环路断路器 + resume-pending 恢复、关机 flush/取证/看门狗,以及 multiplex_profiles 单进程多租户(per-profile HERMES_HOME/secret scope/凭据冲突仲裁)与 profile_routes 按频道路由人格。文档(website/docs/developer-guide/gateway-internals.md)对主架构有覆盖,但守卫语义、配对方向、会话键示例均已过时,turn lease、delivery ledger 恢复细节、scale-to-zero 网关层、关机保全体系基本只存在于代码与源内注释。"
+ },
+ {
+  "capabilities": [
+   {
+    "name": "同进程子代理构建与隔离(delegate_task)",
+    "problem": "父代理需要把重推理/高噪音子任务外包出去,同时防止子任务的中间工具调用和推理污染父上下文,并防止子代理获得父代理没有的能力或触发用户交互/共享状态副作用。",
+    "implementation": "delegate_task 在主线程用 _build_child_agent 构建全新 AIAgent:全新对话(无父历史)、独立 task_id/终端会话、skip_context_files/skip_memory、ephemeral_system_prompt 由 goal+context+workspace hint 拼装。工具集三层治理:显式请求时与父工具集做交集(_expand_parent_toolsets 先展开复合工具集)、_strip_blocked_tools 剥离纯黑名单工具集、DELEGATE_BLOCKED_TOOLS(delegate_task/clarify/memory/send_message/cronjob)经 disabled_toolsets 在复合工具集展开后逐工具减除。子代理线程内安装非交互审批回调(默认 auto-deny)避免 input() 死锁父 TUI。凭据/模型/推理配置继承父代理,也可被 delegation.provider 配置整体重定向到便宜模型。",
+    "evidence": [
+     {
+      "loc": "tools/delegate_tool.py:48",
+      "excerpt": "DELEGATE_BLOCKED_TOOLS = frozenset(\n    [\n        \"delegate_task\",  # no recursive delegation\n        \"clarify\",  # no user interaction\n        \"memory\",  # no writes to shared MEMORY.md\n        \"send_message\",  # no cross-platform side effects"
+     },
+     {
+      "loc": "tools/delegate_tool.py:1281",
+      "excerpt": "        expanded_parent = _expand_parent_toolsets(parent_toolsets)\n        child_toolsets = [t for t in toolsets if t in expanded_parent]"
+     },
+     {
+      "loc": "tools/delegate_tool.py:1527",
+      "excerpt": "            quiet_mode=True,\n            ephemeral_system_prompt=child_prompt,\n            log_prefix=f\"[subagent-{task_index}]\",\n            platform=\"subagent\",\n            skip_context_files=True,\n            skip_memory=True,"
+     },
+     {
+      "loc": "tools/delegate_tool.py:76",
+      "excerpt": "def _subagent_auto_deny(command: str, description: str, **kwargs) -> str:\n    \"\"\"Auto-deny dangerous commands in subagent threads (safe default).\n\n    Returns 'deny' so the subagent sees a refusal it can recover from, and\n    never calls input() (which would deadlock the parent TUI).\n    \"\"\""
+     }
+    ],
+    "scale": "delegate_tool.py 共 3931 行,其中构建/隔离路径(_build_child_agent、toolset 治理、审批回调)约 900 行,复杂度高(凭据继承、api_mode 重推导、MCP 工具集保留等大量边界分支)。",
+    "learning_value": "high",
+    "learning_reason": "这是 harness 子代理隔离的教科书实现:工具集交集+黑名单双层防越权、上下文/记忆隔离、线程内审批回调防死锁,每个设计都对应真实事故编号,可直接迁移到任何多代理框架。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "AGENTS.md:993 称单任务可传可选 toolsets 参数,但模型侧 schema(DELEGATE_TASK_SCHEMA)根本没有 toolsets 字段,代码注释明确 'the model cannot choose or narrow them (no model-facing toolsets arg)'(tools/delegate_tool.py:2966-2968);website 用户文档(delegation.md:158)则是对的。"
+   },
+   {
+    "name": "leaf/orchestrator 角色与 spawn 深度治理",
+    "problem": "嵌套委派会指数级放大 API 开销并可能形成失控代理树,需要按角色精确授予再委派能力,并有全局熔断与深度上限。",
+    "implementation": "角色只有 leaf(默认,不能再委派)与 orchestrator(保留 delegation 工具集)。_build_child_agent 是唯一降级点:只有 orchestrator_enabled 开关打开且 child_depth < max_spawn_depth 时角色才生效,否则静默降级为 leaf。深度用 child._delegate_depth 逐层传递,delegate_task 入口再做 depth >= max_spawn 的硬拒绝。默认 MAX_DEPTH=1 即完全扁平(orchestrator 在默认配置下是 no-op),max_spawn_depth 有下限 1 无上限。orchestrator 的系统提示会追加'何时该/不该委派'与真实深度说明,避免模型幻想不存在的嵌套能力;工具 schema 的 role 描述也按当前配置动态改写(Nesting IS/OFF)。另有 set_spawn_paused 全局暂停开关供 TUI/RPC 冻结新 spawn。",
+    "evidence": [
+     {
+      "loc": "tools/delegate_tool.py:127",
+      "excerpt": "MAX_DEPTH = 1  # flat by default: parent (0) -> child (1); grandchild rejected unless max_spawn_depth raised."
+     },
+     {
+      "loc": "tools/delegate_tool.py:1242",
+      "excerpt": "    child_depth = getattr(parent_agent, \"_delegate_depth\", 0) + 1\n    max_spawn = _get_max_spawn_depth()\n    orchestrator_ok = _get_orchestrator_enabled() and child_depth < max_spawn\n    effective_role = role if (role == \"orchestrator\" and orchestrator_ok) else \"leaf\""
+     },
+     {
+      "loc": "tools/delegate_tool.py:931",
+      "excerpt": "    blocked_names = set(DELEGATE_BLOCKED_TOOLS)\n    if role == \"orchestrator\":\n        blocked_names.discard(\"delegate_task\")"
+     },
+     {
+      "loc": "tools/delegate_tool.py:3756",
+      "excerpt": "        nesting_note = (\n            f\"Nesting is OFF for this user (max_spawn_depth={max_depth}); \"\n            \"'orchestrator' is silently forced to 'leaf'. Raise \"\n            \"delegation.max_spawn_depth in config.yaml to enable.\"\n        )"
+     }
+    ],
+    "scale": "角色/深度相关代码(_normalize_role、_get_max_spawn_depth、_get_orchestrator_enabled、动态 schema、系统提示分支)约 300 行,逻辑集中、边界清晰。",
+    "learning_value": "high",
+    "learning_reason": "把'能力授予'从模型自由裁量改为配置驱动+单点降级,并把真实限额动态写回工具 schema 让模型看到真话——这是治理代理树失控的成熟模式。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "AGENTS.md:1005 称 max_spawn_depth 默认 2(暗示 orchestrator 开箱可用),代码默认是 1(tools/delegate_tool.py:127),默认配置下 role=orchestrator 会被静默降级为 leaf;website delegation.md:303 则正确写明 'default 1 = flat, so role=orchestrator is a no-op at defaults'。delegate_task 内部注释 2846 行 'default 2 for parity' 也是陈旧的。"
+   },
+   {
+    "name": "后台委派:持久化完成队列与 claim/ack 投递协议",
+    "problem": "后台子代理的结果必须在父代理空闲时以全新回合注入对话(不能拼接在 tool result 与 assistant 消息之间破坏角色交替和 prompt cache),且进程重启、多个消费者竞争、会话轮换时结果不能丢失或被错误会话吞掉。",
+    "implementation": "顶层模型发起的 delegate_task 一律后台执行(_model_background_value:非子代理即 background),批量作为一个异步单元 join 全部子代理后推送单条合并事件。dispatch_async_delegation(_batch) 在 _records_lock 单锁内做容量检查+登记(满员直接拒绝并回退同步执行,不排队),同时把 dispatch 写入 ~/.hermes/state.db 的 async_delegations 表。完成时 _push_completion_event 携带自包含任务源块(goal/context/model/时间/结果)入共享 process_registry.completion_queue;投递用 claim_completion_delivery 的 SQL CAS(300 秒 claim 过期、delivery_attempts 计数、超过 8 次转终态 dropped)实现跨进程互斥;重启后 restore_undelivered_completions 恢复 pending 事件并打 restored=True 标记强制正向所有权校验,recover_abandoned_delegations 按 owner_pid+进程启动时间判定属主死亡并记 outcome=unknown。",
+    "evidence": [
+     {
+      "loc": "tools/async_delegation.py:9",
+      "excerpt": "When the child finishes, a completion event is pushed onto the SHARED\n``process_registry.completion_queue`` with ``type=\"async_delegation\"``. The\nCLI (``cli.py`` process_loop) and gateway (``_run_process_watcher`` /"
+     },
+     {
+      "loc": "tools/async_delegation.py:766",
+      "excerpt": "        if running >= max_async_children:\n            return {\n                \"status\": \"rejected\",\n                \"error\": (\n                    f\"Async delegation capacity reached ({max_async_children} \""
+     },
+     {
+      "loc": "tools/async_delegation.py:394",
+      "excerpt": "            \"\"\"UPDATE async_delegations SET delivery_claim=?, delivery_claimed_at=?,\n                      delivery_attempts=delivery_attempts+1, updated_at=?\n               WHERE delegation_id=? AND delivery_state='pending'\n                 AND (delivery_claim IS NULL OR delivery_claimed_at < ?)\"\"\","
+     },
+     {
+      "loc": "tools/async_delegation.py:363",
+      "excerpt": "        for _delegation_id, payload in rows:\n            evt = json.loads(payload)\n            if isinstance(evt, dict):\n                evt[\"restored\"] = True\n            target_queue.put(evt)"
+     },
+     {
+      "loc": "tools/delegate_tool.py:3889",
+      "excerpt": "    is_subagent = getattr(parent_agent, \"_delegate_depth\", 0) > 0\n    return not is_subagent"
+     }
+    ],
+    "scale": "async_delegation.py 1515 行 + delegate_tool.py 后台分发段约 250 行;复杂度非常高(SQLite 持久化、claim CAS、会话路由、有限会话降级同步、wake 自 POST)。",
+    "learning_value": "high",
+    "learning_reason": "完整展示了'后台代理结果如何安全回注对话'这一 harness 核心难题的工程解:复用完成队列保消息交替合法、durable claim/ack 防丢防重、restored 标记防新会话吞旧结果,每一步都有 issue 编号佐证。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "AGENTS.md:986-989 仍描述'默认父代理同步等待、background=true 才异步',而代码中模型侧 background 参数已 DEPRECATED/IGNORED(schema 3854-3864),顶层调用一律后台;AGENTS.md:1012-1013 称后台委派 'still process-local',而完成事件实际持久化在 state.db 并在重启后恢复投递(仅子代理执行本身不跨重启)。website delegation.md 的 'Durable background completions' 一节是准确的。"
+   },
+   {
+    "name": "双层无进度停滞检测(取代墙钟超时)",
+    "problem": "对子代理设统一墙钟超时会误杀合法的长任务(深度审查、慢推理模型),但完全不设防又会让卡死的子代理永远占住父回合或让后台委派永远显示 dispatched。",
+    "implementation": "默认 DEFAULT_CHILD_TIMEOUT=None(无硬超时,child_timeout_seconds 可选回开)。同步路径:_run_single_child 起心跳线程每 30 秒把子代理活动转发给父的 _touch_activity 防网关误杀;同时跟踪 (iteration, current_tool, last_activity_ts) 三元组,全部冻结才累计 stale 周期,idle 阈值 15 周期(450s)、in-tool 阈值 40 周期(1200s),超限则停止心跳让网关 inactivity 超时自然触发。异步路径:单例 _stale_monitor_loop 通过注入的 progress_fn 采样所有子代理的进度 token,冻结超阈先 interrupt、给 120s 宽限让其走正常 finalize,仍不返回才强制发 stalled 终态事件。流式 chunk 与模型等待中的 activity 心跳都算进度,慢模型不会被误判。",
+    "evidence": [
+     {
+      "loc": "tools/delegate_tool.py:732",
+      "excerpt": "DEFAULT_CHILD_TIMEOUT: Optional[float] = None"
+     },
+     {
+      "loc": "tools/delegate_tool.py:748",
+      "excerpt": "_HEARTBEAT_STALE_CYCLES_IDLE = 15  # 15 * 30s = 450s idle between turns → stale\n_HEARTBEAT_STALE_CYCLES_IN_TOOL = 40  # 40 * 30s = 1200s stuck on same tool → stale"
+     },
+     {
+      "loc": "tools/delegate_tool.py:2072",
+      "excerpt": "                if _stale_count[0] >= stale_limit:\n                    logger.warning(\n                        \"Subagent %d appears stale (no progress for %d \"\n                        \"heartbeat cycles, tool=%s) — stopping heartbeat\","
+     },
+     {
+      "loc": "tools/async_delegation.py:109",
+      "excerpt": "_STALE_CHECK_INTERVAL = 30.0  # seconds between monitor sweeps\n_STALE_IDLE_SECONDS = 450.0  # no progress, no current tool → stalled\n_STALE_IN_TOOL_SECONDS = 1200.0  # no progress while inside a tool → stalled\n_STALL_GRACE_SECONDS = 120.0  # after interrupt, time for the runner to return"
+     }
+    ],
+    "scale": "同步心跳 + 异步 stale monitor 合计约 450 行,复杂度中高(区分 idle/in-tool 双阈值、interrupt→grace→force-finalize 三段式)。",
+    "learning_value": "high",
+    "learning_reason": "'基于进度而非时长'的停滞检测是对朴素 timeout 的重要升级,idle/in-tool 双阈值与 interrupt+宽限+强制终结三段式在长任务代理系统里普适。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "子代理摘要上下文预算与溢写分页",
+    "problem": "批量 fan-out 的 N 份完整摘要同时进入父上下文会撑爆窗口,触发压缩/429 死亡螺旋(issue #9126),但直接截断又会丢失子代理产出。",
+    "implementation": "_parent_summary_char_budget 用父代理剩余上下文余量(context_length - session_prompt_tokens - 压缩器保留)乘 _SUMMARY_HEADROOM_FRACTION=0.5 再除以批大小,按 ~4 chars/token 换算出每份摘要预算(下限 2000 字符),再与静态上限 delegation.max_summary_chars(默认 24000)取 MIN。超预算的摘要做 75% 头 + 25% 尾按行边界切片,全文 _spill_summary_to_file 落盘到 cache/delegation/(该目录被只读挂载进 Docker/Modal/SSH 远端后端),并在截断 footer 里给出精确的 read_file path/offset/limit 指令让父代理可分页读中间被省略部分。",
+    "evidence": [
+     {
+      "loc": "tools/delegate_tool.py:723",
+      "excerpt": "_SUMMARY_HEADROOM_FRACTION = 0.5"
+     },
+     {
+      "loc": "tools/delegate_tool.py:1907",
+      "excerpt": "        batch_token_budget = int(headroom_tokens * _SUMMARY_HEADROOM_FRACTION)\n        per_summary_tokens = batch_token_budget // max(1, n_summaries)\n        per_summary_chars = per_summary_tokens * 4  # ~4 chars/token"
+     },
+     {
+      "loc": "tools/delegate_tool.py:1860",
+      "excerpt": "        footer_lines.append(\n            f'To read the omitted middle: read_file path=\"{spill_path}\" '\n            f\"offset={middle_start_line} limit=200  (the file is the complete \"\n            f\"summary; raise/lower offset to page through it).\"\n        )"
+     }
+    ],
+    "scale": "约 200 行(_spill/_trim/_parent_summary_char_budget/_apply_summary_budget),实现精巧、独立可移植。",
+    "learning_value": "high",
+    "learning_reason": "'动态余量预算 + 头尾保留 + 溢写落盘 + 自描述分页指针'是处理子代理→父代理信息回传的上乘方案,比固定截断优雅得多,且完全不丢信息。",
+    "hidden_from_docs": true,
+    "doc_mismatch": null
+   },
+   {
+    "name": "委派实时转录(live transcripts)与强制脱敏",
+    "problem": "父代理/用户在子代理运行期间只能盲等合并摘要,无法观察子代理在做什么;而转录文件会被只读挂载进远端沙箱,任何凭据落入其中都等于泄漏。",
+    "implementation": "每次 delegate_task 在 cache/delegation/live/<delegation_id>/task-<n>.log 预创建带头部的 append-only 日志(tail -f 立即可用),wrap_progress_callback 把子代理的 assistant 文本/thinking/工具调用/工具结果/生命周期标记逐行写入,每行单行化+截断;路径通过工具返回值和 live_transcripts_hint 告知模型可随时 tail。写入前所有文本经 redact_sensitive_text(force=True) 强制脱敏(即使全局开关关闭),redactor 不可用时宁可扣留整行。保留 7 天,新 dispatch 时机会式清理。所有写入永不向 agent loop 抛异常,首次失败即禁用该 writer。",
+    "evidence": [
+     {
+      "loc": "tools/delegation_live_log.py:3",
+      "excerpt": "Every ``delegate_task`` dispatch creates one append-only, human-readable log\nper child under::\n\n    <hermes_home>/cache/delegation/live/<delegation_id>/task-<n>.log"
+     },
+     {
+      "loc": "tools/delegation_live_log.py:97",
+      "excerpt": "    ``force=True``: this is a safety boundary, so it must redact even when the\n    global toggle is off. Withholds the line rather than emitting raw text if\n    the redactor is somehow unavailable — losing a debug line costs less than\n    writing a live credential into a sandbox-readable file."
+     },
+     {
+      "loc": "tools/delegate_tool.py:3382",
+      "excerpt": "                payload[\"live_transcripts_hint\"] = (\n                    \"Each subagent streams a human-readable transcript of its \"\n                    \"operations to the file listed above (append-only, one per \"\n                    \"task). Read or `tail -f` these paths at any time to watch \""
+     }
+    ],
+    "scale": "delegation_live_log.py 424 行,复杂度中等;设计约束(永不抛异常、侧信道零缓存影响、强制脱敏)写得非常明确。",
+    "learning_value": "medium",
+    "learning_reason": "侧信道可观测性(不动消息内容、不碰 prompt cache)+ 把脱敏当安全边界强制执行,是多代理系统可观测性的实用范式;实现本身不难但边界意识值得学。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "ContextVar 委派语境隔离与 Kanban 身份防伪",
+    "problem": "delegate_task 子代理与父代理同进程,若父进程本身是 Kanban dispatcher 派生的 worker(env 里有 HERMES_KANBAN_*),子代理或 worker 内触发的 cron job 会被误认为任务属主,可能 kanban_complete 关掉 worker 的任务、覆盖真实结果。",
+    "implementation": "delegation_context.py 用两个 ContextVar 标记:delegated_child_context()(子代理构建+执行期间)与 non_dispatcher_owned_context()(worker 内 in-process cron)。唯一判定谓词 is_dispatcher_owned_worker_context() 要求两者皆否才信任 HERMES_KANBAN_* 身份。刻意不改 os.environ(env 是进程全局,会饿死 worker 自己的 claim 心跳)。跨 fork 时 delegated_child_subprocess_env/scrub_kanban_env 剥除 7 个 HERMES_KANBAN_* 变量并注入 HERMES_DELEGATED_CHILD_CONTEXT=1 血统标记。kanban_tools 的所有变更类工具经 _reject_delegated_child_mutation 对子代理直接拒绝,工具可见性 check_fn 也按此谓词分流 worker 面/orchestrator 面。",
+    "evidence": [
+     {
+      "loc": "agent/delegation_context.py:104",
+      "excerpt": "    if _DELEGATED_CHILD_CONTEXT.get():\n        return False\n    return not _NON_DISPATCHER_OWNED_CONTEXT.get()"
+     },
+     {
+      "loc": "agent/delegation_context.py:133",
+      "excerpt": "def scrub_kanban_env(env: Mapping[str, str] | MutableMapping[str, str]) -> dict[str, str]:\n    \"\"\"Return *env* with dispatcher-only Kanban variables removed.\"\"\"\n    cleaned = dict(env)\n    for key in KANBAN_ENV_KEYS:\n        cleaned.pop(key, None)\n    cleaned[DELEGATED_CHILD_ENV_MARKER] = \"1\""
+     },
+     {
+      "loc": "tools/kanban_tools.py:95",
+      "excerpt": "    return tool_error(\n        f\"{tool_name} refused: delegate_task child agents are not Kanban \"\n        \"run owners. Return findings to the parent agent; the dispatcher \"\n        \"worker or an explicitly configured Kanban orchestrator must perform \""
+     }
+    ],
+    "scale": "delegation_context.py 161 行 + kanban_tools.py 门控约 100 行;代码量小但概念密度高(ContextVar vs env、同进程多身份)。",
+    "learning_value": "high",
+    "learning_reason": "同进程多代理的'身份混淆'是极易被忽略的攻击面/事故源,这里用 ContextVar 作用域化身份而非污染全局 env 的做法非常干净,值得任何嵌套代理系统借鉴。",
+    "hidden_from_docs": true,
+    "doc_mismatch": null
+   },
+   {
+    "name": "Kanban dispatcher:原子 claim、回收与并发治理",
+    "problem": "多个全进程 worker + 可能并存的多个 dispatcher 共享一个 SQLite 看板,需要防止双 dispatcher 竞争、防止任务被双领取、检测崩溃/超时/失联 worker,并限制全局与每 profile 并发。",
+    "implementation": "dispatch_once 每 tick 先拿板级跨进程非阻塞 _dispatch_tick_lock(输者返回 skipped_locked 不写库),然后顺序执行:release_stale_claims(TTL 过期)→ detect_stale_running(心跳超时)→ detect_crashed_workers(worker_pid 死亡+启动时间校验,含限流 requeue)→ enforce_max_runtime → recompute_ready(父任务全 done 才促升)。claim_task 在 write_txn 里用 'UPDATE ... WHERE status=ready AND claim_lock IS NULL' 的 CAS 原子转 running 并插入 task_runs 行,还会在 claim 点强制'父未完成不得运行'的结构不变量。max_spawn 是活跃并发上限(计入已 running)而非每 tick 预算;另有 max_in_progress、max_in_progress_per_profile、failure_limit 连续失败自动 block 熔断。默认由 gateway 内嵌 dispatcher 跑,独立 daemon 已弃用需 --force。",
+    "evidence": [
+     {
+      "loc": "hermes_cli/kanban_db.py:4289",
+      "excerpt": "            UPDATE tasks\n               SET status        = 'running',\n                   claim_lock    = ?,\n                   claim_expires = ?,\n                   started_at    = COALESCE(started_at, ?)\n             WHERE id = ?"
+     },
+     {
+      "loc": "hermes_cli/kanban_db.py:8252",
+      "excerpt": "    with _dispatch_tick_lock(db_path) as held:\n        if not held:\n            return DispatchResult(skipped_locked=True)"
+     },
+     {
+      "loc": "hermes_cli/kanban_db.py:8304",
+      "excerpt": "    ``max_spawn`` is a **live concurrency cap**, not a per-tick spawn budget:\n    it counts tasks already in ``status='running'`` plus this tick's spawns\n    against the limit. So ``max_spawn=4`` means \"at most 4 workers running"
+     },
+     {
+      "loc": "hermes_cli/kanban_db.py:8320",
+      "excerpt": "    result = DispatchResult()\n    result.reclaimed = release_stale_claims(conn)\n    result.stale = detect_stale_running(\n        conn, stale_timeout_seconds=stale_timeout_seconds,\n    )\n    result.crashed = detect_crashed_workers(conn)"
+     }
+    ],
+    "scale": "kanban_db.py 10275 行(claim/回收/dispatch 核心约 2000 行)+ hermes_cli/kanban.py 3236 行 CLI;复杂度极高,是仓内最大的多代理协调内核。",
+    "learning_value": "high",
+    "learning_reason": "以 SQLite 为唯一协调内核实现多代理工作队列(CAS claim、TTL/心跳/PID 三重回收、单写 tick 锁、活跃并发语义)是'无新服务'多代理调度的完整参考实现。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "Kanban worker 生命周期协议(env 注入 spawn、stop-nudge、goal judge 门)",
+    "problem": "dispatcher 派生的 worker 是普通 CLI 代理进程,必须让它准确知道自己的任务身份/看板/工作区,必须以 kanban_complete/kanban_block 终态收尾(否则记 protocol violation),且 goal 模式下不能自说自话绕过验收。",
+    "implementation": "_default_spawn 以 'hermes -p <assignee> --cli chat -q \"work kanban task <id>\"' 起 detached 子进程:注入 HERMES_KANBAN_TASK/RUN_ID/CLAIM_LOCK/DB/BOARD/WORKSPACES_ROOT 钉死板上下文,HERMES_HOME 切 profile 配置,TERMINAL_CWD 锚定工作区,清除会话路由 env,输出重定向到板级 per-task 日志并轮转,返回 PID 供崩溃检测。HERMES_KANBAN_TASK 触发 kanban_* 工具进 schema。agent/kanban_stop.py 在 worker 无终态工具就想收尾时注入最多 2 次合成 nudge 强制其调用 kanban_complete/kanban_block。kanban_complete 对 goal_mode 任务先过辅助 judge(judge_goal),verdict!=done 则拒绝完成并指导补证据或建续任务;还有 created_cards 幻觉卡检测与 artifact 保全校验。",
+    "evidence": [
+     {
+      "loc": "hermes_cli/kanban_db.py:9019",
+      "excerpt": "    env[\"HERMES_KANBAN_TASK\"] = task.id\n    env[\"HERMES_KANBAN_WORKSPACE\"] = workspace"
+     },
+     {
+      "loc": "hermes_cli/kanban_db.py:9155",
+      "excerpt": "        proc = subprocess.Popen(  # noqa: S603 -- argv is a fixed list built above\n            cmd,\n            cwd=workspace if os.path.isdir(workspace) else None,\n            stdin=subprocess.DEVNULL,\n            stdout=log_f,\n            stderr=subprocess.STDOUT,"
+     },
+     {
+      "loc": "agent/kanban_stop.py:89",
+      "excerpt": "    return (\n        \"[System: You are a Hermes kanban worker. A plain-text reply is NOT a \"\n        \"terminal state for the board.\\n\\n\"\n        f\"Task `{tid}` is still `running`. Ending now without a board tool \""
+     },
+     {
+      "loc": "tools/kanban_tools.py:754",
+      "excerpt": "                if verdict != \"done\":\n                    return tool_error(\n                        f\"Goal completion rejected by judge: {reason}. \"\n                        f\"To proceed, either: (1) provide explicit acceptance \""
+     }
+    ],
+    "scale": "_default_spawn 约 210 行 + kanban_stop.py 108 行 + kanban_tools.py 完成/阻塞路径约 400 行;复杂度高(env 钉死、profile 切换、日志轮转、多重完成门)。",
+    "learning_value": "high",
+    "learning_reason": "展示了'把 LLM 代理当不可靠进程管理'的全套协议:身份经 env 注入、终态经合成 nudge 强制、验收经独立 judge 把关、汇报经幻觉检测过滤——每层都在补模型不守协议的坑。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "运行中 worker 双向通道:自动心跳 + 评论 steer 注入",
+    "problem": "长时任务 worker 若忘记调 kanban_heartbeat 会被 dispatcher 误回收;操作员想给运行中的 worker 补充指示,原本只能走 block→comment→unblock 或重启,时延和进度损失都大。",
+    "implementation": "agent loop 周期性调用 heartbeat_current_worker_from_env():从 HERMES_KANBAN_TASK/RUN_ID/CLAIM_LOCK 取身份,限流后自动执行 heartbeat_claim(续 claim TTL)+ heartbeat_worker(板面心跳),run_id 钉死防止给已被回收的旧 run 心跳。inject_new_comments_from_env() 以 6 秒最小间隔轮询任务评论表,首轮只播种水位(历史评论已在 worker 上下文里),之后把非本 profile 作者的新评论拼成 '[delivered mid-run]' 通知,经 agent.steer() 走 out-of-band steer 通道注入正在运行的会话,让操作员几秒内'对话'运行中的任务。两者均 best-effort、永不向 agent loop 抛异常。",
+    "evidence": [
+     {
+      "loc": "tools/kanban_tools.py:312",
+      "excerpt": "            claim_lock = os.environ.get(\"HERMES_KANBAN_CLAIM_LOCK\")\n            try:\n                kb.heartbeat_claim(conn, tid, claimer=claim_lock)"
+     },
+     {
+      "loc": "tools/kanban_tools.py:403",
+      "excerpt": "    note = (\n        \"New note\"\n        + (\"s\" if len(fresh) > 1 else \"\")\n        + \" on your kanban task from the operator (delivered mid-run). \""
+     },
+     {
+      "loc": "tools/kanban_tools.py:410",
+      "excerpt": "    try:\n        return bool(agent.steer(note))\n    except Exception:\n        logger.debug(\"comment-inject: steer failed\", exc_info=True)"
+     }
+    ],
+    "scale": "两个函数合计约 140 行,轻量但接进 agent loop 的钩子位置关键。",
+    "learning_value": "medium",
+    "learning_reason": "'harness 替模型兜底履约(自动心跳)'+'人类经 steer 通道实时干预运行中代理'是多代理人机协同的两个实用小机制,水位/限流/自动过滤自身评论的细节可直接抄。",
+    "hidden_from_docs": true,
+    "doc_mismatch": "kanban 文档只描述模型手动调用 kanban_heartbeat(kanban.md:297,395)与评论在(重)spawn 时读入(kanban.md:64),未提及 harness 层的自动心跳兜底与运行中评论 steer 注入。"
+   },
+   {
+    "name": "批量轨迹生成(batch_runner + toolset 概率采样 + mini_swe_runner)",
+    "problem": "research 场景需要对成千上万 prompt 并行跑完整代理会话产出训练轨迹,要求断点续跑、工具集多样性采样、每样本独立沙箱镜像,以及一个极简单工具的 SWE 基线 runner。",
+    "implementation": "BatchRunner 把 JSONL 数据集切批,multiprocessing.Pool(num_workers) + imap_unordered 并行跑批,每完成一批原子写 checkpoint.json(completed_prompts 集合)支持 --resume 崩溃续跑;每条 prompt 经 sample_toolsets_from_distribution 按分布(default/research/science/development/safe 等)独立掷骰采样工具集制造轨迹多样性,支持数据集行内 image 字段为该任务注册 Docker/Modal/Singularity/Daytona 镜像覆盖;代理以 skip_context_files/skip_memory 运行保持轨迹干净,输出含 tool_stats/reasoning_stats。mini_swe_runner 则是仅暴露单个 terminal 工具的极简循环,用命令输出中的 MINI_SWE_AGENT_FINAL_OUTPUT 哨兵判定完成,产出与 batch_runner 兼容的 Hermes from/value 轨迹格式。",
+    "evidence": [
+     {
+      "loc": "batch_runner.py:920",
+      "excerpt": "        with Pool(processes=self.num_workers) as pool:"
+     },
+     {
+      "loc": "batch_runner.py:961",
+      "excerpt": "                    for result in pool.imap_unordered(_process_batch_worker, tasks):"
+     },
+     {
+      "loc": "toolset_distributions.py:271",
+      "excerpt": "        if random.random() * 100 < probability:\n            selected_toolsets.append(toolset_name)"
+     },
+     {
+      "loc": "batch_runner.py:344",
+      "excerpt": "            skip_context_files=True,  # Don't pollute trajectories with SOUL.md/AGENTS.md\n            skip_memory=True,  # Don't use persistent memory in batch runs"
+     },
+     {
+      "loc": "mini_swe_runner.py:525",
+      "excerpt": "                        if \"MINI_SWE_AGENT_FINAL_OUTPUT\" in result[\"output\"]:\n                            print(\"   ✅ Task completion signal detected!\")\n                            completed = True"
+     }
+    ],
+    "scale": "batch_runner.py 1330 行 + mini_swe_runner.py 732 行 + toolset_distributions.py 358 行;复杂度中等,工程化程度(进度条、checkpoint、镜像预检)较高。",
+    "learning_value": "medium",
+    "learning_reason": "是'代理 harness 兼作训练数据工厂'的直接样本:工具集概率采样制造分布多样性、轨迹格式与 ephemeral system prompt 分离、断点续跑,这些是做 agent RL/SFT 数据管线的常见需求。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "MoA(Mixture of Agents)循环:并行参考模型 + 聚合器代行",
+    "problem": "困难任务需要多模型视角,但仍要保留正常代理循环(工具调用、迭代、中断、会话持久化);参考模型不能拿到工具 schema(严格 provider 会 400),又必须看到代理真实做过什么才能给出有依据的建议。",
+    "implementation": "MoA 是虚拟 provider:preset 的 aggregator 是 acting model,MoAChatCompletions 在每次主模型调用前经 _run_references_parallel 并行 fan-out 全部参考模型(ThreadPoolExecutor + 轮询 wait 支持用户中断,被放弃的在飞调用经 late_accounting_sink 补记费用),_reference_messages 把完整对话扁平化为纯 user/assistant 文本——工具调用渲染成 '[called tool: name(args)]'、工具结果头尾截断折入前一 assistant 回合,结尾必补合成 user 回合满足 Anthropic 无前缀填充规则;参考输出按 state 签名缓存(新工具结果=miss 重跑)。聚合器收到参考指导块后以正常工具 schema 行动。另有 every_n 节奏、privacy_filter(display/full 两级 PII 脱敏)、全部参考失败时跳过聚合直接降级、moa_trace 落盘全保真 JSONL(含每参考完整输入输出与用量成本)。",
+    "evidence": [
+     {
+      "loc": "agent/moa_loop.py:789",
+      "excerpt": "    Like ``delegate_task``'s batch mode, every reference is dispatched at once\n    and we block until all of them finish before handing the joined results to\n    the aggregator. Output order matches ``reference_models`` so the"
+     },
+     {
+      "loc": "agent/moa_loop.py:1012",
+      "excerpt": "      - assistant turns: kept; any ``tool_calls`` are rendered inline as\n        ``[called tool: name(args)]`` text lines appended to the turn's text.\n      - ``tool``-role results: NOT dropped. Each is folded (head+tail preview,"
+     },
+     {
+      "loc": "agent/moa_loop.py:1113",
+      "excerpt": "    if rendered and rendered[-1].get(\"role\") == \"assistant\":\n        rendered.append({\"role\": \"user\", \"content\": _ADVISORY_INSTRUCTION})"
+     },
+     {
+      "loc": "agent/moa_loop.py:1505",
+      "excerpt": "class MoAChatCompletions:\n    \"\"\"OpenAI-chat-compatible facade where the aggregator is the acting model.\"\"\""
+     },
+     {
+      "loc": "agent/moa_trace.py:127",
+      "excerpt": "        base.mkdir(parents=True, exist_ok=True)\n        path = base / f\"{_sanitize_session_id(session_id)}.jsonl\""
+     }
+    ],
+    "scale": "moa_loop.py 2384 行 + moa_trace.py 167 行;复杂度很高(缓存签名、跨 provider 消息形状兼容、中断后费用追认、隐私过滤)。",
+    "learning_value": "high",
+    "learning_reason": "把 MoA 做成'OpenAI 兼容 facade 的虚拟 provider'而非独立循环,使其零成本复用整个 harness(工具、会话、中断);advisory view 的消息形状工程(扁平化工具转录、末尾合成 user 回合)浓缩了大量跨 provider 兼容实战经验。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "website/docs/user-guide/features/mixture-of-agents.md:55 称参考模型'receive only the conversation's user/assistant text — not the Hermes system prompt or tool-call transcript',但代码的 advisory view 刻意保留工具转录:tool_calls 渲染为 '[called tool: ...]'、工具结果折入 assistant 文本(agent/moa_loop.py:1006-1016);'不含 system prompt'部分属实,'不含 tool-call transcript'与实现相反。"
+   }
+  ],
+  "doc_conflicts": [
+   {
+    "claim": "AGENTS.md:986-989:\"By default the parent waits for the child's summary before continuing its own loop. With `background=true`, Hermes returns a delegation id immediately\"",
+    "reality": "模型侧 background 参数已 DEPRECATED/IGNORED(schema 描述明说 'Setting this has no effect'),注册 handler 用 _model_background_value 强制:顶层(depth==0)模型调用一律后台执行,只有 orchestrator 子代理(depth>0)同步等待自己的 worker。",
+    "evidence_loc": "tools/delegate_tool.py:3889"
+   },
+   {
+    "claim": "AGENTS.md:993:\"**Single:** pass `goal` (+ optional `context`, `toolsets`)\"",
+    "reality": "DELEGATE_TASK_SCHEMA 的 properties 只有 goal/context/tasks/role/background,没有 toolsets;delegate_task 调用 _build_child_preserving_parent_tools 时硬编码 toolsets=None,注释明确 'the model cannot choose or narrow them (no model-facing toolsets arg)'。website delegation.md:158 的说法才与代码一致。",
+    "evidence_loc": "tools/delegate_tool.py:2967"
+   },
+   {
+    "claim": "AGENTS.md:1005:role=\"orchestrator\" \"bounded by `delegation.max_spawn_depth` (default 2)\"",
+    "reality": "代码默认 MAX_DEPTH = 1('flat by default'),_get_max_spawn_depth 无配置时返回 1,因此默认配置下 child_depth(1) < max_spawn(1) 不成立,role=orchestrator 被静默降级为 leaf;website delegation.md:303 正确写明 'default 1 = flat, so role=orchestrator is a no-op at defaults'。delegate_task 内部 2846 行注释 'default 2 for parity' 同样陈旧。",
+    "evidence_loc": "tools/delegate_tool.py:127"
+   },
+   {
+    "claim": "AGENTS.md:1012-1013:\"background `delegate_task` is detached from the current turn but still process-local\"(暗示无任何跨重启机制)",
+    "reality": "后台委派的 dispatch 与完成事件持久化在 state.db 的 async_delegations 表:重启后 restore_undelivered_completions 恢复未投递完成事件(打 restored=True 强制所有权校验),recover_abandoned_delegations 把属主进程消失的记录转为 outcome=unknown 并照常投递。仅子代理执行本身不跨重启,结果投递是持久的(website delegation.md 'Durable background completions' 一节有准确描述)。",
+    "evidence_loc": "tools/async_delegation.py:363"
+   },
+   {
+    "claim": "website/docs/user-guide/features/mixture-of-agents.md:55:参考模型 \"receive only the conversation's user/assistant text — not the Hermes system prompt or tool-call transcript\"",
+    "reality": "_reference_messages 的 advisory view 刻意保留工具轨迹:assistant 的 tool_calls 渲染为 '[called tool: name(args)]' 文本,tool-role 结果头尾截断后以 '[tool result: ...]' 折入前一 assistant 回合;docstring 明说参考模型 'must see what the agent actually did — its tool calls AND the tool results'。仅 system prompt 被丢弃这半句属实。",
+    "evidence_loc": "agent/moa_loop.py:1012"
+   },
+   {
+    "claim": "website/docs/user-guide/features/delegation.md:211:\"Background delegations (`delegate_task(background=true)`) are watched by a ...\"(仍以 background=true 作为触发方式表述)",
+    "reality": "background 参数对模型已无效(DEPRECATED / IGNORED,tools/delegate_tool.py:3854-3864),后台化由 harness 按调用者深度自动决定;该文档其余部分(自动后台、durable completions)与代码一致,仅此处措辞沿用旧参数。",
+    "evidence_loc": "tools/delegate_tool.py:3857"
+   }
+  ],
+  "key_files": [
+   {
+    "path": "tools/delegate_tool.py",
+    "lines": 3931,
+    "role": "delegate_task 核心:子代理构建/隔离、角色与深度治理、并发上限、心跳停滞检测、摘要预算与溢写、动态工具 schema、凭据池与后台分发入口。"
+   },
+   {
+    "path": "tools/async_delegation.py",
+    "lines": 1515,
+    "role": "后台委派注册表:daemon 执行器、容量拒绝、SQLite 持久化(async_delegations 表)、完成事件 claim/ack 投递协议、重启恢复、progress 基 stale monitor。"
+   },
+   {
+    "path": "agent/subagent_lifecycle.py",
+    "lines": 540,
+    "role": "面向插件的公开子代理生命周期 API(SubagentLifecycleService):不暴露 AIAgent,launch/status/wait/cancel/result/reconnect + HMAC capability 与 correlation_id 去重(见 website/docs/developer-guide/subagent-lifecycle-api.md)。"
+   },
+   {
+    "path": "agent/delegation_context.py",
+    "lines": 161,
+    "role": "ContextVar 委派语境标记:delegated child / non-dispatcher-owned 判定谓词、跨 fork 的 HERMES_KANBAN_* env 洗刷与血统标记。"
+   },
+   {
+    "path": "tools/delegation_live_log.py",
+    "lines": 424,
+    "role": "委派实时转录:预创建 append-only per-task 日志、进度回调包装、强制凭据脱敏、manifest 状态、7 天保留清理。"
+   },
+   {
+    "path": "agent/kanban_stop.py",
+    "lines": 108,
+    "role": "kanban worker 收尾守卫:未调用 kanban_complete/kanban_block 就想结束时注入最多 2 次合成 nudge。"
+   },
+   {
+    "path": "hermes_cli/kanban_db.py",
+    "lines": 10275,
+    "role": "Kanban 内核(不在任务点名单但为核心依赖):SQLite schema/迁移/修复、claim_task CAS、TTL/心跳/PID 三重回收、dispatch_once 单写 tick 锁与并发上限、_default_spawn worker 进程注入。"
+   },
+   {
+    "path": "hermes_cli/kanban.py",
+    "lines": 3236,
+    "role": "hermes kanban CLI:boards/create/list/claim/complete/block/dispatch/daemon(已弃用需 --force)/watch/swarm/specify/decompose/repair 等全部动词 + /kanban slash 入口。"
+   },
+   {
+    "path": "tools/kanban_tools.py",
+    "lines": 2250,
+    "role": "模型侧 kanban_* 工具面:worker/orchestrator 双模门控、委派子代理变更拒绝、goal judge 完成门、幻觉卡检测、自动心跳与运行中评论 steer 注入。"
+   },
+   {
+    "path": "hermes_cli/kanban_swarm.py",
+    "lines": 278,
+    "role": "Kanban Swarm v1:在既有看板内核上一次性写入 root/并行 worker/verifier/synthesizer 任务图,黑板为 root 卡上的结构化 JSON 评论。"
+   },
+   {
+    "path": "gateway/kanban_watchers.py",
+    "lines": 1493,
+    "role": "gateway 内嵌 dispatcher tick 与看板事件观察者(完成通知、auto-decompose 触发),dispatch_in_gateway=true 的宿主。"
+   },
+   {
+    "path": "hermes_cli/kanban_decompose.py",
+    "lines": 468,
+    "role": "triage 任务的 LLM 自动分解:读 profile 名册产出 JSON 任务图并落卡。"
+   },
+   {
+    "path": "hermes_cli/kanban_specify.py",
+    "lines": 264,
+    "role": "单任务规格重写(specify):用辅助模型把粗糙卡片改写为可执行规格。"
+   },
+   {
+    "path": "hermes_cli/kanban_diagnostics.py",
+    "lines": 1133,
+    "role": "看板诊断:dispatcher 存活、僵尸 claim、配置错误等健康检查,供 CLI diagnostics 与 dashboard 使用。"
+   },
+   {
+    "path": "plugins/kanban/dashboard/plugin_api.py",
+    "lines": 2862,
+    "role": "看板 dashboard 插件后端:FastAPI 路由薄封装 kanban_db,/events WebSocket tail task_events 表推实时更新,session-token 鉴权。"
+   },
+   {
+    "path": "plugins/kanban/dashboard/dist/index.js",
+    "lines": 4469,
+    "role": "看板 dashboard 前端产物(拖拽列、评论线程、创建对话框、Auto/Manual 编排开关)。"
+   },
+   {
+    "path": "plugins/kanban/dashboard/dist/style.css",
+    "lines": 1592,
+    "role": "dashboard 前端样式产物。"
+   },
+   {
+    "path": "plugins/kanban/dashboard/manifest.json",
+    "lines": 14,
+    "role": "dashboard 插件清单(tab 挂载点、entry/css/api 声明)。"
+   },
+   {
+    "path": "plugins/kanban/systemd/hermes-kanban-dispatcher.service",
+    "lines": 32,
+    "role": "已弃用的独立 dispatcher systemd 单元,现经 --force 调用并警告与 gateway 内嵌 dispatcher 竞争风险。"
+   },
+   {
+    "path": "batch_runner.py",
+    "lines": 1330,
+    "role": "批量轨迹生成:multiprocessing Pool 并行批处理、原子 checkpoint 断点续跑、每 prompt 工具集采样与容器镜像覆盖、tool/reasoning 统计聚合。"
+   },
+   {
+    "path": "mini_swe_runner.py",
+    "lines": 732,
+    "role": "极简单工具 SWE runner:仅 terminal 工具 + MINI_SWE_AGENT_FINAL_OUTPUT 哨兵判完成,输出 Hermes from/value 轨迹格式。"
+   },
+   {
+    "path": "toolset_distributions.py",
+    "lines": 358,
+    "role": "轨迹生成用工具集概率分布定义与独立掷骰采样(default/research/science/development/safe 等)。"
+   },
+   {
+    "path": "agent/moa_loop.py",
+    "lines": 2384,
+    "role": "MoA 运行时:参考模型并行 fan-out(可中断+迟到费用追认)、advisory view 消息扁平化、聚合器代行 facade(MoAChatCompletions/MoAClient)、privacy filter、every_n 节奏。"
+   },
+   {
+    "path": "agent/moa_trace.py",
+    "lines": 167,
+    "role": "MoA 全保真回合 trace:moa.save_traces 开启时按 session 追加 JSONL(每参考完整输入输出+用量成本+聚合器输出定位)。"
+   }
+  ],
+  "module": "委派与多智能体(delegation & multi-agent)",
+  "overview": "该子系统提供 Hermes 的四条多智能体路径:(1) delegate_task 同进程子代理——在主线程构建隔离的子 AIAgent(全新对话、独立终端会话/task_id、工具集交集+黑名单、skip_context_files/skip_memory),leaf/orchestrator 角色控制再委派能力并受 max_spawn_depth(默认 1=扁平)与全局 kill switch 约束;顶层模型调用一律后台执行,批量作为单个异步单元 join 后经持久化完成队列(state.db + claim/ack 投递协议)以全新回合回注对话,配套双层无进度停滞检测(同步心跳 staleness + 异步 stale monitor)取代墙钟超时、摘要按父上下文余量预算截断并溢写落盘、可 tail 的强制脱敏实时转录。(2) Kanban 看板——以 SQLite(kanban.db)为唯一协调内核的跨进程多 worker 队列:gateway 内嵌 dispatcher 每 tick 在板级单写锁下做 TTL/心跳/PID 三重回收、依赖促升与 CAS claim,再以 env 注入方式 spawn 全进程 worker(hermes -p <profile> chat -q),worker 经 kanban_* 工具收尾,harness 层有 stop-nudge、goal judge 完成门、自动心跳与运行中评论 steer 注入;delegation_context 的 ContextVar 标记防止同进程子代理/cron 冒充 dispatcher 属主。(3) research 场景批量轨迹生成——batch_runner(多进程+checkpoint+工具集概率采样+每样本容器镜像)与 mini_swe_runner(单 terminal 工具+哨兵完成)。(4) MoA——虚拟 provider 形式的 mixture-of-agents:参考模型并行 fan-out 后由聚合器作为 acting model 走正常代理循环,advisory view 把工具转录扁平化为纯文本以兼容严格 provider。另有面向插件的 SubagentLifecycleService 公共生命周期 API。AGENTS.md 的委派一节明显滞后于代码(background 语义、toolsets 参数、max_spawn_depth 默认值均与实现不符),而 website 用户文档基本准确。"
+ },
+ {
+  "capabilities": [
+   {
+    "name": "60s tick 循环:跨进程文件锁 + 并行/串行双线程池调度",
+    "problem": "多个进程(gateway 内置 ticker、独立 daemon、手动 hermes cron run)可能同时 tick 同一个 jobs.json,导致重复触发;同时单个长任务不能阻塞整个调度器,而带 workdir 的任务会改进程级全局 os.environ['TERMINAL_CWD'],并发会互相污染。",
+    "implementation": "入口 cron/scheduler.py::tick():先以 ~/.hermes/cron/.tick.lock 上非阻塞 flock(Unix)/msvcrt(Windows)排他锁,拿不到锁直接跳过本次 tick;拿到后把 due jobs 按是否有 workdir 分成两组——workdir 任务进单线程 sequential pool(串行),其余进 persistent parallel pool(HERMES_CRON_MAX_PARALLEL / cron.max_parallel_jobs 限并发)。_submit_with_guard 用 _running_job_ids 集合做 in-flight 去重(上一 tick 未完的任务不重复入队),并用 contextvars.copy_context() 把调度线程上下文带进 worker。另有 _ReadWriteLock:workdir 任务持写锁独占 TERMINAL_CWD 覆盖,无 workdir 任务持读锁并行。gateway 异步模式下 tick 不等待任务完成,用 done-callback 在最后一个任务结束后清扫 MCP 孤儿子进程。",
+    "evidence": [
+     {
+      "loc": "cron/scheduler.py:4182",
+      "excerpt": "        if fcntl:\n            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n        elif msvcrt:\n            msvcrt.locking(lock_fd.fileno(), msvcrt.LK_NBLCK, 1)"
+     },
+     {
+      "loc": "cron/scheduler.py:4266",
+      "excerpt": "        sequential_jobs = [j for j in due_jobs if (j.get(\"workdir\") or \"\").strip()]\n        parallel_jobs = [j for j in due_jobs if not (j.get(\"workdir\") or \"\").strip()]"
+     },
+     {
+      "loc": "cron/scheduler.py:4291",
+      "excerpt": "            with _running_lock:\n                if job_id in _running_job_ids:\n                    logger.info(\"Job '%s' already running — skipping\", job.get(\"name\", job_id))\n                    return None\n                _running_job_ids.add(job_id)"
+     }
+    ],
+    "scale": "tick() 约 280 行 + 池管理/锁约 200 行;中高复杂度(跨平台锁、双池分区、shutdown 竞态防护)",
+    "learning_value": "high",
+    "learning_reason": "文件锁 + in-flight 去重 + 双池分区是任何多进程 agent 调度器的通用骨架;TERMINAL_CWD 读写锁展示了『进程级全局状态如何在并行任务下被安全覆盖』的完整解法。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "AGENTS.md 只提到 .tick.lock 文件锁;并行/串行双池、workdir 读写锁、in-flight 去重均未见于任何文档。"
+   },
+   {
+    "name": "自然语言 schedule 解析与时区锚定/偏移修复",
+    "problem": "用户以四种语法(时长、every 间隔、5 字段 cron、ISO 时间戳)提交计划;naive 时间戳若按服务器本地时区解释会与配置时区(hermes_time.now())相差数小时,导致 one-shot 永不 due;主机/配置时区迁移后存量 next_run_at 的旧 offset 会造成提前触发+二次触发(#28934)。",
+    "implementation": "cron/jobs.py::parse_schedule() 按顺序尝试:'every X' → interval(parse_duration 换算分钟);5 个以上纯 cron 字段 → croniter 校验后存 expr;含 T/日期形状 → ISO one-shot,naive 时间戳在解析时锚定到 Hermes 配置时区(#51021);裸时长 → now+delta 的 one-shot。due 扫描时 _ensure_aware 把 legacy naive 值按系统本地时区回填;cron 类任务若 stored offset 与 now offset 不一致且 stored 墙钟仍在未来(_timezone_offset_mismatch + _stored_wall_clock_is_future),视为时区迁移,按当前时区重算 next_run_at 而不是按换算后的绝对时刻提前触发。",
+    "evidence": [
+     {
+      "loc": "cron/jobs.py:587",
+      "excerpt": "    if schedule_lower.startswith(\"every \"):\n        duration_str = schedule[6:].strip()\n        minutes = parse_duration(duration_str)"
+     },
+     {
+      "loc": "cron/jobs.py:632",
+      "excerpt": "            if dt.tzinfo is None:\n                hermes_tz = _hermes_now().tzinfo\n                dt = dt.replace(tzinfo=hermes_tz)"
+     },
+     {
+      "loc": "cron/jobs.py:2376",
+      "excerpt": "            if (\n                kind == \"cron\"\n                and next_run_dt <= now\n                and _timezone_offset_mismatch(raw_next_run_dt, now)\n                and _stored_wall_clock_is_future(raw_next_run_dt, now)\n            ):"
+     }
+    ],
+    "scale": "parse_schedule + 时区辅助约 200 行;中复杂度但边界推理密集(DST vs 迁移的 trade-off 有整段注释)",
+    "learning_value": "high",
+    "learning_reason": "『墙钟意图 vs 绝对时刻』是所有跨时区调度器的经典坑;这里给出了 naive 锚定、legacy 回填、offset 迁移修复三层完整方案且明确标注了 DST 边界的取舍。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "AGENTS.md:1061 宣称支持 \"every monday 9am\"、website cron.md:135 示例 \"every 1d at 09:00\"——parse_duration 的正则 ^(\\d+)\\s*(m|...|days)$ 均不接受这类表达式,实际会 raise ValueError。"
+   },
+   {
+    "name": "catchup/grace 窗口:过期 fast-forward 但仍补跑一次",
+    "problem": "gateway 宕机或长任务超过间隔后积压了多个错过的触发点:全部补跑会 burst-fire,全部跳过又会让『运行时长 > interval+grace』的任务被永远推迟(#33315 perpetual-defer)。",
+    "implementation": "cron/jobs.py::_compute_grace_seconds() 取调度周期的一半、clamp 到 [120s, 7200s];_get_due_jobs_locked() 中若 recurring 任务的 next_run_at 落后超过 grace,则把 next_run_at fast-forward 到下一个未来时点并立即持久化(防 crash 窗口、覆盖外部 fire_due 路径),但该任务仍然 append 进 due 列表执行一次,同时 record_catch_up_occurrence() 记账供 hermes cron status 展示。one-shot 有独立的 ONESHOT_GRACE_SECONDS=120 宽限(创建晚几秒仍可触发),已跑过的 one-shot 永不重新武装。",
+    "evidence": [
+     {
+      "loc": "cron/jobs.py:745",
+      "excerpt": "    MIN_GRACE = 120\n    MAX_GRACE = 7200  # 2 hours"
+     },
+     {
+      "loc": "cron/jobs.py:2404",
+      "excerpt": "                grace = _compute_grace_seconds(schedule)\n                if kind in {\"cron\", \"interval\"} and (now - next_run_dt).total_seconds() > grace:"
+     },
+     {
+      "loc": "cron/jobs.py:116",
+      "excerpt": "ONESHOT_GRACE_SECONDS = 120"
+     }
+    ],
+    "scale": "约 120 行;逻辑不长但语义精细(fast-forward 与『仍 fire 一次』的组合)",
+    "learning_value": "high",
+    "learning_reason": "『塌缩积压但保底补一枪』是错过窗口处理的最优折中,直接可移植到任何调度器;grace=半周期 clamp 的启发式也值得抄。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "at-most-once 语义栈:advance-first / claim_dispatch 预扣 / run_claim 心跳 / 执行台账",
+    "problem": "cron 触发有多层重复触发风险:同 HERMES_HOME 上 gateway+desktop 两个 60s ticker 会重复派发 one-shot(#59229);tick 进程在执行中途死掉会让有限次 one-shot 无限重发(#38758);合法长跑任务又不能被误判为死主而被另一进程抢走(#62002);重启后无法知道中断的执行是否产生过副作用。",
+    "implementation": "四层机制:(1) tick 在派发前先在文件锁内批量 advance_next_runs() 推进 recurring 任务的 next_run_at,保证 at-most-once;(2) jobs.py::claim_dispatch() 在副作用发生前原子递增 repeat.completed 并落盘,把有限次 one-shot 从 at-least-once 变为 at-most-times;(3) due 扫描时给 one-shot 盖 run_claim{at, by=machine_id},另一进程读到新鲜 claim 就跳过;运行监控线程按 _RUN_CLAIM_HEARTBEAT_SECONDS 周期用 heartbeat_run_claim(expected_owner=...) 比较所有者后刷新时间戳,让『claim 过期』真正等价于『持有进程已死』,TTL 从 HERMES_CRON_TIMEOUT 推导;(4) cron/executions.py 用 SQLite 台账记录每次 attempt(claimed→running→terminal),重启后 recover_interrupted_executions() 用 PID+进程启动时间验尸,把确认死掉的标为 status='unknown' 且绝不自动重试;wedged one-shot 移除时写 _write_wedged_oneshot_diagnostic 诊断文件(#73973)。",
+    "evidence": [
+     {
+      "loc": "cron/scheduler.py:4224",
+      "excerpt": "        advance_next_runs([job[\"id\"] for job in due_jobs])"
+     },
+     {
+      "loc": "cron/jobs.py:1902",
+      "excerpt": "            # Claim this dispatch before the side effect runs.\n            repeat[\"completed\"] = completed + 1\n            save_jobs(jobs)"
+     },
+     {
+      "loc": "cron/jobs.py:2501",
+      "excerpt": "                if kind == \"once\":\n                    claim = {\"at\": now.isoformat(), \"by\": _machine_id()}\n                    job[\"run_claim\"] = claim"
+     },
+     {
+      "loc": "cron/jobs.py:1944",
+      "excerpt": "            claim = job.get(\"run_claim\")\n            if not isinstance(claim, dict) or claim.get(\"by\") != expected_owner:\n                return False\n            claim[\"at\"] = _hermes_now().isoformat()"
+     },
+     {
+      "loc": "cron/executions.py:214",
+      "excerpt": "            cur = conn.execute(\n                \"\"\"UPDATE executions SET status='unknown', finished_at=?, error=?\n                   WHERE id=? AND status IN ('claimed','running')\"\"\","
+     }
+    ],
+    "scale": "跨 jobs.py/scheduler.py/executions.py 约 700 行;高复杂度(多进程、TTL、心跳、验尸恢复的完整分布式语义)",
+    "learning_value": "high",
+    "learning_reason": "这是整个子系统最硬核的部分:单机文件存储上实现了教科书级 exactly/at-most-once 语义分层(claim before side-effect、lease+heartbeat、owner compare-and-refresh、unknown 而非自动重试),几乎每一层都对应一个真实事故编号。",
+    "hidden_from_docs": true,
+    "doc_mismatch": "cron.md:264 只文档了 executions.db 台账一角;claim_dispatch 预扣、run_claim 心跳、advance-first、wedged 诊断文件在 README/AGENTS.md/website 均无覆盖。"
+   },
+   {
+    "name": "不活动看门狗与硬中断(而非文档宣称的 3 分钟)",
+    "problem": "失控的 agent 循环或挂死的 API 调用会永久占住 cron worker 线程;但合法任务可能连续跑几小时,不能用简单墙钟超时一刀切。",
+    "implementation": "run_job 把 agent.run_conversation 提交到单线程池,主线程每 5s 轮询:未完成时读 agent.get_activity_summary().seconds_since_activity(agent 在每次工具调用/API 调用/流式 token 时 _touch_activity 刷新,契约见 agent/session_activity.py),空闲超过 HERMES_CRON_TIMEOUT(默认 600s,0=无限)判定超时,调用 request_hard_interrupt(agent, ...) 硬中断并 raise TimeoutError,失败路径带上 last_activity/iteration/tool 的诊断快照。同一轮询循环还顺带做 one-shot 的 run_claim 心跳。另有独立的 SessionDB 构造超时(默认 10s,单独线程池 submit(SessionDB).result(timeout=...)),防止 wedged sqlite flock 把任务卡在 _running_job_ids 里永远 'already running — skipping'。",
+    "evidence": [
+     {
+      "loc": "cron/scheduler.py:3577",
+      "excerpt": "        else:\n            _cron_timeout = 600.0\n        _cron_inactivity_limit = _cron_timeout if _cron_timeout > 0 else None"
+     },
+     {
+      "loc": "cron/scheduler.py:3654",
+      "excerpt": "                    if _idle_secs >= _cron_inactivity_limit:\n                        _inactivity_timeout = True\n                        break"
+     },
+     {
+      "loc": "cron/scheduler.py:3684",
+      "excerpt": "            request_hard_interrupt(agent, \"Cron job timed out (inactivity)\")"
+     },
+     {
+      "loc": "cron/scheduler.py:2961",
+      "excerpt": "                _session_db = _session_db_pool.submit(SessionDB).result(timeout=_session_db_timeout)"
+     }
+    ],
+    "scale": "约 180 行;中复杂度(轮询循环叠加心跳、活动快照诊断)",
+    "learning_value": "high",
+    "learning_reason": "『按活动而非墙钟计超时』是无人值守 agent 的关键设计——允许长任务、只杀真挂死;配合 activity tracker 的诊断快照,超时报错自带 last_activity/tool 上下文。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "AGENTS.md:1073 宣称『3-minute hard interrupt on cron sessions』;代码实际是默认 600s 的不活动(inactivity)超时,可经 HERMES_CRON_TIMEOUT 调整、0 为无限,并非 3 分钟也非墙钟;website cron-internals.md:216 的描述才与代码一致。"
+   },
+   {
+    "name": "prompt 组装管道:script 预处理 / wakeAgent 门 / no_agent 模式 / context_from 链式任务",
+    "problem": "定时任务往往需要先采集数据再喂给 LLM,数据无变化时不应烧 token;经典 bash 看门狗根本不需要 LLM;下游任务需要引用上游任务的最新产出形成流水线。",
+    "implementation": "job.script 在构建 prompt 前先执行(_run_job_script:限定 HERMES_HOME/scripts/ 内、resolve 后 relative_to 校验防穿越/符号链接逃逸,.sh/.bash 走 bash 其余走 Python,经 build_subprocess_env 清洗凭据、stdout/stderr 过 redact_sensitive_text);stdout 末行是 {\"wakeAgent\": false} 则整体跳过 agent(_parse_wake_gate),空 stdout 也直接返回 None 跳过 AI 调用,有输出则以 '## Script Output' 前置注入 prompt。no_agent=True 时脚本即任务:stdout 原样投递、空输出静默、非零退出投递错误告警,完全不构造 AIAgent。context_from 把上游 job 的最新 output/<job>/<ts>.md 注入(job id 必须 12 位 hex 防路径注入,8000 字符截断)。组装完成后按内容分层过注入扫描(见安全栈)。",
+    "evidence": [
+     {
+      "loc": "cron/scheduler.py:2453",
+      "excerpt": "    if not isinstance(gate, dict):\n        return True\n    return gate.get(\"wakeAgent\", True) is not False"
+     },
+     {
+      "loc": "cron/scheduler.py:2271",
+      "excerpt": "    try:\n        path.relative_to(scripts_dir_resolved)\n    except ValueError:"
+     },
+     {
+      "loc": "cron/scheduler.py:2819",
+      "excerpt": "    if job.get(\"no_agent\"):"
+     },
+     {
+      "loc": "cron/scheduler.py:2516",
+      "excerpt": "            # Guard against path traversal — valid job IDs are 12-char hex strings\n            if not source_job_id or not all(c in \"0123456789abcdef\" for c in source_job_id):"
+     },
+     {
+      "loc": "cron/scheduler.py:2539",
+      "excerpt": "                _MAX_CONTEXT_CHARS = 8000\n                if len(latest_output) > _MAX_CONTEXT_CHARS:\n                    latest_output = latest_output[:_MAX_CONTEXT_CHARS] + \"\\n\\n[... output truncated ...]\""
+     }
+    ],
+    "scale": "_run_job_script + _build_job_prompt + no_agent 分支约 500 行;中高复杂度",
+    "learning_value": "high",
+    "learning_reason": "『脚本先行 + wakeAgent 门 + 空输出即静默』把 token 成本压到只在有事发生时才唤醒 LLM;context_from 用文件系统做任务间数据总线,是极轻量的 DAG 流水线实现。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "多平台投递:origin/all 路由令牌、home channel、live adapter 优先与 [SILENT] 静默",
+    "problem": "无人值守任务的产出要送回正确的会话面(创建它的聊天、指定平台/频道/话题、或全部已接入平台),平台可能在任务创建后才接入;E2EE 房间(Matrix)只有 live adapter 能加密;无事可报时不应打扰用户。",
+    "implementation": "deliver 字符串支持 local/origin/platform[:chat[:thread]]/all 及逗号组合,fire 时(而非创建时)解析:'all' 经 _expand_routing_tokens 展开为所有配好 home channel 的平台(_HOME_TARGET_ENV_VARS 映射 17+ 平台的 *_HOME_CHANNEL 环境变量,插件平台经 platform_registry 动态加入),按 (platform, chat_id, thread_id) 去重;origin 缺失时回退 home channel。_deliver_result 对每个 target 先尝试 gateway live adapter(需事件循环真在运行,live_adapter_ready 一次求值防漂移),失败回退无状态 HTTP 发送;MEDIA: 标签抽出为附件。agent 回复 [SILENT](含裸 SILENT/NO_REPLY 变体,经共享 is_autonomous_silence_response 匹配)则跳过投递但输出仍存档;失败任务必投递错误摘要(_summarize_cron_failure_for_delivery)。",
+    "evidence": [
+     {
+      "loc": "cron/scheduler.py:1283",
+      "excerpt": "    for platform_name in _iter_home_target_platforms():\n        if _get_home_target_chat_id(platform_name):\n            expanded.append(platform_name)\n    return expanded"
+     },
+     {
+      "loc": "cron/scheduler.py:264",
+      "excerpt": "_HOME_TARGET_ENV_VARS = {\n    \"matrix\": \"MATRIX_HOME_ROOM\",\n    \"telegram\": \"TELEGRAM_HOME_CHANNEL\","
+     },
+     {
+      "loc": "cron/scheduler.py:1622",
+      "excerpt": "        live_adapter_ready = (\n            runtime_adapter is not None\n            and loop is not None\n            and getattr(loop, \"is_running\", lambda: False)()\n        )"
+     },
+     {
+      "loc": "cron/scheduler.py:4053",
+      "excerpt": "            if should_deliver and success and _is_cron_silence_response(deliver_content):\n                logger.info(\"Job '%s': agent returned %s — skipping delivery\", job[\"id\"], SILENT_MARKER)\n                should_deliver = False"
+     }
+    ],
+    "scale": "delivery 解析+发送约 1000 行(_deliver_result 单函数 650 行);高复杂度(平台矩阵×live/standalone×thread 语义)",
+    "learning_value": "medium",
+    "learning_reason": "fire-time 解析路由令牌(而非创建时冻结)与 live-adapter-first 回退是多平台投递的通用模式;[SILENT] 契约展示了自治 lane 的静默协议如何与共享匹配器防语义漂移。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "cron 会话与主会话隔离 + user-role mirror 保交替",
+    "problem": "cron 运行不能污染用户真实会话:写进目标聊天的 assistant turn 会造成 assistant→assistant 破坏严格角色交替(#2221);cron 的系统提示混进记忆会腐蚀用户画像;HERMES_SESSION_* 若从 origin 继承,工具会误以为真人在驱动(通知路由、TTS 格式、send_message 门)。",
+    "implementation": "每次运行造独立会话 id cron_{job_id}_{ts},AIAgent 以 platform=\"cron\"、skip_memory=True、独立 session_db 构造,结束后 end_session('cron_complete') 并按 SessionDB 的 compression 谱系解析最终会话 id 后设标题。set_session_vars(platform=\"\", chat_id=\"\", async_delivery=False) 清空会话上下文并声明无状态通道,使 delegate_task 走同步路径;enter_non_dispatcher_owned_context() 用 ContextVar 防止 cron agent 被误认为 kanban worker。投递默认不写目标会话;开启 attach_to_session/cron.mirror_delivery 后,mirror 以 role=\"user\" + '[Cron delivery: ...]' 前缀落库(consecutive-user 可被 repair_message_sequence 安全合并),且仅镜像 origin 会话、不镜像广播目标;continuable 任务经 _open_continuable_cron_thread 开专属线程或 _seed_cron_channel_session 播种 flat 会话,会话键逐字段对齐用户后续回复会解析到的 build_session_key(Discord 线程键内幕、群聊需 origin 真实 user_id、DM 不嵌 user_id)。",
+    "evidence": [
+     {
+      "loc": "cron/scheduler.py:3030",
+      "excerpt": "    _cron_session_id = f\"cron_{job_id}_{_hermes_now().strftime('%Y%m%d_%H%M%S')}\""
+     },
+     {
+      "loc": "cron/scheduler.py:3551",
+      "excerpt": "            skip_context_files=not bool(_job_workdir),\n            load_soul_identity=True,\n            skip_memory=True,  # Cron system prompts would corrupt user representations\n            platform=\"cron\",\n            session_id=_cron_session_id,\n            session_db=_session_db,"
+     },
+     {
+      "loc": "cron/scheduler.py:719",
+      "excerpt": "        # Mirror as a USER turn with a labelled prefix, NOT an assistant turn.\n        # The brief is not the agent speaking; an assistant-role mirror lands as\n        # assistant→assistant after the agent's last turn and breaks strict\n        # alternation (issue #2221, the exact failure #2313 removed). A\n        # user-role turn collapses safely via repair_message_sequence's"
+     },
+     {
+      "loc": "cron/scheduler.py:3167",
+      "excerpt": "        _non_dispatcher_token = enter_non_dispatcher_owned_context()"
+     }
+    ],
+    "scale": "会话隔离+mirror/seeding 约 700 行;高复杂度(角色交替、会话键对齐、per-user 隔离群聊)",
+    "learning_value": "high",
+    "learning_reason": "『机器产出的消息以 user-role+标签落库』是解决严格交替模型下自治消息注入的标准答案;seed 会话键必须逐字段等于未来入站回复的键,这个约束在别处极少被讲透。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "AGENTS.md:1082 与 website cron-internals.md:272 均断言 cron 投递『绝不 mirror 到目标会话』;代码实为 attach_to_session/cron.mirror_delivery 可选开启,且 user-guide cron.md 的 Continuable jobs 一节已文档化该开关——两份内部文档已过时。"
+   },
+   {
+    "name": "无人值守安全栈:双层注入扫描、gateway 生命周期防护、凭据外泄与模型漂移 fail-closed",
+    "problem": "cron 非交互运行会自动批准工具调用,是注入攻击的最佳落点;任务还能调度 'hermes gateway restart' 造成 SIGTERM 重生死循环(#30719);存储的 provider+base_url 组合可把命名 provider 的密钥送到任意主机;未 pin 模型的任务会静默继承全局切换到付费模型($7.73 事故 #44585)。",
+    "implementation": "五层:(1) 创建/更新时 _scan_cron_prompt 用严格模式(_CRON_THREAT_PATTERNS 注入指令 + 命令形状 + _CRON_EXFIL_COMMAND_PATTERNS curl/wget 秘密外传 + 不可见 Unicode 硬阻断,ZWJ emoji 白名单);(2) 运行时对组装 prompt 分层:含技能/注入数据用宽松集(仅无歧义注入指令,不可见字符消毒而非阻断,防误杀永久废掉任务),纯用户 prompt 保持严格集,命中抛 CronPromptInjectionBlocked,agent 不运行并投递 BLOCKED 报告;(3) cron/lifecycle_guard.py 以命令形状正则(hermes gateway restart|stop、launchctl/systemctl/pkill 针对 gateway,含 shell 续行折叠、引用脚本递归扫描 8 层/1MB)在 create_job 拒绝自杀任务;(4) fire 时 _guard_job_credential_exfil 重验 provider/base_url 对,验证器自身出错也 fail closed;(5) 未 pin 任务对比创建时 provider/model 快照,漂移则跳过运行、零推理花费并投递告警。另:cron 运行强制禁用 cronjob/messaging/clarify/memory 工具集(防递归调度),用户 disabled_toolsets 叠加不可被 per-job enabled_toolsets 绕过(#25752)。",
+    "evidence": [
+     {
+      "loc": "tools/cronjob_tools.py:97",
+      "excerpt": "_CRON_THREAT_PATTERNS = [\n    (r'ignore\\s+(?:\\w+\\s+)*(?:previous|all|above|prior)\\s+(?:\\w+\\s+)*instructions', \"prompt_injection\"),\n    (r'do\\s+not\\s+tell\\s+the\\s+user', \"deception_hide\"),"
+     },
+     {
+      "loc": "cron/scheduler.py:2714",
+      "excerpt": "        cleaned, scan_error = _scan_cron_skill_assembled(assembled)\n        assembled = cleaned\n        if not scan_error and not has_skills and user_prompt:\n            # Data-injection path: keep the strict guarantee on the\n            # user-authored prompt itself.\n            scan_error = _scan_cron_prompt(user_prompt)"
+     },
+     {
+      "loc": "cron/lifecycle_guard.py:62",
+      "excerpt": "    r\"(?:hermes\\s+gateway\\s+(?:restart|stop))\""
+     },
+     {
+      "loc": "cron/scheduler.py:3477",
+      "excerpt": "                raise RuntimeError(\n                    f\"Skipped to prevent unintended spend: global inference config \"\n                    f\"drifted since this job was created ({_changes}), and this job \"\n                    f\"is unpinned. No inference call was made. To run on the new \""
+     },
+     {
+      "loc": "cron/scheduler.py:180",
+      "excerpt": "    disabled = [\"cronjob\", \"messaging\", \"clarify\", \"memory\"]"
+     },
+     {
+      "loc": "cron/scheduler.py:2750",
+      "excerpt": "        err = _validate_cron_base_url(job.get(\"provider\"), job.get(\"base_url\"))"
+     }
+    ],
+    "scale": "cronjob_tools 扫描器约 220 行 + lifecycle_guard 565 行 + scheduler 内 guard 约 200 行;高复杂度(误报/漏报平衡、fail-closed 决策树)",
+    "learning_value": "high",
+    "learning_reason": "自治 agent 的威胁模型完整样本:同一 prompt 面按内容来源分严格/宽松两档扫描、消毒 vs 阻断的选择、自杀命令的命令形状锚定、以及『漂移即拒跑』的花费保险丝,每层都写明了误报代价。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "contributing.md 只提『Scanner blocks instruction-override patterns』;双层宽严分级、不可见 Unicode 消毒、drift guard 快照轴语义(cron.model 覆盖轴跳过)仅部分见于 user-guide cron.md。"
+   },
+   {
+    "name": "CronScheduler provider 抽象(Axis B)与外部触发的 CAS 认领",
+    "problem": "内置 60s ticker 需要进程常驻,scale-to-zero 托管部署(Chronos)需要外部定时器唤醒;但触发器可替换时,执行/投递逻辑绝不能被 provider 重新实现,多副本部署还要保证一次 fire 只被一台机器认领。",
+    "implementation": "cron/scheduler_provider.py 定义 CronScheduler ABC(仅 name+start 必选,stop/is_available/on_jobs_changed/fire_due/reconcile 均带安全默认,ABC 增长必须 additive);resolve_cron_scheduler() 读 cron.provider,命名 provider 缺失/加载失败/不可用一律回退内置 ticker——cron 永不失去触发器。fire_due() 默认实现先 claim_job_for_fire(store 层 compare-and-set,多机 at-most-once),再走与内置 ticker 完全相同的 run_one_job 共享体(execute→save→deliver→mark);内置 InProcessCronScheduler.start() 支持 profile_homes 多路复用,每 tick 轮转每个 profile 的 cron store(#69377),并按 profile 记录 ticker 心跳/错误文件(record_ticker_heartbeat 等)供 hermes cron status 判活。",
+    "evidence": [
+     {
+      "loc": "cron/scheduler_provider.py:107",
+      "excerpt": "        if not claim_job_for_fire(job_id):\n            return False  # another machine already claimed this fire\n        job = get_job(job_id)\n        if job is None:\n            return False  # job removed (e.g. repeat-N exhausted) between arm and fire\n        job[\"execution_id\"] = create_execution(job_id, source=self.name)[\"id\"]"
+     },
+     {
+      "loc": "cron/scheduler_provider.py:141",
+      "excerpt": "    if not name or name in (\"builtin\", \"in-process\", \"inprocess\"):\n        return InProcessCronScheduler()"
+     },
+     {
+      "loc": "cron/scheduler_provider.py:204",
+      "excerpt": "        if profile_homes:\n            self._start_multiplex("
+     },
+     {
+      "loc": "cron/scheduler.py:3930",
+      "excerpt": "def run_one_job(job: dict, *, adapters=None, loop=None, verbose: bool = False) -> bool:\n    \"\"\"Run ONE due job end-to-end: execute → save output → deliver → mark."
+     }
+    ],
+    "scale": "357 行 + run_one_job 共享体 200 行;中复杂度,接口设计纪律性强",
+    "learning_value": "medium",
+    "learning_reason": "『触发与执行正交拆分 + 永远可回退的内置实现 + additive-only ABC 演进』是插件化调度器的干净范式;fire_due 的 CAS 认领展示了外部触发如何嫁接进单机语义栈。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "background_review:每回合后 fork agent 的自我改进回路(强隔离 + 缓存亲和)",
+    "problem": "每回合后要自动评估『该存什么记忆/更新哪个技能』,但审查 fork 绝不能写坏用户真实会话(curator-takeover:fork 的 harness prompt 落进 state.db 后用户下回合把它当常驻指令)、不能触发外部记忆插件、不能与父会话竞争压缩,还要尽量命中父会话的 prompt 前缀缓存省钱。",
+    "implementation": "agent/background_review.py 在 daemon 线程 fork 一个 AIAgent:共享父 session_id 换取前缀缓存命中(实测省 ~26% 成本),但 _persist_disabled=True 掐死所有 DB 写路径、compression_enabled=False 防 fork 赢得压缩竞赛把父会话转进无人认领的子谱系(#38727)、skip_memory=True + 手工回绑内置 memory store 实现外部 provider 零副作用;同模型未路由时逐字节复刻父请求(cached_system_prompt、reasoning_config、prefill deep-copy、OpenRouter provider pins),路由到廉价 aux 模型时改放压缩 digest(冷缓存下最小化写入 token);运行时以 set_thread_tool_whitelist 只放行 memory/skills 工具、危险命令 auto-deny(防 input() 死锁 TUI);thread_scoped_silence 只静音本线程 stdout。结束后汇总工具动作以 '💾 Self-improvement review' 回显。",
+    "evidence": [
+     {
+      "loc": "agent/background_review.py:828",
+      "excerpt": "            review_agent._persist_disabled = True\n            review_agent._session_db = None\n            review_agent._session_json_enabled = False"
+     },
+     {
+      "loc": "agent/background_review.py:903",
+      "excerpt": "            set_thread_tool_whitelist(\n                review_whitelist,"
+     },
+     {
+      "loc": "agent/background_review.py:854",
+      "excerpt": "                review_agent._cached_system_prompt = agent._cached_system_prompt"
+     },
+     {
+      "loc": "agent/background_review.py:881",
+      "excerpt": "            review_agent.compression_enabled = False"
+     }
+    ],
+    "scale": "1081 行;高复杂度(隔离矩阵 × 缓存字节级对齐 × 路由策略)",
+    "learning_value": "high",
+    "learning_reason": "『fork 共享会话 id 蹭缓存但禁一切持久化』是极精妙的成本/隔离平衡;文件里每个隔离开关都对应一个真实事故(curator takeover、#38727 压缩竞赛、#55769 全局 stdout 静音),是后台自治副作用控制的教科书。",
+    "hidden_from_docs": true,
+    "doc_mismatch": "website 仅在 auxiliary 模型路由配置(configuration.md)中出现 background_review 键名;fork 的隔离机制、缓存亲和策略、工具白名单在用户/开发者文档均无描述。"
+   },
+   {
+    "name": "后台守望与会话唤醒:kanban notifier/dispatcher 单例锁 + deliver_wake 双通道 + outbound webhooks",
+    "problem": "gateway 需要长期后台循环:把 kanban 任务的终态事件推给订阅者并唤醒创建者的原会话让 agent 接续处理;嵌入式 dispatcher 若被两个 gateway 同时运行会加倍 reclaim 并可能损坏 WAL 索引页;外部系统(CI、看板)需要在零轮询下得知 Hermes 生命周期事件。",
+    "implementation": "gateway/kanban_watchers.py::_kanban_notifier_watcher 每 5s 扫全部 board,claim_unseen_events_for_sub 原子认领事件游标(投递失败回滚游标),终态事件同时触发唤醒;gateway/wake.py::deliver_wake 按 adapter.supports_async_delivery 分流:push 型注入 MessageEvent(internal=True) 走 handle_message,无状态 API server 型则带 X-Hermes-Session-Id 头自 POST /v1/chat/completions 复活真实会话(429 退避重试,缺 API key 则 fail loud 而非落进无人看的指纹会话);_kanban_dispatcher_watcher 用机器级 .dispatcher.lock flock 单例锁做 dispatch_in_gateway 配置漂移的后备;agent/outbound_webhooks.py 把 hooks.outbound 注册为 notify-only 回调,序列化后进 256 深度有界队列由单 daemon 线程投递(满则丢并告警,决不阻塞 agent 循环),HMAC-SHA256 签名 X-Hermes-Signature-256,拒绝 3xx 重定向防签名体被降级成 GET,atexit flush 保 on_session_end 不丢。",
+    "evidence": [
+     {
+      "loc": "gateway/kanban_watchers.py:1011",
+      "excerpt": "        _lock_path = _kb.kanban_home() / \"kanban\" / \".dispatcher.lock\"\n        _lock_handle, _lock_state = _acquire_singleton_lock(_lock_path)\n        if _lock_state == \"contended\":"
+     },
+     {
+      "loc": "gateway/wake.py:80",
+      "excerpt": "        synth_event = MessageEvent(\n            text=text,\n            message_type=MessageType.TEXT,\n            source=source,\n            internal=True,\n        )"
+     },
+     {
+      "loc": "gateway/wake.py:126",
+      "excerpt": "    headers = {\n        \"Authorization\": f\"Bearer {api_key}\",\n        \"X-Hermes-Session-Id\": session_id,\n    }"
+     },
+     {
+      "loc": "agent/outbound_webhooks.py:444",
+      "excerpt": "        digest = hmac.new(\n            target.secret.encode(\"utf-8\"), body, hashlib.sha256\n        ).hexdigest()\n        headers[\"X-Hermes-Signature-256\"] = f\"sha256={digest}\""
+     }
+    ],
+    "scale": "kanban_watchers 1493 行 + wake 184 行 + outbound_webhooks 569 行;高复杂度(多 profile 适配器路由、游标回滚、双通道唤醒)",
+    "learning_value": "high",
+    "learning_reason": "deliver_wake 的双通道设计(push 平台合成内部事件 vs 无状态 API 自 POST 复活真实会话)解决了『后台事件如何回注到既有会话』这一 agent harness 通用难题;事件游标 claim/rewind 与有界 fire-and-forget 队列同样可直接复用。",
+    "hidden_from_docs": true,
+    "doc_mismatch": "outbound webhooks 与 kanban 通知在 hooks.md/kanban.md 有文档;但 deliver_wake 的会话唤醒机制(合成 internal 事件、X-Hermes-Session-Id 自 POST、按 chat_type 重建会话键 #56580)与 dispatcher 单例文件锁在任何文档中均未出现。"
+   }
+  ],
+  "doc_conflicts": [
+   {
+    "claim": "AGENTS.md:1073 宣称『**3-minute hard interrupt** on cron sessions — runaway agent loops cannot monopolize the scheduler.』",
+    "reality": "代码是不活动(inactivity)看门狗:默认 600s 无活动才触发 request_hard_interrupt,经 HERMES_CRON_TIMEOUT 可调、0=无限;活跃的长任务可以跑数小时。website cron-internals.md:216 的描述与代码一致,AGENTS.md 的『3 分钟』既不对数值也不对语义。",
+    "evidence_loc": "cron/scheduler.py:3578"
+   },
+   {
+    "claim": "AGENTS.md:1061 宣称支持 \"every monday 9am\";website/docs/user-guide/features/cron.md:135 与 :144 给出 `hermes cron create \"every 1d at 09:00\"` / `schedule=\"every 1d at 09:00\"` 示例",
+    "reality": "parse_schedule 的 'every ' 分支只走 parse_duration,其正则 ^(\\d+)\\s*(m|min|...|days)$ 不接受 'monday 9am' 或 '1d at 09:00',这些 schedule 会 raise ValueError('Invalid duration'),CLI 与 cronjob 工具均直接调 create_job→parse_schedule,无自然语言预处理层。",
+    "evidence_loc": "cron/jobs.py:553"
+   },
+   {
+    "claim": "AGENTS.md:1082『Cron deliveries are **not** mirrored into the target gateway session』;website/docs/developer-guide/cron-internals.md:272『Cron deliveries are NOT mirrored into gateway session conversation history.』",
+    "reality": "默认确实不 mirror,但代码提供 per-job attach_to_session 与全局 cron.mirror_delivery 开关,开启后以 user-role 标注 turn mirror 进 origin 会话,并有 continuable thread / in_channel 会话播种;user-guide cron.md 的 Continuable jobs 一节已文档化该功能,两份内部文档的绝对化表述已过时。",
+    "evidence_loc": "cron/scheduler.py:640"
+   }
+  ],
+  "key_files": [
+   {
+    "path": "cron/scheduler.py",
+    "lines": 4428,
+    "role": "子系统核心:tick 循环与文件锁、双线程池调度、run_job(会话隔离/看门狗/提供商解析/漂移防护)、prompt 组装管道、_deliver_result 多平台投递与 continuable 会话播种、run_one_job 共享触发体。"
+   },
+   {
+    "path": "cron/jobs.py",
+    "lines": 2746,
+    "role": "任务存储与调度语义:jobs.json 原子读写与 30s 超时 flock、parse_schedule/时区修复、grace/catchup、due 扫描自愈(坏 id/schedule/时间戳修复)、claim_dispatch/run_claim/heartbeat、mark_job_run、ticker 心跳文件、one-shot 保留清扫。"
+   },
+   {
+    "path": "cron/scheduler_provider.py",
+    "lines": 357,
+    "role": "CronScheduler ABC(Axis B 触发器抽象)+ 内置 60s ticker provider(含多 profile 多路复用)+ fire_due 的 store CAS 认领;命名 provider 失败永远回退内置。"
+   },
+   {
+    "path": "cron/executions.py",
+    "lines": 280,
+    "role": "SQLite 每次执行 attempt 台账(claimed→running→terminal),重启后按 PID+进程启动时间验尸把遗弃 attempt 标 unknown,绝不自动重试。"
+   },
+   {
+    "path": "cron/lifecycle_guard.py",
+    "lines": 565,
+    "role": "创建时防自杀:命令形状正则拒绝 prompt/script 里的 gateway restart/stop、launchctl submit 洗白、systemctl/pkill 变体;引用 shell 脚本递归扫描(8 层/1MB 上限)。"
+   },
+   {
+    "path": "cron/blueprint_catalog.py",
+    "lines": 713,
+    "role": "参数化自动化蓝图(typed slots 单一定义,渲染为表单/斜杠命令/深链),fill_blueprint 产出 create_job kwargs——不造第二个任务引擎。"
+   },
+   {
+    "path": "cron/suggestions.py",
+    "lines": 260,
+    "role": "启动建议存储(pending/accepted/dismissed 状态机,accept 即 create_job)。"
+   },
+   {
+    "path": "cron/suggestion_catalog.py",
+    "lines": 154,
+    "role": "内置 starter 自动化目录;旧 proactive-monitor 引擎收敛为 important-mail monitor 一条目录项。"
+   },
+   {
+    "path": "cron/scripts/classify_items.py",
+    "lines": 226,
+    "role": "目录自带的轮询→LLM 打分紧急度→阈值门控脚本,配合 wakeAgent 门实现低成本监控。"
+   },
+   {
+    "path": "cron/__init__.py",
+    "lines": 42,
+    "role": "包出口,re-export jobs/scheduler 主要 API。"
+   },
+   {
+    "path": "tools/cronjob_tools.py",
+    "lines": 1191,
+    "role": "模型可调用的 cronjob 工具(create/list/update/pause/resume/remove/run):严格/宽松两档注入扫描器、不可见 Unicode 消毒、base_url 凭据外泄验证器、origin 捕获与投递参数规范化。"
+   },
+   {
+    "path": "agent/background_review.py",
+    "lines": 1081,
+    "role": "回合后自我改进 fork:共享父会话 id 蹭前缀缓存但禁一切持久化/压缩/外部记忆,工具白名单仅 memory/skills,线程级静音。"
+   },
+   {
+    "path": "agent/outbound_webhooks.py",
+    "lines": 569,
+    "role": "hooks.outbound 生命周期事件外发:有界队列 + 单 daemon 线程、HMAC-SHA256 签名、拒 3xx 重定向、4xx 不重试、atexit flush。"
+   },
+   {
+    "path": "gateway/wake.py",
+    "lines": 184,
+    "role": "后台事件唤醒既有会话的双通道:push 适配器注入 internal MessageEvent;无状态 API server 带 X-Hermes-Session-Id 自 POST /v1/chat/completions 复活真实会话,失败 raise 供调用方回滚游标。"
+   },
+   {
+    "path": "gateway/kanban_watchers.py",
+    "lines": 1493,
+    "role": "GatewayRunner 的 kanban 后台循环 mixin:notifier(事件游标原子认领/失败回滚、多 profile 适配器路由、唤醒注入)与嵌入式 dispatcher(机器级单例文件锁、并发/失败上限、auto-decompose 每 tick 热读配置)。"
+   },
+   {
+    "path": "agent/session_activity.py",
+    "lines": 106,
+    "role": "共享活动观测契约:activity 时间戳+受限描述+provenance 枚举,60s 最小持久化间隔;cron 看门狗与压缩心跳都消费此契约。"
+   }
+  ],
+  "module": "定时任务与后台自治(cron/、agent/background_review.py、agent/outbound_webhooks.py、gateway/wake.py、gateway/kanban_watchers.py、agent/session_activity.py、tools/cronjob_tools.py)",
+  "overview": "该子系统让 Hermes 在无人值守下自主运转:cron/ 提供一个建立在 jobs.json + flock 之上的完整调度器——60s tick 循环(跨进程文件锁、并行/串行双池)、四种 schedule 语法解析与时区迁移修复、半周期 clamp 的 catchup/grace 窗口(过期 fast-forward 但仍补跑一次)、以及由 advance-first、claim_dispatch 预扣、run_claim 租约心跳和 SQLite 执行台账组成的跨进程 at-most-once 语义栈。每次运行在独立的 cron_{job_id}_{ts} 会话中以 platform=\"cron\"、skip_memory=True 构造 agent,受 600s 不活动看门狗(request_hard_interrupt)与双层注入扫描、gateway 生命周期防护、凭据外泄与模型漂移 fail-closed 保护;prompt 组装管道支持 script 预处理 + wakeAgent 门、no_agent 纯脚本模式和 context_from 链式流水线,产出经 fire-time 解析的多平台投递([SILENT] 静默契约、live adapter 优先、可选 user-role mirror 保持目标会话的角色交替)。触发器经 CronScheduler provider 抽象可替换(外部 fire 走 store CAS 认领,与内置 ticker 共享同一 run_one_job 执行体)。外围的后台自治组件包括:回合后 fork 自我改进回路 background_review(共享父会话 id 蹭前缀缓存但禁止一切持久化)、kanban notifier/dispatcher 守望循环(事件游标原子认领、机器级单例锁)、deliver_wake 双通道会话唤醒(合成 internal 事件或带 X-Hermes-Session-Id 自 POST)以及 HMAC 签名的 outbound webhooks 事件外发。"
+ },
+ {
+  "capabilities": [
+   {
+    "name": "单一 dispatcher、多传输同构的 JSON-RPC 网关(stdio/WebSocket 共用全部 RPC 方法)",
+    "problem": "同一个 agent 后端要同时服务终端 TUI(Node 子进程 stdio)、Electron 桌面端、浏览器 dashboard、移动端等多种前端;若每种前端各写一套后端会导致业务逻辑(会话、审批、slash 命令、事件流)多份漂移。",
+    "implementation": "tui_gateway/server.py(14006 行)用 @method(name) 装饰器注册 120+ 个 RPC 方法(session.*/prompt.*/tool 管理/billing/pet/voice/wake 等),transport.py 把 I/O sink 抽象成 Transport 协议并用 contextvars.ContextVar 绑定'当前请求的传输',handler(含线程池上的)写回时自动路由到正确 peer,无绑定时回退 StdioTransport。ws.py 原样复用 server.dispatch,把高频流式事件 message.delta/reasoning.delta/thinking.delta 按 33ms(~30fps)缓冲合帧,减少 asyncio 事件循环唤醒与 GIL 争抢;非流式事件(tool/approval/status)flush 缓冲后立即发送保证顺序。dashboard 的 FastAPI 在 /api/ws 挂载 handle_ws,线协议与 stdio 完全一致(换行分隔 JSON-RPC)。",
+    "evidence": [
+     {
+      "loc": "tui_gateway/transport.py:3",
+      "excerpt": "Historically the gateway wrote every JSON frame directly to real stdout.  This\nmodule decouples the I/O sink from the handler logic so the same dispatcher\ncan be driven over stdio (``tui_gateway.entry``) or WebSocket\n(``tui_gateway.ws``) without duplicating code."
+     },
+     {
+      "loc": "tui_gateway/ws.py:53",
+      "excerpt": "_STREAMING_EVENT_TYPES = frozenset({\n    \"message.delta\",\n    \"reasoning.delta\",\n    \"thinking.delta\",\n})"
+     },
+     {
+      "loc": "hermes_cli/web_server.py:15843",
+      "excerpt": "@app.websocket(\"/api/ws\")\nasync def gateway_ws(ws: WebSocket) -> None:\n    if not _DASHBOARD_EMBEDDED_CHAT_ENABLED:\n        await ws.close(code=4403)\n        return"
+     }
+    ],
+    "scale": "transport.py 219 行 + ws.py 476 行 + server.py 14006 行方法注册中心;复杂度高(contextvar 传输路由、线程池写回、token 合帧)",
+    "learning_value": "high",
+    "learning_reason": "这是界面层的核心架构范式:harness 的所有前端差异被压缩到传输层一个 Protocol,业务 handler 完全无感;token 合帧解决了流式 agent 事件对事件循环的冲击,是任何 WS 流式 harness 都会遇到的问题。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "TUI 整体作为组件被 dashboard 复用:PTY-over-WebSocket + 进程内 gateway attach + 事件 sidecar 回流",
+    "problem": "浏览器 dashboard 需要一个功能完整的聊天界面;重写一遍 TUI 的 slash 弹窗、模型选择器、审批提示、markdown 渲染成本极高且会永远落后于终端版。",
+    "implementation": "dashboard 的 /api/pty 端点把 CLI 同一个 `hermes --tui`(node ui-tui/dist/entry.js)spawn 在 POSIX PTY(Windows 用 pywinpty/ConPTY,双实现同接口)后面,浏览器用 @xterm/xterm(WebGL)渲染 ANSI 字节流,resize 通过自定义转义 \\x1b[RESIZE:cols;rows] 带内传输。关键优化:注入 HERMES_TUI_GATEWAY_URL 让 PTY 子进程里的 TUI 直接 attach 到 dashboard 进程内的 tui_gateway(ws://…/api/ws),避免再 spawn 一个 Python 网关(profile 作用域的 chat 例外,必须自 spawn 以绑定 profile 的 HERMES_HOME);注入 HERMES_TUI_SIDECAR_URL 让 PTY 侧网关通过 TeeTransport+WsPublisherTransport 把每个 emit 镜像回 dashboard 的 /api/pub,供侧栏显示(事件源在三个进程之外)。pty_session.py 提供 keep-alive:PTY 进程在 WS 断开后存活,RingBuffer(1MB)缓冲输出,凭 opaque token 重连回放并续播。",
+    "evidence": [
+     {
+      "loc": "hermes_cli/web_server.py:14789",
+      "excerpt": "``HERMES_TUI_GATEWAY_URL`` is injected so the PTY child can attach to\n    this process's in-memory ``tui_gateway`` instance instead of spawning\n    its own Python gateway subprocess."
+     },
+     {
+      "loc": "web/src/pages/ChatPage.tsx:12",
+      "excerpt": " *     WebSocket /api/pty?token=<session>                                  .\n *          ▼                                                              .\n *     FastAPI pty_ws  (hermes_cli/web_server.py)                          .\n *          ▼                                                              .\n *     POSIX PTY → `node ui-tui/dist/entry.js` → tui_gateway + AIAgent     ."
+     },
+     {
+      "loc": "hermes_cli/pty_session.py:3",
+      "excerpt": "A PTY process outlives the WebSocket that created it: a single drain task\nalways reads the PTY into a bounded RingBuffer and forwards to the attached\nsocket when present. Reconnecting with the same opaque token replays the\nbuffer and resumes live."
+     },
+     {
+      "loc": "tui_gateway/event_publisher.py:6",
+      "excerpt": "server itself.  To surface them in the dashboard sidebar (`/api/events`),\nthe PTY-side gateway opens a back-WS to the dashboard at startup and\nmirrors every emit through this transport."
+     }
+    ],
+    "scale": "web_server.py 的 /api/pty 段约 700 行 + pty_bridge.py 293 + win_pty_bridge.py 184 + pty_session.py 195 + event_publisher.py 126 + ChatPage.tsx 1643;复杂度高(半开 socket、fd 泄漏、重连回放等大量边界处理)",
+    "learning_value": "high",
+    "learning_reason": "'把终端 UI 当二进制组件嵌进 web'是零重复实现多端的教科书案例:一份 Ink 代码同时服务终端和浏览器,且通过 in-memory gateway attach 避免了进程翻倍;sidecar 回流解决了'事件产生在三层子进程之外'的可观测性问题。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "Dashboard compute-host 子进程 turn isolation(GIL 隔离)+ 合成 GIL 重负载认证 harness",
+    "problem": "CPython 单 GIL:并发的重型 agent turn 在 serving 进程的线程里跑纯 Python 计算时,会把负责 flush WebSocket 帧的事件循环饿死数分钟(采样显示 loop 线程停在 take_gil)。",
+    "implementation": "dashboard.turn_isolation 开启后,agent turn 移到一个持久的 `python -m tui_gateway.compute_host` 子进程(line-JSON 管道协议),serving 进程只保留 socket 与 JSON-RPC 分发;host_supervisor.py 用 MUTATOR_ROUTE_TABLE 把每个会改变会话状态的 RPC 分成 turn-path(进子进程)/run-concurrent(并行安全)/idle-gated(必须等空闲)三类路由,并处理 respawn 窗口与注册表。为了不用 6 个 100K+ 上下文的真实模型调用来验收(AC-4),synthetic_turn.py 提供 HERMES_ISO_CERTIFY_SYNTH_TURN 测试缝:_make_agent 返回 SyntheticHeavyAgent,以持续持有 GIL 的纯 CPU 循环精确复现 take_gil 争抢状态(明确指出 sleep/网络 stub 会假绿),隔离开/关共用同一构建路径,使隔离边界成为唯一变量。",
+    "evidence": [
+     {
+      "loc": "tui_gateway/host_supervisor.py:3",
+      "excerpt": "The dashboard process owns sockets and JSON-RPC dispatch.  When\n``dashboard.turn_isolation`` is enabled, agent turns move behind one persistent\n``python -m tui_gateway.compute_host`` child so compute-heavy agent threads do\nnot contend with the serving process' event loop for the same GIL."
+     },
+     {
+      "loc": "tui_gateway/host_supervisor.py:31",
+      "excerpt": "MUTATOR_ROUTE_TABLE: dict[str, str] = {\n    \"prompt.submit\": \"turn-path\",\n    \"session.interrupt\": \"turn-path\",\n    \"reload.mcp\": \"run-concurrent\",\n    \"session.save\": \"run-concurrent\",\n    \"session.compress\": \"idle-gated\","
+     },
+     {
+      "loc": "tui_gateway/synthetic_turn.py:18",
+      "excerpt": "is set. When armed, ``tui_gateway.server._make_agent`` returns a\n:class:`SyntheticHeavyAgent` instead of a real ``AIAgent``. Because both the\nin-process ``_pool`` path (isolation OFF) and the compute-host child path\n(isolation ON) build their agent through ``_make_agent``, the SAME synthetic\nturn exercises whichever dispatch path is under test — the isolation boundary\nis the only variable between an OFF run and an ON run."
+     }
+    ],
+    "scale": "compute_host.py 880 + host_supervisor.py 577 + synthetic_turn.py 231 行,外加 server.py 内 ~20 个 _compute_host_* 桥接函数;复杂度很高",
+    "learning_value": "high",
+    "learning_reason": "Python harness 的 GIL 饥饿是共性问题;这里给出完整解法链:诊断(take_gil 采样)→ 架构(持久子进程 + 按 RPC 语义分三类路由)→ 验收(合成 GIL 负载而非真实模型调用,且明确指出 I/O stub 会产生假绿)。",
+    "hidden_from_docs": true,
+    "doc_mismatch": "机制在 README/AGENTS.md/website/docs 中零覆盖;代码引用的设计文档 docs/desktop/2026-07-04-dashboard-process-isolation-PRD.md 在仓库中不存在(docs/ 下无 desktop 目录)。"
+   },
+   {
+    "name": "阻塞式 HITL prompt 桥:_block 事件/线程 Event 配对 + expire 生命周期 + 按会话粒度取消",
+    "problem": "同步执行的 agent 工具(危险命令审批、clarify 反问、sudo 密码、secret 输入、terminal.read)需要在 JSON-RPC 事件流上等待人类回答,还要处理超时后迟到的回答、断线重连丢帧、以及中断一个会话不能误伤其他会话的挂起提示。",
+    "implementation": "server.py 的 _block(event, sid, payload) 生成 8 位 request_id,发出 clarify.request/approval.request/sudo.request/secret.request 等事件后在 threading.Event 上阻塞(None=无限等,默认 300s);客户端调用对应 *.respond RPC 写入 _answers 并 set 事件。超时未答时对可容忍迟到回答的四类请求发 `.expire` 通知,避免迟到的 *.respond 撞上 4009 'no pending request' 裸错误。_clear_pending(sid) 只释放该会话的挂起提示——session.interrupt 不会连坐其他会话。ACP 侧(acp_adapter/permissions.py)把同一审批语义映射为 ACP PermissionOption(allow_once/allow_session/allow_always/deny)。",
+    "evidence": [
+     {
+      "loc": "tui_gateway/server.py:3106",
+      "excerpt": "def _block(event: str, sid: str, payload: dict, timeout: float | None = 300) -> str:\n    rid = uuid.uuid4().hex[:8]\n    ev = threading.Event()\n    with _prompt_lock:\n        _pending[rid] = (sid, ev)\n        payload[\"request_id\"] = rid"
+     },
+     {
+      "loc": "tui_gateway/server.py:3164",
+      "excerpt": "def _clear_pending(sid: str | None = None) -> None:\n    \"\"\"Release pending prompts with an empty answer."
+     },
+     {
+      "loc": "acp_adapter/permissions.py:21",
+      "excerpt": "_OPTION_ID_TO_HERMES = {\n    \"allow_once\": \"once\",\n    \"allow_session\": \"session\",\n    \"allow_always\": \"always\",\n    \"deny\": \"deny\",\n    \"deny_always\": \"deny\",\n}"
+     }
+    ],
+    "scale": "_block 及五类 request/respond/expire 流转 ~200 行,methods_prompt.py 中 5 个 *.respond handler,ACP/permissions 映射 182 行;中等复杂度但边界极多",
+    "learning_value": "high",
+    "learning_reason": "HITL 是 agent harness 的必修课;这里的 expire 事件(容忍迟到回答)、按 sid 粒度的取消、以及同一审批语义在 TUI 事件流和 ACP 权限协议上的双重投影,都是值得直接借鉴的协议设计。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "busy-input 三态策略:运行中 turn 收到新输入时 queue / steer / interrupt(含 redirect)",
+    "problem": "turn 进行中用户又发了消息:直接拒绝('session busy')迫使客户端做限时重试并可能静默丢消息;简单排队则无法表达'纠正当前正在做的事'。",
+    "implementation": "server.py 的 _handle_busy_submit 按 display.busy_input_mode 分派:interrupt(默认)对有能力的 agent 就地 redirect 活跃 turn(旧 agent 回退为硬中断+入队);queue 纯排队;steer 调 agent.steer() 在当前原子动作结束后注入文本。客户端显式排队(prompt.submit 的 queued=True)无条件压过模式——避免'客户端看到 idle 但服务端还在收尾'的毫秒级竞态把下一轮消息错误地变成对活跃 turn 的纠正。附带 attached_images 的提交时刻声明(后续 paste 不会被这条 prompt 消费)。",
+    "evidence": [
+     {
+      "loc": "tui_gateway/server.py:7406",
+      "excerpt": "    Modes: ``interrupt`` (default) → redirect the live turn, falling back to\n    hard interrupt + queue for older agents; ``queue`` → queue without\n    interrupting; ``steer`` → inject after the current atomic action."
+     },
+     {
+      "loc": "tui_gateway/server.py:7410",
+      "excerpt": "    ``queued=True`` (client's queue drain, ``prompt.submit`` param) overrides\n    the mode entirely: the message was explicitly queued as \"run after\", so it\n    must NEVER become a live-turn correction or interrupt."
+     }
+    ],
+    "scale": "_handle_busy_submit + _enqueue_prompt + _drain_queued_prompt + _interrupt_busy_session 约 300 行;配套 TUI 端 useSubmission.ts / queuedMessages.tsx",
+    "learning_value": "medium",
+    "learning_reason": "'运行中输入'的语义分层(排队/转向/重定向)以及显式排队压过策略的竞态处理,是交互式 harness 输入通道设计的成熟样本。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "崩溃法医学 + durable turn marker 自动续跑:panic hook、信号栈转储、SIGPIPE 策略、中断 turn 恢复",
+    "problem": "网关子进程的 stdout 是 JSON-RPC 管道,崩溃时无处留痕;后台线程(TTS/beep)写半关闭管道触发 SIGPIPE 会静默杀死进程;进程/机器死亡时进行中的 turn 只存在于内存,重启后用户的 prompt 凭空消失。",
+    "implementation": "server.py 安装 sys.excepthook 把未处理异常追加到 ~/.hermes/logs/tui_gateway_crash.log 并向 stderr 发一行摘要(TUI 作为 gateway.stderr Activity 行展示);entry.py 的 _log_signal 在收到终止信号时转储全部线程栈,SIGPIPE 改为 SIG_IGN 让写坏管道变成可处理的 BrokenPipeError,关停走'grace 窗口内自然退出 + 定时器 os._exit(0) 兜底'避免持有 _stdout_lock 的线程卡死解释器。turn_marker.py 在 turn 开始时写 durable 标记、正常结束(成功/已处理错误/中断)时清除,只有进程死亡会留下标记;session.resume 读到标记即触发 _maybe_schedule_auto_continue 自动续跑被打断的 prompt(条目按 24h/32 条/64K 字符封顶)。",
+    "evidence": [
+     {
+      "loc": "tui_gateway/server.py:63",
+      "excerpt": "# Gateway crashes in a TUI session leave no forensics: stdout is the\n# JSON-RPC pipe (TUI side parses it, doesn't log raw), the root logger\n# only catches handled warnings, and the subprocess exits before stderr\n# flushes through the stderr->gateway.stderr event pump. This hook\n# appends every unhandled exception to ~/.hermes/logs/tui_gateway_crash.log"
+     },
+     {
+      "loc": "tui_gateway/entry.py:92",
+      "excerpt": "    SIG_DFL for SIGPIPE kills the process silently the instant any\n    background thread (TTS playback, beep, voice status emitter, etc.)\n    writes to a stdout the TUI has stopped reading.  Without this\n    handler the gateway-exited banner in the TUI has no trace"
+     },
+     {
+      "loc": "tui_gateway/turn_marker.py:3",
+      "excerpt": "A running turn's progress lives only in process memory (the agent flushes to\nSQLite at turn end, not mid-turn), so an app/backend/machine death mid-turn\nleaves no durable trace of the interrupted prompt. This sidecar is that\ntrace: a marker is written when a turn starts running and cleared when the\nturn concludes — success, handled error, or interrupt all clear it, so only\na process death leaves one behind."
+     }
+    ],
+    "scale": "panic/signal/退出路径约 400 行(server.py 头部 + entry.py)+ turn_marker.py 159 行 + _stdin_recovery.py 151 行;中等规模、细节密度极高",
+    "learning_value": "high",
+    "learning_reason": "'stdout 即协议管道'的进程在崩溃可观测性上的所有坑(SIGPIPE、半关闭 flush 卡死、atexit 竞态)这里都踩过并留了注释;turn marker 的'只有非正常死亡才留痕'反向设计是 harness 崩溃恢复的优雅方案。",
+    "hidden_from_docs": true,
+    "doc_mismatch": "崩溃日志、信号转储、auto-continue 均无用户/开发者文档(website/docs 的 auto-continue 检索只命中无关的 /goal 功能)。"
+   },
+   {
+    "name": "ACP 适配器:同步 AIAgent 包装为异步 Agent Client Protocol 服务器(Zed/VS Code/JetBrains)",
+    "problem": "编辑器侧的 agent 集成有自己的协议(ACP):会话 new/load/resume/fork、流式 chunk、权限请求、编辑 diff 预览;Hermes 的 AIAgent 是同步阻塞的 Python 对象,回调风格与 ACP 的 async 通知模型完全不同。",
+    "implementation": "acp_adapter/server.py 的 HermesACPAgent(acp.Agent) 在 ThreadPoolExecutor 上跑同步 agent turn,把 message/thinking/tool 回调转成 ACP 的 AgentMessageChunk/AgentThoughtChunk/ToolCall* 通知(tools.py 的 TOOL_KIND_MAP 把 70+ Hermes 工具映射为 ACP ToolKind 并构建 diff/终端内容);load/resume 时 _replay_session_history 在请求生命周期内把持久化的完整对话(含重建的 tool-call start/complete)回放给编辑器,否则编辑器看到空线程。edit_approval.py 独立实现 pre-execution 编辑审批:用 ContextVar 只在 ACP run 期间绑定 requester(CLI/gateway 自动绕过),write_file/patch 执行前把 EditProposal(old/new 文本)发给编辑器审批,.env/id_rsa 等敏感文件永不自动放行;auth.py 检测 provider 凭据并暴露 terminal-setup 认证方法。",
+    "evidence": [
+     {
+      "loc": "acp_adapter/server.py:566",
+      "excerpt": "class HermesACPAgent(acp.Agent):\n    \"\"\"ACP Agent implementation wrapping Hermes AIAgent.\"\"\""
+     },
+     {
+      "loc": "acp_adapter/edit_approval.py:38",
+      "excerpt": "_EDIT_APPROVAL_REQUESTER: ContextVar[EditApprovalRequester | None] = ContextVar(\n    \"ACP_EDIT_APPROVAL_REQUESTER\",\n    default=None,\n)"
+     },
+     {
+      "loc": "acp_adapter/server.py:1337",
+      "excerpt": "    async def _replay_session_history(self, state: SessionState) -> None:\n        \"\"\"Replay persisted user/assistant history during session/load or session/resume."
+     },
+     {
+      "loc": "acp_adapter/edit_approval.py:44",
+      "excerpt": "SENSITIVE_AUTO_APPROVE_NAMES = {\".env\", \".env.local\", \".env.production\", \"id_rsa\", \"id_ed25519\"}"
+     }
+    ],
+    "scale": "acp_adapter 共 5831 行(server.py 2510、tools.py 1347、session.py 683、edit_approval.py 338);复杂度高",
+    "learning_value": "medium",
+    "learning_reason": "同步 agent 内核对接异步编辑器协议的完整参考:线程池桥接、历史回放保证编辑器状态一致、ContextVar 实现'仅此协议生效'的前置编辑审批而不污染其他入口。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "acp-internals.md 的 'Key implementation files' 清单缺 edit_approval.py 与 provenance.py,整篇文档未提及 pre-execution 编辑审批与敏感文件不放行机制。"
+   },
+   {
+    "name": "Hermes 自身作为 MCP server 暴露(mcp_serve.py):跨 harness 的消息桥 + SQLite 轮询事件桥",
+    "problem": "让 Claude Code/Cursor 等其他 agent 客户端能读写 Hermes 管理的 Telegram/Discord/Slack 会话——即把本 harness 变成别的 harness 的工具。",
+    "implementation": "FastMCP stdio 服务器暴露 10 个工具(conversations_list/messages_read/attachments_fetch/events_poll/events_wait/messages_send/channels_list/permissions_* 等),对齐 OpenClaw 的 9-tool channel bridge 面。EventBridge 后台线程不走 IPC,而是轮询 ~/.hermes/state.db:先 _establish_baseline 记录各会话最新时间戳避免启动回放历史,之后每 tick 用一次 state.db mtime 检查短路(200ms 轮询近零开销),新消息进内存队列供 events_poll/events_wait(长轮询)消费。读操作不需要 gateway 运行;messages_send 复用 tools/send_message_tool 的发送引擎(需要平台连接在线)。",
+    "evidence": [
+     {
+      "loc": "mcp_serve.py:316",
+      "excerpt": "class EventBridge:\n    \"\"\"Background poller that watches SessionDB for new messages and\n    maintains an in-memory event queue with waiter support.\n\n    This is the Hermes equivalent of OpenClaw's WebSocket gateway bridge.\n    Instead of WebSocket events, we poll the SQLite database for changes."
+     },
+     {
+      "loc": "mcp_serve.py:422",
+      "excerpt": "    def respond_to_approval(self, approval_id: str, decision: str) -> dict:\n        \"\"\"Resolve a pending approval (best-effort without gateway IPC).\"\"\"\n        with self._lock:\n            approval = self._pending_approvals.pop(approval_id, None)"
+     }
+    ],
+    "scale": "mcp_serve.py 1037 行单文件;中等复杂度(mtime 短路、baseline 防回放、长轮询 waiter)",
+    "learning_value": "medium",
+    "learning_reason": "'共享 SQLite + mtime 短路轮询'是无 IPC 跨进程集成的低成本方案样本;同时它是 doc-vs-code 审计的好教材——审批两工具是没有写入方的死代码(见 doc_mismatch)。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "website/docs/user-guide/features/mcp.md 宣称 permissions_list_open 可列出待审批、permissions_respond 可 'Allow or deny a pending approval request';但 _pending_approvals 全文件无任何写入方(_poll_once 只产生 type='message' 事件),respond_to_approval 自注 '(best-effort without gateway IPC)',只往自身内存队列记一条事件,不会解除 gateway 侧真正阻塞的审批——实际恒返回空列表/'Approval not found'。"
+   },
+   {
+    "name": "hermes-ink:整套 Ink 渲染器 fork(~30K 行)+ TUI widget SDK(第三方终端小程序框架)",
+    "problem": "上游 Ink 缺少生产级 TUI 需要的能力:鼠标追踪与 hit-test、拖选复制、ScrollBox、alternate screen 差分渲染、输出背压、终端背景色探测、bidi;同时希望第三方能像写 app 一样扩展 TUI 界面。",
+    "implementation": "ui-tui/packages/hermes-ink 是完整 vendored fork(src/ink 下 146 个 TS 文件、约 29.8K 行),通过 package.json overrides 把生态包(ink-text-input)的 ink 依赖也重定向到 @hermes/ink;新增 useSelection/hit-test/mouse watchdog/ScrollBox/backpressure/terminal background 探测(isXtermJs 与 OSC 颜色解析——为嵌入 xterm.js 的 dashboard 场景服务)。src/sdk 是 widget SDK:WidgetApp = state+reducer+render,defineWidgetApp 注册、launchWidget 由 slash 命令启动,激活期间独占键盘并渲染在 viewport 槽位,自动继承 grid 布局、overlay 分区与 skin 配色;sdk/apps 里有参考应用(/grid-test、/dialog-test、ticker、weather)。",
+    "evidence": [
+     {
+      "loc": "ui-tui/package.json:32",
+      "excerpt": "    \"ink-text-input\": {\n      \"ink\": \"npm:@hermes/ink@0.0.1\""
+     },
+     {
+      "loc": "ui-tui/packages/hermes-ink/src/entry-exports.ts:18",
+      "excerpt": "export { default as useInput } from './ink/hooks/use-input.js'\nexport { useHasSelection, useSelection } from './ink/hooks/use-selection.js'\nexport { default as useStdin } from './ink/hooks/use-stdin.js'\nexport { useTabStatus } from './ink/hooks/use-tab-status.js'"
+     },
+     {
+      "loc": "ui-tui/src/sdk/index.ts:4",
+      "excerpt": " * An app is a `WidgetApp` (state + reducer + render) registered with\n * `defineWidgetApp` and launched by id (usually from a slash command via\n * `launchWidget`). While active it owns every keypress and renders in a\n * viewport-level slot, composing the same layout/theme primitives every\n * built-in surface uses"
+     }
+    ],
+    "scale": "hermes-ink src 146 文件约 29.8K 行;sdk 目录 ~670 行 + 参考 app;fork 维护成本高",
+    "learning_value": "medium",
+    "learning_reason": "展示了'fork 渲染基础库换取终端能力上限'的重决策及其配套(overrides 劫持生态依赖、给嵌入式 xterm.js 场景做终端探测);widget SDK 是把 harness UI 做成可插拔平台的少见尝试。",
+    "hidden_from_docs": true,
+    "doc_mismatch": "ui-tui/README.md 对 fork 仅有一行目录注释 'packages/hermes-ink/   forked Ink renderer (local dep)',具体扩展能力无文档;widget SDK(defineWidgetApp/launchWidget)在 README 与 website/docs 中零覆盖。"
+   },
+   {
+    "name": "Desktop 独立进程模型:Electron 管理 headless `hermes serve` 后端 + 版本偏斜降级 + 平台化进程治理",
+    "problem": "桌面 app 需要一个不含浏览器 UI 的本地 agent 后端,且 app 自更新可能领先于用户机器上的 Python 运行时(新 app 撞上不认识 `serve` 子命令的旧 runtime 会直接崩);Windows 上杀直接子进程杀不掉孙进程导致文件锁残留。",
+    "implementation": "desktop 不嵌入 `hermes --tui`,而是自带 React 渲染器(@assistant-ui/react)通过 apps/shared 的 JsonRpcGatewayClient(web/ 也复用)连它自己 spawn 的 `hermes serve --host 127.0.0.1 --port 0`(与 dashboard 同一 gateway,headless_backend=True 禁掉 SPA)。backend-command.ts 探测运行时是否注册 serve 子命令,不支持则把 argv 重写为遗留的 `dashboard --no-open`,避免 brick 升级中途的用户。backend-child.ts 在 Windows 用 taskkill 树杀(POSIX 用 SIGTERM 即可);electron/ 下另有 SSH 远程后端引导、原生 OAuth、崩溃取证、更新重建等 100+ 个单测配套的独立模块。",
+    "evidence": [
+     {
+      "loc": "apps/desktop/electron/backend-command.ts:18",
+      "excerpt": "export function serveBackendArgs(profile?: string) {\n  const head = profile ? ['--profile', profile] : []\n\n  return [...head, 'serve', '--host', '127.0.0.1', '--port', '0']"
+     },
+     {
+      "loc": "apps/desktop/electron/backend-child.ts:6",
+      "excerpt": " * Node's `child.kill()` only signals the direct child. On Windows a backend\n * that spawned its own grandchildren (a `hermes` REPL, a pty terminal\n * session, the gateway) survives a plain SIGTERM and keeps files (e.g. the\n * venv shim) locked. So on Windows we tree-kill via `forceKillProcessTree`;"
+     },
+     {
+      "loc": "apps/desktop/electron/backend-command.ts:30",
+      "excerpt": "export function dashboardFallbackArgs(args) {\n  const i = args.indexOf('serve')\n\n  if (i === -1) {\n    return args.slice()\n  }"
+     }
+    ],
+    "scale": "apps/ 共 1560 文件;electron 主进程目录 4 万行(main.ts 12038 行 + 每能力一个带测试的纯函数模块);apps/shared/src/json-rpc-gateway.ts 429 行被 desktop 与 web 共用",
+    "learning_value": "medium",
+    "learning_reason": "'UI 与 runtime 独立发版'场景下的版本偏斜降级(探测子命令→argv 重写)与 Windows 进程树治理是桌面化 harness 的必踩坑;electron 目录把每个决策拆成可脱离 Electron 单测的纯函数模块,工程纪律值得学。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   }
+  ],
+  "doc_conflicts": [
+   {
+    "claim": "website/docs/user-guide/features/mcp.md('Available tools' 表)宣称 `permissions_list_open` 可 'List pending approval requests observed during this bridge session'、`permissions_respond` 可 'Allow or deny a pending approval request'",
+    "reality": "mcp_serve.py 中 EventBridge._pending_approvals 没有任何写入代码路径(仅 __init__ 初始化为空、list 读取、respond pop;轮询循环 _poll_once 只 enqueue type='message' 事件),且 respond_to_approval 明注 '(best-effort without gateway IPC)'——即便有条目也只是往自身内存事件队列记一条,不会把决定传递给真正阻塞在审批上的 gateway/agent。两工具实际恒返回空列表/'Approval not found'。",
+    "evidence_loc": "mcp_serve.py:423"
+   },
+   {
+    "claim": "tui_gateway/synthetic_turn.py 声称其机制对应设计文档 ``docs/desktop/2026-07-04-dashboard-process-isolation-PRD.md``,暗示 turn isolation 有正式文档",
+    "reality": "仓库中不存在 docs/desktop/ 目录,该 PRD 文件不在树内;dashboard.turn_isolation / compute-host 机制在 README、AGENTS.md 与 website/docs 中也完全没有记载,是纯代码事实。",
+    "evidence_loc": "tui_gateway/synthetic_turn.py:3"
+   },
+   {
+    "claim": "website/docs/developer-guide/acp-internals.md 'Key implementation files' 声称 ACP 适配器的关键实现为 entry/server/session/events/permissions/tools/auth 七个文件",
+    "reality": "acp_adapter/edit_approval.py(338 行,pre-execution 编辑审批:ContextVar 绑定 per-run requester、EditProposal diff 预览、.env/id_rsa 等敏感文件永不自动放行)与 provenance.py(127 行)未列入,整篇文档也未提及该审批机制。",
+    "evidence_loc": "acp_adapter/edit_approval.py:38"
+   }
+  ],
+  "key_files": [
+   {
+    "path": "tui_gateway/server.py",
+    "lines": 14006,
+    "role": "网关核心:@method 注册 120+ RPC、会话生命周期/槽位租约(_claim_active_session_slot)/空闲收割与 LRU 上限(_enforce_session_cap)、agent 构建与回调接线、HITL _block、busy-input 策略、模型切换/压缩、voice/wake 方法、panic hook。"
+   },
+   {
+    "path": "tui_gateway/transport.py",
+    "lines": 219,
+    "role": "Transport 协议 + contextvar 传输绑定 + StdioTransport/TeeTransport,peer-gone errno 白名单区分断连与真 I/O 错误。"
+   },
+   {
+    "path": "tui_gateway/ws.py",
+    "lines": 476,
+    "role": "WebSocket 传输:复用同一 dispatch,流式 delta 事件 33ms 合帧,线程安全写回事件循环。"
+   },
+   {
+    "path": "tui_gateway/entry.py",
+    "lines": 499,
+    "role": "stdio 入口:信号法医学(线程栈转储)、SIGPIPE 策略、shutdown grace + os._exit 兜底、MCP 后台发现、sidecar publisher 安装。"
+   },
+   {
+    "path": "tui_gateway/methods_session.py",
+    "lines": 3138,
+    "role": "session.create/resume/branch/compress/undo/steer/redirect、handoff、pet.*、billing/subscription 等 RPC。"
+   },
+   {
+    "path": "tui_gateway/methods_prompt.py",
+    "lines": 949,
+    "role": "prompt.submit、image/pdf/file 附件、粘贴折叠、clarify/sudo/secret/approval 的 *.respond。"
+   },
+   {
+    "path": "tui_gateway/methods_tools.py",
+    "lines": 1914,
+    "role": "tools/toolsets/plugins/skills 管理、slash.exec/command.dispatch、rollback、insights、cron。"
+   },
+   {
+    "path": "tui_gateway/compute_host.py",
+    "lines": 880,
+    "role": "持久 compute-host 子进程:line-JSON 协议,turn isolation 开启时持有真 AIAgent。"
+   },
+   {
+    "path": "tui_gateway/host_supervisor.py",
+    "lines": 577,
+    "role": "compute-host 监督器:MUTATOR_ROUTE_TABLE 三类路由、respawn 窗口、注册表。"
+   },
+   {
+    "path": "tui_gateway/synthetic_turn.py",
+    "lines": 231,
+    "role": "GIL 重负载合成 turn(HERMES_ISO_CERTIFY_SYNTH_TURN 测试缝),用于隔离验收而不花真实 token。"
+   },
+   {
+    "path": "tui_gateway/turn_marker.py",
+    "lines": 159,
+    "role": "durable 中断 turn 标记,支撑 session.resume 的自动续跑。"
+   },
+   {
+    "path": "tui_gateway/slash_worker.py",
+    "lines": 196,
+    "role": "每会话一个持久 HermesCLI 子进程执行 slash 命令(JSON 行协议 + 孤儿看门狗)。"
+   },
+   {
+    "path": "tui_gateway/event_publisher.py",
+    "lines": 126,
+    "role": "PTY 侧网关向 dashboard /api/pub 的 best-effort 事件镜像(WsPublisherTransport)。"
+   },
+   {
+    "path": "tui_gateway/project_tree.py",
+    "lines": 768,
+    "role": "desktop 侧栏的 project→repo→lane→session 树构建(纯函数、id 与旧客户端字节兼容)。"
+   },
+   {
+    "path": "tui_gateway/git_probe.py",
+    "lines": 183,
+    "role": "单飞缓存的 git 仓库探测(负缓存 TTL 解决 Projects 树秒级卡顿)。"
+   },
+   {
+    "path": "hermes_cli/web_server.py",
+    "lines": 17732,
+    "role": "FastAPI dashboard/serve 服务器:REST + /api/ws(JSON-RPC)+ /api/pty(PTY 桥)+ /api/pub 事件转播 + 分析/配置/文件等 API。"
+   },
+   {
+    "path": "hermes_cli/pty_bridge.py",
+    "lines": 293,
+    "role": "POSIX PTY 桥(ptyprocess,字节安全 I/O);win_pty_bridge.py(184 行)为 ConPTY 同接口实现。"
+   },
+   {
+    "path": "hermes_cli/pty_session.py",
+    "lines": 195,
+    "role": "keep-alive PTY 会话注册表:RingBuffer 缓冲 + opaque token 重连回放。"
+   },
+   {
+    "path": "acp_adapter/server.py",
+    "lines": 2510,
+    "role": "HermesACPAgent:ACP 全生命周期(new/load/resume/fork/list/cancel/prompt)、历史回放、模型/模式切换、MCP server 注册。"
+   },
+   {
+    "path": "acp_adapter/tools.py",
+    "lines": 1347,
+    "role": "Hermes 工具 → ACP ToolKind 映射与 tool-call 内容(diff/终端)构建。"
+   },
+   {
+    "path": "acp_adapter/session.py",
+    "lines": 683,
+    "role": "ACP SessionManager/SessionState 与 toolset 展开。"
+   },
+   {
+    "path": "acp_adapter/edit_approval.py",
+    "lines": 338,
+    "role": "pre-execution 编辑审批(ContextVar 注入,敏感文件不自动放行)——文档未覆盖。"
+   },
+   {
+    "path": "acp_adapter/permissions.py",
+    "lines": 182,
+    "role": "Hermes 审批语义 ↔ ACP PermissionOption 映射。"
+   },
+   {
+    "path": "mcp_serve.py",
+    "lines": 1037,
+    "role": "把 Hermes 会话/消息暴露为 stdio MCP server;EventBridge mtime 短路轮询 state.db。"
+   },
+   {
+    "path": "ui-tui/src/gatewayClient.ts",
+    "lines": 794,
+    "role": "TUI 传输客户端:spawn python -m tui_gateway.entry(stdio)或按 HERMES_TUI_GATEWAY_URL attach 到任意 WS 网关,含 sidecar WS 与死亡面包屑。"
+   },
+   {
+    "path": "ui-tui/src/app/createGatewayEventHandler.ts",
+    "lines": 1419,
+    "role": "网关事件 → UI 状态的唯一映射层。"
+   },
+   {
+    "path": "ui-tui/src/app/turnController.ts",
+    "lines": 1092,
+    "role": "turn 生命周期状态机:delta 缓冲、tool/reasoning 状态、中断与完成转移。"
+   },
+   {
+    "path": "ui-tui/src/app/useMainApp.ts",
+    "lines": 1208,
+    "role": "顶层组合 hook:接线全部子 hook、transcript、会话轮询。"
+   },
+   {
+    "path": "ui-tui/src/sdk/index.ts",
+    "lines": 69,
+    "role": "TUI widget SDK 唯一导入面(defineWidgetApp/launchWidget + 布局/主题原语)——无文档。"
+   },
+   {
+    "path": "ui-tui/packages/hermes-ink/src/entry-exports.ts",
+    "lines": 57,
+    "role": "~29.8K 行 Ink fork 的导出面:鼠标/hit-test/selection/ScrollBox/alternate screen/终端探测。"
+   },
+   {
+    "path": "apps/desktop/electron/main.ts",
+    "lines": 12038,
+    "role": "Electron 主进程:后端解析与 spawn、更新、窗口、OAuth、远程 SSH 生命周期。"
+   },
+   {
+    "path": "apps/desktop/electron/backend-command.ts",
+    "lines": 48,
+    "role": "serve 后端 argv 构建与旧 runtime 的 dashboard --no-open 降级重写。"
+   },
+   {
+    "path": "apps/shared/src/json-rpc-gateway.ts",
+    "lines": 429,
+    "role": "desktop 与 web 共用的 JsonRpcGatewayClient(WS JSON-RPC + 事件类型定义)。"
+   },
+   {
+    "path": "web/src/pages/ChatPage.tsx",
+    "lines": 1643,
+    "role": "dashboard Chat 页:xterm.js(WebGL)渲染 /api/pty 的 PTY 字节流,RESIZE 带内转义。"
+   }
+  ],
+  "module": "TUI/桌面/Web/IDE 界面层(ui-tui、tui_gateway、acp_adapter、apps/、web/、mcp_serve.py、native/)",
+  "overview": "Hermes 的界面层围绕一个中心事实组织:tui_gateway 是唯一的 UI 后端——一个 14K 行的 Python JSON-RPC 方法注册中心(120+ RPC、换行分隔 JSON-RPC 线协议),通过 Transport 抽象(contextvar 绑定)同时被 stdio(Ink TUI 子进程)和 WebSocket(desktop/dashboard/移动端)驱动,业务 handler 对传输完全无感。终端前端 ui-tui 是 React+Ink 应用,底下是整套 vendored Ink fork(hermes-ink,~30K 行,加鼠标/拖选/ScrollBox/alternate-screen/背压)外加一个无文档的 widget SDK;浏览器 dashboard(web/,React+xterm.js)不重写聊天界面,而是经 /api/pty 把同一个 `hermes --tui` spawn 在 PTY 后面、注入 HERMES_TUI_GATEWAY_URL 让其 attach 回 dashboard 进程内网关、再用 sidecar WS 把三层进程之外的事件镜像回侧栏,并支持 PTY keep-alive 断线重连回放。Electron desktop(apps/desktop)刻意不嵌 TUI:自带 React 渲染器,通过 apps/shared 的 JsonRpcGatewayClient 连自己 spawn 的 headless `hermes serve` 后端,配套版本偏斜降级(serve→dashboard --no-open)与 Windows 进程树治理;dashboard 进一步可开启 turn_isolation,把 agent turn 移进持久 compute-host 子进程以根治 GIL 饿死事件循环的问题(配 MUTATOR_ROUTE_TABLE 路由与合成 GIL 负载验收 harness)。IDE 侧由 acp_adapter 把同步 AIAgent 包成异步 ACP 服务器(Zed/VS Code,含历史回放与 ContextVar 注入的 pre-execution 编辑审批),mcp_serve.py 则反向把 Hermes 自身暴露为 MCP server(SQLite mtime 轮询事件桥);native/fts5_cjk 是给会话搜索用的 SQLite FTS5 CJK bigram 分词 C 扩展。"
+ },
+ {
+  "capabilities": [
+   {
+    "name": "TTS/STT 三层后端解析与 registry 'built-ins always win' 不变量",
+    "problem": "语音合成/识别要支持十几个后端(edge/openai/elevenlabs/minimax/gemini/xai/piper/neutts 等)且允许插件和用户自定义扩展,但不能让第三方插件静默劫持内置名字或用户 config 里的选择,否则一个恶意/失误插件就能替换整条语音链路。",
+    "implementation": "定义了三个共存的扩展面并给出严格解析顺序:1) 内置 provider(BUILTIN_TTS_PROVIDERS,原生 Python 实现)永远最优先;2) config.yaml 里 tts.providers.<name>: type: command 声明的命令型 provider 其次(config 比插件更本地);3) 插件通过 PluginContext.register_tts_provider() 注册的 ABC 实现最后。不变量双重执行:agent/tts_registry.register_provider 在注册期拒绝与内置同名的插件(warning + 忽略),tools/tts_tool._dispatch_to_plugin_provider 在派发期再防御性复查。STT 侧(agent/transcription_registry + tools/transcription_tools)完整复刻同一模式,两份 _BUILTIN_NAMES 靠回归测试保持同步(避免循环 import)。",
+    "evidence": [
+     {
+      "loc": "agent/tts_registry.py:90",
+      "excerpt": "    if key in _BUILTIN_NAMES:\n        logger.warning(\n            \"TTS provider '%s' shadows a built-in name; registration ignored. \"\n            \"Built-in TTS providers (%s) always win — pick a different name.\",\n            key, \", \".join(sorted(_BUILTIN_NAMES)),\n        )"
+     },
+     {
+      "loc": "agent/tts_provider.py:14",
+      "excerpt": "1. **Built-in providers** (``BUILTIN_TTS_PROVIDERS`` in\n   :mod:`tools.tts_tool`) — native Python implementations (edge, openai,\n   elevenlabs, …). **Always win** — plugins cannot shadow them."
+     }
+    ],
+    "scale": "tts_registry 134 行 + tts_provider 274 行 + transcription_registry 124 行 + transcription_provider 193 行,外加 tts_tool/transcription_tools 里的派发逻辑各数百行;模式本身不复杂但一致性维护(注册期+派发期双检查、测试同步)很讲究。",
+    "learning_value": "high",
+    "learning_reason": "这是全仓 provider registry 模式(tts/stt/image_gen/video_gen/web_search 五份同构)的原型:'内置永远赢、config 赢过插件、注册期与派发期双重防御'是多后端可插拔 harness 的通用安全设计,可直接照搬。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "Command-type provider:零 Python 代码接入任意 CLI(shell 模板 + 引号上下文感知转义 + 秘密清洗子环境)",
+    "problem": "用户想把本地任意 TTS/STT CLI(Piper、VoxCPM、doubao-speech、curl 一行命令)接进 agent,但不该要求写 Python 插件;同时把 shell 模板交给用户渲染存在注入风险(路径含空格/引号),且子进程会继承 Hermes 的全部密钥(bot token、LLM key)。",
+    "implementation": "config 声明 type: command + command 模板,支持 {input_path}/{output_path}/{format}/{voice}/{model}/{speed} 占位符。渲染时 _shell_quote_context 逐字符扫描模板判断占位符落在裸/单引号/双引号哪种 shell 上下文,再用对应转义策略替换(先换成 token 再回填避免二次替换);执行时用 hermes_subprocess_env(inherit_credentials=False) 清洗掉 Hermes 密钥,仅 env_passthrough 白名单变量放行;超时用 psutil 递归杀进程树。STT 侧有完全对称的一套(_render_command_stt_template 等)。",
+    "evidence": [
+     {
+      "loc": "tools/tts_tool.py:908",
+      "excerpt": "    if quote_context == \"'\":\n        return value.replace(\"'\", r\"'\\''\")\n    if quote_context == '\"':\n        return (\n            value\n            .replace(\"\\\\\", \"\\\\\\\\\")"
+     },
+     {
+      "loc": "tools/tts_tool.py:1032",
+      "excerpt": "    scrubbed = hermes_subprocess_env(inherit_credentials=False)\n    for key in env_passthrough or []:\n        value = os.environ.get(key)"
+     }
+    ],
+    "scale": "tts_tool.py 581-1235 行区间约 650 行 + transcription_tools.py 对称实现约 470 行;引号上下文状态机、进程树清理、env 清洗都是易错细节,复杂度中高。",
+    "learning_value": "high",
+    "learning_reason": "'declarative shell-template provider' 是把扩展成本降到零的 harness 设计;quote-context 感知转义 + 默认密钥清洗 + 显式 passthrough 白名单是让用户模板既好用又安全的完整方案,通用性极强。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "流式语音管线:增量切句 + 每句 HTTP prefetch 流水线 + 通用同步回退",
+    "problem": "语音对话的核心指标是 time-to-first-audio:等 LLM 全部生成完再合成整段音频会有几十秒静默;即使按句合成,串行的 '合成→播放→再合成' 在句间也留下整段合成时长的死气。还要兼容没有 chunked API 的后端(edge/piper/插件)。",
+    "implementation": "tts_streaming.SentenceChunker 对 LLM token 增量做增量切句(剥离跨 delta 的 <think> 块、短碎句并入下一句);有 chunked API 的后端实现 StreamingTTSProvider(elevenlabs chunked HTTP、openai pcm、gemini SSE alt=sse、xai WebSocket),tts.streaming.provider: auto 按硬编码优先级取第一个可用;stream_tts_to_speaker 为每个完成的句子立即在后台线程发起 provider.stream() 的 HTTP 请求(信号量限 3 路 prefetch),单播放 worker 按 FIFO 排空——句 N 播放时句 N+1 的音频已在到达。无 chunked API 的后端走 _SyncSentencePipeline:单线程合成 executor + 播放线程 + 有界 lookahead 队列,同样实现合成与播放重叠。每句 PCM 有 16MiB 上限(_capped)防失控上游。",
+    "evidence": [
+     {
+      "loc": "tools/tts_tool.py:3532",
+      "excerpt": "        _audio_queue: queue.Queue[Optional[queue.Queue[Optional[bytes]]]] = queue.Queue()\n        _prefetch_threads: list[threading.Thread] = []\n        _prefetch_sem = threading.Semaphore(3)\n        _CHUNK_QUEUE_MAX = 64"
+     },
+     {
+      "loc": "tools/tts_streaming.py:105",
+      "excerpt": "        self.buf = _THINK_BLOCK_RE.sub(\"\", self.buf + delta)\n        if \"<think\" in self.buf and \"</think>\" not in self.buf:\n            return []  # open think tag — the closing tag may arrive next delta"
+     },
+     {
+      "loc": "tools/tts_streaming.py:179",
+      "excerpt": "_PROVIDER_PRIORITY: List[str] = [\"elevenlabs\", \"gemini\", \"openai\", \"xai\"]"
+     }
+    ],
+    "scale": "tts_streaming.py 488 行 + tts_tool.py 的 stream_tts_to_speaker/_SyncSentencePipeline 约 500 行 + gateway/streaming_tts_consumer 桥接;三层并发(chunker→prefetch→playback)+ 停止协议,复杂度高。",
+    "learning_value": "high",
+    "learning_reason": "把 'LLM 流式输出' 与 '语音流式合成' 的两级流水线拼接是语音 agent 的关键工程;'不为拿流式而偷换用户选定的 provider'、per-sentence prefetch、通用同步回退这三个决策都值得复用。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "全双工 barge-in:相位感知 VAD + 打断事实注入模型",
+    "problem": "语音对话要允许用户在 agent 说话/思考的任何时刻插话,但麦克风会收到扬声器回放的 TTS 音频(speaker bleed),朴素能量阈值要么被回放误触发、要么被回放淹没听不到人声;而且模型被打断后如果不知情,下一轮会莫名其妙。",
+    "implementation": "full_duplex_listen 从用户提交语句起监听整个 agent 回合,按 30ms 块用 is_playing() 区分 generation/playback 两相:安静相校准 90 分位噪声底并持续漂移更新(绝不吸收 bleed);播放相把触发阈值额外钳到 PLAYBACK_MIN_TRIGGER 之上并在播放启动后给 grace 窗口;检测用 '最近 sustained_ms 内 >=80% 块超阈' 的窗口多数投票而非严格连击;触发后从 pre-roll 环形缓冲把话语从第一个音节起完整捕获。播放路径的 listen_for_speech 另用滚动 90 分位底 + 8x 乘数 + 4000 RMS 上限。被打断时 tts_streaming 的 TTL latch 记账,下一轮提交时把 SPEECH_INTERRUPTED_NOTE 前置到发给模型的消息(仅 API 调用局部,不持久化),让模型知道自己被切断。",
+    "evidence": [
+     {
+      "loc": "tools/voice_mode.py:2064",
+      "excerpt": "                trigger = quiet_floor * mult\n                if playing:\n                    trigger = max(trigger, PLAYBACK_MIN_TRIGGER)\n                else:\n                    trigger = max(trigger, float(SILENCE_RMS_THRESHOLD) * 2)\n                trigger = min(trigger, TRIGGER_CEILING)"
+     },
+     {
+      "loc": "tools/tts_streaming.py:66",
+      "excerpt": "SPEECH_INTERRUPTED_NOTE = (\n    \"[Note: the user interrupted your previous spoken reply before it finished.]\"\n)"
+     }
+    ],
+    "scale": "voice_mode.py 中 listen_for_speech + full_duplex_listen 约 400 行,注释密度极高(每个常数都有失败模式论证);DSP 调参 + 并发协议,复杂度高。",
+    "learning_value": "high",
+    "learning_reason": "barge-in 是语音 harness 最难做对的交互;'相位钳制阈值 + 滚动底 + pre-roll 捕获 + 把打断事实作为 API 局部注释喂回模型' 是一套完整可迁移的方案,尤其最后一点(模型对被打断有自知)是很少见的巧思。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "Wake word 三引擎全本地热词检测(N 连帧确认 + 机器级独占锁)",
+    "problem": "免手动唤醒('Hey Hermes')需要常开麦克风,但音频不能离开本机、环境闲聊的杂散音素不能误触发、多个 Hermes 表面(CLI/TUI/desktop)不能同时抢一个麦克风。",
+    "implementation": "三个全在设备端的引擎:openwakeword(默认,自带打包的 hey-hermes ONNX 模型)、sherpa-onnx 开放词表 KWS(任意键入短语运行时 tokenize,免训练)、porcupine(付费)。抗误触发核心是 confirmation-frames:openWakeWord 每 ~80ms 帧打分,要求连续 N 帧(默认 3)超阈才触发——真实短语会跨帧保持高分,杂散音素只尖峰一帧。另有 2s 触发冷却、dead-mic 静音检测、pause()/resume() 让出麦克风给语音回合、文件锁保证机器级单实例(wake_surface_enabled 决定哪个表面持有)。",
+    "evidence": [
+     {
+      "loc": "tools/wake_word.py:565",
+      "excerpt": "        if over:\n            self._confirm_streak += 1\n            if self._confirm_streak >= self._confirm_needed:\n                self._confirm_streak = 0\n                return True"
+     }
+    ],
+    "scale": "wake_word.py 1464 行:3 个引擎适配 + 模型下载/tflite 运行时桥接 + 需求自检 + 检测器线程/锁,复杂度中高。",
+    "learning_value": "medium",
+    "learning_reason": "把 'Hey Siri' 模式装进开源 agent 的完整参考:引擎抽象 _Engine、隐私边界(检测全本地)、N 连帧确认这个简单有效的防误触发手段,以及麦克风独占协调,对做语音入口的 harness 有直接参考价值。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "STT 自动探测链 + 双阈值幻觉段过滤",
+    "problem": "语音转写要在 '本地免费' 与 '云端付费' 间自动选择且不背着用户偷换;Whisper 对静音/噪声会幻觉出 'Thank you for watching' 之类的假转写,直接进 agent 会触发错误回合。",
+    "implementation": "_get_provider 显式配置时严格尊重(不可用则返回 none 而非静默换云端);未配置时按 local > groq > openai > mistral > xai > elevenlabs > deepinfra 探测,本地缺依赖先走 lazy-install,DeepInfra 刻意垫底防止常见的聊天用 key 抢占 STT 选择,mistral 因 PyPI 恶意包事件在 auto 路径被跳过。幻觉过滤三层:faster-whisper 段级 AND 门(no_speech_prob 高且 avg_logprob 低才丢,安静但真实的语音只会命中其一而存活)、Silero VAD 前置、voice_mode 的 26 短语黑名单 + 重复模式正则兜底。",
+    "evidence": [
+     {
+      "loc": "tools/transcription_tools.py:1071",
+      "excerpt": "    if _HAS_FASTER_WHISPER:\n        return \"local\"\n    if _has_local_command():\n        return \"local_command\"\n    # Try lazy-install before falling through to cloud providers\n    if _try_lazy_install_stt():"
+     },
+     {
+      "loc": "tools/transcription_tools.py:1601",
+      "excerpt": "    return no_speech_prob > no_speech_threshold and avg_logprob < logprob_threshold"
+     },
+     {
+      "loc": "tools/voice_mode.py:1254",
+      "excerpt": "    if cleaned.rstrip('.!') in WHISPER_HALLUCINATIONS or cleaned in WHISPER_HALLUCINATIONS:\n        return True\n    # Repetitive patterns (e.g. \"Thank you. Thank you. Thank you. you\")\n    if _HALLUCINATION_REPEAT_RE.match(cleaned):"
+     }
+    ],
+    "scale": "transcription_tools.py 2687 行(8 个云/本地后端 + command/plugin 派发 + 分块转写 + CUDA 回退);幻觉过滤本身小而精。",
+    "learning_value": "medium",
+    "learning_reason": "'显式配置绝不静默降级、auto 探测有明确优先级论证(含供应链事件的黑名单)' 是可信 provider 选择的范本;段级置信度 AND 门过滤幻觉是把 ASR 输出接入 agent 前必须做的卫生步骤。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "Nous Managed Tool Gateway:代码内 pin 的 vendor 端点 + presign 直传 nous-upload 媒体协议",
+    "problem": "让订阅用户不带任何第三方 API key 就能用 Firecrawl/FAL/OpenAI-TTS/BFL 等付费工具,需要一个统一代理;但 '服务器下发工具目录' 会让远端能给所有安装注入新工具,且 base64 内联媒体在请求上限下最多 ~2MB、视频完全不可行。",
+    "implementation": "tools/managed_tool_gateway.py 是所有托管 vendor 的公共层:build_vendor_gateway_url 按 {vendor}-gateway.<domain> 规则在代码里 pin 端点(曾试过运行时 discovery catalog 后刻意移除——远端可注入工具的信任面大于一次代码 diff);token 分 peek(可用性扫描不触发同步 OAuth refresh)与 read(带 120s skew 的刷新)两条路径;is_managed_nous_gateway_url 保证 bearer/本地文件读取等额外信任只授予自建 origin。媒体走三步 presign 协议:POST 声明 contentType+length 拿短时效签名 PUT URL 与 token → 字节直传对象存储(绕开网关请求上限)→ 工具参数只携带 nous-upload:<token> 不透明引用(绑定本 principal、只能经网关兑付,泄露即失效)。entitlement 刻意不在客户端判断,由网关拒绝语句权威表达。",
+    "evidence": [
+     {
+      "loc": "tools/managed_tool_gateway.py:445",
+      "excerpt": "            put = await client.put(upload_url, content=data, headers={\"Content-Type\": mime})\n        if put.status_code != 200:\n            raise RuntimeError(f\"storage refused the upload (HTTP {put.status_code})\")\n\n        return f\"nous-upload:{token}\""
+     },
+     {
+      "loc": "tools/managed_tool_gateway.py:167",
+      "excerpt": "    shared_domain = os.getenv(\"TOOL_GATEWAY_DOMAIN\", \"\").strip().strip(\"/\")\n    if shared_domain:\n        return f\"{shared_scheme}://{vendor}-gateway.{shared_domain}\"\n\n    return f\"{shared_scheme}://{vendor}-gateway.{_DEFAULT_TOOL_GATEWAY_DOMAIN}\""
+     }
+    ],
+    "scale": "managed_tool_gateway.py 452 行 + fal_common.py 的 _ManagedFalSyncClient 163 行 + 各 vendor 工具/插件里的接入点;设计密度高(信任边界、token 生命周期、上传协议)。",
+    "learning_value": "high",
+    "learning_reason": "'托管工具网关' 是订阅型 agent 产品的核心基建;三个决策极具学习价值:端点必须 code-pinned 可 review、entitlement 只由服务器裁决、大媒体用 presign 直传 + 不透明 token 引用而非内联 base64。docs 有 tool-gateway.md 讲功能,但 presign/nous-upload 协议本身完全没有文档。",
+    "hidden_from_docs": true,
+    "doc_mismatch": null
+   },
+   {
+    "name": "BFL FLUX3 视频工具:服务器 guidance 作为活策略通道 + 预算化轮询循环",
+    "problem": "长耗时视频生成任务需要客户端轮询,但轮询节奏、限流等待、交付方式等策略若硬编码在客户端就会与服务器实际执行的策略漂移;而工具执行器 300s 超时会把仍在跑的任务报告成裸 TimeoutError(丢失 job id)。",
+    "implementation": "六个 bfl_flux3_* 原生工具只做两种 REST 调用(POST /generations、GET /generations/<id>),网关响应里的 guidance 字段(下一步做什么、等多久、如何交付)被逐字作为工具结果文本呈给模型——策略从服务器下发所以永不漂移;拒绝(4xx error.message)与传输失败(transport_error)在 poll 循环里按 key 区分,拒绝是正常可回应结果。get_result 内部做多次短间隔轮询:_CALL_BACKSTOP_SECONDS=240 / _POLL_BUDGET_SECONDS=180 双上限确保远离执行器 300s 天花板,预算按实际花费记账、等待切片检查中断、连续 3 次传输失败才放弃。媒体输入经 resolve_image_source 走沙箱确权后用 nous-upload 协议直传。",
+    "evidence": [
+     {
+      "loc": "tools/flux3_video_tool.py:178",
+      "excerpt": "    guidance = payload.pop(\"guidance\", None)\n    return json.dumps(\n        {\"result\": guidance or \"Request accepted.\", \"details\": payload},\n        ensure_ascii=False,\n    )"
+     },
+     {
+      "loc": "tools/flux3_video_tool.py:215",
+      "excerpt": "_CALL_BACKSTOP_SECONDS = 240.0\n_POLL_BUDGET_SECONDS = 180.0"
+     },
+     {
+      "loc": "tools/flux3_video_tool.py:1186",
+      "excerpt": "    name=\"bfl_flux3_text_to_video\","
+     }
+    ],
+    "scale": "flux3_video_tool.py 1249 行,其中约 200 行是常数选择的论证注释;轮询预算、错误分型、媒体交付路径,复杂度中高。",
+    "learning_value": "high",
+    "learning_reason": "两个罕见且高价值的 harness 模式:1) 'guidance 通道'——把易漂移的运维策略(等待时长、限流话术)全部服务器下发、客户端逐字转述给模型;2) 长任务轮询如何在工具执行器超时天花板下做预算化设计。整个 bfl 工具集在官方文档零覆盖。",
+    "hidden_from_docs": true,
+    "doc_mismatch": "website/docs/reference/tools-reference.md:11 宣称全部视频工具为 3 个(video_generate、xai_video_edit、xai_video_extend),未提及代码里注册的 6 个 bfl_flux3_* 工具;tool-gateway.md 的网关能力列表也不含视频生成。"
+   },
+   {
+    "name": "image_generate 统一 surface:FAL 模型目录 supports 白名单 + 插件派发 + managed Krea 模型级路由",
+    "problem": "一个 image_generate 工具要覆盖 7+ 后端(FAL 目录 11 个模型、openai、xai、krea、openrouter、deepinfra、openai-codex)和两种模态(文生图/图生图编辑),各 FAL 模型对未知参数的拒绝方式还各不相同;托管模式下部分 Krea 模型要走专属网关。",
+    "implementation": "FAL_MODELS 目录为每个模型声明 size_style 家族(preset 枚举/宽高比/字面尺寸)、defaults 与 supports 白名单,_build_fal_payload 把统一输入(prompt+aspect_ratio)翻译成模型原生 payload 并剥掉白名单外的 key。模态路由靠 image_url/reference_image_urls 的存在与否,provider 自己选文生图或编辑端点;旧签名插件收到新 kwargs 抛 TypeError 时降级重试并给出清晰错误。派发顺序:_maybe_route_managed_krea(仅托管模式、krea-2-* 原生模型 id 时拦截到 Krea 专属网关)→ 插件 registry 派发(provider 显式配置且非 fal)→ 传统 FAL 路径(BYO key 或经 _ManagedFalSyncClient 走 fal-queue 网关)。",
+    "evidence": [
+     {
+      "loc": "tools/image_generation_tool.py:91",
+      "excerpt": "# ``supports`` is a whitelist of keys allowed in the outgoing payload — any\n# key outside this set is stripped before submission so models never receive\n# rejected parameters (each FAL model rejects unknown keys differently)."
+     },
+     {
+      "loc": "tools/image_generation_tool.py:1284",
+      "excerpt": "    if not configured or configured == \"fal\":\n        return None  # unset/explicit FAL keeps the legacy FAL path"
+     },
+     {
+      "loc": "tools/image_generation_tool.py:1447",
+      "excerpt": "        from plugins.image_gen.krea import _resolve_managed_krea_gateway\n\n        if _resolve_managed_krea_gateway() is None:\n            return None"
+     }
+    ],
+    "scale": "image_generation_tool.py 1668 行 + agent/image_gen_provider.py 393 行 + registry 145 行 + plugins/image_gen 七个后端 3369 行;目录驱动的 payload 翻译是主要复杂度。",
+    "learning_value": "medium",
+    "learning_reason": "'统一工具 surface + 声明式模型目录 + per-model supports 白名单' 是多模型媒体生成工具的标准解法;模型 id 级别的托管路由(同名能力在 BYO 与托管模式走不同网关)展示了商业化 harness 的真实复杂度。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "模块 docstring(tools/image_generation_tool.py:5)仍写 'Provides image generation via FAL.ai',而实际该工具经 registry 派发到 openai/xai/krea/openrouter/deepinfra/openai-codex 等插件后端,FAL 只是遗留回退路径;网站文档(image-generation.md)是准确的,过时的只是模块头。"
+   },
+   {
+    "name": "入站图像 native/text 双模路由 + 统一媒体源解析器(沙箱确权)",
+    "problem": "用户附图该直接作为多模态 content part 给主模型看原始像素,还是先用辅助 vision 模型转成文字?决策依赖主模型能力元数据。同时所有媒体来源(data:/http/file/容器路径)必须过同一个安全咽喉,否则非本地终端后端下 vision_analyze('/etc/passwd') 会变成沙箱逃逸读宿主文件。",
+    "implementation": "decide_image_input_mode 每回合读 agent.image_input_mode(auto/native/text):auto 下主模型 supports_vision=True(config 覆盖或 models.dev 元数据,含 Ollama 探测)则 native 附加,否则 auxiliary.vision 作为 text 管道兜底;图像尺寸采取 reactive 策略——全尺寸先发、被 provider 400 拒绝后 shrink 重试,而非维护会过期的 per-provider 上限表。resolve_image_source 是唯一媒体入口:50MB ingest 上限、SSRF 检查、credential 文件读取守卫(.env/auth.json 直接拒绝);非本地终端后端下只有媒体缓存目录可宿主读,其余路径一律经 exec-read 在沙箱内取字节——读到的是容器文件而非宿主文件,修 'vision 看不见容器文件' 的同一机制顺带关闭了逃逸(GHSA-gpxw-6wxv-w3qq)。",
+    "evidence": [
+     {
+      "loc": "agent/image_routing.py:502",
+      "excerpt": "    if supports is True:\n        return \"native\"\n    if _explicit_aux_vision_override(cfg):\n        return \"text\"\n    return \"text\""
+     },
+     {
+      "loc": "tools/image_source.py:153",
+      "excerpt": "    # Not a permitted host read (or the host file is absent) -> read the\n    # bytes inside the sandbox. Under a sandbox this reads the container's\n    # filesystem, never the host's.\n    return await _resolve_container_fallback(p, ctx, s, permitted)"
+     }
+    ],
+    "scale": "image_routing.py 821 行 + image_source.py 391 行 + vision_tools.py 里的 native fast-path/重试/缩放约 600 行;能力元数据查询、确权矩阵、reactive 缩放,复杂度高。",
+    "learning_value": "high",
+    "learning_reason": "多模态 harness 的两个根本问题在此都有成熟答案:输入路由(native 优先、辅助 vision 仅作 text-only 模型的兜底、reactive shrink-on-reject 优于维护 provider 上限表)与媒体安全咽喉(单一 resolver + 后端相关确权,把安全修复和功能修复统一在同一机制里)。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "Web 搜索/提取 per-capability registry + 确定性 truncate-and-store 长页分页",
+    "problem": "8 个 web 后端能力参差(brave-free/ddgs/searxng/xai 只有 search),要允许 search 与 extract 各选后端且插件化迁移后不改变老用户的落点;长网页塞进上下文是 token 炸弹,但 LLM 摘要既慢又贵还有损。",
+    "implementation": "全部 8 个后端迁为 plugins/web/<vendor> 插件,经 agent/web_search_registry 解析:显式配置的后端即使 is_available()=False 也返回(让用户拿到精确的 'X_API_KEY is not set' 而非静默换后端)→ 唯一可用捷径 → 与迁移前 _get_backend 完全一致的 legacy 优先级走查;每步都过 supports_search/supports_extract 能力过滤。web_extract 长页处理零 LLM:75% 头 + 25% 尾按 markdown 行边界截窗,全文落盘到 cache/web(bind-mount 进远端后端只读),footer 给出确切的 read_file path/offset/limit 调用让模型自己翻被省略的中段;内联 base64 图统一替换成 [IMAGE: alt] 占位符防 token 炸弹。",
+    "evidence": [
+     {
+      "loc": "agent/web_search_registry.py:184",
+      "excerpt": "    if configured:\n        provider = snapshot.get(configured)\n        if provider is not None and _capable(provider):\n            return provider"
+     },
+     {
+      "loc": "tools/web_tools.py:560",
+      "excerpt": "            middle_start_line = head.count(\"\\n\") + 2\n            footer_lines.append(f\"Full text saved to: {stored_path}\")\n            footer_lines.append(\n                f'To read the omitted middle: read_file path=\\\"{stored_path}\\\" '\n                f\"offset={middle_start_line} limit=200  (the file is the complete page; \""
+     }
+    ],
+    "scale": "web_tools.py 1237 行 + web_search_registry.py 304 行 + provider ABC 211 行 + plugins/web 八个后端 3933 行;解析规则与迁移兼容性是主要设计功夫。",
+    "learning_value": "high",
+    "learning_reason": "两个可直接复用的 harness 决策:1) '显式配置忽略可用性也要返回' 让错误信息精确而不是静默降级;2) truncate-and-store + 自描述 footer 把长内容分页的主动权交给模型(教它下一步怎么调 read_file),完全确定性、零模型成本,优于 LLM 摘要。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "tools/web_tools.py:20-22 模块 docstring 仍宣称 'Uses OpenRouter API with Gemini 3 Flash Preview for intelligent content extraction / creates markdown summaries',但实际代码路径已是零 LLM 的 truncate-and-store(同文件 750 行与 1193 行的 schema 描述均明确 'no LLM summarization');网站 web-search.md 与代码一致,过时的是模块头。"
+   },
+   {
+    "name": "x_search degraded 无引用检测:识别 '模型编的' 与 '索引查的'",
+    "problem": "xAI 的 x_search 在过滤条件(handle/日期)命中零结果时仍返回 200 与一段由模型自身知识合成的回答,与真实引用支撑的结果外观完全相同,agent 会把编造当检索结果转述给用户。",
+    "implementation": "工具在响应上叠加防御信号:任一收窄过滤器激活且顶层 citations 与内联 url_citation 两个引用通道均为空时置 degraded=true 并给出 degraded_reason(列出激活的过滤器),提示调用方放宽过滤/换源;此外 from_date/to_date 在 HTTP 前做客户端校验(格式、倒置、纯未来区间)fail-fast 省 API 调用。凭证按 SuperGrok OAuth > 直连 OAuth > XAI_API_KEY 优先级解析并自动续期。",
+    "evidence": [
+     {
+      "loc": "tools/x_search_tool.py:418",
+      "excerpt": "        degraded = bool(active_filters) and not citations and not inline_citations\n        degraded_reason = (\n            f\"no citations returned despite filters: {', '.join(active_filters)}\"\n            if degraded\n            else None\n        )"
+     }
+    ],
+    "scale": "x_search_tool.py 552 行;信号逻辑本身小巧,价值在思路。",
+    "learning_value": "medium",
+    "learning_reason": "对 '上游 200 但内容不可信' 的工具响应做客户端语义标注,是 harness 层对抗 LLM-backed API 幻觉的通用手段——工具不仅转发结果,还告诉模型该结果的证据等级。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   }
+  ],
+  "doc_conflicts": [
+   {
+    "claim": "tools/web_tools.py 模块 docstring(20-22 行)宣称:'LLM Processing: Uses OpenRouter API with Gemini 3 Flash Preview for intelligent content extraction; Extracts key excerpts and creates markdown summaries to reduce token usage'。",
+    "reality": "web_extract 实际是零 LLM 的确定性 truncate-and-store:头 75%+尾 25% 截窗、全文落盘、footer 指引 read_file 翻页;同文件 750 行 docstring 与 1193 行工具 schema 均写明 'no LLM summarization'。OpenRouter 摘要路径已不存在。",
+    "evidence_loc": "tools/web_tools.py:527"
+   },
+   {
+    "claim": "website/docs/reference/tools-reference.md:11 宣称视频工具共 3 个:'3 video tools (`video_generate`, `xai_video_edit`, `xai_video_extend`)';全站文档(含 tool-gateway.md)无任何 BFL/FLUX3 视频提及。",
+    "reality": "tools/flux3_video_tool.py 顶层 registry.register 另注册了 6 个 bfl toolset 工具:bfl_flux3_text_to_video、bfl_flux3_image_to_video、bfl_flux3_keyframes_to_video、bfl_flux3_video_continuation、bfl_flux3_get_result、bfl_flux3_prompting_guide。",
+    "evidence_loc": "tools/flux3_video_tool.py:1186"
+   },
+   {
+    "claim": "tools/image_generation_tool.py 模块 docstring(第 5 行)称该模块 'Provides image generation via FAL.ai',并把架构描述为 FAL 模型目录。",
+    "reality": "image_generate 现在优先经 agent/image_gen_registry 派发到插件后端(openai、xai、krea、openrouter、deepinfra、openai-codex),还有 managed Krea 模型级路由;FAL 只是 provider 未配置或显式为 'fal' 时的遗留回退路径。",
+    "evidence_loc": "tools/image_generation_tool.py:1284"
+   },
+   {
+    "claim": "docs(website/docs/user-guide/features/tool-gateway.md 等)描述了托管网关可用的工具面,但从未提及媒体上传机制;grep 全部 docs 无 'presign'/'nous-upload' 任何出现。",
+    "reality": "tools/managed_tool_gateway.py 实现了完整的三步媒体上传协议:POST presign(声明 contentType+contentLength)→ 字节直传对象存储(绕过网关请求上限,支撑 50MB 视频)→ 工具参数携带绑定 principal 的 nous-upload:<token> 不透明引用。",
+    "evidence_loc": "tools/managed_tool_gateway.py:449"
+   }
+  ],
+  "key_files": [
+   {
+    "path": "tools/tts_tool.py",
+    "lines": 3964,
+    "role": "TTS 主模块:11 个内置 provider 实现、command-type provider 渲染/执行、插件派发、Opus 语音气泡转码(OPUS_VOICE_PLATFORMS)、stream_tts_to_speaker 流式播放调度与 _SyncSentencePipeline 同步回退。"
+   },
+   {
+    "path": "tools/tts_streaming.py",
+    "lines": 488,
+    "role": "流式 TTS provider 层:StreamingTTSProvider ABC + @register 注册表、SentenceChunker 增量切句、elevenlabs/openai/gemini(SSE)/xai(WebSocket) 四个 chunked-PCM streamer、16MiB per-sentence 上限、SPEECH_INTERRUPTED_NOTE 打断 latch。"
+   },
+   {
+    "path": "tools/tts_text_normalize.py",
+    "lines": 278,
+    "role": "所有 TTS 路径共用的口语化清洗器:剥 <think>/markdown/emoji、展开单位符号、标题折叠进后句,确定性纯正则。"
+   },
+   {
+    "path": "tools/neutts_synth.py",
+    "lines": 110,
+    "role": "NeuTTS 独立子进程合成脚本:~500MB 模型在合成完即退出的进程里加载,避免常驻内存。"
+   },
+   {
+    "path": "tools/voice_mode.py",
+    "lines": 2308,
+    "role": "语音模式基础设施:录音器(含 Termux)、音频环境探测、listen_for_speech/full_duplex_listen 两套 barge-in VAD、Whisper 幻觉短语过滤、stop-phrase、播放与思考音效。"
+   },
+   {
+    "path": "tools/wake_word.py",
+    "lines": 1464,
+    "role": "'Hey Hermes' 唤醒词:openwakeword/sherpa-KWS/porcupine 三引擎全本地检测、N 连帧确认、机器级锁与 pause/resume 麦克风协调。"
+   },
+   {
+    "path": "tools/transcription_tools.py",
+    "lines": 2687,
+    "role": "STT 主模块:local(faster-whisper)/groq/openai/mistral/xai/elevenlabs/deepinfra + local_command + command/plugin 派发、auto 探测链、幻觉段过滤、大文件分块转写、CUDA 失败回退 CPU。"
+   },
+   {
+    "path": "agent/tts_provider.py",
+    "lines": 274,
+    "role": "TTS 插件 ABC:synthesize/stream/list_voices/get_setup_schema 契约,文档化三层扩展面解析顺序。"
+   },
+   {
+    "path": "agent/tts_registry.py",
+    "lines": 134,
+    "role": "TTS 插件注册表:built-ins-always-win 注册期拒绝,与 tts_tool 的 BUILTIN 集合靠测试同步。"
+   },
+   {
+    "path": "agent/transcription_provider.py",
+    "lines": 193,
+    "role": "STT 插件 ABC,镜像 TTS 侧契约(transcribe 返回 transcript dict)。"
+   },
+   {
+    "path": "agent/transcription_registry.py",
+    "lines": 124,
+    "role": "STT 插件注册表,同样的内置名保护不变量。"
+   },
+   {
+    "path": "tools/image_generation_tool.py",
+    "lines": 1668,
+    "role": "image_generate 工具:FAL_MODELS 目录(supports 白名单、三种尺寸家族)、payload 翻译、Clarity 上采样、插件派发、managed Krea 路由、生成结果向远端终端后端缓存同步。"
+   },
+   {
+    "path": "tools/image_source.py",
+    "lines": 391,
+    "role": "所有媒体来源(data:/http/file/容器)的唯一解析咽喉:50MB ingest 上限、SSRF/credential 守卫、非本地后端 exec-read 沙箱确权(GHSA-gpxw-6wxv-w3qq 修复)。"
+   },
+   {
+    "path": "agent/image_gen_provider.py",
+    "lines": 393,
+    "role": "图像生成插件 ABC:统一文生图/图生图 surface、capabilities()、save_b64_image/save_url_image 落盘助手、标准响应 envelope。"
+   },
+   {
+    "path": "agent/image_gen_registry.py",
+    "lines": 145,
+    "role": "图像生成插件注册表(get_provider/list_providers)。"
+   },
+   {
+    "path": "agent/image_routing.py",
+    "lines": 821,
+    "role": "入站图像路由:decide_image_input_mode(native/text/auto)、supports_vision 元数据查询(config 覆盖 + models.dev + Ollama 探测)、本地路径/URL 引用抽取、native content parts 构建与 PNG 转码。"
+   },
+   {
+    "path": "plugins/image_gen/krea/__init__.py",
+    "lines": 744,
+    "role": "Krea 图像后端插件:BYO key 与专属托管网关双路径,是 managed 模型级路由的对端。"
+   },
+   {
+    "path": "plugins/image_gen/openai-codex/__init__.py",
+    "lines": 639,
+    "role": "经 ChatGPT Codex 后端的免 API-key 图像生成插件(OAuth 会话复用)。"
+   },
+   {
+    "path": "plugins/image_gen/openrouter/__init__.py",
+    "lines": 526,
+    "role": "OpenRouter 图像生成插件(chat-completions 多模态输出取图)。"
+   },
+   {
+    "path": "plugins/image_gen/xai/__init__.py",
+    "lines": 494,
+    "role": "xAI grok-imagine 图像插件(OAuth/API key 双凭证)。"
+   },
+   {
+    "path": "tools/video_generation_tool.py",
+    "lines": 575,
+    "role": "video_generate 统一工具:纯注册表派发、零内置 provider、动态 schema 按活跃 provider 声明的能力生成。"
+   },
+   {
+    "path": "agent/video_gen_provider.py",
+    "lines": 590,
+    "role": "视频生成插件 ABC 与响应 envelope(与 image_gen 对称设计)。"
+   },
+   {
+    "path": "tools/flux3_video_tool.py",
+    "lines": 1249,
+    "role": "BFL FLUX3 视频工具集(6 工具):Nous 网关 REST、guidance 活策略通道、预算化轮询、nous-upload 媒体输入、下载/附件交付。"
+   },
+   {
+    "path": "tools/xai_video_tools.py",
+    "lines": 209,
+    "role": "xai_video_edit/extend 两个 xAI Imagine 专属工具,复用 plugins/video_gen/xai 的执行函数。"
+   },
+   {
+    "path": "tools/vision_tools.py",
+    "lines": 1925,
+    "role": "vision_analyze/video_analyze:下载重试、SVG 栅格化、超限自动缩图重试、native fast-path(vision 主模型直接把图放进 tool result 而不经辅助模型)、CPU executor 编码。"
+   },
+   {
+    "path": "tools/web_tools.py",
+    "lines": 1237,
+    "role": "web_search/web_extract 工具壳:registry 派发、truncate-and-store 长页分页、base64 图占位符替换、全文落盘供 read_file 翻页。"
+   },
+   {
+    "path": "agent/web_search_provider.py",
+    "lines": 211,
+    "role": "Web 后端插件 ABC(supports_search/supports_extract 能力声明)。"
+   },
+   {
+    "path": "agent/web_search_registry.py",
+    "lines": 304,
+    "role": "Web 后端解析:per-capability 配置 > 唯一可用 > legacy 优先级走查,显式配置忽略可用性以保住精确报错。"
+   },
+   {
+    "path": "plugins/web/firecrawl/provider.py",
+    "lines": 617,
+    "role": "Firecrawl 后端(直连或 firecrawl-gateway 托管),web_tools 兼容 re-export 的来源。"
+   },
+   {
+    "path": "plugins/web/xai/provider.py",
+    "lines": 560,
+    "role": "xAI Grok 服务器端 web_search 后端(LLM 生成式结果,文档标注信任模型注意事项)。"
+   },
+   {
+    "path": "tools/x_search_tool.py",
+    "lines": 552,
+    "role": "x_search 工具:xAI Responses API、双凭证解析、日期 fail-fast 校验、degraded 无引用检测信号。"
+   },
+   {
+    "path": "tools/managed_tool_gateway.py",
+    "lines": 452,
+    "role": "Nous 托管网关公共层:code-pinned vendor 端点、peek/read 双 token 路径、is_managed_nous_gateway_url 信任门、presign 直传 nous-upload 媒体协议。"
+   },
+   {
+    "path": "tools/fal_common.py",
+    "lines": 163,
+    "role": "FAL SDK 共享件:lazy import 与 _ManagedFalSyncClient(用 fal_client 原语驱动 Nous fal-queue 网关)。"
+   },
+   {
+    "path": "tools/openrouter_client.py",
+    "lines": 47,
+    "role": "共享 OpenRouter async 客户端(lazy 单例,经中央 provider router 构建)。"
+   },
+   {
+    "path": "tools/discord_tool.py",
+    "lines": 1116,
+    "role": "Discord 服务器管理工具:schema 按 bot 特权 intent 探测结果与用户 allowlist 双闸过滤,403 运行时富化成可转述指引。"
+   },
+   {
+    "path": "tools/send_message_tool.py",
+    "lines": 2116,
+    "role": "跨平台 send_message:十余种平台目标语法(Slack C/G/D、Telegram topic、WhatsApp JID、E.164、email、飞书、元宝)的正则解析与名称解析、媒体/文档分流、cron 重复发送去重。"
+   },
+   {
+    "path": "tools/react_to_message_tool.py",
+    "lines": 167,
+    "role": "桌面端 agent 表情回应工具(HERMES_DESKTOP 门控,默认对触发本回合的消息)。"
+   },
+   {
+    "path": "tools/homeassistant_tool.py",
+    "lines": 514,
+    "role": "Home Assistant REST 四工具(list_entities/get_state/list_services/call_service),HASS_TOKEN 长效令牌鉴权。"
+   },
+   {
+    "path": "tools/yuanbao_tools.py",
+    "lines": 737,
+    "role": "腾讯元宝平台工具:群信息/成员查询、贴纸搜索与发送、私聊,经 gateway 适配器单例。"
+   },
+   {
+    "path": "tools/feishu_drive_tool.py",
+    "lines": 431,
+    "role": "飞书文档评论操作工具(thread-local 注入 lark client)。"
+   },
+   {
+    "path": "tools/feishu_doc_tool.py",
+    "lines": 138,
+    "role": "飞书文档读取工具(同 lark client 注入模式)。"
+   },
+   {
+    "path": "tools/audio_container.py",
+    "lines": 97,
+    "role": "音频容器嗅探/修复助手(Ogg 容器修复,配合语音气泡交付)。"
+   },
+   {
+    "path": "docs/streaming-tts.md",
+    "lines": 93,
+    "role": "流式 TTS 架构文档(与代码高度一致,含 provider 能力矩阵与新增 streamer 指南)。"
+   }
+  ],
+  "module": "外围服务工具(语音/图像/视频/搜索/平台工具)",
+  "overview": "这是 hermes-agent 的\"感官与执行器\"层:约 2.6 万行代码把语音(唤醒词→STT→agent→流式 TTS 全链路)、图像/视频生成与视觉分析、Web 搜索/提取、X 搜索,以及 Discord/飞书/元宝/Home Assistant/跨平台消息等平台工具接进同一个工具注册表。骨架是五份同构的 provider-registry 模式(tts/stt/image_gen/video_gen/web_search):ABC 定契约、registry 存实例、插件 import 时注册、工具壳只做派发,并以\"内置名永远赢、config 声明的 command 型 provider 赢过插件、显式配置绝不静默降级\"三条不变量保证可预测性;TTS/STT 还支持零代码的 shell 模板 command provider(引号上下文感知转义 + 密钥清洗子环境)。语音链路是工程密度最高的部分:SentenceChunker 增量切句 + 每句 HTTP prefetch 流水线把 time-to-first-audio 压到第一句,全双工 VAD 用相位钳制阈值实现 TTS 播放中的 barge-in,并把\"被打断\"这一事实作为 API 局部注释喂回模型。商业化基建 managed_tool_gateway 用 code-pinned 端点 + Nous OAuth + presign 直传 nous-upload 协议让订阅用户免第三方 key 使用 Firecrawl/FAL/Krea/BFL 等托管工具,BFL FLUX3 视频工具进一步把轮询节奏等运维策略经服务器 guidance 字段下发。安全咽喉 image_source.resolve_image_source 统一所有媒体来源的确权,在非本地终端后端下以沙箱内 exec-read 关闭 vision 工具的宿主文件逃逸。文档覆盖总体良好(website/docs 有 tts/voice-mode/wake-word/web-search/x-search 专页),但 bfl_flux3_* 六个视频工具与 presign 上传协议完全无文档,web_tools/image_generation_tool 两个模块头的架构描述已过时。"
+ },
+ {
+  "capabilities": [
+   {
+    "name": "hermes update 多阶段自愈更新管线(git 主路径)",
+    "problem": "源码检出式安装(~/.hermes/hermes-agent)在用户机器上自更新时,任何一步失败(坏 commit 过了 CI、依赖装一半、终端断线、gateway 占用 venv)都可能把 CLI 直接砖掉。harness 需要一个'永远可回退、可续传'的更新事务。",
+    "implementation": "入口 `_cmd_update_impl`(update_cmd.py:3564,~1900 行)串起完整事务:Windows 并发 hermes.exe/venv 持有者守卫(exit 2)→ pre-update snapshot → 暂停 Windows gateway → `git fetch` + `merge --ff-only`(失败则 reset --hard origin/branch)→ 关键 9 文件 `py_compile` 语法守卫,失败自动 `git reset --hard <pre_pull_sha>` 回滚 → 子进程 import 探针(`_validate_critical_modules_import`,只把 FIRST_PARTY_MODULE_ROOTS 的 ImportError 视为坏树)→ 分层依赖安装(`.[all]` 失败则逐 extra 重试,见 main.py:_install_python_dependencies_with_optional_fallback)→ 断点续传 marker(`_write_update_incomplete_marker`,下次启动由 `_recover_from_interrupted_install` 续装)→ 清 __pycache__ + importlib.reload 更新敏感模块 → lazy 后端刷新 → gateway 恢复/重启。另有 SIGHUP→SIG_IGN + update.log 镜像防终端断线,`_normalize_managed_eol`/`_discard_lockfile_churn` 消除 EOL/lockfile 噪声脏树。",
+    "evidence": [
+     {
+      "loc": "hermes_cli/update_cmd.py:94-97",
+      "excerpt": "_UPDATE_CRITICAL_FILES = (\n    \"hermes_cli/main.py\",\n    \"hermes_cli/config.py\",\n    \"hermes_cli/__init__.py\","
+     },
+     {
+      "loc": "hermes_cli/update_cmd.py:4013-4015",
+      "excerpt": "                    print(f\"→ Rolling back to {pre_pull_sha[:10]}...\")\n                    rollback_result = subprocess.run(\n                        git_cmd + [\"reset\", \"--hard\", pre_pull_sha],"
+     },
+     {
+      "loc": "hermes_cli/main.py:9011-9013",
+      "excerpt": "    if hasattr(_signal, \"SIGHUP\"):\n        try:\n            _signal.signal(_signal.SIGHUP, _signal.SIG_IGN)"
+     },
+     {
+      "loc": "hermes_cli/update_cmd.py:174-175",
+      "excerpt": "def _validate_critical_modules_import(root) -> tuple[bool, str | None, str | None]:\n    \"\"\"Import each module in ``_UPDATE_CRITICAL_MODULES`` in a subprocess."
+     }
+    ],
+    "scale": "update_cmd.py 5540 行 + main.py 中约 1500 行 update 辅助;复杂度极高(Windows 文件锁、gateway 编排、git 状态机、断点恢复交织)",
+    "learning_value": "high",
+    "learning_reason": "这是'agent 自更新'工程化的完整范本:每一步都有失败模式分析和回滚/续传路径,语法编译守卫 + 子进程 import 探针的双层验证(parse 通过≠import 通过)是可以直接搬走的模式。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "website/docs/getting-started/updating.md:28 称 git pull 步骤会 'updates submodules',但仓库无 .gitmodules,update_cmd.py/main.py 中无任何 submodule 处理代码。"
+   },
+   {
+    "name": "Windows ZIP 两阶段替换更新回退路径",
+    "problem": "Windows 上杀毒/NTFS 过滤驱动会让 git 文件 I/O 直接报 Invalid argument,git 路径不可用;而逐目录覆盖式解压更新一旦中断会留下 agent/ 新、tools/ 旧的'每个文件都合法但整树不可启动'的半更新状态。",
+    "implementation": "`_update_via_zip`(update_cmd.py:725)从 GitHub 下载分支 ZIP,先做 zip-slip realpath 校验并拒绝 symlink 成员(防更新镜像被投毒后经解压植入任意文件);拒绝非 main 的 --branch(静态归档无法尊重分支);预检磁盘空间(staging 拷贝 ×1.2 余量);然后两阶段替换(#76104):phase 1 把所有顶级 entry 拷到同文件系统 staging 路径,phase 2 用 rename 逐个换入,任一失败则回滚所有已换入项并 `_discard_staged` 清理残留,保证'要么全部生效要么原样保留'。保留集 {venv, node_modules, .git, .env} 不动。",
+    "evidence": [
+     {
+      "loc": "hermes_cli/update_cmd.py:784-788",
+      "excerpt": "                mode = (member.external_attr >> 16) & 0o170000\n                if _stat.S_ISLNK(mode):\n                    raise ValueError(\n                        f\"ZIP contains unsupported symlink member: {member.filename}\"\n                    )"
+     },
+     {
+      "loc": "hermes_cli/update_cmd.py:832-834",
+      "excerpt": "        required = int(need * 1.2)\n        free = shutil.disk_usage(str(_m().PROJECT_ROOT)).free\n        if free < required:"
+     },
+     {
+      "loc": "hermes_cli/update_cmd.py:841-846",
+      "excerpt": "        staged: list[tuple[str, str]] = []\n        try:\n            for item in entries:\n                src = os.path.join(extracted, item)\n                dst = os.path.join(str(_m().PROJECT_ROOT), item)\n                staged.append((_stage_replacement(src, dst), dst))"
+     }
+    ],
+    "scale": "约 500 行(_update_via_zip + _stage_replacement/_atomic_replace_dir/_commit_staged_replacements/_discard_staged);中高复杂度",
+    "learning_value": "high",
+    "learning_reason": "'stage-then-swap + 全量回滚'是对无 git 事务能力环境做原子目录树替换的标准解,zip-slip/symlink 双重校验展示了更新通道的供应链威胁模型。",
+    "hidden_from_docs": true,
+    "doc_mismatch": null
+   },
+   {
+    "name": "跨进程更新互斥锁(update_lock.py,与 Rust/Electron 字节兼容)",
+    "problem": "终端 `hermes update`、dashboard 的 Update 按钮、桌面 Tauri `hermes-setup --update` 三个入口可能同时更新同一棵检出树,两个 updater 并发改写源码会留下半更新树;但 Tauri 父进程持锁期间又要 spawn 子 `hermes update`,天然会自死锁。",
+    "implementation": "复用 Tauri 已有的 `<HERMES_HOME>/.hermes-update-in-progress` marker(内容 pid+起始时间)作为全入口统一锁,格式与 apps/bootstrap-installer 的 Rust UpdateMarkerGuard 和 electron/update-marker.ts 字节兼容。marker 仅当 pid 存活且年龄 < 20 分钟才算活锁,过期由先发现者删除自愈。父子 handoff 双机制:HERMES_UPDATE_HANDOFF_PID 环境变量(必须同时是活 marker 持有者,伪造无效)或持有者是本进程祖先(psutil parents 链,治愈老版本 staged updater 永不发 env var 的舰队)。release 只在自己仍是 owner 时删 marker,避免删掉 handoff 伙伴改写后的锁。exit code 2 与 Tauri 的 UPDATE_EXIT_CONCURRENT 合同一致。",
+    "evidence": [
+     {
+      "loc": "hermes_cli/update_lock.py:65",
+      "excerpt": "UPDATE_MARKER_MAX_AGE_SECONDS = 20 * 60"
+     },
+     {
+      "loc": "hermes_cli/update_lock.py:245-250",
+      "excerpt": "        existing = read_live_update(path=self.path)\n        if existing is not None:\n            if existing.pid == _handoff_pid() or _is_ancestor_pid(existing.pid):\n                return True\n            self.holder = existing\n            return False"
+     },
+     {
+      "loc": "hermes_cli/update_lock.py:104-106",
+      "excerpt": "    Delegates to :func:`gateway.status._pid_exists`, the project's existing\n    no-kill probe. Do NOT hand-roll this with ``os.kill(pid, 0)``: on Windows\n    that is not a no-op — CPython routes ``sig=0`` to"
+     },
+     {
+      "loc": "hermes_cli/update_lock.py:82",
+      "excerpt": "UPDATE_EXIT_CONCURRENT = 2"
+     }
+    ],
+    "scale": "289 行,单文件;概念密度高(跨语言字节兼容、祖先识别、stale 自愈)",
+    "learning_value": "high",
+    "learning_reason": "跨 Python/Rust/TypeScript 三运行时共享同一个文件锁并保持字节兼容、用'进程祖先链'解决旧版本 orchestrator 无法握手的舰队升级问题,是罕见且精巧的多入口互斥设计。",
+    "hidden_from_docs": true,
+    "doc_mismatch": null
+   },
+   {
+    "name": "hermes doctor 诊断/自修复/安全公告确认系统",
+    "problem": "跨平台安装(源码/Docker/Nix/Termux/Windows)的故障面极大:证书坏、venv 半更新、版本文件漂移、被投毒的依赖包、可疑 MCP stdio 命令、s6/systemd 服务状态——用户报障时需要一条命令给出可执行的修复清单。",
+    "implementation": "`run_doctor`(doctor.py:708,主体约 2000 行)按 20+ 个 `_section` 顺序检查:Security Advisories(detect_compromised 扫描已装的被投毒包版本,`--ack <id>` 持久化确认)、MCP stdio 命令安全校验、Python/SSL/必装包、config 结构 + 废弃键、`_check_version_consistency`(pyproject.toml vs hermes_cli.__version__ 漂移检测)、s6/systemd 监督状态、API 连通性、Tool 可用性、Skills Hub、Memory provider、Profiles。`--fix` 走自动修复分支,如 certifi 损坏时 force-reinstall 进当前解释器并清 importlib 缓存后复验;不可自动修的进 manual_issues 汇总输出。",
+    "evidence": [
+     {
+      "loc": "hermes_cli/doctor.py:720-721",
+      "excerpt": "    if ack_target:\n        from hermes_cli.security_advisories import ("
+     },
+     {
+      "loc": "hermes_cli/doctor.py:501",
+      "excerpt": "            [sys.executable, \"-m\", \"pip\", \"install\", \"--force-reinstall\", \"certifi\"],"
+     },
+     {
+      "loc": "hermes_cli/doctor.py:397-398",
+      "excerpt": "    if pyproject_version == init_version:\n        check_ok(\"Version files consistent\", f\"({init_version})\")"
+     }
+    ],
+    "scale": "doctor.py 2777 行 + security_advisories.py 453 行;广度大、单项逻辑中等",
+    "learning_value": "medium",
+    "learning_reason": "价值在检查项清单本身(把历史事故一条条固化成检查),以及'检查→自动修复→manual_issues 汇总'的三级结构;--ack 把安全公告变成带确认状态机的用户流程值得借鉴。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "website/docs/reference/cli-commands.md:772 只记载 `hermes doctor [--fix]`,未提 `--ack <advisory-id>`(仅 user-guide/security.md:767 提及)。"
+   },
+   {
+    "name": "供应链防御型依赖策略 + wheel 构建禁令",
+    "problem": "2026-05-12 Mini Shai-Hulud 蠕虫污染 PyPI 上的 mistralai 2.4.6:若依赖用范围版本,隔离前几小时内所有新装机都会中招。同时 pip/PyPI 发行会丢失 bundled 资产(locales、skills、web_dist),产生残废安装。",
+    "implementation": "pyproject.toml 全部直接依赖 `==X.Y.Z` 精确钉死并写明政策(改版必须同步 `uv lock`);`[all]` extra 只含无法 lazy-install 的组件,可疑上游(mistral、supermemory、mem0)被刻意排除出 [all],改由 tools/lazy_deps.py 首次使用时安装,使单个被隔离的发行版不再炸掉全量新装。setup-hermes.sh 优先 `uv sync --extra all --locked`(uv.lock 记录全部传递依赖 SHA256,被替换的包哈希不符直接拒装),失败才降级到无哈希校验的 `_try_install` 多级回退。setup.py 覆写 sdist/bdist_wheel 命令:除非 HERMES_NIX_BUILD=1(uv2nix 沙箱)否则抛错,从机制上封死 pip/brew 发行渠道。`exclude-newer = \"14 days\"` 让 uv 解析时拒绝 14 天内的新包,给上游投毒事件留出隔离窗口。",
+    "evidence": [
+     {
+      "loc": "pyproject.toml:20-22",
+      "excerpt": "  # Core — every direct dep is exact-pinned to ==X.Y.Z (no ranges).\n  # Rationale: ranges allow PyPI to ship a fresh version of a transitive\n  # at any time without a code review on our side. Exact pins mean the"
+     },
+     {
+      "loc": "setup.py:47-51",
+      "excerpt": "class _GuardedSdist(sdist):\n    def run(self, *args, **kwargs):\n        if not _IN_NIX_BUILD:\n            raise RuntimeError(_BLOCK_MESSAGE)\n        return super().run(*args, **kwargs)"
+     },
+     {
+      "loc": "setup-hermes.sh:254",
+      "excerpt": "        if UV_PROJECT_ENVIRONMENT=\"$SCRIPT_DIR/venv\" $UV_CMD sync --extra all --locked; then"
+     },
+     {
+      "loc": "pyproject.toml:371-372",
+      "excerpt": "exclude-newer = \"14 days\"\nexclude-newer-package = { vercel = false, nemo-relay = false, huggingface_hub = false }"
+     }
+    ],
+    "scale": "pyproject.toml 449 行(注释即策略文档)+ setup.py 74 行 + setup-hermes.sh 相关约 80 行",
+    "learning_value": "high",
+    "learning_reason": "把一次真实供应链事故转化为四层制度(精确钉死、lazy-install 隔离带、lock 哈希校验、14 天新包冷静期),并用 setup.py 命令覆写在构建系统层面禁掉不受支持的发行渠道,是 agent 依赖治理的完整教材。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "CI 平价测试基建:密封环境 + per-file 子进程隔离 + flaky 一次重试",
+    "problem": "17k+ 测试在开发机(有真实 API key、本地时区、16+ 核)和 CI 上行为不一致,曾多次'本地绿 CI 红';xdist 持久 worker 跨文件泄漏模块级状态是主要 flake 源;偶发失败又会掩盖真回归。",
+    "implementation": "scripts/run_tests.sh 用 `env -i` 从空环境白名单式重建(PATH/HOME/TZ=UTC/LANG=C.UTF-8/PYTHONHASHSEED=0,Windows 位置变量与测试旋钮单独显式转发,保证'凭据不可能泄入'可一眼审计),先 `compileall` 预编译字节码避免 ~2000 个子进程重复编译,再 exec run_tests_parallel.py。后者放弃 xdist,每个测试文件独立 `python -m pytest <file>` 子进程 + 信号量限并发,300s per-file 超时杀进程组;失败文件在新子进程重试一次,过了算绿但打进 `⚠ FLAKY` 汇总(附两次输出)强制修复——确定性回归两次都挂,无法被洗绿。venv 探测要求 import pytest 成功,防止选中无 pytest 的 release venv 出现 '0 tests passed 视觉绿'。",
+    "evidence": [
+     {
+      "loc": "scripts/run_tests.sh:169-171",
+      "excerpt": "exec env -i \\\n  PATH=\"$PATH\" \\\n  HOME=\"$HOME\" \\"
+     },
+     {
+      "loc": "scripts/run_tests_parallel.py:94-95",
+      "excerpt": "# Set to 0 to disable (env: HERMES_TEST_FILE_RETRIES).\n_DEFAULT_FILE_RETRIES = 1"
+     },
+     {
+      "loc": "scripts/run_tests_parallel.py:88-91",
+      "excerpt": "# One-shot retry of failing test FILES. A file that exits non-zero is re-run\n# once in a fresh subprocess; if the re-run passes, the file counts as passed\n# but is loudly reported as FLAKY so it gets fixed rather than hidden.\n# Deterministic failures fail both attempts — a real regression can never be"
+     },
+     {
+      "loc": "scripts/run_tests.sh:56",
+      "excerpt": "    if \"$candidate/bin/python\" -c 'import pytest' 2>/dev/null; then"
+     }
+    ],
+    "scale": "run_tests.sh 183 行 + run_tests_parallel.py 1142 行;设计精炼,权衡记录完整",
+    "learning_value": "high",
+    "learning_reason": "'flaky 重试但大声报告'与'per-file 而非 per-test 隔离'(250ms×850 文件 vs ×17k 测试的成本推演)是测试基建里最值得抄的两个决策;env -i 白名单是本地/CI 平价的根本手段。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "基于历史时长的 LPT 测试切片 + CI duration 缓存回流",
+    "problem": "12 个并行 CI 切片若按文件名均分,慢文件扎堆的切片会顶到 per-file 超时并拖长整体 wall time;每个矩阵 job 各自发现/切片又是 N 倍冗余。",
+    "implementation": "runner 把每个文件的子进程 wall-clock 写入 test_durations.json;`--generate-slices N` 在 generate job 里跑一次 LPT(最长处理时间优先贪心装箱,`_compute_lpt_slices`)产出 matrix,各 test job 用 `--files` 接收现成清单。tests.yml 用 actions/cache 以 `test-durations-${run_id}` 保存、`restore-keys: test-durations-` 前缀回退恢复(注释明确记录:没有前缀回退时缓存永远 miss、切片失衡把重文件推向超时的事故);main 分支绿后 save-durations job 合并各切片 artifact 回写缓存。无缓存的新文件按 P50≈2.0s 估计,保证首轮也能合理分布。",
+    "evidence": [
+     {
+      "loc": "scripts/run_tests_parallel.py:600-603",
+      "excerpt": "    for f, dur in file_durs:\n        min_idx = min(range(slice_count), key=lambda i: bucket_totals[i])\n        bucket_files[min_idx].append(f)\n        bucket_totals[min_idx] += dur"
+     },
+     {
+      "loc": ".github/workflows/tests.yml:39-40",
+      "excerpt": "          restore-keys: |\n            test-durations-"
+     },
+     {
+      "loc": "scripts/run_tests_parallel.py:585",
+      "excerpt": "    default_dur = 2.0"
+     }
+    ],
+    "scale": "runner 内约 150 行 + tests.yml 中 generate/save-durations 两个 job;中等复杂度",
+    "learning_value": "medium",
+    "learning_reason": "自带时长画像的 LPT 切片是把 CI wall time 变成一等优化目标的轻量做法;'缓存 key 永不精确命中所以必须 restore-keys 前缀'这类 GitHub Actions 陷阱记录得很实在。",
+    "hidden_from_docs": true,
+    "doc_mismatch": null
+   },
+   {
+    "name": "CI change classifier(fail-open 车道分类)+ orchestrator 工作流",
+    "problem": "monorepo(Python + 桌面 TS + 网站 + installer + Docker)里每个 PR 全量跑所有 job 太贵,但漏跑一个相关 lane 会让回归在 main 上才爆。",
+    "implementation": "scripts/ci/classify_changes.py 从 stdin 读变更路径,输出 10 个布尔 lane(python/python_prod/docker_meta/frontend/site/scan/deps/npm_lock/installer/mcp_catalog)到 $GITHUB_OUTPUT。契约是 fail open, never closed:空 diff 或任何 .github/ 变更→全开;python 是 denylist(只有每个文件都可证明是纯 prose/前端才跳过,未知路径保持开);skills/ 虽像文档但被判定 python 相关(skill-doc 测试读该树)。python_prod 区分'改了产品代码'与'只改测试',让 tests-only PR 跳过 Desktop E2E/Docker 等产品 job。ci.yml 作为唯一 orchestrator:detect job 跑一次分类,12+ 个 workflow_call 子工作流按 lane 条件触发,最终 all-checks-pass 聚合供 branch protection;push-to-main 时分类器直接全开,保证合并后验证不弱化。CI 敏感文件(workflows/actions)变更要求 ci-reviewed 标签,label-rerun.yml 在补标签后自动重跑失败 job。",
+    "evidence": [
+     {
+      "loc": "scripts/ci/classify_changes.py:49",
+      "excerpt": "_PY_SKIP = (\"docs/\", \"website/\") + _FRONTEND"
+     },
+     {
+      "loc": "scripts/ci/classify_changes.py:28-29",
+      "excerpt": "Contract — *fail open, never closed*. We may run a lane we didn't need, but\nmust never skip one a change could break:"
+     },
+     {
+      "loc": ".github/workflows/ci.yml:69-72",
+      "excerpt": "  tests:\n    name: Python tests\n    needs: detect\n    if: needs.detect.outputs.python == 'true'"
+     }
+    ],
+    "scale": "classify_changes.py 172 行 + ci.yml 390 行 + 25 个 workflow 文件;分类器本身小而设计考究",
+    "learning_value": "high",
+    "learning_reason": "'python 用 denylist、其他 lane 用 allowlist'的不对称设计精确对应各 lane 的漏报代价;python_prod 与 python 的拆分(测试-only PR 占 ~17%)是 CI 成本工程的好样本。AGENTS.md 甚至据此规定'断言 JS 工件的测试必须放进 vitest 而非 pytest',文档与机制闭环。",
+    "hidden_from_docs": false,
+    "doc_mismatch": null
+   },
+   {
+    "name": "发布流程:CalVer tag + SemVer 双版本、三文件版本同步、免冲突贡献者映射",
+    "problem": "发布需要同时维护 git tag(CalVer)、Python 包版本(SemVer)、桌面 Electron 版本三处一致;changelog 要把数百个 commit 归类并 @ 到正确的 GitHub 账号,而 salvage PR 的作者邮箱五花八门,集中式映射字典曾造成持续 merge 冲突。",
+    "implementation": "scripts/release.py:`get_last_tag` 取 v20* 最新 CalVer tag,`next_available_tag` 处理同日多发(v2026.5.16.2);`update_version_files` 一次改三处:hermes_cli/__init__.py 的 __version__/__release_date__、pyproject.toml version、apps/desktop/package.json version(与 Python 包锁步)。`categorize_commit` 按 conventional-commit 正则 + 启发式归类生成 changelog,`resolve_author` 依次查 AUTHOR_MAP → GitHub noreply 模式 → git name。作者映射从冻结的 LEGACY_AUTHOR_MAP 字典迁移到 contributors/emails/ 目录(一邮箱一文件,文件内容为 login,新增永不冲突;目前 440 个文件),scripts/add_contributor.py 幂等写入并拒绝为同一邮箱改绑不同 login;.github/workflows/contributor-check.yml 在 PR 带未映射邮箱时红灯并打印修复命令。",
+    "evidence": [
+     {
+      "loc": "scripts/release.py:2211-2213",
+      "excerpt": "    desktop_pkg = REPO_ROOT / \"apps\" / \"desktop\" / \"package.json\"\n    if desktop_pkg.exists():\n        pkg_text = desktop_pkg.read_text(encoding=\"utf-8\")"
+     },
+     {
+      "loc": "scripts/release.py:41-43",
+      "excerpt": "# FROZEN legacy mappings — do NOT add new entries here. New contributor\n# mappings live as one-file-per-email entries under contributors/emails/\n# (see contributors/README.md), which merge-conflict-free by construction."
+     },
+     {
+      "loc": "scripts/release.py:2146-2148",
+      "excerpt": "    suffix = 2\n    while git(\"tag\", \"--list\", f\"{base_tag}.{suffix}\"):\n        suffix += 1"
+     }
+    ],
+    "scale": "release.py 2637 行(其中 ~2000 行是冻结的 LEGACY_AUTHOR_MAP)+ add_contributor.py 103 行 + contributors/emails 440 文件",
+    "learning_value": "medium",
+    "learning_reason": "'一文件一映射消灭 merge 冲突'+'CI 强制未映射邮箱红灯'把贡献者归属做成了机器可执行的流程;三文件版本锁步则是 doctor 版本一致性检查的另一半。",
+    "hidden_from_docs": true,
+    "doc_mismatch": null
+   },
+   {
+    "name": "Profile 感知的 HERMES_HOME 解析与跨 profile 误写守卫",
+    "problem": "119+ 个文件通过 get_hermes_home() 解析状态目录;多 profile(~/.hermes/profiles/<name>)与 Docker(/opt/data)布局下,子进程若忘传 HERMES_HOME 会静默落回默认 profile,把数据写进错误的家目录(issue #18594),且同进程内嵌 /chat 还需要按请求切 profile。",
+    "implementation": "hermes_constants.py 提供三层解析:ContextVar `_HERMES_HOME_OVERRIDE`(set_hermes_home_override,按任务/请求作用域)→ HERMES_HOME 环境变量 → 平台默认(POSIX ~/.hermes,Windows %LOCALAPPDATA%\\hermes)。当 env 未设但 `active_profile` 文件指向非 default profile 时,`_warn_profile_fallback_once` 直写 stderr 发一次性大警告(不走 logging:30+ 模块导入期调用早于日志配置)而不抛错(抛错会砖掉模块级调用者)。`get_process_hermes_home` 刻意无视 ContextVar,供机器级资产(dashboard 主题等)在请求切了 profile 时仍指向进程启动 home;`get_default_hermes_root` 识别 `<root>/profiles/<name>` 形状取根,兼容 Docker 布局;`get_hermes_dir(new,old)` 做带'空目录不算占用'判定的目录布局向后兼容(#27602 空 pairing/ 遮蔽真数据的回归)。",
+    "evidence": [
+     {
+      "loc": "hermes_constants.py:100-102",
+      "excerpt": "            f\"[HERMES_HOME fallback] HERMES_HOME is unset but active \"\n            f\"profile is {active!r}. Falling back to {fallback_home}, which \"\n            f\"is the DEFAULT profile — not {active!r}. Any data this \""
+     },
+     {
+      "loc": "hermes_constants.py:194-195",
+      "excerpt": "    if env_path.parent.name == \"profiles\":\n        return env_path.parent.parent"
+     },
+     {
+      "loc": "hermes_constants.py:132-134",
+      "excerpt": "    override = get_hermes_home_override()\n    if override:\n        return Path(override)"
+     }
+    ],
+    "scale": "hermes_constants.py 前 300 行为核心;概念难度高(三种作用域语义 + 多布局兼容)",
+    "learning_value": "high",
+    "learning_reason": "'同一路径函数的三种作用域语义'(任务级 ContextVar / 进程级 env / 平台默认)+ '不能抛错只能大声警告'的兼容性权衡,是多租户 agent 状态目录设计的核心课题;文档只讲 profile 用法,不讲这个守卫。",
+    "hidden_from_docs": true,
+    "doc_mismatch": null
+   },
+   {
+    "name": "Hermes 托管 Node 工具链自举与自愈",
+    "problem": "TUI/web UI 构建需要满足 engines 要求的 Node,但用户机器上的 node 可能缺失、属于用户自己(nvm/brew/Nix,不能动)、被中断安装留成'bin/npm 存在但 lib/cli.js 缺失'的坏树,或 major 过旧。",
+    "implementation": "hermes_constants.py 维护 $HERMES_HOME/node 托管树:`node_tool_runnable` 不信任文件存在性,用 `--version` 实际探活(坏 wrapper 立刻 MODULE_NOT_FOUND);`bootstrap_hermes_managed_node` 在用户工具链不满足要求时私有部署托管树(POSIX shell 出 scripts/lib/node-bootstrap.sh 的 `_nb_install_bundled_node`,带 HERMES_NODE_SKIP_LINKS=1 不遮蔽用户 PATH;Windows 直接从 nodejs.org 下载 portable zip 解压);`heal_hermes_managed_node` 每进程最多一次地重下坏树;`_managed_node_tree_outdated` 把'低于目标 major(默认 22,HERMES_NODE_TARGET_MAJOR 可调)'视同坏树触发同一条 heal 路径,老用户下次启动即升级而非等重装;heal 失败时旧 Node 仍返回(old Node beats no Node)。查找顺序 POSIX 先 node/bin、Windows 先 node/,并注明与 Electron 侧 backend-env.ts 镜像同步。",
+    "evidence": [
+     {
+      "loc": "hermes_constants.py:582-585",
+      "excerpt": "                major = int(result.stdout.decode().strip().lstrip(\"v\").split(\".\")[0])\n            except (OSError, subprocess.TimeoutExpired, ValueError, IndexError):\n                return False  # broken, not outdated — the runnable probe handles it\n            return major < _HERMES_NODE_TARGET_MAJOR"
+     },
+     {
+      "loc": "hermes_constants.py:460",
+      "excerpt": "                f'source \"{_NODE_BOOTSTRAP_SCRIPT}\" && _nb_install_bundled_node',"
+     },
+     {
+      "loc": "hermes_constants.py:352-357",
+      "excerpt": "        result = subprocess.run(\n            [path, \"--version\"],\n            capture_output=True,\n            timeout=10,\n            env=with_hermes_node_path(),\n            creationflags=windows_hide_flags(),\n        )"
+     }
+    ],
+    "scale": "hermes_constants.py:285-680 约 400 行 + node-bootstrap.sh 437 行;中高复杂度",
+    "learning_value": "medium",
+    "learning_reason": "'绝不修改用户自己的工具链,而是私有部署一棵自己拥有的树'+'探活而非存在性检查'+'过旧与损坏共用同一条 heal 路径'是 harness 管理外部运行时依赖的成熟模式。",
+    "hidden_from_docs": true,
+    "doc_mismatch": null
+   },
+   {
+    "name": "中央日志基建:异步队列 + 脱敏 + Windows 跨进程轮转 + 外部轮转自愈",
+    "problem": "TUI、gateway、MCP server、CLI 命令多进程同时写同一组日志文件:Windows 上 stdlib 轮转 rename 撞开着的句柄报 WinError 32(日志卡死在 5MiB 阈值);轮转锁等待若发生在事件循环线程会冻结 agent;logrotate 外部轮转后旧 fd 静默写进 .1 文件;日志里还不能出现密钥。",
+    "implementation": "hermes_logging.py `setup_logging` 建 agent.log(INFO+)/errors.log(WARNING+)/gateway.log/gui.log 四路 RotatingFileHandler,全部套 `RedactingFormatter` 脱敏;Windows 平台在 import 期把 RotatingFileHandler 别名成 concurrent-log-handler 的跨进程锁版本(POSIX 保持 stdlib,因 NixOS 管理模式依赖其 _open/doRollover 生命周期做 0660 chmod)。所有文件 handler 不直接挂 root,而是经 `_NonFormattingQueueHandler`(浅拷贝 record 防跨线程变异竞态)进 SimpleQueue,由 QueueListener 工作线程写盘——发射线程永不阻塞在轮转锁上;`drain_log_queue` 在硬退出路径用限时线程 join 防 listener 卡锁时冻结 shutdown。`_ManagedRotatingFileHandler` 每次 emit 前比对 baseFilename 的 dev/ino,检测 logrotate/mv 外部轮转后自动 reopen。session 上下文经 record factory 注入 `[session_id]` 标签供过滤。",
+    "evidence": [
+     {
+      "loc": "hermes_logging.py:64-67",
+      "excerpt": "if sys.platform == \"win32\":\n    from concurrent_log_handler import (  # noqa: E402\n        ConcurrentRotatingFileHandler as RotatingFileHandler,\n    )"
+     },
+     {
+      "loc": "hermes_logging.py:636-639",
+      "excerpt": "        _queue_listener = QueueListener(\n            _log_queue, *_queued_file_handlers, respect_handler_level=True\n        )\n        _queue_listener.start()"
+     },
+     {
+      "loc": "hermes_logging.py:591-592",
+      "excerpt": "    def prepare(self, record: logging.LogRecord) -> logging.LogRecord:\n        return copy.copy(record)"
+     }
+    ],
+    "scale": "800 行;并发细节密集(队列、跨进程锁、inode 探测、平台分叉)",
+    "learning_value": "medium",
+    "learning_reason": "多进程 agent 日志的四个经典坑(Windows 轮转锁、事件循环阻塞、外部轮转、密钥泄漏)在一个文件里全部给出带事故编号的解;'Windows 换实现、POSIX 保 stdlib'的平台不对称决策记录得很清楚。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "AGENTS.md:273-274 只列出 agent.log/errors.log/gateway.log,未提 mode=\"gui\" 时创建的 gui.log(hermes_logging.py:352-362);异步队列架构亦无任何文档。"
+   },
+   {
+    "name": "i18n 薄片:17 语言目录 + 英语回退 + 键名兜底",
+    "problem": "面向终端用户的静态文案(审批提示、gateway 回复、重启排空通知)需要本地化,但全量 i18n 会拖累所有日志/错误/工具输出;坏的翻译目录绝不能让 agent 崩溃。",
+    "implementation": "agent/i18n.py 刻意限定薄片范围:仅最高影响的静态串走 `t(key)`。locales/<lang>.yaml(repo 根,17 个文件)嵌套 YAML 被拍平成点号键;语言解析顺序 t(lang=) > HERMES_LANGUAGE env > config display.language(lru_cache 缓存,reset_language_cache 失效)> en。`_normalize_lang` 接受自然别名(chinese/zh-CN/繁体各地区码/日德西法等)并剥离地区后缀。查键三级兜底:目标语言 → 英语 → 返回键名本身(破目录只难看不崩溃);format 失败也只 warning 并退回未格式化文本。打包安装经 HERMES_BUNDLED_LOCALES 指向密封目录(Nix wrapper 设置)。",
+    "evidence": [
+     {
+      "loc": "agent/i18n.py:43-46",
+      "excerpt": "SUPPORTED_LANGUAGES: tuple[str, ...] = (\n    \"en\", \"zh\", \"zh-hant\", \"ja\", \"de\", \"es\", \"fr\", \"tr\", \"uk\",\n    \"af\", \"ko\", \"it\", \"ga\", \"pt\", \"ru\", \"hu\", \"ar\",\n)"
+     },
+     {
+      "loc": "agent/i18n.py:254-256",
+      "excerpt": "    if value is None and target != DEFAULT_LANGUAGE:\n        # Fall through to English rather than showing a key path to the user.\n        value = _load_catalog(DEFAULT_LANGUAGE).get(key)"
+     },
+     {
+      "loc": "agent/i18n.py:105",
+      "excerpt": "    override = os.getenv(\"HERMES_BUNDLED_LOCALES\", \"\").strip()"
+     }
+    ],
+    "scale": "i18n.py 282 行 + locales/ 17 个 YAML(en.yaml 453 行);低复杂度、边界处理完善",
+    "learning_value": "low",
+    "learning_reason": "'thin slice by design'的范围克制和三级兜底(目标语→en→键名)值得记一笔,但机制本身常规;主要价值是发现了文档漏列 ar 的漂移。",
+    "hidden_from_docs": false,
+    "doc_mismatch": "website/docs/user-guide/configuration.md:1662 与 :1727 列出的支持语言均缺 `ar`(阿拉伯语),而代码 SUPPORTED_LANGUAGES 含 ar 且 locales/ar.yaml 存在。"
+   }
+  ],
+  "doc_conflicts": [
+   {
+    "claim": "docker-compose.yml:19-20 注释宣称镜像默认 ENTRYPOINT 是 `[\"/init\", \"/opt/hermes/docker/main-wrapper.sh\"]`(\"or let docker use the image's default ENTRYPOINT, which is `[\\\"/init\\\", \\\"/opt/hermes/docker/main-wrapper.sh\\\"]`\")",
+    "reality": "Dockerfile 实际为 `ENTRYPOINT [ \"/opt/hermes/docker/entrypoint-dispatch.sh\" ]` + `CMD [ ]`(dispatcher 在 PID-1 场景才转交 /init);website/docs/user-guide/docker.md:485,498 已更新为 dispatcher,唯 docker-compose.yml 注释仍是旧世界。",
+    "evidence_loc": "Dockerfile:456"
+   },
+   {
+    "claim": "website/docs/getting-started/updating.md:28 宣称 `hermes update` 的 Git pull 步骤 \"pulls the latest code from the `main` branch and updates submodules\"",
+    "reality": "仓库根本没有 .gitmodules,hermes_cli/update_cmd.py 与 main.py 中不存在任何 submodule 处理代码;实际执行的是 `git fetch` + `git merge --ff-only origin/<branch>`(分歧时 reset --hard)。",
+    "evidence_loc": "hermes_cli/update_cmd.py:3965-3966"
+   },
+   {
+    "claim": "website/docs/user-guide/configuration.md:1727 宣称支持语言为 \"en, zh, zh-hant, ja, de, es, fr, tr, uk, af, ko, it, ga, pt, ru, hu\"(共 16 种,1662 行的行内注释同样漏列)",
+    "reality": "代码 SUPPORTED_LANGUAGES 为 17 种,额外包含 \"ar\"(阿拉伯语),locales/ar.yaml 存在且 i18n 别名表覆盖 ar-sa/ar-eg 等地区码。",
+    "evidence_loc": "agent/i18n.py:43-46"
+   },
+   {
+    "claim": "AGENTS.md:269 宣称测试套件规模为 \"Pytest suite (~17k tests across ~900 files as of May 2026)\"",
+    "reality": "基线 commit 实测 `find tests -name 'test_*.py' | wc -l` = 2667 个文件、`def test_` 计数 23639 个;AGENTS.md 自己也声明 \"File counts shift constantly\",但该数字已漂移约 3 倍(文件数),引用时需按实测为准。",
+    "evidence_loc": "AGENTS.md:269"
+   },
+   {
+    "claim": "website/docs/reference/cli-commands.md:769-777 将 doctor 的完整用法记为 `hermes doctor [--fix]`,选项表仅含 --fix",
+    "reality": "doctor 还接受 `--ack <advisory-id>` 快路径(持久化安全公告确认并跳过其余诊断,未知 ID exit 2);该 flag 注册于 hermes_cli/subcommands/doctor.py:26,仅 user-guide/security.md:767 顺带提到。",
+    "evidence_loc": "hermes_cli/doctor.py:717-720"
+   },
+   {
+    "claim": "website/docs/getting-started/updating.md:30 宣称依赖步骤 \"runs `uv pip install -e \\\".[all]\\\"` to pick up new or changed dependencies\"",
+    "reality": "首选路径确为 `-e .[all]`,但实际是 `_install_python_dependencies_with_optional_fallback`:失败后降级为 base `-e .` + 逐 extra 重试并汇报跳过项,Termux 下自动改用 `.[termux-all]` 组;此前还会 `uv self update` 托管 uv。文档描述的是理想路径而非机制全貌(轻微简化,非硬错误)。",
+    "evidence_loc": "hermes_cli/main.py:8490-8499"
+   }
+  ],
+  "key_files": [
+   {
+    "path": "hermes_cli/update_cmd.py",
+    "lines": 5540,
+    "role": "hermes update 全事务管线:并发守卫、pre-update snapshot、git/ZIP 双路径、语法+import 双层验证与自动回滚、依赖分层安装、断点续传 marker、gateway 暂停恢复。"
+   },
+   {
+    "path": "hermes_cli/update_lock.py",
+    "lines": 289,
+    "role": "跨进程(且跨 Python/Rust/Electron 三运行时)更新互斥锁,pid+age marker、HANDOFF_PID/祖先链握手、20min stale 自愈。"
+   },
+   {
+    "path": "hermes_cli/main.py",
+    "lines": 12599,
+    "role": "CLI 主入口;cmd_update 包装(SIGHUP 防护、update.log tee)、_install_python_dependencies_with_optional_fallback、Windows exe 隔离更名等更新辅助仍驻留于此。"
+   },
+   {
+    "path": "hermes_cli/doctor.py",
+    "lines": 2777,
+    "role": "hermes doctor:20+ 段诊断、--fix 自动修复(certifi 重装等)、--ack 安全公告确认、pyproject↔__init__ 版本一致性检查。"
+   },
+   {
+    "path": "hermes_cli/managed_uv.py",
+    "lines": 1304,
+    "role": "Hermes 自有 uv 二进制($HERMES_HOME/bin/uv)的 ensure/self-update,以及不可变代际式 Python runtime 修复(新建生成→冒烟→rename 切换→可回滚)。"
+   },
+   {
+    "path": "hermes_cli/backup.py",
+    "lines": 1904,
+    "role": "quick state snapshot / 全量 HERMES_HOME zip 备份与 SQLite 完整性验证,pre-update 安全网的实现方。"
+   },
+   {
+    "path": "hermes_cli/security_advisories.py",
+    "lines": 453,
+    "role": "被投毒依赖版本的检测/确认(ack)数据与逻辑,供 doctor 与启动横幅共用。"
+   },
+   {
+    "path": "hermes_bootstrap.py",
+    "lines": 239,
+    "role": "所有入口点最先导入的 bootstrap:Windows UTF-8 stdio/env 修复、platform._syscmd_ver 桩、sys.path 防 cwd 包遮蔽、激活 Docker durable lazy-install 目录。"
+   },
+   {
+    "path": "hermes_constants.py",
+    "lines": 1481,
+    "role": "profile 感知 HERMES_HOME 三层解析(ContextVar/env/默认)+ 误写警告、托管 Node 自举自愈、容器/WSL/Termux 探测、venv 布局、partial-update 提示。"
+   },
+   {
+    "path": "hermes_logging.py",
+    "lines": 800,
+    "role": "中央日志:4 路轮转文件 + RedactingFormatter 脱敏 + QueueListener 异步化 + Windows concurrent-log-handler + 外部轮转 inode 自愈。"
+   },
+   {
+    "path": "hermes_time.py",
+    "lines": 135,
+    "role": "用户时区感知 now()(HERMES_TIMEZONE > config timezone > 服务器本地),带缓存与坏时区安全回退。"
+   },
+   {
+    "path": "utils.py",
+    "lines": 666,
+    "role": "原子写基元:atomic_replace(保 symlink、EXDEV/EBUSY 回退)、atomic_write_text/json/yaml(fsync+权限保持)、凭据文件权限告警、env 解析。"
+   },
+   {
+    "path": "setup-hermes.sh",
+    "lines": 462,
+    "role": "开发者手动克隆的 setup:uv 自举、uv.lock 哈希校验安装优先、多级 pip 回退、.env 600、hermes 命令软链、Termux 分支。"
+   },
+   {
+    "path": "setup.py",
+    "lines": 74,
+    "role": "wheel/sdist 构建禁令:非 HERMES_NIX_BUILD=1 环境下 bdist_wheel/sdist 直接抛错,封死 pip/brew 发行渠道。"
+   },
+   {
+    "path": "pyproject.toml",
+    "lines": 449,
+    "role": "全精确钉死的依赖清单 + [all] lazy-install 隔离策略 + exclude-newer 14 天冷静期 + pytest markers/ruff PLW1514 唯一启用规则。"
+   },
+   {
+    "path": "hermes",
+    "lines": 11,
+    "role": "仓库根的 CLI 启动薄包装,转发 hermes_cli.main:main。"
+   },
+   {
+    "path": "Dockerfile",
+    "lines": 457,
+    "role": "生产镜像:自编译 pinned SQLite(WAL bug)+自测、s6-overlay 监督、tini-shim 兼容、密封 /opt/hermes + HERMES_LAZY_INSTALL_TARGET、exec 提权 shim、HERMES_GIT_SHA 烙印。"
+   },
+   {
+    "path": "docker-compose.yml",
+    "lines": 76,
+    "role": "官方 compose 样例(HERMES_UID/GID 重映射、127.0.0.1 dashboard);注释中 ENTRYPOINT 描述已过时(见 doc_conflicts)。"
+   },
+   {
+    "path": "docker/stage2-hook.sh",
+    "lines": 591,
+    "role": "s6 cont-init 阶段的 UID/GID remap、卷 chown、config/.env/SOUL.md 首启种子、非交互 config 迁移、skills 同步。"
+   },
+   {
+    "path": "docker/entrypoint-dispatch.sh",
+    "lines": 25,
+    "role": "PID-1 探测 dispatcher:能当 PID 1 则 exec s6 /init,被平台 init 包裹时降级直跑 stage2+main-wrapper(#38349)。"
+   },
+   {
+    "path": "flake.nix",
+    "lines": 48,
+    "role": "Nix flake 入口(uv2nix + flake-parts),实现拆分在 nix/*.nix。"
+   },
+   {
+    "path": "nix/checks.nix",
+    "lines": 582,
+    "role": "nix flake check 集:包构建、配置合并脚本、模块评估等 Nix 侧验证。"
+   },
+   {
+    "path": "nix/hermes-agent.nix",
+    "lines": 270,
+    "role": "Hermes 主包 derivation(uv2nix 密封 venv、HERMES_BUNDLED_* 环境包装)。"
+   },
+   {
+    "path": "scripts/run_tests.sh",
+    "lines": 183,
+    "role": "规范测试入口:venv 探测(要求可 import pytest)、env -i 白名单密封环境、compileall 预编译,exec run_tests_parallel.py。"
+   },
+   {
+    "path": "scripts/run_tests_parallel.py",
+    "lines": 1142,
+    "role": "per-file 子进程并行 runner:300s 超时杀进程组、失败文件一次性重试并 FLAKY 汇报、duration 缓存 + LPT 切片(--generate-slices/--slice/--files)。"
+   },
+   {
+    "path": "scripts/release.py",
+    "lines": 2637,
+    "role": "发布脚本:CalVer tag(同日加后缀)+ SemVer bump、三文件版本同步、conventional-commit changelog 归类、作者→GitHub 账号解析(冻结 LEGACY_AUTHOR_MAP + contributors/emails 目录合并)。"
+   },
+   {
+    "path": "scripts/ci/classify_changes.py",
+    "lines": 172,
+    "role": "PR 变更 → 10 个 CI lane 的 fail-open 分类器,detect-changes composite action 消费其 GITHUB_OUTPUT。"
+   },
+   {
+    "path": "scripts/ci/timings_report.py",
+    "lines": 1085,
+    "role": "CI 时序报告工具(job/step 用时汇总),辅助 CI 成本治理。"
+   },
+   {
+    "path": "scripts/ci/lockfile_diff.py",
+    "lines": 174,
+    "role": "package-lock.json 语义化 diff,生成 PR 评论供 npm_lock lane 审查。"
+   },
+   {
+    "path": "scripts/install.sh",
+    "lines": 3370,
+    "role": "curl|bash 官方安装器(POSIX/Termux):uv/Python/Node 自举、检出到 $HERMES_HOME/hermes-agent、uv.lock 校验安装。"
+   },
+   {
+    "path": "scripts/install.ps1",
+    "lines": 4262,
+    "role": "Windows 原生安装器:portable uv/Python/Node/MinGit 到 %LOCALAPPDATA%\\hermes,含 PATH 迁移测试(scripts/ci/test_install_ps1_path_migration.ps1)。"
+   },
+   {
+    "path": "scripts/lib/node-bootstrap.sh",
+    "lines": 437,
+    "role": "共享 Node 自举库:_nb_install_bundled_node/heal_managed_node,被 install.sh 与 hermes_constants.py 的 heal 路径共用。"
+   },
+   {
+    "path": ".github/workflows/ci.yml",
+    "lines": 390,
+    "role": "CI orchestrator:detect(分类器)→ 12+ 个 lane 条件化 workflow_call 子工作流 → all-checks-pass 聚合门;e2e-desktop 当前被 `false &&` 临时禁用(2026-08-02,#76627)。"
+   },
+   {
+    "path": ".github/workflows/tests.yml",
+    "lines": 251,
+    "role": "测试工作流:generate(LPT 切片矩阵)→ 12 切片 uv sync --locked 并行跑 → save-durations 回流时长缓存(仅 main 绿后)。"
+   },
+   {
+    "path": ".github/workflows/label-rerun.yml",
+    "lines": 81,
+    "role": "ci-reviewed 标签补挂后自动重跑最新 CI run 的失败 job(等待 run 完成后 gh run rerun)。"
+   },
+   {
+    "path": ".github/workflows/contributor-check.yml",
+    "lines": 108,
+    "role": "PR 提交者邮箱未在 contributors/emails 映射时红灯并打印修复命令。"
+   },
+   {
+    "path": "agent/i18n.py",
+    "lines": 282,
+    "role": "静态文案薄片 i18n:17 语言、别名归一化、en→键名三级兜底、HERMES_BUNDLED_LOCALES 密封打包支持。"
+   },
+   {
+    "path": "locales/en.yaml",
+    "lines": 453,
+    "role": "英语基准翻译目录(17 个 locale 文件之一,嵌套 YAML 拍平为点号键)。"
+   },
+   {
+    "path": "contributors/README.md",
+    "lines": 38,
+    "role": "一邮箱一文件的贡献者映射规则说明(替代 release.py 冻结字典,新增免 merge 冲突)。"
+   },
+   {
+    "path": "scripts/add_contributor.py",
+    "lines": 103,
+    "role": "幂等添加映射文件;同邮箱改绑不同 login 直接拒绝(防误归属)。"
+   },
+   {
+    "path": ".env.example",
+    "lines": 496,
+    "role": "API key 环境变量模板(安装器复制为 ~/.hermes/.env 并 chmod 600)。"
+   },
+   {
+    "path": "cli-config.yaml.example",
+    "lines": 1720,
+    "role": "config.yaml 全量注释样例,配置项的事实参考文档。"
+   },
+   {
+    "path": "hermes_cli/uninstall.py",
+    "lines": 979,
+    "role": "hermes uninstall:可选保留 ~/.hermes 的卸载流程。"
+   }
+  ],
+  "module": "安装/更新/运维基建(installer、self-update、doctor、测试/CI/发布、日志/路径/i18n 基座)+ 文档-代码冲突专项",
+  "overview": "该子系统是 hermes-agent 作为\"用户自持 agent harness\"的地基:源码检出式安装(install.sh/install.ps1/setup-hermes.sh 把仓库放到 $HERMES_HOME/hermes-agent 并用 uv.lock 哈希校验建 venv),之上是一个把自更新做成可回滚事务的 `hermes update` 管线(git ff-only + 9 文件语法编译守卫自动 reset --hard 回滚 + 子进程 import 探针 + 断点续传 marker + Windows ZIP 两阶段替换回退),配套跨 Python/Rust/Electron 字节兼容的更新互斥锁和 2777 行的 doctor 诊断/自修复系统。基座模块提供 profile 感知的 HERMES_HOME 三层解析(ContextVar/env/平台默认,带跨 profile 误写警告)、异步脱敏日志、原子写基元、Windows UTF-8 bootstrap、托管 Node/uv 工具链自举自愈。工程侧有 fail-open 的 CI change classifier + orchestrator 工作流、env -i 密封 + per-file 子进程隔离 + flaky 一次重试 + LPT 时长切片的测试基建、CalVer/SemVer 双版本发布脚本与免冲突贡献者映射目录,以及 17 语言的静态文案 i18n 薄片。文档对照总体质量高(updating.md 的 9 文件守卫、1 GiB 跳过、SIGHUP 防护等均与代码一致),但仍抓到 6 处漂移:compose 注释的过时 ENTRYPOINT、不存在的 submodule 更新、语言列表漏 ar、测试规模数字 3 倍漂移、doctor --ack 未入 CLI 参考、依赖安装机制被简化描述。"
  }
 ]
