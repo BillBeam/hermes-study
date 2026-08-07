@@ -44,8 +44,8 @@ R7C 草案给的 R8A 是 10 文件 / 20,159 行(即 `hermes_cli/` 下全部 `*co
 | tools_config.py | 5452 | 草案 | 工具/toolset 子模式 |
 | mcp_config.py | 1135 | 草案 | MCP 子模式 |
 | moa_config.py | 509 | 草案 | MoA 子模式 |
-| skills_config.py | 202 | 草案 | 技能子模式 |
-| fallback_config.py | 101 | 草案 | 供应商回退子模式 |
+| skills_config.py | 202 | 草案 | **`hermes skills` 的开关菜单**(只读写 `skills.disabled` / `skills.platform_disabled`);skill 自带配置项的**声明 schema** 不在这里,在 `agent/skill_utils.py:701` —— 定稿时更正,原写「技能子模式」过宽 |
+| fallback_config.py | 101 | 草案 | 供应商回退子模式(**LLM provider 失败转移链**:429/529/503 时换哪个 provider/model)。**与 `config.py` 的 last-known-good 无任何调用关系**——「fallback」在本仓库有三种互不相干的含义 |
 | subcommands/config.py | 68 | 草案 | `hermes config` 的 argparse 面 |
 | commands.py | 2260 | 草案 | 斜杠命令注册表(R7C 移交) |
 | **env_loader.py** | **752** | **新增** | **`.env` → 环境变量这一层不在场,"配置项全表"的「读取点」一列就填不出来**;它是 `OPTIONAL_ENV_VARS` 在 `config.py` 之外**唯一**的另一个导入方 |
