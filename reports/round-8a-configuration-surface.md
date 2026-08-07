@@ -1,13 +1,28 @@
 # Round 8A 报告 · 配置面
 
-**一句话结论:配置面学透,R8 切四片,定案 19 条。**
+**一句话结论:配置面学透,R8 切四片,定案 20 条。**
 
 头条发现:**同一份 `config.yaml`,Hermes 用两个装载器读,合并语义不一样。**
 主装载器递归深合并,`cli.py` 那个只做一层 `dict.update`。同一个 `HERMES_HOME`、
 同一份只设了两个嵌套叶子键的配置文件,跑出来 `browser.camofox` 一边 **6 个键**、
 另一边 **1 个键**——用户想打开一个布尔开关,在 CLI/TUI 这一侧**顺手删掉了同级的全部默认值**。
-这条至今没炸,是因为受害键的默认值字面量**在仓库里存在三份**,读取点自带硬编码兜底;
-**下一个没有兜底的键就会真出事,而且现场看不出是合并语义丢的。**
+这个例子至今没炸,是因为受害键的默认值字面量**在仓库里存在三份**,读取点自带硬编码兜底。
+**但"下一个没有兜底的键"不用等——本轮实跑抓到了它。**
+
+`agent.reasoning_effort`(思考力度开关)是**真实被支持、真实被 CLI 读取**的键
+(`cli.py:8166`),它在 `cli.py` 那份默认值里、**不在 `DEFAULT_CONFIG` 里**;
+而 `hermes config set` 的键名校验**只认 `DEFAULT_CONFIG`**。实跑输出原样抄录:
+
+```
+✓ Set agent.reasoning_effort = high in .../config.yaml
+⚠ 'agent.reasoning_effort' is not a recognized config key — it was saved anyway, but Hermes may not read it.
+  Did you mean: agent.reasoning_overrides
+```
+
+**一条完全正确的命令,得到一句假警告,外加一个会把配置弄坏的建议**——
+`agent.reasoning_overrides` 的默认值是 `{}`(字典),用户照做写成字符串后
+思考力度**静默失效**,而原本正确的那行已被删掉。
+**头条由此从"结构性隐患"坐实为"已发生的用户可见故障"。**
 
 第二发现关乎"配置"这个词本身:**文档画的四级优先级链(CLI 参数 > `config.yaml` > `.env` >
 默认值)在代码里不存在。** `config.yaml` 确实有一条统一合并链,但**环境变量根本不是其中一层**
@@ -132,7 +147,7 @@ Hermes 维护**两张** env 表(一张"运行时认识"、一张"向用户推荐
 
 ---
 
-## 4. 定案(`notes/r8a-90`,19 条:▲ 4 / ◇ 6 / ■ 9,另驳回 1 条)
+## 4. 定案(`notes/r8a-90`,20 条:▲ 4 / ◇ 6 / ■ 10,另驳回 1 条)
 
 ### 4.1 三笔 R7C 移交项全部结案
 
@@ -190,12 +205,13 @@ dashboard 则正确回 404。
 - **◇-2** 对照组:151 条静态环境变量**零缺口**。
 - **◇-3** 两个装载器的存在本身全站零文档(实为**四个读取方**)。
 
-### 4.4 ■ 组:代码内部缺陷(9 条,只记录不修)
+### 4.4 ■ 组:代码内部缺陷(10 条,只记录不修)
 
 QQBot 双重死代码 / `bedrock.discovery` 三键未接线 / 两个装载器合并语义不同 /
 `display.copy_shortcut` 全仓仅一次出现(其注释还列了四个合法取值)/
 `NOUS_BASE_URL` 被"缺失变量"盘点主动索要而无人读(**且违反了本仓库自己写下的"废弃键从推荐表摘除、在认识表保留"规则**)/
 配对 CLI 捅穿封装 / `OPTIONAL_ENV_VARS` 在 import 时被原地改写 /
+**两份默认值的第一个真实受害者**(`agent.reasoning_effort` 被判未知键 + 错误建议)/
 **两把配对钥匙行为不一致**(CLI 在 request-id 路径上也报"平台被锁定",dashboard 有此限定而 CLI 没有)/
 `_COMMENTED_SECTIONS` 是**已经漂移的死副本**(活版是 `_SECURITY_COMMENT` / `_FALLBACK_COMMENT`,
 同一句话两份已不同;维护者最容易改到的恰是那份不生效的)。

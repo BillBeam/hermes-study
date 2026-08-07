@@ -369,7 +369,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 ---
 
-## ■ 组:代码内部缺陷(9 条,只记录不修)
+## ■ 组:代码内部缺陷(10 条,只记录不修)
 
 | # | 缺陷 | 锚点 | 怎么会踩到 |
 |---|---|---|---|
@@ -379,9 +379,47 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-4 | `display.copy_shortcut` 是**全仓唯一一次出现** | `hermes_cli/config_defaults.py:1280` | 用户按注释里列的四个取值去设,永远无效 |
 | ■-5 | `NOUS_BASE_URL` 在环境变量清单里,但代码读的是另外两个名字 | `hermes_cli/config_defaults.py:3132` | 安装流程会**主动向用户索要**一个没人读的变量 |
 | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
+| ■-10 | **两份默认值的第一个真实受害者**:`hermes config set agent.reasoning_effort high` 被判为未知键,并给出会弄坏配置的建议 | `hermes_cli/config.py:4810`(校验)/ `cli.py:8166`(真实读取点)/ `cli.py:479`(它所在的那份默认值) | 命令正确、值也写对了,但打印"不是已知配置键";建议改用 `agent.reasoning_overrides`,而那个键的默认值是 `{}`(字典),照做后思考力度静默失效 |
 | ■-9 | `_COMMENTED_SECTIONS` 是**已漂移的死副本** | `hermes_cli/config.py:3473` | 活版是 `_SECURITY_COMMENT`/`_FALLBACK_COMMENT`(:3601/:3609);两份同一句话已不同。维护者改到死版,对用户文件零效果 |
 | ■-8 | **两把配对钥匙行为不一致**:CLI 在 request-id 路径上也报"平台被锁定" | `hermes_cli/pairing.py:81` vs `hermes_cli/web_server.py:12346` | 用过期 request-id 批准 + 平台恰好因别的原因锁定 → CLI 告诉运维者"等 N 分钟",而真实原因是请求过期;dashboard 同一操作正确回 404 |
 | ■-7 | `OPTIONAL_ENV_VARS` 在 import 时被**原地改写** | `hermes_cli/config.py:5307` | 静态分析(含本项目第一版脚本)只看到 151/308 |
+
+### ■-10 细节:两份默认值的第一个真实受害者(线索来自 `r8a-raw-defaults-a` D-1,主线运行时复核)
+
+`agent.reasoning_effort` 是**真实被支持、真实被读**的键:
+
+`cli.py:8165-8167 @ 863e313`
+
+```python
+        self.reasoning_config = _parse_reasoning_config(
+            CLI_CONFIG["agent"].get("reasoning_effort", "")
+        )
+```
+
+它在 `cli.py` 的内联默认值里(`cli.py:479`),**不在 `DEFAULT_CONFIG["agent"]` 里**;
+而 `hermes config set` 的键名校验只认 `DEFAULT_CONFIG`,不认得就在同级里找近似名:
+
+`hermes_cli/config.py:4810 @ 863e313`
+
+```python
+            sibling_suggestion = _suggest_closest_key(seg, set(node.keys()))
+```
+
+**主线实跑,原样抄录:**
+
+```
+✓ Set agent.reasoning_effort = high in .../config.yaml
+⚠ 'agent.reasoning_effort' is not a recognized config key — it was saved anyway, but Hermes may not read it.
+  Did you mean: agent.reasoning_overrides
+```
+
+**三处同时错**:值写对了、CLI 也会读(所以警告是**假的**);
+建议的 `agent.reasoning_overrides` 默认值是 `{}`(**字典**),
+用户照做写成字符串后思考力度**静默失效**,而正确的那行已被他删掉。
+
+**这条把本轮头条从"结构性隐患"坐实成"已发生的用户可见故障"**,
+且比 camofox 那例强得多(后者被三份重复字面量掩盖,现象为零)。
+**根因同一个:两份默认值,而校验器只认其中一份。**
 
 ### ■-9 细节:一份**已经漂移**的死副本(第五例"一个语义写了两次")
 

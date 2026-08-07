@@ -337,9 +337,43 @@ def _loopback_rewrite_host(camofox_cfg: Dict[str, Any]) -> str:
 这个字面量在仓库里存在**三份**。所以键丢了也读回同一个值,现象为零。
 
 **这恰恰是它危险的地方**:隐患被一个偶然的重复字面量盖住了,
-**下一个没有硬编码兜底的键就会真的出事,而且现场看不出是合并语义丢的**——
-你会看到一个"用户明明没配过的字段变成了空",然后去查那个字段的代码,
-而问题根本不在那里。
+**下一个没有硬编码兜底的键就会真的出事,而且现场看不出是合并语义丢的**。
+
+**——而"下一个"不用等,它已经在了。这是本章最实在的一段,请务必看完。**
+
+`agent.reasoning_effort`(控制模型思考力度的开关)是一个**真正被支持、真正被读**的键:
+
+`cli.py:8165-8167 @ 863e313`
+
+```python
+        self.reasoning_config = _parse_reasoning_config(
+            CLI_CONFIG["agent"].get("reasoning_effort", "")
+        )
+```
+
+它在 `cli.py` 的那份内联默认值里有定义(`cli.py:479`),
+**但不在 `DEFAULT_CONFIG["agent"]` 里**。而 `hermes config set` 的键名校验
+**只认 `DEFAULT_CONFIG`**。于是——本轮实跑,原样抄录输出:
+
+```
+✓ Set agent.reasoning_effort = high in .../config.yaml
+⚠ 'agent.reasoning_effort' is not a recognized config key — it was saved anyway, but Hermes may not read it.
+  Did you mean: agent.reasoning_overrides
+```
+
+三件事同时发生:
+
+1. **值写对了**(文件里确实是 `agent: {reasoning_effort: high}`),CLI 也确实会读它;
+2. **系统却告诉用户"这不是一个已知的配置键,Hermes 可能不会读它"**——这句话是**错的**;
+3. **它给的替代建议更糟**:`agent.reasoning_overrides` 的默认值是 `{}`,
+   **是个字典**。用户听话改成 `agent.reasoning_overrides: high` 之后,
+   写进去的是个字符串,思考力度**静默地不生效**,而原本正确的那行已经被他删了。
+
+**一条完全正确的命令,得到一句错误的警告和一个会把事情弄坏的建议。**
+根因就是本节开头那件事:**两份默认值,而校验器只认其中一份。**
+
+**这也回答了 3.1 节留下的问题**——为什么"多一份默认值"不是无害的冗余:
+冗余本身不出错,**但凡有任何东西拿其中一份当"全集"用,另一份里的键就集体变成了"未知键"**。
 
 **测试为什么没抓住它?这一段比 bug 本身更值得看。**
 仓库里**有**一支以这条性质命名的测试:
