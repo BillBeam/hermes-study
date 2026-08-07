@@ -2445,11 +2445,11 @@ hermes_cli/codex_models.py	text	255	L2	R8D	R1-inventoried
 hermes_cli/codex_runtime_plugin_migration.py	text	757	L2	R8D	R1-inventoried
 hermes_cli/codex_runtime_switch.py	text	279	L2	R8D	R1-inventoried
 hermes_cli/colors.py	text	38	L2	R8D	R1-inventoried
-hermes_cli/commands.py	text	2260	L1	R8A	R1-inventoried
+hermes_cli/commands.py	text	2260	L1	R8A	R8A-deep-read
 hermes_cli/completion.py	text	319	L2	R8D	R1-inventoried
-hermes_cli/config.py	text	5434	L1	R8A	R1-inventoried
-hermes_cli/config_defaults.py	text	4313	L1	R8A	R1-inventoried
-hermes_cli/config_migrations.py	text	685	L1	R8A	R1-inventoried
+hermes_cli/config.py	text	5434	L1	R8A	R8A-deep-read
+hermes_cli/config_defaults.py	text	4313	L1	R8A	R8A-deep-read
+hermes_cli/config_migrations.py	text	685	L1	R8A	R8A-deep-read
 hermes_cli/console_engine.py	text	1636	L2	R8D	R1-inventoried
 hermes_cli/container_boot.py	text	615	L2	R8D	R1-inventoried
 hermes_cli/context_switch_guard.py	text	203	L2	R8D	R1-inventoried
@@ -2480,9 +2480,9 @@ hermes_cli/diagnostics_upload.py	text	138	L2	R8D	R1-inventoried
 hermes_cli/dingtalk_auth.py	text	291	L2	R8D	R1-inventoried
 hermes_cli/doctor.py	text	2777	L2	R8D	R1-inventoried
 hermes_cli/dump.py	text	449	L2	R8D	R1-inventoried
-hermes_cli/env_loader.py	text	752	L1	R8A	R1-inventoried
+hermes_cli/env_loader.py	text	752	L1	R8A	R8A-deep-read
 hermes_cli/fallback_cmd.py	text	377	L2	R8D	R1-inventoried
-hermes_cli/fallback_config.py	text	101	L1	R8A	R1-inventoried
+hermes_cli/fallback_config.py	text	101	L1	R8A	R8A-deep-read
 hermes_cli/focus_view.py	text	166	L2	R8D	R1-inventoried
 hermes_cli/gateway.py	text	7461	L2	R8D	R1-inventoried
 hermes_cli/gateway_enroll.py	text	277	L2	R8D	R1-inventoried
@@ -2508,7 +2508,7 @@ hermes_cli/main.py	text	12599	L2	R8B	R1-inventoried
 hermes_cli/managed_scope.py	text	214	L2	R8D	R1-inventoried
 hermes_cli/managed_uv.py	text	1304	L2	R8D	R1-inventoried
 hermes_cli/mcp_catalog.py	text	831	L2	R8D	R1-inventoried
-hermes_cli/mcp_config.py	text	1135	L1	R8A	R1-inventoried
+hermes_cli/mcp_config.py	text	1135	L1	R8A	R8A-deep-read
 hermes_cli/mcp_picker.py	text	322	L2	R8D	R1-inventoried
 hermes_cli/mcp_security.py	text	181	L2	R8D	R1-inventoried
 hermes_cli/mcp_startup.py	text	260	L2	R8D	R1-inventoried
@@ -2518,7 +2518,7 @@ hermes_cli/memory_setup.py	text	578	L2	R8D	R1-inventoried
 hermes_cli/middleware.py	text	327	L2	R8D	R1-inventoried
 hermes_cli/migrate.py	text	115	L2	R8D	R1-inventoried
 hermes_cli/moa_cmd.py	text	152	L2	R8D	R1-inventoried
-hermes_cli/moa_config.py	text	509	L1	R8A	R1-inventoried
+hermes_cli/moa_config.py	text	509	L1	R8A	R8A-deep-read
 hermes_cli/model_catalog.py	text	471	L2	R8D	R1-inventoried
 hermes_cli/model_cost_guard.py	text	134	L2	R8D	R1-inventoried
 hermes_cli/model_normalize.py	text	582	L2	R8D	R1-inventoried
@@ -2541,7 +2541,7 @@ hermes_cli/observability/shared_metrics_contract.py	text	976	L2	R8D	R1-inventori
 hermes_cli/observability/shared_metrics_subscriber.py	text	101	L2	R8D	R1-inventoried
 hermes_cli/onepassword_secrets_cli.py	text	530	L2	R8D	R1-inventoried
 hermes_cli/oneshot.py	text	502	L2	R8D	R1-inventoried
-hermes_cli/pairing.py	text	120	L1	R8A	R1-inventoried
+hermes_cli/pairing.py	text	120	L1	R8A	R8A-deep-read
 hermes_cli/partial_compress.py	text	324	L2	R8D	R1-inventoried
 hermes_cli/pets.py	text	502	L2	R8D	R1-inventoried
 hermes_cli/platforms.py	text	84	L2	R8D	R1-inventoried
@@ -2572,7 +2572,7 @@ hermes_cli/pty_session.py	text	195	L2	R8D	R1-inventoried
 hermes_cli/relaunch.py	text	205	L2	R8D	R1-inventoried
 hermes_cli/route_identity.py	text	104	L2	R8D	R1-inventoried
 hermes_cli/runtime_provider.py	text	2298	L2	R8D	R1-inventoried
-hermes_cli/secret_prompt.py	text	126	L1	R8A	R1-inventoried
+hermes_cli/secret_prompt.py	text	126	L1	R8A	R8A-deep-read
 hermes_cli/secrets_cli.py	text	745	L2	R8D	R1-inventoried
 hermes_cli/security_advisories.py	text	453	L2	R8D	R1-inventoried
 hermes_cli/security_audit.py	text	589	L2	R8D	R1-inventoried
@@ -2590,7 +2590,7 @@ hermes_cli/sessions_cmd.py	text	1179	L2	R8D	R1-inventoried
 hermes_cli/setup.py	text	3645	L2	R8D	R1-inventoried
 hermes_cli/setup_hidden_env.py	text	56	L2	R8D	R1-inventoried
 hermes_cli/setup_whatsapp_cloud.py	text	541	L2	R8D	R1-inventoried
-hermes_cli/skills_config.py	text	202	L1	R8A	R1-inventoried
+hermes_cli/skills_config.py	text	202	L1	R8A	R8A-deep-read
 hermes_cli/skills_hub.py	text	2036	L2	R8D	R1-inventoried
 hermes_cli/skin_cmd.py	text	108	L2	R8D	R1-inventoried
 hermes_cli/skin_engine.py	text	1068	L2	R8D	R1-inventoried
@@ -2599,7 +2599,7 @@ hermes_cli/slash_exec.py	text	272	L2	R8D	R1-inventoried
 hermes_cli/sqlite_runtime.py	text	124	L2	R8D	R1-inventoried
 hermes_cli/sqlite_safe_read.py	text	415	L2	R8D	R1-inventoried
 hermes_cli/sqlite_util.py	text	49	L2	R8D	R1-inventoried
-hermes_cli/status.py	text	696	L1	R8A	R1-inventoried
+hermes_cli/status.py	text	696	L1	R8A	R8A-deep-read
 hermes_cli/stdio.py	text	251	L2	R8D	R1-inventoried
 hermes_cli/subcommands/__init__.py	text	18	L2	R8B	R1-inventoried
 hermes_cli/subcommands/_shared.py	text	29	L2	R8B	R1-inventoried
@@ -2608,7 +2608,7 @@ hermes_cli/subcommands/approvals.py	text	77	L2	R8B	R1-inventoried
 hermes_cli/subcommands/auth.py	text	98	L2	R8B	R1-inventoried
 hermes_cli/subcommands/backup.py	text	38	L2	R8B	R1-inventoried
 hermes_cli/subcommands/claw.py	text	92	L2	R8B	R1-inventoried
-hermes_cli/subcommands/config.py	text	68	L1	R8A	R1-inventoried
+hermes_cli/subcommands/config.py	text	68	L1	R8A	R8A-deep-read
 hermes_cli/subcommands/console.py	text	18	L2	R8B	R1-inventoried
 hermes_cli/subcommands/cron.py	text	195	L2	R8B	R1-inventoried
 hermes_cli/subcommands/dashboard.py	text	214	L2	R8B	R1-inventoried
@@ -2628,7 +2628,7 @@ hermes_cli/subcommands/mcp.py	text	126	L2	R8B	R1-inventoried
 hermes_cli/subcommands/memory.py	text	53	L2	R8B	R1-inventoried
 hermes_cli/subcommands/model.py	text	62	L2	R8B	R1-inventoried
 hermes_cli/subcommands/monitoring.py	text	36	L2	R8B	R1-inventoried
-hermes_cli/subcommands/pairing.py	text	40	L1	R8A	R1-inventoried
+hermes_cli/subcommands/pairing.py	text	40	L1	R8A	R8A-deep-read
 hermes_cli/subcommands/plugins.py	text	106	L2	R8B	R1-inventoried
 hermes_cli/subcommands/profile.py	text	203	L2	R8B	R1-inventoried
 hermes_cli/subcommands/prompt_size.py	text	36	L2	R8B	R1-inventoried
@@ -2650,7 +2650,7 @@ hermes_cli/telegram_managed_bot.py	text	358	L2	R8D	R1-inventoried
 hermes_cli/timefmt.py	text	30	L2	R8D	R1-inventoried
 hermes_cli/timeouts.py	text	82	L2	R8D	R1-inventoried
 hermes_cli/tips.py	text	485	L2	R8D	R1-inventoried
-hermes_cli/tools_config.py	text	5452	L1	R8A	R1-inventoried
+hermes_cli/tools_config.py	text	5452	L1	R8A	R8A-deep-read
 hermes_cli/toolset_validation.py	text	74	L2	R8D	R1-inventoried
 hermes_cli/uninstall.py	text	979	L2	R8D	R1-inventoried
 hermes_cli/update_cmd.py	text	5540	L2	R8D	R1-inventoried
