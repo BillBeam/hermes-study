@@ -123,11 +123,16 @@ reports/round-1-capabilities-full.md  # 第一轮附卷:170 条能力点全字�
 data/inventory.tsv         # 全仓文件盘点(path/kind/lines/bytes),inventory.py 生成
 data/ledger.tsv            # 覆盖台账(path/kind/lines/layer/round/status)
 data/capability-mining.json# 14 路子系统挖掘的结构化原始产出(能力点的数据源)
+data/r8a-config-keys.tsv   # R8A 资产:856 个配置键(默认值/定义处/py 与 ts 读取点/文档覆盖)
+data/r8a-env-vars.tsv      # R8A 资产:151 条静态环境变量(运行时会涨到 308,见脚本说明)
+data/r8a-extra-root-keys.tsv # R8A 资产:24 个不在 DEFAULT_CONFIG 里但合法的根键
 scripts/inventory.py       # 盘点脚本(行数规则的唯一权威定义)
 scripts/assign_layers.py   # 分层规则(首条匹配生效;不匹配即报错;重生成保留 status 列)
 scripts/verify_ledger.py   # 台账校验(文件集一致 + 行数复核 + 分层加总 = 全仓总行数)
 scripts/verify_citations.py# 引用校验(R7C 新增,R8A 起为定稿关卡):`路径:行号` 后的代码块
                            # 与基线逐字比对;--fix 修无歧义漂移,用后必须裸跑复核
+scripts/config_table.py    # R8A 新增:从 DEFAULT_CONFIG / OPTIONAL_ENV_VARS 字面量 AST
+                           # 抽取配置项全表(不 import 不执行);用前先读它开头的三条告诫
 scripts/render_capabilities.py   # JSON → 附卷渲染
 scripts/render_main_report.py    # JSON → 主卷能力点章节渲染(--compact 出会话消息版)
 notes/                     # 底稿:每轮机制笔记(rN-*,求全求证,带行号证据)
