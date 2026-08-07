@@ -369,7 +369,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 ---
 
-## ■ 组:代码内部缺陷(11 条,只记录不修)
+## ■ 组:代码内部缺陷(12 条,只记录不修)
 
 | # | 缺陷 | 锚点 | 怎么会踩到 |
 |---|---|---|---|
@@ -379,11 +379,56 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-4 | `display.copy_shortcut` 是**全仓唯一一次出现** | `hermes_cli/config_defaults.py:1280` | 用户按注释里列的四个取值去设,永远无效 |
 | ■-5 | `NOUS_BASE_URL` 在环境变量清单里,但代码读的是另外两个名字 | `hermes_cli/config_defaults.py:3132` | 安装流程会**主动向用户索要**一个没人读的变量 |
 | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
+| ■-12 | **14 个内置人格在网关侧完全不存在** | `cli.py:477`(14 条只在 CLI 默认值里)/ `gateway/slash_commands.py:2502`(网关读法)/ `gateway/run.py:3145`(网关用的是**原始读**,不合并默认值) | 全新安装下,CLI 有 14 个人格可选,而聊天里敲 `/personality` 回"none configured" |
 | ■-11 | **一个自称"单一真源、防止各面漂移"的函数,实测在两个面上相差 780 秒** | `tools/clarify_gateway.py:388`(自述)/ `:399`(遗留键优先)/ `cli.py:523`(遗留键的 CLI 默认值 120) | 用户设 `agent.clarify_timeout: 900`(规范键):网关面得 900、CLI 面得 **120**;因 `cli.py` 默认值恒供遗留键 `clarify.timeout`,规范键在 CLI 面**永远无法生效** |
 | ■-10 | **两份默认值的第一个真实受害者**:`hermes config set agent.reasoning_effort high` 被判为未知键,并给出会弄坏配置的建议 | `hermes_cli/config.py:4810`(校验)/ `cli.py:8166`(真实读取点)/ `cli.py:479`(它所在的那份默认值) | 命令正确、值也写对了,但打印"不是已知配置键";建议改用 `agent.reasoning_overrides`,而那个键的默认值是 `{}`(字典),照做后思考力度静默失效 |
 | ■-9 | `_COMMENTED_SECTIONS` 是**已漂移的死副本** | `hermes_cli/config.py:3473` | 活版是 `_SECURITY_COMMENT`/`_FALLBACK_COMMENT`(:3601/:3609);两份同一句话已不同。维护者改到死版,对用户文件零效果 |
 | ■-8 | **两把配对钥匙行为不一致**:CLI 在 request-id 路径上也报"平台被锁定" | `hermes_cli/pairing.py:81` vs `hermes_cli/web_server.py:12346` | 用过期 request-id 批准 + 平台恰好因别的原因锁定 → CLI 告诉运维者"等 N 分钟",而真实原因是请求过期;dashboard 同一操作正确回 404 |
 | ■-7 | `OPTIONAL_ENV_VARS` 在 import 时被**原地改写** | `hermes_cli/config.py:5307` | 静态分析(含本项目第一版脚本)只看到 151/308 |
+
+### ■-12 细节:同一个功能,一个面有 14 个选项,另一个面说"没配置"
+
+`agent.personalities`(给 agent 换人设的预置提示词)**只在 `cli.py` 的默认值里**,
+`DEFAULT_CONFIG` 中没有这个键。而网关侧的 `/personality` 命令是这样取值的:
+
+`gateway/slash_commands.py:2502 @ 863e313`
+
+```python
+            personalities = cfg_get(config, "agent", "personalities", default={})
+```
+
+它拿到的 `config` 来自 `_load_gateway_config()`,而那是一个**原始读**(不合并默认值):
+
+`gateway/run.py:3148-3149 @ 863e313`
+
+```python
+    Uses the module-level ``_hermes_home`` (so tests that monkeypatch it
+    still see their fixture) and shares the mtime-keyed raw-yaml cache
+```
+
+于是取不到任何人格,直接走"未配置"分支:
+
+`gateway/slash_commands.py:2507-2508 @ 863e313`
+
+```python
+        if not personalities:
+            return t("gateway.personality.none_configured", path=display_hermes_home())
+```
+
+**主线实测**(全新 `HERMES_HOME`,`config.yaml` 只有版本号):
+
+| 面 | 人格数 |
+|---|---|
+| CLI(`CLI_CONFIG`) | **14**(catgirl / kawaii / pirate / shakespeare / noir / uwu …) |
+| `load_config()` | **0** |
+| 网关原始读 | **0** |
+
+**用户可复述的现象**:在 `hermes chat` 里能用 14 个内置人格;
+在聊天平台上敲 `/personality`,机器人回"没有配置任何人格"。
+**同一个产品、同一个功能、两种事实。**
+
+**这条同时暴露了第五个读取方**:`_load_gateway_config()`(`gateway/run.py:3145`)——
+原始读 + managed 叠加、不合并默认值。加上它,`config.yaml` 的读取方是**五个**,不是四个。
 
 ### ■-11 细节:本轮最强的一条 —— "单一真源"被第二份默认值击穿
 
@@ -515,7 +560,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 **受影响面不是一个键,主线已把它数出来。** 用 AST 展开 `cli.py` 的内联 `defaults`
 得 **89 个键**,与 `DEFAULT_CONFIG` 求差:**28 个键只存在于 CLI 那份默认值里**
-(其中 13 个是 `agent.personalities.*` 的人格文本,属数据;其余 15 个是真开关)。
+(其中 15 个是 `agent.personalities` 及其 14 条人格文本,属数据;其余 13 个是真开关)。
 
 抽 6 个实跑 `hermes config set`,**5 个复现了假警告**:
 
@@ -782,7 +827,7 @@ R7C 这条附了锚点文件(`hermes_cli/status.py`),所以本轮没有走偏,�
 
 | # | 移交至 | 锚点文件 | 一句话现象 |
 |---|---|---|---|
-| H-1 | **R8B** | `cli.py:441`(`load_cli_config` 的内联 `defaults`) | **本轮已数清:89 键中 28 个不在 `DEFAULT_CONFIG`(13 个是人格文本,15 个是真开关)**,名单见 ■-10;**未做的是逐个确证这 15 个是否真被读** —— 已证 2 个真被读且收到假警告,其余待查 |
+| H-1 | **R8B** | `cli.py:441`(`load_cli_config` 的内联 `defaults`) | **本轮已数清:89 键中 28 个不在 `DEFAULT_CONFIG`(15 个是人格相关,13 个是真开关)**,名单见 ■-10;**未做的是逐个确证这 15 个是否真被读** —— 已证 2 个真被读且收到假警告,其余待查 |
 | H-2 | **R8B** | `cli.py:599`(`defaults[key].update(...)`) | 浅合并的**实际影响面**未穷举:哪些从 `CLI_CONFIG` 读的嵌套键**没有**硬编码兜底,那些才是会真出事的 |
 | H-3 | **R8C** | `hermes_cli/web_server.py:12320`(`approve_pairing` 路由) | 本轮已读该路由本体并定案 ■-8(与 CLI 的锁定报告不一致);**未查的是它的鉴权层**——`/api/pairing/approve` 由哪一层保证只有已认证管理员可调,需在 R8C 全文精读时确证 |
 | H-4 | **R8D** | `hermes_cli/managed_scope.py` | 本轮从 `config.py:3396` 与 `cli.py:624` 两侧读到它,但**没读本体**;managed 层的叶级合并实现与失败姿态未取证 |
