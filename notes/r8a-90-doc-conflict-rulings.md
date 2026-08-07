@@ -573,7 +573,7 @@ R7C 这条附了锚点文件(`hermes_cli/status.py`),所以本轮没有走偏,�
 |---|---|---|---|
 | H-1 | **R8B** | `cli.py:441`(`load_cli_config` 的内联 `defaults`) | 11 个顶层键的第二份默认值,其中 `clarify` 在 `DEFAULT_CONFIG` 里不存在;需查清 CLI 专属键还有哪些、谁读 |
 | H-2 | **R8B** | `cli.py:599`(`defaults[key].update(...)`) | 浅合并的**实际影响面**未穷举:哪些从 `CLI_CONFIG` 读的嵌套键**没有**硬编码兜底,那些才是会真出事的 |
-| H-3 | **R8C** | `hermes_cli/web_server.py` 的配对批准路由 | 本轮只读了批准处;dashboard 的鉴权层级与 CLI 是否等价,需在 R8C 全文精读时复核 |
+| H-3 | **R8C** | `hermes_cli/web_server.py:12320`(`approve_pairing` 路由) | 本轮已读该路由本体并定案 ■-8(与 CLI 的锁定报告不一致);**未查的是它的鉴权层**——`/api/pairing/approve` 由哪一层保证只有已认证管理员可调,需在 R8C 全文精读时确证 |
 | H-4 | **R8D** | `hermes_cli/managed_scope.py` | 本轮从 `config.py:3396` 与 `cli.py:624` 两侧读到它,但**没读本体**;managed 层的叶级合并实现与失败姿态未取证 |
 | H-5 | **R9/R10** | `ui-tui/src/gatewayTypes.ts:89` 等 TS 侧读取点 | 856 个配置键中有一类**只由 TypeScript 读**;TS 侧是否有自己的默认值(即第三份默认值)未查 |
 | H-6 | **R11 复盘** | 本卷 ◇-1 | 105 个零文档键的**清单已在 `data/r8a-config-keys.tsv`**,但未逐条判断"该不该文档化";R11 对表时可直接消费该列 |
