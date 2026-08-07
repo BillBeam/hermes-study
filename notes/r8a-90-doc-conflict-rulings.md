@@ -206,6 +206,55 @@ def get_env_value_prefer_dotenv(key: str) -> Optional[str]:
 而 `status.py` 恰恰是**直接读环境变量、完全绕过配置系统**的那一段。
 **这条定案因此从"某处笔误"升格为一条结构性结论:配置系统的纪律,管不到不走配置系统的代码。**
 
+### ▲-5 docstring 与代码**语义相反**:说写 `tools.exclude`,实际写 `tools.include`
+
+(线索来自 `notes/r8a-raw-tools-config-c` C-1,主线回源复核后**发现比原报告更严重**。)
+
+`_configure_mcp_tools_interactive` 是 `hermes mcp` 里勾选每个 MCP 服务器要暴露哪些工具的界面。
+它的 docstring 说改动落成**排除**项:
+
+`hermes_cli/tools_config.py:5180-5181 @ 863e313`
+
+```python
+    a per-server curses checklist.  Writes changes back as ``tools.exclude``
+    entries in config.yaml.
+```
+
+**代码写的是包含项,并且主动把遗留的排除项删掉:**
+
+`hermes_cli/tools_config.py:5290-5292 @ 863e313`
+
+```python
+            tools_cfg["include"] = chosen_names
+            # Drop any legacy exclude block — we're include-mode now.
+            tools_cfg.pop("exclude", None)
+```
+
+**这不是"注释没跟上"那么简单——仓库做过一次有意的、写了理由的迁移**:
+
+`hermes_cli/tools_config.py:5273-5276 @ 863e313`
+
+```python
+        # Compute new include list (the chosen tools). We standardize on
+        # tools.include across the codebase (catalog installs, hermes mcp
+        # configure, and this UI) so a server's on-disk config shape doesn't
+        # depend on which UI the user touched last.
+```
+
+**理由写得很好**(统一成 include,免得同一个服务器的落盘形态取决于用户最后用了哪个界面),
+迁移也做得很干净(顺手删遗留键)。**唯独同一个函数的 docstring 停在了迁移之前,
+而且停在了语义正好相反的一侧。**
+
+**危害为什么比一般的注释腐烂大**:`include` 与 `exclude` 是**互为反义**的。
+一个信 docstring 的读者会以为"取消勾选一个工具 = 把它加进排除表",
+从而推断"没被勾选过的工具默认可用";而真实语义是"勾选的即全集,其余一律不暴露"。
+**同一段代码,两种读法给出的可见工具集恰好互补。**
+
+**定案:▲ 成立,性质是「语义反转型 docstring 腐烂」。**
+这是 R7B「docstring 也会说谎」、R7C「时间腐烂」之后的第三种形态,
+判据也更锋利一条:**凡代码里出现"drop any legacy X"这类迁移善后动作,
+就该顺手检查本函数 docstring 里还有没有 X**——迁移会记得改数据,常常忘了改说明。
+
 ---
 
 ## ◇ 组:文档缺口
