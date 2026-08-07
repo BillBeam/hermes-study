@@ -369,7 +369,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 ---
 
-## ■ 组:代码内部缺陷(8 条,只记录不修)
+## ■ 组:代码内部缺陷(9 条,只记录不修)
 
 | # | 缺陷 | 锚点 | 怎么会踩到 |
 |---|---|---|---|
@@ -379,8 +379,60 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-4 | `display.copy_shortcut` 是**全仓唯一一次出现** | `hermes_cli/config_defaults.py:1280` | 用户按注释里列的四个取值去设,永远无效 |
 | ■-5 | `NOUS_BASE_URL` 在环境变量清单里,但代码读的是另外两个名字 | `hermes_cli/config_defaults.py:3132` | 安装流程会**主动向用户索要**一个没人读的变量 |
 | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
+| ■-9 | `_COMMENTED_SECTIONS` 是**已漂移的死副本** | `hermes_cli/config.py:3473` | 活版是 `_SECURITY_COMMENT`/`_FALLBACK_COMMENT`(:3601/:3609);两份同一句话已不同。维护者改到死版,对用户文件零效果 |
 | ■-8 | **两把配对钥匙行为不一致**:CLI 在 request-id 路径上也报"平台被锁定" | `hermes_cli/pairing.py:81` vs `hermes_cli/web_server.py:12346` | 用过期 request-id 批准 + 平台恰好因别的原因锁定 → CLI 告诉运维者"等 N 分钟",而真实原因是请求过期;dashboard 同一操作正确回 404 |
 | ■-7 | `OPTIONAL_ENV_VARS` 在 import 时被**原地改写** | `hermes_cli/config.py:5307` | 静态分析(含本项目第一版脚本)只看到 151/308 |
+
+### ■-9 细节:一份**已经漂移**的死副本(第五例"一个语义写了两次")
+
+(线索来自 `notes/r8a-raw-config-c` F3 说"`_COMMENTED_SECTIONS` 是死代码";
+主线复核**确认它是死的,并发现比"死"更值得记的一点**。)
+
+`save_config()` 会往用户的 `config.yaml` 末尾追加几段**被注释掉的配置模板**
+(本轮运行时实验里亲眼见到它写出了 Security 与 Fallback Model 两段)。
+真正被写出去的是这两个常量:
+
+`hermes_cli/config.py:3601 @ 863e313`
+
+```python
+            parts.append(_SECURITY_COMMENT)
+```
+
+`hermes_cli/config.py:3609 @ 863e313`
+
+```python
+            parts.append(_FALLBACK_COMMENT)
+```
+
+而**第三个常量 `_COMMENTED_SECTIONS` 全仓零引用**(除定义处):
+
+`hermes_cli/config.py:3473 @ 863e313`
+
+```python
+_COMMENTED_SECTIONS = """
+```
+
+它装的是**同样这两段**的一份旧副本。**而且两份已经不一样了** —— 同一句话的活版与死版:
+
+活版(会写进用户文件),`hermes_cli/config.py:3432-3434 @ 863e313`
+
+```python
+# Secret redaction is ON by default — strings that look like API keys,
+# tokens, and passwords are masked in tool output, logs, and chat
+# responses before the model or user ever sees them. Set redact_secrets
+```
+
+死版(不会),`hermes_cli/config.py:3475-3476 @ 863e313`
+
+```python
+# Secret redaction is ON by default. Set to false to pass tool output,
+# logs, and chat responses through unmodified (e.g. for redactor dev).
+```
+
+**这是本轮"一个语义写了两次"的第五例,也是最有说服力的一例——因为漂移已经发生了。**
+维护者要更新 provider 列表或安全说明时,`_COMMENTED_SECTIONS` 看起来完全像那个该改的地方
+(名字最像"就是这些注释段"),改完却对用户文件毫无影响。
+**风险不在于死代码占地方,在于它长得比活代码更像正主。**
 
 ### ■-4 细节:一个只存在于自己定义处的键
 
@@ -578,4 +630,3 @@ R7C 这条附了锚点文件(`hermes_cli/status.py`),所以本轮没有走偏,�
 | H-5 | **R9/R10** | `ui-tui/src/gatewayTypes.ts:89` 等 TS 侧读取点 | 856 个配置键中有一类**只由 TypeScript 读**;TS 侧是否有自己的默认值(即第三份默认值)未查 |
 | H-6 | **R11 复盘** | 本卷 ◇-1 | 105 个零文档键的**清单已在 `data/r8a-config-keys.tsv`**,但未逐条判断"该不该文档化";R11 对表时可直接消费该列 |
 | H-7 | **R8B / R8D** | `hermes_cli/config.py:3065`(`require_readable_config_before_write`) | 该守卫只检查文件**可读**不检查**可解析**;`set/unset_config_value` 各自补了解析检查(见 §3.5),但**是否存在第三个调用方直接 `read_raw_config()` 后落盘**本轮未穷举——若有,坏 YAML 会被静默截断 |
-| H-8 | **R8D** | `hermes_cli/config.py:3473`(`_COMMENTED_SECTIONS`) | 一大段被注释掉的 provider 配置模板,全仓除定义处零引用;维护者更新 provider 列表时可能改到这份不生效的副本(来自 `r8a-raw-config-c` F3,主线未复核) |
