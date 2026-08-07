@@ -426,7 +426,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 ---
 
-## ■ 组:代码内部缺陷(19 条,只记录不修)
+## ■ 组:代码内部缺陷(20 条,只记录不修)
 
 | # | 缺陷 | 锚点 | 怎么会踩到 |
 |---|---|---|---|
@@ -437,6 +437,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-5 | `NOUS_BASE_URL` 在环境变量清单里,但代码读的是另外两个名字 | `hermes_cli/config_defaults.py:3132` | 安装流程会**主动向用户索要**一个没人读的变量 |
 | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
 | ■-16 | **第二例“默认值撞上硬编码值”**:`resource_attributes["service.name"]` 被无条件覆盖 | `agent/monitoring/gateway_health_export.py:85`(覆盖)/ 默认值恰等于该硬编码值 | 用户改 `service.name` 毫无效果;因默认值==硬编码值,在默认值上验证必然假阳性。同块的 `deployment.environment.name` 却是好的 |
+| ■-20 | **名叫 `VALID_BUSY_POLICIES` 的常量不校验任何东西**;唯一引用它的测试 import 了却零断言 | `hermes_cli/commands.py:93`(常量)/ `:75`(裸 `str` 字段)/ `gateway/run.py:14117`(消费方) | `busy_policy` 写错一个字母不报错,该命令在 agent 忙时**从“可执行”静默变成“被拒”**;而文件名 `test_busy_policy_invariants` + import 两条线索合起来制造了“已覆盖”的错觉 |
 | ■-19 | **自我拆台的守卫**:检查了成员资格,随后赋的值却没再检查 → `KeyError` 崩栈 | `hermes_cli/tools_config.py:3794-3795`(守卫)/ `:3817`(`catalog[mid]` 崩) | 任何第三方 image_gen / video_gen 插件的 `default_model()` 返回值不在 `list_models()` 里(或为 None),用户在 `hermes tools` 里选中它即崩溃退出;video 版同形(`:3956`) |
 | ■-18 | **读-改-写用了两份各自 `load_config()` 的副本,后写的抹掉前一份** | `hermes_cli/tools_config.py:4356`(内层自己重载)/ `:5153-5154`(外层随后存过期副本) | 在 `hermes tools` 里配好 vision 模型 → 主流程随后一存,该值被**清空回默认**;键还在、值没了,比"配置项消失"更难查。主线运行时确证 |
 | ■-17 | **`or` 兜底链让“显式 0”无法表达** | `hermes_logging.py:313`(`backup_count or cfg_backup or 3`);正确写法见 `gateway/platforms/base.py:742` | `logging.backup_count: 0`(不留备份)静默变 3;`max_size_mb: 0`、`model_catalog.ttl_hours: 0` 同型。同仓库两种写法并存 |
@@ -481,6 +482,56 @@ TERMINAL_CONFIG_ENV_MAP = {
 > 因为这种情形下,**最自然的验证方式(在默认值上跑一遍看看对不对)必然给出假阳性**。
 > 反过来说,写代码时应当**刻意让默认值与任何硬编码兜底不同**——
 > 哪怕差一点点,也能让"没接线"在第一次测试时就暴露。
+
+### ■-20 细节:一个名叫 `VALID_*` 的常量,不校验任何东西
+
+(线索来自 `notes/r8a-raw-commands`,主线已回源复核确认。)
+
+`CommandDef.busy_policy` 决定"agent 正忙时敲这条命令会怎样",合法值只有三个。
+仓库把它们写成了一个常量,注释还明说这是"合法值":
+
+`hermes_cli/commands.py:92-94 @ 863e313`
+
+```python
+# Valid values for CommandDef.busy_policy (see field docs above).
+VALID_BUSY_POLICIES: frozenset[str] = frozenset(
+    {"dispatch", "reject", "interrupt_then_dispatch"}
+```
+
+**但字段本身是裸 `str`,没有任何地方拿这个常量去校验:**
+
+`hermes_cli/commands.py:75 @ 863e313`
+
+```python
+    busy_policy: str = "reject"
+```
+
+全仓 grep `VALID_BUSY_POLICIES` 只有**两处**:上面的定义处,
+以及 `tests/hermes_cli/test_busy_policy_invariants.py:13` 的 **import**。
+而那个测试文件只有两个用例,**都没有引用它**——import 了却从不断言。
+
+**于是它看起来是被覆盖的**:静态检查看到它被 import,人去 grep 也会看到
+"它在一个名叫 `test_busy_policy_invariants` 的文件里出现过"。**两种线索都在撒谎。**
+
+**后果**:`busy_policy="dispatchh"` 这种笔误不会有任何报错。消费方直接读字符串:
+
+`gateway/run.py:14117 @ 863e313`
+
+```python
+        policy = getattr(cmd_def, "busy_policy", "reject")
+```
+
+拼错的值匹配不上任何分支,落到"忙时拒绝"这一侧——
+**一条本该在 agent 忙时也能执行的命令,会变成忙时被拒,而且静默。**
+
+> **判据两条**:
+> 1. **凡定义了"合法值集合"的常量,就必须有一处真的拿它做校验**——
+>    否则它只是一段注释,却顶着一个让人以为有强制力的名字。
+>    更省事的做法是让类型系统承担:`busy_policy: Literal["dispatch", "reject", ...]`,
+>    这样连常量都不需要,笔误在类型检查阶段就死掉。
+> 2. **"某个符号在测试文件里出现过"不等于它被测过。**
+>    判断覆盖要看**断言**,不看 import。本例里文件名(`*_invariants`)与 import
+>    两条线索叠加,制造了很强的"已覆盖"错觉——而真实断言数是零。
 
 ### ■-19 细节:守卫检查了 A,却把 B 赋了进去
 

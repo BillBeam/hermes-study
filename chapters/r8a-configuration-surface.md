@@ -1225,7 +1225,33 @@ caller : display.compact = False(过期副本)           → 落盘
 > 而且因为它依赖调用顺序,两个函数各自的单测都会绿。**
 
 
-**⑭ 做"谁读这个键"的分析时,先问"读它的是不是同一种语言"。**
+**⑭ "某个符号在测试文件里出现过"不等于它被测过;判覆盖要看断言,不看 import。**
+`CommandDef.busy_policy`(决定 agent 忙时敲这条命令会怎样)的合法值被写成常量,
+注释还明说是"合法值":
+
+`hermes_cli/commands.py:92-94 @ 863e313`
+
+```python
+# Valid values for CommandDef.busy_policy (see field docs above).
+VALID_BUSY_POLICIES: frozenset[str] = frozenset(
+    {"dispatch", "reject", "interrupt_then_dispatch"}
+```
+
+**但字段是裸 `str`,全仓没有一处拿这个常量去校验。** 它只出现两次:定义处,
+以及 `tests/hermes_cli/test_busy_policy_invariants.py` 的 import ——
+**那个文件的两个用例都没有断言它。**
+
+于是笔误 `busy_policy="dispatchh"` 不报错,消费方匹配不上任何分支、落到"忙时拒绝"一侧:
+**一条本该在忙时也能执行的命令,静默变成忙时被拒。**
+
+> **两条判据**:(1) 定义了"合法值集合"的常量,**必须有一处真的拿它校验**,
+> 否则它只是顶着强制力名字的注释——更省事的是让类型系统扛:
+> `busy_policy: Literal["dispatch", "reject", "interrupt_then_dispatch"]`,笔误在类型检查阶段就死。
+> (2) 本例里**文件名(`*_invariants`)+ import** 两条线索叠加,制造了很强的"已覆盖"错觉,
+> 而真实断言数是零。**这与 §1 那个"抗崩溃测试掩护了死分支"是同一种错觉的两种形态。**
+
+
+**⑮ 做"谁读这个键"的分析时,先问"读它的是不是同一种语言"。**
 本项目自己在这里栽过:只扫 Python 就把五个由 TypeScript 消费的活键判成了死键。
 跨进程、跨语言的配置消费在现代应用里是常态,单语言的静态分析会**结构性失明**。
 
