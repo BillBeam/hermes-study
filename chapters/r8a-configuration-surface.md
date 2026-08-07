@@ -1219,6 +1219,27 @@ caller : display.compact = False(过期副本)           → 落盘
 而 §1 结尾已给出决定性证据:**配置系统这一侧把改名做得完全正确**,
 没跟上的是绕过配置系统直接读环境变量的那一段。
 
+**▲-5 一份语义正好相反的 docstring。** `hermes mcp` 里勾选"这个服务器暴露哪些工具"的那个界面,
+docstring 说改动写成 `tools.exclude`;代码写的是 `tools.include`,并且**主动删掉遗留的 exclude 块**:
+
+`hermes_cli/tools_config.py:5290-5292 @ 863e313`
+
+```python
+            tools_cfg["include"] = chosen_names
+            # Drop any legacy exclude block — we're include-mode now.
+            tools_cfg.pop("exclude", None)
+```
+
+仓库做过一次**有理由、有注释**的 exclude→include 迁移(统一落盘形态,免得同一个服务器的
+配置长相取决于用户最后用了哪个界面),迁移做得很干净——**唯独同函数的 docstring 停在了迁移之前。**
+`include` 与 `exclude` 是反义词,所以这比一般的注释腐烂更贵:
+信 docstring 的读者会以为"没勾过的工具默认可用",而真实语义是"勾了的就是全集"。
+**两种读法给出的可见工具集恰好互补。**
+
+> 这是本项目记录的第三种 docstring 腐烂形态(前两种是 R7B 的"路径腐烂"、R7C 的"时间腐烂")。
+> **判据:凡代码里出现 "drop any legacy X" 这类迁移善后动作,顺手查一眼本函数 docstring 里还有没有 X。**
+> 迁移会记得改数据,常常忘了改说明。
+
 **◇ 五个 `config.yaml` 读取函数的存在本身,全站零文档。**
 2,386 行的配置文档与仓库根的 `AGENTS.md` 都没有任何提及;文档呈现的是一个单一、
 统一的配置系统。**§2 那条"顶层标量 → 环境变量"的桥③同样零文档**——
