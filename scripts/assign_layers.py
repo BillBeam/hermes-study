@@ -245,13 +245,61 @@ RULES = [
     ("gateway/assets/status_phrases.yaml", "L1", "R7C"),
 
     # ---- L2: structure-level ----
-    ("cli.py", "L2", "R8"),
-    ("mcp_serve.py", "L2", "R8"),
-    ("hermes_bootstrap.py", "L2", "R8"),
-    ("hermes_logging.py", "L2", "R8"),
-    ("hermes_time.py", "L2", "R8"),
-    ("utils.py", "L2", "R8"),
-    ("hermes_cli/**", "L2", "R8"),
+    # R8 四切片(R8A 开轮定稿)。原 round=R8 桶实测 268 文件 / 227,803 行,是 R7C
+    # (28,282 行)的 8 倍,单轮闭合不了;按 R7 拆成 R7/R7B/R7C 的先例切四片。
+    # 切片判据是"哪些文件必须同时摆在眼前,一个机制才讲得清":
+    #   R8A 配置面   —— 决定一个配置键最终取什么值的全部模块 + R7C 移交的三笔账
+    #   R8B CLI 主干 —— 进程入口、argparse 子命令树、命令分发 mixin
+    #   R8C web 面   —— dashboard HTTP 服务、鉴权、路由
+    #   R8D 其余     —— 彼此独立的功能模块(kanban / update / proxy / observability…)
+
+    # R8A(本轮执行):15 文件 / 21,893 行,全部由 L2 促升 L1。
+    # 促升理由同 R6(8 个 memory backend)、R7C(9 个 cron 顶层 .py)先例:
+    # 轮次主题本体留在 L2,与「本轮达成 L1 完成标准」直接冲突。
+    # (1) 配置解析链:默认值 → config.yaml → .env/环境变量 → 外部密钥源
+    ("hermes_cli/config_defaults.py", "L1", "R8A"),
+    ("hermes_cli/config.py", "L1", "R8A"),
+    ("hermes_cli/config_migrations.py", "L1", "R8A"),
+    ("hermes_cli/env_loader.py", "L1", "R8A"),
+    ("hermes_cli/secret_prompt.py", "L1", "R8A"),
+    # (2) 五个领域子模式(工具 / MCP / MoA / 技能 / 供应商回退)
+    ("hermes_cli/tools_config.py", "L1", "R8A"),
+    ("hermes_cli/mcp_config.py", "L1", "R8A"),
+    ("hermes_cli/moa_config.py", "L1", "R8A"),
+    ("hermes_cli/skills_config.py", "L1", "R8A"),
+    ("hermes_cli/fallback_config.py", "L1", "R8A"),
+    # (3) `hermes config` 的 argparse 面(处理函数在 config.py 里)
+    ("hermes_cli/subcommands/config.py", "L1", "R8A"),
+    # (4) R7C 移交的三笔账(移交理由见 reports/round-7c-*.md §10)
+    ("hermes_cli/commands.py", "L1", "R8A"),           # 斜杠命令注册表,受配置门控
+    ("hermes_cli/status.py", "L1", "R8A"),             # QQBot 环境变量倒置
+    ("hermes_cli/pairing.py", "L1", "R8A"),            # 配对批准入口(门外那把钥匙)
+    ("hermes_cli/subcommands/pairing.py", "L1", "R8A"),
+
+    # R8B:CLI 主干与子命令树
+    ("cli.py", "L2", "R8B"),
+    ("hermes_bootstrap.py", "L2", "R8B"),
+    ("hermes_cli/main.py", "L2", "R8B"),
+    ("hermes_cli/cli_commands_mixin.py", "L2", "R8B"),
+    ("hermes_cli/cli_billing_mixin.py", "L2", "R8B"),
+    ("hermes_cli/cli_agent_setup_mixin.py", "L2", "R8B"),
+    ("hermes_cli/subcommands/**", "L2", "R8B"),
+
+    # R8C:dashboard 与 web 面
+    ("hermes_cli/web_server.py", "L2", "R8C"),
+    ("hermes_cli/web_models.py", "L2", "R8C"),
+    ("hermes_cli/web_git.py", "L2", "R8C"),
+    ("hermes_cli/auth.py", "L2", "R8C"),
+    ("hermes_cli/auth_commands.py", "L2", "R8C"),
+    ("hermes_cli/web_routers/**", "L2", "R8C"),
+    ("hermes_cli/dashboard_auth/**", "L2", "R8C"),
+
+    # R8D:其余(体量最大、内聚度最低;开轮时按同样方法再核一遍是否继续拆)
+    ("mcp_serve.py", "L2", "R8D"),
+    ("hermes_logging.py", "L2", "R8D"),
+    ("hermes_time.py", "L2", "R8D"),
+    ("utils.py", "L2", "R8D"),
+    ("hermes_cli/**", "L2", "R8D"),
     ("gateway/platforms/**", "L2", "R7B"),  # adapter docs (ADDING_A_PLATFORM.md)
     ("gateway/**", "L2", "R7C"),            # assets (status_phrases.yaml)
     ("plugins/model-providers/**", "L2", "R2"),   # provider 插件注册面,随 R2 结构级学习
