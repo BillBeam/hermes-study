@@ -377,7 +377,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 ---
 
-## ■ 组:代码内部缺陷(17 条,只记录不修)
+## ■ 组:代码内部缺陷(18 条,只记录不修)
 
 | # | 缺陷 | 锚点 | 怎么会踩到 |
 |---|---|---|---|
@@ -388,6 +388,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-5 | `NOUS_BASE_URL` 在环境变量清单里,但代码读的是另外两个名字 | `hermes_cli/config_defaults.py:3132` | 安装流程会**主动向用户索要**一个没人读的变量 |
 | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
 | ■-16 | **第二例“默认值撞上硬编码值”**:`resource_attributes["service.name"]` 被无条件覆盖 | `agent/monitoring/gateway_health_export.py:85`(覆盖)/ 默认值恰等于该硬编码值 | 用户改 `service.name` 毫无效果;因默认值==硬编码值,在默认值上验证必然假阳性。同块的 `deployment.environment.name` 却是好的 |
+| ■-18 | **读-改-写用了两份各自 `load_config()` 的副本,后写的抹掉前一份** | `hermes_cli/tools_config.py:4356`(内层自己重载)/ `:5153-5154`(外层随后存过期副本) | 在 `hermes tools` 里配好 vision 模型 → 主流程随后一存,该值被**清空回默认**;键还在、值没了,比"配置项消失"更难查。主线运行时确证 |
 | ■-17 | **`or` 兜底链让“显式 0”无法表达** | `hermes_logging.py:313`(`backup_count or cfg_backup or 3`);正确写法见 `gateway/platforms/base.py:742` | `logging.backup_count: 0`(不留备份)静默变 3;`max_size_mb: 0`、`model_catalog.ttl_hours: 0` 同型。同仓库两种写法并存 |
 | ■-15 | **同一进程里两个界面对“cua-driver 装好没有”给出相反答案** | 安装成功判定 `hermes_cli/tools_config.py:1585`(裸 `shutil.which`)vs 就绪判定 `:3273`(走 `_resolved_cua_driver_cmd`,`:760`) | 从 Finder/Dock 启动的 Desktop(PATH 窄)里点安装:实际装到了 `~/.local/bin`,安装器打印“did not complete”,而就绪标志同时报 ready |
 | ■-14 | **两级优先级写成了一趟循环**,弱信号在同一次迭代里短路,于是**列表顺序压过信号强度** | `hermes_cli/tools_config.py:3641-3646` | 用过 OpenAI 转录、后来切到 Groq 的用户,进 `hermes tools → Speech-to-Text`,光标默认停在 **OpenAI**;**直接回车就把 provider 悄悄改回去了** |
@@ -430,6 +431,52 @@ TERMINAL_CONFIG_ENV_MAP = {
 > 因为这种情形下,**最自然的验证方式(在默认值上跑一遍看看对不对)必然给出假阳性**。
 > 反过来说,写代码时应当**刻意让默认值与任何硬编码兜底不同**——
 > 哪怕差一点点,也能让"没接线"在第一次测试时就暴露。
+
+### ■-18 细节:读-改-写用了两份各自加载的配置,后写的那份把前一份抹掉(主线运行时确证)
+
+(线索来自 `notes/r8a-raw-tools-config-c` D-2,主线**独立跑通复现**。)
+
+`hermes tools` 的主流程 `tools_command` 先加载一份 `config` 拿在手里,
+中途调用 `_configure_toolset(...)` 让用户交互配置某个工具。而其中的
+`_configure_vision_backend` **不用传进来的那份,自己重新加载**:
+
+`hermes_cli/tools_config.py:4356 @ 863e313`
+
+```python
+    config = load_config()
+```
+
+它在自己那份上改完并落盘。**然后控制权回到主流程,主流程把手里那份(早已过期的)存了下去:**
+
+`hermes_cli/tools_config.py:5153-5154 @ 863e313`
+
+```python
+            _save_platform_tools(config, pkey, new_enabled)
+            save_config(config)
+```
+
+**主线运行时确证**(同一个 HERMES_HOME,模拟这个调用序列):
+
+```
+callee : auxiliary.vision.model = 'my-vision-model'  → save_config(inner)
+caller : display.compact = False                     → save_config(outer)   # outer 是过期副本
+落盘结果: auxiliary = {'vision': {'model': ''}}
+          display.compact = False
+```
+
+**用户刚配好的 vision 模型被抹成空串**(回到默认值),而调用方自己那项改动完好。
+`save_config` 不做冲突检测,也没有版本/mtime 比对——**后写的那份赢**。
+
+值得注意的是键**没有消失**、而是变成了 `''`:过期副本里那个位置正是默认值 `''`,
+于是"显式路径保留"逻辑把它当成用户设过的空值写了回去。
+**现象因此更隐蔽:不是"配置项不见了",而是"配置项还在,但值被清空了"。**
+
+`_reconfigure_tool` 是同一形状(`hermes_cli/tools_config.py:4565`)。
+
+> **可迁移的判据**:一个函数如果**接收**了一份配置对象,就**绝不能**自己再 `load_config()`。
+> 要么全程传递同一份对象、由最外层统一落盘;要么内层落盘后**把结果回传**给外层刷新。
+> 二者选一,不能混。**混用的症状是"我明明设了,一退出就没了",
+> 而且因为它依赖调用顺序,单测两个函数各自都会绿。**
 
 ### ■-17 细节:`or` 兜底链让"显式 0"无法表达,而同一仓库里有正确写法
 
