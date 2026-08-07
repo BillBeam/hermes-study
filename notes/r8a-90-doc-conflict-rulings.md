@@ -377,7 +377,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 ---
 
-## ■ 组:代码内部缺陷(15 条,只记录不修)
+## ■ 组:代码内部缺陷(17 条,只记录不修)
 
 | # | 缺陷 | 锚点 | 怎么会踩到 |
 |---|---|---|---|
@@ -387,6 +387,8 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-4 | `display.copy_shortcut` 是**全仓唯一一次出现** | `hermes_cli/config_defaults.py:1280` | 用户按注释里列的四个取值去设,永远无效 |
 | ■-5 | `NOUS_BASE_URL` 在环境变量清单里,但代码读的是另外两个名字 | `hermes_cli/config_defaults.py:3132` | 安装流程会**主动向用户索要**一个没人读的变量 |
 | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
+| ■-16 | **第二例“默认值撞上硬编码值”**:`resource_attributes["service.name"]` 被无条件覆盖 | `agent/monitoring/gateway_health_export.py:85`(覆盖)/ 默认值恰等于该硬编码值 | 用户改 `service.name` 毫无效果;因默认值==硬编码值,在默认值上验证必然假阳性。同块的 `deployment.environment.name` 却是好的 |
+| ■-17 | **`or` 兜底链让“显式 0”无法表达** | `hermes_logging.py:313`(`backup_count or cfg_backup or 3`);正确写法见 `gateway/platforms/base.py:742` | `logging.backup_count: 0`(不留备份)静默变 3;`max_size_mb: 0`、`model_catalog.ttl_hours: 0` 同型。同仓库两种写法并存 |
 | ■-15 | **同一进程里两个界面对“cua-driver 装好没有”给出相反答案** | 安装成功判定 `hermes_cli/tools_config.py:1585`(裸 `shutil.which`)vs 就绪判定 `:3273`(走 `_resolved_cua_driver_cmd`,`:760`) | 从 Finder/Dock 启动的 Desktop(PATH 窄)里点安装:实际装到了 `~/.local/bin`,安装器打印“did not complete”,而就绪标志同时报 ready |
 | ■-14 | **两级优先级写成了一趟循环**,弱信号在同一次迭代里短路,于是**列表顺序压过信号强度** | `hermes_cli/tools_config.py:3641-3646` | 用过 OpenAI 转录、后来切到 Groq 的用户,进 `hermes tools → Speech-to-Text`,光标默认停在 **OpenAI**;**直接回车就把 provider 悄悄改回去了** |
 | ■-13 | **插件 provider 的注入点用类目"显示名"做匹配键**,而稳定键就在同一个 dict 里 | `hermes_cli/tools_config.py:3137/3142/3150/3158/3164`(五处)/ `:484-485`(稳定键 `"web"` 与显示名并列) | 改一个界面文案(大小写、`&` 写法)→ 该类目的插件行**静默消失**;`video_gen` 与 `web` 两个类目**没有任何硬编码 provider**,一改就整类目空掉 |
@@ -396,6 +398,68 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-9 | `_COMMENTED_SECTIONS` 是**已漂移的死副本** | `hermes_cli/config.py:3473` | 活版是 `_SECURITY_COMMENT`/`_FALLBACK_COMMENT`(:3601/:3609);两份同一句话已不同。维护者改到死版,对用户文件零效果 |
 | ■-8 | **两把配对钥匙行为不一致**:CLI 在 request-id 路径上也报"平台被锁定" | `hermes_cli/pairing.py:81` vs `hermes_cli/web_server.py:12346` | 用过期 request-id 批准 + 平台恰好因别的原因锁定 → CLI 告诉运维者"等 N 分钟",而真实原因是请求过期;dashboard 同一操作正确回 404 |
 | ■-7 | `OPTIONAL_ENV_VARS` 在 import 时被**原地改写** | `hermes_cli/config.py:5307` | 静态分析(含本项目第一版脚本)只看到 151/308 |
+
+### ■-16 细节:第二例"默认值撞上硬编码值"——这条从个案升级成了模式
+
+(线索来自 `notes/r8a-raw-defaults-b` D5,主线已回源复核确认。)
+
+`monitoring.gateway_health_export.resource_attributes` 允许用户自定义 OTLP 资源属性。
+用户填的值确实被收下了(过一层白名单 `_safe_resource_attributes`),**然后被无条件覆盖**:
+
+`agent/monitoring/gateway_health_export.py:85 @ 863e313`
+
+```python
+    attrs["service.name"] = "hermes-gateway"
+```
+
+而 `DEFAULT_CONFIG` 里这个键的默认值**恰好就是** `"hermes-gateway"`:
+
+`hermes_cli/config_defaults.py` 中 `resource_attributes` 实测为
+`{'service.name': 'hermes-gateway', 'deployment.environment.name': 'production'}`。
+
+**于是没人会发现**:想验证"这个键有没有用",在默认值上观察到的行为完全正确;
+只有真的改成别的值,才会发现改了等于没改,而那时人会去怀疑 OTLP 后端、采集器、
+网络——不会怀疑这个键根本没生效。
+
+**同一个块里的兄弟键是好的**:`deployment.environment.name` 不被覆盖,能正常生效。
+**又一次"一个 section 里两个子键一个能用一个不能用"**,与 ▲-2 的 bedrock 完全同型。
+
+**这条的价值在于它把 ▲-2 从个案变成了模式。** 两例独立出现,判据可以固化下来:
+
+> **凡"配置键的默认值 == 代码里的硬编码值",这个键就必须专门验一次接线。**
+> 因为这种情形下,**最自然的验证方式(在默认值上跑一遍看看对不对)必然给出假阳性**。
+> 反过来说,写代码时应当**刻意让默认值与任何硬编码兜底不同**——
+> 哪怕差一点点,也能让"没接线"在第一次测试时就暴露。
+
+### ■-17 细节:`or` 兜底链让"显式 0"无法表达,而同一仓库里有正确写法
+
+(线索来自 `notes/r8a-raw-defaults-b` D3,主线已回源复核确认。)
+
+`logging.backup_count: 0` 的语义显然是"一个备份都不留",但它被 `or` 链吃掉了:
+
+`hermes_logging.py:313 @ 863e313`
+
+```python
+    backups = backup_count or cfg_backup or 3
+```
+
+`0` 是 falsy,于是静默变成 `3`(默认值实测就是 3)。同型的还有
+`logging.max_size_mb: 0` 与 `model_catalog.ttl_hours: 0`(想"每次重取")。
+
+**而同一个仓库里有写对的地方**——用"键在不在"判定,而不是用真值:
+
+`gateway/platforms/base.py:742 @ 863e313`
+
+```python
+    if not isinstance(gw, dict) or "max_inbound_media_bytes" not in gw:
+```
+
+**两种写法并存**,又一次落在本轮"一个语义两种实现"的谱系里。
+
+> **判据**:配置值的合法域只要包含 `0` / `""` / `[]` / `False` 中任何一个,
+> 就**不能**用 `or` 做兜底,必须用"键存在吗"或 `is None` 判定。
+> `or` 链把"没设过"和"设成了假值"混为一谈——而对配置来说,
+> **"显式关掉"恰恰是用户最需要能表达的意思。**
 
 ### ■-15 细节:同一个问题,同一个文件,两个答案
 
