@@ -811,7 +811,32 @@ Hermes 把 768 行的 `if` 梯换成注册表,却刻意保留了"版本号不推
 自动那条只做无歧义的事,歧义的那部分**只在人盯着输出时**才提供。
 **判据:当一个信号有两种解释、而其中一种解释下的动作不可逆,这个动作就不属于自动路径。**
 
-**⑧ 做"谁读这个键"的分析时,先问"读它的是不是同一种语言"。**
+**⑧ "系统认识的键"和"向用户推荐的键"应该是两张表。**
+这条是本簇里做得最漂亮的一个设计,而且它自己写下了理由。Hermes 维护两张环境变量表:
+`OPTIONAL_ENV_VARS`(151 条静态字面量)喂**面向用户的界面**——安装向导的检查清单、
+dashboard 的密钥页;`_EXTRA_ENV_KEYS`(108 条)装那些**运行时认识、但不该推荐**的键。
+一个废弃旋钮的处置写得很清楚:
+
+`hermes_cli/config_defaults.py:4292-4296 @ 863e313`
+
+```python
+    # gateway still falls back to HERMES_TOOL_PROGRESS_MODE for backward
+    # compatibility, so it lives in _EXTRA_ENV_KEYS (known to reload and
+    # compatibility paths) but is intentionally NOT listed here:
+    # OPTIONAL_ENV_VARS feeds user-facing surfaces (dashboard keys page, setup
+    # checklists) and deprecated knobs shouldn't be offered there.
+```
+
+**废弃键从"推荐表"摘除、在"认识表"保留**——于是老配置继续能用,新用户不会被引导去用它。
+只有一张表的话,你只能在"破坏老配置"和"继续推荐废弃项"之间二选一。
+
+**代价是要维护两张表,而本轮抓到的 ■-5 正是漏维护的后果**:`NOUS_BASE_URL` 拆成
+`NOUS_PORTAL_BASE_URL` / `NOUS_INFERENCE_BASE_URL` 之后,旧名**留在了推荐表里**
+(带完整的说明和输入提示)、**没进认识表**——正好和规则反过来。
+于是安装流程会**主动请用户填一个没有任何代码会读的变量**。
+**一条被写下来的规则,不会自己执行。**
+
+**⑨ 做"谁读这个键"的分析时,先问"读它的是不是同一种语言"。**
 本项目自己在这里栽过:只扫 Python 就把五个由 TypeScript 消费的活键判成了死键。
 跨进程、跨语言的配置消费在现代应用里是常态,单语言的静态分析会**结构性失明**。
 

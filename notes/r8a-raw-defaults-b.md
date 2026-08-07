@@ -698,7 +698,7 @@ _RESOURCE_ATTRIBUTE_KEYS = frozenset({
 
 **scale_to_zero 的一句关键设计声明**:功能开不开**不是 config 键**,而是 NAS "Labs" 开关
 (以 `HERMES_SCALE_TO_ZERO` env 戳传进来);config 里只有空闲超时。
-`hermes_cli/config_defaults.py:2495 @ 863e313`
+`hermes_cli/config_defaults.py:2492 @ 863e313`
 
 ```python
         # the HERMES_SCALE_TO_ZERO env stamp) AND messaging is relay-only/absent
@@ -862,7 +862,7 @@ gateway 本来就在缺这块时用同样的默认值;加进来只是让它在 c
 `hermes_cli/config_defaults.py:2635 @ 863e313`
 
 ```python
-        "cursor": " ▉",
+        "cursor": " \u2589",
 ```
 
 `gateway/config.py:803 @ 863e313`

@@ -389,7 +389,41 @@ TERMINAL_CONFIG_ENV_MAP = {
 ```
 
 `NOUS_BASE_URL` 是**拆分之前的旧名**,拆成 portal / inference 两个之后,
-清单和文档里的旧名没删。而清单不是死数据——它驱动"缺哪些变量"的盘点:
+清单和文档里的旧名没删。
+
+**而这恰好违反了本仓库自己写明的规则** ——(此条规则由 `notes/r8a-raw-defaults-b` §3.2 发现,
+主线已实测复核。)代码维护**两张**环境变量表,分工写得极清楚:
+
+`hermes_cli/config.py:261-263 @ 863e313`
+
+```python
+# Env var names written to .env that aren't in OPTIONAL_ENV_VARS
+# (managed by setup/provider flows directly).
+_EXTRA_ENV_KEYS = frozenset({
+```
+
+规则的说明在 `config_defaults.py` 末尾,拿一个废弃键当例子:
+
+`hermes_cli/config_defaults.py:4290-4296 @ 863e313`
+
+```python
+    # HERMES_TOOL_PROGRESS_MODE is deprecated — tool progress is configured via
+    # display.tool_progress in config.yaml (off|new|all|verbose|log). The
+    # gateway still falls back to HERMES_TOOL_PROGRESS_MODE for backward
+    # compatibility, so it lives in _EXTRA_ENV_KEYS (known to reload and
+    # compatibility paths) but is intentionally NOT listed here:
+    # OPTIONAL_ENV_VARS feeds user-facing surfaces (dashboard keys page, setup
+    # checklists) and deprecated knobs shouldn't be offered there.
+```
+
+**即:"运行时认识的键"与"向用户推荐的键"是两张表;废弃键从后者摘除、在前者保留。**
+这是一条很好的设计原则。主线实测三点:
+`HERMES_TOOL_PROGRESS_MODE` 确实**在** `_EXTRA_ENV_KEYS`、**不在** `OPTIONAL_ENV_VARS`(规则被遵守);
+而 `NOUS_BASE_URL` **在** `OPTIONAL_ENV_VARS`(带完整 `description` + `prompt`)、
+**不在** `_EXTRA_ENV_KEYS` —— **正好反了**。
+**所以 ■-5 不是一条普通的陈旧条目,而是这条已被明确写下的规则的一次违反。**
+
+而清单不是死数据——它驱动"缺哪些变量"的盘点:
 
 `hermes_cli/config.py:985 @ 863e313`
 

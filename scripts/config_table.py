@@ -19,6 +19,16 @@ of the codebase, not a limitation we can engineer away here — an AST pass
 cannot see a dict that a different module fills in at import time. Treat the
 env table as "what is written down", not "what the wizard will ask for".
 
+There is also a *second* env registry this script does not emit: ``_EXTRA_ENV_KEYS``
+in ``hermes_cli/config.py:263`` (108 names), for variables written to ``.env`` by
+setup/provider flows but deliberately kept out of the user-facing list —
+deprecated knobs live there so compatibility paths still recognise them while the
+setup checklist stops offering them. The set of names Hermes *recognises* is the
+union of the two (239 with the static literal, 365 after import); the set it
+*recommends* is ``OPTIONAL_ENV_VARS`` alone. That split is intentional and worth
+preserving in any reimplementation — but it means neither table alone answers
+"which env vars does this program know about".
+
 **And the config-key table is not the set of keys a user may legally write.** It
 is the complete flattening of ``DEFAULT_CONFIG`` — nothing more. Three families
 of valid keys sit outside it: (1) the 23 roots in ``_EXTRA_KNOWN_ROOT_KEYS``
