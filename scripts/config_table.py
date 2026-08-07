@@ -335,6 +335,90 @@ def main() -> None:
                 re.sub(r"\s+", " ", desc)[:160],
             ])
     print(f"wrote {env_out}")
+    _summarise(cfg_out, env_out, args.out_dir / "r8a-config-keys-summary.md")
+
+
+def _summarise(cfg_out: Path, env_out: Path, dest: Path) -> None:
+    """Write the slices worth looking at, so consumers need not re-derive them.
+
+    The three TSVs answer "what is every key"; this answers "which rows should I
+    actually read". Kept as a generated file rather than prose in a report so it
+    cannot drift from the tables it summarises.
+    """
+    cfg = list(csv.DictReader(cfg_out.open(encoding="utf-8"), delimiter="\t"))
+    env = list(csv.DictReader(env_out.open(encoding="utf-8"), delimiter="\t"))
+
+    def n(row, k):
+        return int(row[k])
+
+    dead = [r for r in cfg if n(r, "py_sites") == 0 and n(r, "ts_sites") == 0]
+    ts_only = [r for r in cfg if n(r, "py_sites") == 0 and n(r, "ts_sites") > 0]
+    undocumented = [r for r in cfg if not r["docs"]]
+    ambiguous = [r for r in cfg if r["ambiguous"] == "AMBIG"]
+    env_dead = [r for r in env if n(r, "py_sites") == 0 and n(r, "ts_sites") == 0]
+
+    lines = [
+        "# R8A 配置项全表 · 值得先看的几片",
+        "",
+        "本文件由 `scripts/config_table.py` 生成,**不要手改**——它存在的意义就是不会与表脱节。",
+        "表本身回答“有哪些键”,本文件回答“该先读哪些行”。",
+        "",
+        "> **读之前先读 `scripts/config_table.py` 开头的边界说明。** 一句话:",
+        "> 这 856 个键是“**有默认值的键**”的全集,不是“用户能合法写的键”的全集。",
+        "",
+        f"- 配置键合计:**{len(cfg)}**"
+        f"(叶子 {sum(1 for r in cfg if r['kind'] == 'leaf')} / 分支 {sum(1 for r in cfg if r['kind'] == 'branch')})",
+        f"- 静态环境变量合计:**{len(env)}**(运行时会被就地灌到 308,见脚本说明)",
+        "",
+        f"## 1. Python 与 TypeScript 都不读的键({len(dead)})",
+        "",
+        "候选死配置。**逐条人工复核过再下结论**——本轮第一版就在这里错判过 5 个。",
+        "",
+    ]
+    for r in dead:
+        lines.append(f"- `{r['key']}` — 默认 `{r['default']}`,定义于 {r['def_at']},文档:{r['docs'] or '无'}")
+
+    lines += [
+        "",
+        f"## 2. 只有 TypeScript 读的键({len(ts_only)})",
+        "",
+        "Python 侧完全不碰;配置经 `config.get` RPC 发给 TS 客户端后由它解释。",
+        "**任何只扫 Python 的分析都会把这些判成死键。**",
+        "",
+    ]
+    for r in ts_only:
+        lines.append(f"- `{r['key']}` — {r['ts_sites_sample'].split(';')[0]}")
+
+    lines += [
+        "",
+        f"## 3. 全部文档面零提及的键({len(undocumented)})",
+        "",
+        "这是本轮 ◇-1 的清单,也是**唯一站得住的文档缺口数字**",
+        "(为什么不报百分比,见 `notes/r8a-90` ◇-1)。R11 对表时可直接消费。",
+        "",
+    ]
+    lines += [f"- `{r['key']}` ({r['def_at']})" for r in undocumented]
+
+    lines += [
+        "",
+        f"## 4. 叶子名过于常见、读取点统计不可信的键({len(ambiguous)})",
+        "",
+        "叶子名形如 `enabled` / `timeout` / `mode`。**这些行的 `py_sites` / `ts_sites` 只能当上界看。**",
+        "",
+        "<details><summary>展开</summary>",
+        "",
+    ]
+    lines += [f"- `{r['key']}`" for r in ambiguous]
+    lines += ["", "</details>", ""]
+
+    if env_dead:
+        lines += [f"## 5. 无人读取的环境变量({len(env_dead)})", ""]
+        for r in env_dead:
+            lines.append(f"- `{r['env_var']}` — 文档:{r['docs'] or '无'}")
+        lines.append("")
+
+    dest.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"wrote {dest}")
 
 
 if __name__ == "__main__":
