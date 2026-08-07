@@ -927,6 +927,68 @@ dashboard 对同一个操作会正确地回 404("请求或码未找到/已过期
 
 ---
 
+### 3.11 两个领域子模式给出的两条额外答案
+
+`mcp_config.py` 与 `moa_config.py` 是本簇里最小的两个"领域子模式",
+但各自解决了一个前面没出现过的问题,值得各花几行。
+
+**(a) 当用户合法需要"任意值"时,只能封禁已知的坏形状,不能白名单。**
+
+MCP(Model Context Protocol,让 agent 接外部工具服务器的协议)服务器条目里
+放的是**要执行的命令**——`npx`、`uvx`、Python 脚本、自写二进制都合法。
+所以它的安全校验**故意不是白名单**:
+
+`hermes_cli/mcp_security.py:124-131 @ 863e313`
+
+```python
+    Empty return means the entry is not suspicious. This is intentionally not a
+    whitelist: legitimate local MCPs can still use custom commands, Python
+    scripts, npx, uvx, etc. We block three narrow shapes only:
+
+    * a known hermes-0day IOC anywhere in command/args/env (hardcoded blocklist);
+    * a shell interpreter whose inline script invokes network egress (#45620);
+    * a shell interpreter whose inline script writes to an OS persistence
+      surface (June 2026 hermes-0day SSH/PAM/sudoers/cron shape).
+```
+
+三条封禁都不是抽象规则,是**对一次真实供应链事件(hermes-0day)的形状描述**:
+已知 IOC 字符串、内联脚本里的网络外传、内联脚本写 SSH/PAM/sudoers/cron 这类持久化面。
+
+**这与 §2 那条"配置根层是开放世界"是同一个道理的两面**:
+凡用户合法需要写任意内容的地方,闭世界校验在定义上就写不出来;
+**能做的是把已知的坏形状钉死,并诚实地承认这不是完备防护。**
+把它写成 docstring 的第一句(而不是让人误以为这是白名单),本身就是好实践。
+
+**(b) schema 演进有两种策略,这个仓库两种都用,而且用在不同地方。**
+
+§3.6 讲的迁移梯是策略一:**改用户的文件**,版本号闸门,一次性。
+MoA(Mixture of Agents,多模型协同)用的是策略二:**不改文件,读的时候归一化**——
+早期版本把 `reference_models` / `aggregator` 直接放在 `moa` 下,后来改成具名预置(preset);
+新代码把旧形状**当作名为 `default` 的那个预置**收下:
+
+`hermes_cli/moa_config.py:389-390 @ 863e313`
+
+```python
+    # Legacy flat config becomes the default preset.
+    if not presets:
+        presets[DEFAULT_MOA_PRESET_NAME] = _normalize_preset(raw)
+```
+
+**两种策略的取舍很清楚:**
+
+| | 迁移(改文件) | 读时归一化(不改文件) |
+|---|---|---|
+| 旧形状的寿命 | 一次性,迁完就没了 | **永久**,代码要一直带着 |
+| 用户文件 | 被改写(要备份、要原子写、要版本号) | 不动 |
+| 失败面 | 迁移本身可能出错、可能半途中断 | 每次读都多一层转换 |
+| 适合 | 全局键、影响很多消费者的重排 | 局部子树、老形状仍可读且无歧义 |
+
+**判据:能一次改干净、且旧形状会让别处困惑的,用迁移;
+局部的、老形状本身无歧义的,读时归一化更省事——但要接受"这段兼容代码永远删不掉"。**
+把两种混在一起用(既迁移又永久兼容)是最坏的:你既付了迁移的复杂度,又没能删掉兼容分支。
+
+---
+
 ## 4. 可迁移的设计原则
 
 **① 把"这个键是什么"做成数据结构里的字段,而不是注释。**
