@@ -69,7 +69,7 @@ RULES = [
     ("hermes_state.py", "L1", "R5"),
     ("hermes_state_schema.py", "L1", "R5"),
     ("hermes_state_common.py", "L1", "R5"),
-    ("hermes_state_search.py", "L1", "R6"),
+    ("hermes_state_search.py", "L1", "R5"),   # R5 修订:FTS5 会话检索归入"状态与持久化"轮(R5 卡片点名)
     ("hermes_state_portability.py", "L1", "R5"),
     ("trajectory_compressor.py", "L1", "R9"),
     ("batch_runner.py", "L1", "R9"),
@@ -144,6 +144,10 @@ RULES = [
     ("agent/tool_result_classification.py", "L1", "R3"),
     ("agent/secret_scope.py", "L1", "R3"),
     ("agent/redact.py", "L1", "R3"),
+    # R5 机制簇补充:记忆存储侧 + 会话活动(R5 轮定稿,从 R3-R7 桶吸纳)
+    ("agent/memory_manager.py", "L1", "R5"),
+    ("agent/memory_provider.py", "L1", "R5"),
+    ("agent/session_activity.py", "L1", "R5"),
     ("agent/*.py", "L1", "R3-R7"),          # 其余 agent/ 文件在后续轮次开工时显式定轮
     ("agent/**/*.py", "L1", "R3-R7"),
     # R3 机制簇:工具基础设施与安全(显式列举,R3 轮定稿)
@@ -199,6 +203,10 @@ RULES = [
     ("tools/computer_use_tool.py", "L1", "R4"),
     ("tools/computer_use/**", "L1", "R4"),
     ("tools/desktop_ui.py", "L1", "R4"),
+    # R5 机制簇补充:会话检索工具 + 检查点 + 记忆工具(R5 轮定稿,从 R3-R4 桶吸纳)
+    ("tools/session_search_tool.py", "L1", "R5"),
+    ("tools/checkpoint_manager.py", "L1", "R5"),
+    ("tools/memory_tool.py", "L1", "R5"),
     ("tools/*.py", "L1", "R3-R4"),
     ("tools/**/*.py", "L1", "R3-R4"),
     ("cron/**/*.py", "L1", "R7"),
@@ -222,6 +230,10 @@ RULES = [
     ("apps/desktop/src/i18n/*", "L3", "R10"),   # translation data, not structure
     ("apps/**", "L2", "R10"),
     ("web/**", "L2", "R10"),
+    # R5 吸纳:FTS5 CJK 分词器本体(vendored sqlite 头文件仍留 R10)
+    ("native/fts5_cjk/fts5_cjk.c", "L2", "R5"),
+    ("native/fts5_cjk/build.sh", "L2", "R5"),
+    ("native/fts5_cjk/README.md", "L2", "R5"),
     ("native/**", "L2", "R10"),
     ("providers/**", "L2", "R2"),
     ("scripts/**", "L2", "R11"),
