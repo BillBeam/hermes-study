@@ -789,7 +789,29 @@ dashboard 对同一个操作会正确地回 404("请求或码未找到/已过期
 Hermes 把 768 行的 `if` 梯换成注册表,却刻意保留了"版本号不推进"这个别扭语义,
 并写测试断言新旧输出逐字相同。**这是对的**:重构的正确性优先于重构的美观。
 
-**⑦ 做"谁读这个键"的分析时,先问"读它的是不是同一种语言"。**
+**⑦ 无人值守的清理不许在歧义信号上下判断;歧义留给有人看着的那条路径。**
+这条是从一个默认值旁边的注释里挖出来的,写得比大多数设计文档都清楚:
+检查点自动清理**从不删除"孤儿"条目**(工作目录在磁盘上找不到了),因为
+
+`hermes_cli/config_defaults.py:446-453 @ 863e313`
+
+```python
+        # NOTE: this automatic sweep never deletes "orphan" entries (workdir
+        # no longer found on disk). A missing workdir at startup is
+        # ambiguous — it can mean the project was deleted, or that an
+        # external volume / network share / VPN is simply not mounted yet —
+        # and this sweep runs unattended, so it must never guess. Orphan
+        # cleanup is only available via the explicit
+        # ``hermes checkpoints prune`` command (add ``--keep-orphans`` to
+        # skip it), where a human is looking at the output.
+```
+
+"目录不见了"可能是项目被删了,**也可能只是外挂盘/网络共享/VPN 还没挂上**。
+自动清理跑在无人值守时,**猜错的代价不可逆**。所以同一个动作被拆成两条路径:
+自动那条只做无歧义的事,歧义的那部分**只在人盯着输出时**才提供。
+**判据:当一个信号有两种解释、而其中一种解释下的动作不可逆,这个动作就不属于自动路径。**
+
+**⑧ 做"谁读这个键"的分析时,先问"读它的是不是同一种语言"。**
 本项目自己在这里栽过:只扫 Python 就把五个由 TypeScript 消费的活键判成了死键。
 跨进程、跨语言的配置消费在现代应用里是常态,单语言的静态分析会**结构性失明**。
 
