@@ -15,10 +15,11 @@
    **代码里没有这条链**——这是本章最需要你记住的一件事。
 2. YAML 那一侧做得相当好:**856 个键**有权威定义、有递归深合并、有 schema 版本迁移、
    有"解析失败退回上一次好的而不是退回默认值"的安全姿态。
-3. 但**同一份 `config.yaml` 有两个装载器**,合并语义不同:一个递归深合并,
-   一个只做一层 `dict.update`。同一个嵌套键在网关和 CLI 里能取到不同的值。
+3. 但**同一份 `config.yaml` 至少有四个读取方**,其中两个是完整装载器且**合并语义不同**:
+   一个递归深合并,一个只做一层 `dict.update`。同一个嵌套键在网关和 CLI 里能取到不同的值。
 4. 环境变量那一侧没有统一规则,**每个消费点自己决定谁先谁后**,有的还先查环境变量再查配置
    ——正好和文档说的反过来。本章开篇那个 bug 就长在这块无人区里。
+   两个系统之间的桥还是**双向**的:`config.yaml` 的顶层标量会反过来变成环境变量。
 5. 最值得抄走的一条不是某个机制,而是一个**对照实验**:856 个配置键里有
    **105 个在全部文档面上一次都没出现过**,而 151 个环境变量**一个都不缺**。
    差别不在纪律,在**说明文字是不是数据结构里的必填字段**。
@@ -115,8 +116,9 @@ flowchart TB
         ENV[".env 文件 + 进程环境<br/>由 env_loader 灌入 os.environ"]
     end
 
-    ENV -.->|"只作为取值来源"| EXP
-    ENV ==>|"各消费点直接 os.getenv<br/>没有统一规则"| CONSUMER
+    ENV -.->|"桥①:作为 dollar-brace 的取值来源"| EXP
+    ENV ==>|"桥②:各消费点直接 os.getenv<br/>没有统一规则"| CONSUMER
+    U -.->|"桥③:顶层标量灌进 os.environ<br/>环境已有值则不覆盖"| ENV
 
     FINAL --> CONSUMER["消费点<br/>agent / gateway / tools / CLI"]
     FINAL -->|"config.get RPC"| TS["TypeScript 客户端<br/>ui-tui / web / desktop<br/>自己解释一部分键"]
@@ -125,20 +127,47 @@ flowchart TB
     style ENV fill:#ffe6e6,stroke:#cc0000
 ```
 
-**读这张图的要点有三个:**
+**读这张图的要点有四个:**
 
-**第一,红色那一半没有合并链。** 环境变量不是"优先级更低的一层"。它只有两种参与方式:
-(a) 作为 `${VAR}` 的取值来源被塞进 YAML 的值里;(b) 被各个消费点用 `os.getenv` 各读各的。
-第 1 节那个 QQ 变量走的是 (b),所以它从来没进过 A 系统,自然也享受不到 A 系统的任何保障
-——没有默认值、没有 schema 校验、没有迁移、没有"这个键存不存在"的检查。
+**第一,红色那一半没有合并链。** 环境变量不是"优先级更低的一层"。
+第 1 节那个 QQ 变量走的是桥②,所以它从来没进过 A 系统,
+自然也享受不到 A 系统的任何保障——没有默认值、没有 schema 校验、没有迁移、
+没有"这个键存不存在"的检查。
 
-**第二,右下角那条虚线是很多人想不到的**:相当一部分配置键**根本不由 Python 读**。
+**第二,桥③的方向可能出乎意料:`config.yaml` 的顶层标量会变成环境变量。**
+
+`gateway/run.py:2057-2060 @ 863e313`
+
+```python
+        # Top-level simple values (fallback only — don't override .env)
+        for _key, _val in _cfg.items():
+            if isinstance(_val, (str, int, float, bool)) and _key not in os.environ:
+                os.environ[_key] = str(_val)
+```
+
+也就是说,用户可以在 `config.yaml` 里写一个**任意名字**的顶层标量,给技能脚本和外部程序
+当环境变量用。这解释了一件否则很难理解的事:**为什么根层不做闭世界校验?**
+因为那些键名**按定义无法穷举**——代码自己是这么说的:
+
+`hermes_cli/config.py:2038-2041 @ 863e313`
+
+```python
+    # unknown top-level keys are deliberately NOT warned about: top-level
+    # scalars are bridged into os.environ (gateway/run.py, hermes send) so
+    # users can feed skills and external apps env-style keys from config.yaml
+    # — a closed-world allowlist can never enumerate those.
+```
+
+注意这条桥的判据是 `_key not in os.environ`:**环境已有值就不覆盖**。
+所以它是**第三次**与文档的"config.yaml 胜过 .env"相反。
+
+**第三,右下角那条虚线是很多人想不到的**:相当一部分配置键**根本不由 Python 读**。
 Python 把合并好的配置经一个叫 `config.get` 的 RPC(远程过程调用,这里就是客户端问服务端
 要数据)发出去,真正解释这些键的是 TypeScript 写的终端界面、网页面板和桌面应用。
 这一点在本项目自己身上就应验过一次:第一版分析脚本只扫 `.py`,于是把
 `display.show_cost`、`dashboard.show_token_analytics` 等五个**活得好好的**键判成了死键。
 
-**第三,A 系统本身做得相当扎实**,值得逐个拆开看。下一节就干这个。
+**第四,A 系统本身做得相当扎实**,值得逐个拆开看。下一节就干这个。
 
 ---
 

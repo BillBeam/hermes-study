@@ -216,13 +216,64 @@ display:
 ### ◇-1b 补充:`DEFAULT_CONFIG` 并不是全部合法配置键
 
 上面那 856 个键还有一个**范围上的**限定,必须写清楚,否则这张表会被误当成全集。
-`config.yaml` 的根键校验白名单是**两个集合的并集**:
+代码里另有一个"已知根键"集合,是**两个集合的并集**:
 
 `hermes_cli/config.py:1881 @ 863e313`
 
 ```python
 _KNOWN_ROOT_KEYS = frozenset(DEFAULT_CONFIG.keys()) | _EXTRA_KNOWN_ROOT_KEYS
 ```
+
+**主线先把它误读成了"根键校验白名单",复核后更正——它不是。**
+`_KNOWN_ROOT_KEYS` 全仓**只有一个使用点**,而且那里不是"拒绝未知根键",
+只是给四个"看起来放错地方的 provider 字段"做去重判断:
+
+`hermes_cli/config.py:2045 @ 863e313`
+
+```python
+        if key not in _KNOWN_ROOT_KEYS and key in _CUSTOM_PROVIDER_LIKE_FIELDS:
+```
+
+**配置的根层是故意开放世界的**,理由写得非常清楚,而且指向一个本轮才发现的机制:
+
+`hermes_cli/config.py:2037-2041 @ 863e313`
+
+```python
+    # Only provider-like fields (base_url, api_key, …) are flagged. Arbitrary
+    # unknown top-level keys are deliberately NOT warned about: top-level
+    # scalars are bridged into os.environ (gateway/run.py, hermes send) so
+    # users can feed skills and external apps env-style keys from config.yaml
+    # — a closed-world allowlist can never enumerate those.
+```
+
+### ◇-1c 第三条桥:config.yaml 的顶层标量会变成环境变量(方向与 `${VAR}` 相反)
+
+顺着上面那条注释查到了本轮**最后一个、也是最反直觉的机制**:
+
+`gateway/run.py:2057-2060 @ 863e313`
+
+```python
+        # Top-level simple values (fallback only — don't override .env)
+        for _key, _val in _cfg.items():
+            if isinstance(_val, (str, int, float, bool)) and _key not in os.environ:
+                os.environ[_key] = str(_val)
+```
+
+**`config.yaml` 里每一个顶层标量键都会被灌进 `os.environ`**(仅当环境里还没有同名变量)。
+这意味着两件事:
+
+1. **两个系统之间的桥是双向的。** `${VAR}` 是"环境 → 配置";这条是"配置 → 环境"。
+   所以用户可以在 `config.yaml` 里写一个任意名字的顶层标量,给**技能脚本和外部程序**
+   当环境变量用 —— 这也正是**根层不能做闭世界校验**的原因:那些键名按定义无法穷举。
+2. **这条桥再一次与文档的优先级相反。** 注释里明写 `fallback only — don't override .env`,
+   判据是 `_key not in os.environ`:**环境已有值就不覆盖**。
+   文档说"两边都设了以 `config.yaml` 为准",这条桥恰恰相反。
+
+**顺带一个数**:这条桥**直接读 config.yaml,不走 `load_config()`**(注释自己说的
+"This bridge reads config.yaml directly (not via load_config)"),
+所以它是本轮点到的**第四个**读配置文件的地方
+(`load_config` / `load_cli_config` / `read_raw_config` / 这条桥),
+每个各有各的合并与优先级姿态。**头条那条"两个装载器"其实说少了。**
 
 第二个集合是手工维护的 **23 个根键**,代码注释说得很坦白:
 
