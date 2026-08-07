@@ -507,6 +507,37 @@ def test_cli_config_managed_leaf_preserves_user_siblings(homes):
 > 2. 一条性质若在**多个层**上都该成立,测试要按"**性质 × 层**"做矩阵逐格枚举。
 >    按"层"分文件写测试,空格子是看不见的。
 
+**本轮后来又撞见同一形状一次,足以把它定成模式。** `moa` 配置有 GUI 与 CLI 两条写路径,
+两条都会用 `normalize_moa_config` 的**封闭 schema** 覆盖用户手写的 `save_traces` / `trace_dir`。
+GUI 那条**修好了**,注释连 issue 号带理由都写上了:
+
+`hermes_cli/web_server.py:6520-6521 @ 863e313`
+
+```python
+            # Merge instead of overwrite so that hand-edited keys not declared
+            # in MoaConfigPayload (e.g. save_traces, trace_dir) survive a GUI
+```
+
+CLI 那条仍是整键覆盖(`hermes_cli/moa_cmd.py:127`、`:147`),
+**而那个 bug 的回归测试 import 的正是 GUI 那一侧**:
+
+`tests/hermes_cli/test_moa_set_models_preserves_extra_keys.py:12 @ 863e313`
+
+```python
+from hermes_cli.web_server import MoaConfigPayload, MoaModelSlot, MoaPresetPayload, set_moa_models
+```
+
+后果:手写 `moa.save_traces: true` 开了 trace,跑一次 `hermes moa configure` 换个模型,
+**trace 就悄悄关了**;在 dashboard 里做同一件事却不会。
+
+**两次的形状完全一样**:问题被正确诊断、正确修复、正确加了回归测试——
+**但只在发现它的那条路径上**,而测试的 import 语句把覆盖面钉死在那一侧。
+孪生路径不但没修,还因为"这个 bug 有回归测试"而**更不容易被再次发现**。
+
+> **判据**:修 bug 之前先问"**同样的语义在这个仓库里有第几份实现?**"——
+> 本章的答案通常是 2。回归测试必须**逐份覆盖**,或者(更好)借这次修复把多份并成一份。
+> **只修一份 + 只测一份,产出的不是半个修复,而是一个贴着"已修复"标签、更难再被发现的 bug。**
+
 ### 3.3 解析失败:退回"上一次好的",而不是退回默认值
 
 **场景**:网关是个长期运行的进程。用户在它跑着的时候编辑 `config.yaml`,

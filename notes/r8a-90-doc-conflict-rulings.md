@@ -426,7 +426,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 ---
 
-## ■ 组:代码内部缺陷(20 条,只记录不修)
+## ■ 组:代码内部缺陷(21 条,只记录不修)
 
 | # | 缺陷 | 锚点 | 怎么会踩到 |
 |---|---|---|---|
@@ -437,6 +437,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-5 | `NOUS_BASE_URL` 在环境变量清单里,但代码读的是另外两个名字 | `hermes_cli/config_defaults.py:3132` | 安装流程会**主动向用户索要**一个没人读的变量 |
 | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
 | ■-16 | **第二例“默认值撞上硬编码值”**:`resource_attributes["service.name"]` 被无条件覆盖 | `agent/monitoring/gateway_health_export.py:85`(覆盖)/ 默认值恰等于该硬编码值 | 用户改 `service.name` 毫无效果;因默认值==硬编码值,在默认值上验证必然假阳性。同块的 `deployment.environment.name` 却是好的 |
+| ■-21 | **bug 修好了、回归测试也写了,但都只落在两条写路径中的一条** | `hermes_cli/web_server.py:6520`(GUI 已修)/ `hermes_cli/moa_cmd.py:127,147`(CLI 未修)/ `tests/hermes_cli/test_moa_set_models_preserves_extra_keys.py:12`(测试 import 的是 GUI 侧) | 手写 `moa.save_traces: true` 开了 trace,跑一次 `hermes moa configure` 换模型,**trace 悄悄关了**;走 dashboard 做同一件事则不会 |
 | ■-20 | **名叫 `VALID_BUSY_POLICIES` 的常量不校验任何东西**;唯一引用它的测试 import 了却零断言 | `hermes_cli/commands.py:93`(常量)/ `:75`(裸 `str` 字段)/ `gateway/run.py:14117`(消费方) | `busy_policy` 写错一个字母不报错,该命令在 agent 忙时**从“可执行”静默变成“被拒”**;而文件名 `test_busy_policy_invariants` + import 两条线索合起来制造了“已覆盖”的错觉 |
 | ■-19 | **自我拆台的守卫**:检查了成员资格,随后赋的值却没再检查 → `KeyError` 崩栈 | `hermes_cli/tools_config.py:3794-3795`(守卫)/ `:3817`(`catalog[mid]` 崩) | 任何第三方 image_gen / video_gen 插件的 `default_model()` 返回值不在 `list_models()` 里(或为 None),用户在 `hermes tools` 里选中它即崩溃退出;video 版同形(`:3956`) |
 | ■-18 | **读-改-写用了两份各自 `load_config()` 的副本,后写的抹掉前一份** | `hermes_cli/tools_config.py:4356`(内层自己重载)/ `:5153-5154`(外层随后存过期副本) | 在 `hermes tools` 里配好 vision 模型 → 主流程随后一存,该值被**清空回默认**;键还在、值没了,比"配置项消失"更难查。主线运行时确证 |
@@ -482,6 +483,68 @@ TERMINAL_CONFIG_ENV_MAP = {
 > 因为这种情形下,**最自然的验证方式(在默认值上跑一遍看看对不对)必然给出假阳性**。
 > 反过来说,写代码时应当**刻意让默认值与任何硬编码兜底不同**——
 > 哪怕差一点点,也能让"没接线"在第一次测试时就暴露。
+
+### ■-21 细节:bug 修对了、回归测试也写了 —— 但两者都只落在两条路径中的一条
+
+(线索来自 `notes/r8a-raw-mcp-moa-config` D5,主线已回源复核确认,**并因此把"回归测试写在已修好的那一侧"确立为模式**。)
+
+`moa` 这一段配置有两条写入路径:GUI(dashboard)与 CLI。`normalize_moa_config` 返回的是
+**封闭 schema**,不含 `save_traces` / `trace_dir` 这类手写键。
+
+**GUI 那条修好了**,而且注释把 issue 号和理由都写上了:
+
+`hermes_cli/web_server.py:6520-6521 @ 863e313`
+
+```python
+            # Merge instead of overwrite so that hand-edited keys not declared
+            # in MoaConfigPayload (e.g. save_traces, trace_dir) survive a GUI
+```
+
+**CLI 那条没修**,仍是整键覆盖:
+
+`hermes_cli/moa_cmd.py:127 @ 863e313`
+
+```python
+        cfg["moa"] = normalize_moa_config(moa)
+```
+
+`hermes_cli/moa_cmd.py:147 @ 863e313`
+
+```python
+        cfg["moa"] = normalize_moa_config(moa)
+```
+
+**而 #58819 的回归测试,import 的是 GUI 那一侧:**
+
+`tests/hermes_cli/test_moa_set_models_preserves_extra_keys.py:12 @ 863e313`
+
+```python
+from hermes_cli.web_server import MoaConfigPayload, MoaModelSlot, MoaPresetPayload, set_moa_models
+```
+
+主线复核:全仓提到 `save_traces` 的测试只有两个文件,另一个
+(`tests/agent/test_moa_trace_streamed_capture.py`)测的是 trace 采集本身,不是键保全;
+而确实覆盖 `moa_cmd` 的 `tests/hermes_cli/test_moa_config.py` **不碰 `save_traces` / `trace_dir`**。
+
+**用户可复述的因果**:手写 `moa.save_traces: true` 打开 trace → 之后跑一次
+`hermes moa configure` 换个模型 → **trace 悄悄关了**,而他只是换了个模型。
+走 dashboard 做同一件事则不会。
+
+**这条把一个模式坐实了。** 本轮第二次看到同一形状:
+
+| # | bug | 修在哪条路径 | 回归测试落在哪条 | 另一条 |
+|---|---|---|---|---|
+| §3.2 | 覆盖时清掉同级键 | managed 层(叶级合并) | **managed 层** | 默认值←用户配置那步仍是浅合并 |
+| ■-21 | 覆盖时丢掉未声明的手写键 | GUI 写路径 | **GUI 写路径** | CLI 写路径仍整键覆盖 |
+
+**两次都是:问题被正确诊断、正确修复、正确加了回归测试——但只在发现问题的那条路径上。**
+测试用例的 import 语句把它钉死在那一侧,于是孪生路径不但没修,还因为
+"这个 bug 有回归测试"而显得已经解决。
+
+> **判据**:修一个 bug 时,先问"**同样的语义在这个仓库里还有第几份实现?**"
+> (本轮答案通常是 2)。回归测试**必须逐份覆盖**,或者——更好——
+> 借这次修复把多份合并成一份。**只修一份 + 只测一份,产生的不是半个修复,
+> 而是一个带着"已修复"标记的、更难再被发现的 bug。**
 
 ### ■-20 细节:一个名叫 `VALID_*` 的常量,不校验任何东西
 
