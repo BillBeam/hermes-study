@@ -65,7 +65,7 @@ RULES = [
     ("run_agent.py", "L1", "R2"),
     ("model_tools.py", "L1", "R3"),
     ("toolsets.py", "L1", "R3"),
-    ("toolset_distributions.py", "L1", "R3"),
+    ("toolset_distributions.py", "L1", "R9"),
     ("hermes_state.py", "L1", "R5"),
     ("hermes_state_schema.py", "L1", "R5"),
     ("hermes_state_common.py", "L1", "R5"),
@@ -75,8 +75,72 @@ RULES = [
     ("batch_runner.py", "L1", "R9"),
     ("mini_swe_runner.py", "L1", "R9"),
     ("hermes_constants.py", "L1", "R2"),
-    ("agent/*.py", "L1", "R2-R6"),          # per-round split in round plans
-    ("agent/**/*.py", "L1", "R2-R6"),
+    # R2 机制簇:回合主循环与模型接入(显式列举,R2 轮定稿)
+    ("agent/conversation_loop.py", "L1", "R2"),
+    ("agent/turn_context.py", "L1", "R2"),
+    ("agent/turn_finalizer.py", "L1", "R2"),
+    ("agent/turn_retry_state.py", "L1", "R2"),
+    ("agent/turn_summary.py", "L1", "R2"),
+    ("agent/tool_executor.py", "L1", "R2"),
+    ("agent/tool_dispatch_helpers.py", "L1", "R2"),
+    ("agent/iteration_budget.py", "L1", "R2"),
+    ("agent/interrupt_compat.py", "L1", "R2"),
+    ("agent/oneshot.py", "L1", "R2"),
+    ("agent/agent_init.py", "L1", "R2"),
+    ("agent/agent_runtime_helpers.py", "L1", "R2"),
+    ("agent/codex_runtime.py", "L1", "R2"),
+    ("agent/stream_single_writer.py", "L1", "R2"),
+    ("agent/stream_diag.py", "L1", "R2"),
+    ("agent/reasoning_timeouts.py", "L1", "R2"),
+    ("agent/thinking_timeout_guidance.py", "L1", "R2"),
+    ("agent/async_utils.py", "L1", "R2"),
+    ("agent/jiter_preload.py", "L1", "R2"),
+    ("agent/chat_completion_helpers.py", "L1", "R2"),
+    ("agent/prompt_caching.py", "L1", "R2"),
+    ("agent/credential_pool.py", "L1", "R2"),
+    ("agent/credential_sources.py", "L1", "R2"),
+    ("agent/credential_persistence.py", "L1", "R2"),
+    ("agent/error_classifier.py", "L1", "R2"),
+    ("agent/errors.py", "L1", "R2"),
+    ("agent/retry_utils.py", "L1", "R2"),
+    ("agent/rate_limit_tracker.py", "L1", "R2"),
+    ("agent/nous_rate_guard.py", "L1", "R2"),
+    ("agent/anthropic_adapter.py", "L1", "R2"),
+    ("agent/codex_responses_adapter.py", "L1", "R2"),
+    ("agent/gemini_native_adapter.py", "L1", "R2"),
+    ("agent/bedrock_adapter.py", "L1", "R2"),
+    ("agent/vertex_adapter.py", "L1", "R2"),
+    ("agent/azure_identity_adapter.py", "L1", "R2"),
+    ("agent/gemini_schema.py", "L1", "R2"),
+    ("agent/moonshot_schema.py", "L1", "R2"),
+    ("agent/lmstudio_reasoning.py", "L1", "R2"),
+    ("agent/backend_identity.py", "L1", "R2"),
+    ("agent/model_metadata.py", "L1", "R2"),
+    ("agent/models_dev.py", "L1", "R2"),
+    ("agent/auxiliary_client.py", "L1", "R2"),
+    ("agent/usage_pricing.py", "L1", "R2"),
+    ("agent/account_usage.py", "L1", "R2"),
+    # R5 修订:上下文工程(构建/压缩)并入"状态与持久化"轮(R2 轮方案修订,见 round-2 报告)
+    ("agent/context_compressor.py", "L1", "R5"),
+    ("agent/conversation_compression.py", "L1", "R5"),
+    ("agent/context_engine.py", "L1", "R5"),
+    ("agent/context_breakdown.py", "L1", "R5"),
+    ("agent/context_references.py", "L1", "R5"),
+    ("agent/prompt_builder.py", "L1", "R5"),
+    ("agent/system_prompt.py", "L1", "R5"),
+    ("agent/bounded_response.py", "L1", "R5"),
+    ("agent/message_sanitization.py", "L1", "R5"),
+    ("agent/message_content.py", "L1", "R5"),
+    ("agent/subdirectory_hints.py", "L1", "R5"),
+    ("agent/coding_context.py", "L1", "R5"),
+    ("agent/manual_compression_feedback.py", "L1", "R5"),
+    # R9 修订:委派/多智能体并入研究管线轮(R2 轮方案修订)
+    ("agent/moa_loop.py", "L1", "R9"),
+    ("agent/moa_trace.py", "L1", "R9"),
+    ("agent/subagent_lifecycle.py", "L1", "R9"),
+    ("agent/delegation_context.py", "L1", "R9"),
+    ("agent/*.py", "L1", "R3-R7"),          # 其余 agent/ 文件在后续轮次开工时显式定轮
+    ("agent/**/*.py", "L1", "R3-R7"),
     ("tools/registry.py", "L1", "R3"),
     ("tools/environments/**", "L1", "R4"),
     ("tools/*.py", "L1", "R3-R4"),
@@ -94,6 +158,7 @@ RULES = [
     ("utils.py", "L2", "R8"),
     ("hermes_cli/**", "L2", "R8"),
     ("gateway/**", "L2", "R7"),             # platform adapters + assets
+    ("plugins/model-providers/**", "L2", "R2"),   # provider 插件注册面,随 R2 结构级学习
     ("plugins/**", "L2", "R6"),
     ("tui_gateway/**", "L2", "R10"),
     ("acp_adapter/**", "L2", "R10"),
@@ -136,6 +201,15 @@ def assign(path: str) -> tuple[str, str]:
 def main() -> None:
     inv = Path(sys.argv[1] if len(sys.argv) > 1 else "data/inventory.tsv")
     out = Path(sys.argv[2] if len(sys.argv) > 2 else "data/ledger.tsv")
+    # Preserve study status from an existing ledger when regenerating.
+    prev_status: dict[str, str] = {}
+    if out.exists():
+        with out.open() as f:
+            next(f, None)
+            for line in f:
+                cols = line.rstrip("\n").split("\t")
+                if len(cols) >= 6:
+                    prev_status[cols[0]] = cols[5]
     rows = []
     with inv.open() as f:
         for line in f:
@@ -145,7 +219,8 @@ def main() -> None:
             layer, rnd = assign(path)
             if kind == "binary" and layer not in ("L4",):
                 layer, rnd = "L4", "-"   # binaries are never study targets
-            rows.append((path, kind, int(lines), layer, rnd, "R1-inventoried"))
+            status = prev_status.get(path, "R1-inventoried")
+            rows.append((path, kind, int(lines), layer, rnd, status))
     with out.open("w", newline="") as f:
         w = csv.writer(f, delimiter="\t")
         w.writerow(["path", "kind", "lines", "layer", "round", "status"])
