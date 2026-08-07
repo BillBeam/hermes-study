@@ -377,7 +377,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 ---
 
-## ■ 组:代码内部缺陷(12 条,只记录不修)
+## ■ 组:代码内部缺陷(13 条,只记录不修)
 
 | # | 缺陷 | 锚点 | 怎么会踩到 |
 |---|---|---|---|
@@ -387,12 +387,69 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-4 | `display.copy_shortcut` 是**全仓唯一一次出现** | `hermes_cli/config_defaults.py:1280` | 用户按注释里列的四个取值去设,永远无效 |
 | ■-5 | `NOUS_BASE_URL` 在环境变量清单里,但代码读的是另外两个名字 | `hermes_cli/config_defaults.py:3132` | 安装流程会**主动向用户索要**一个没人读的变量 |
 | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
+| ■-13 | **插件 provider 的注入点用类目"显示名"做匹配键**,而稳定键就在同一个 dict 里 | `hermes_cli/tools_config.py:3137/3142/3150/3158/3164`(五处)/ `:484-485`(稳定键 `"web"` 与显示名并列) | 改一个界面文案(大小写、`&` 写法)→ 该类目的插件行**静默消失**;`video_gen` 与 `web` 两个类目**没有任何硬编码 provider**,一改就整类目空掉 |
 | ■-12 | **14 个内置人格在网关侧完全不存在** | `cli.py:477`(14 条只在 CLI 默认值里)/ `gateway/slash_commands.py:2502`(网关读法)/ `gateway/run.py:3145`(网关用的是**原始读**,不合并默认值) | 全新安装下,CLI 有 14 个人格可选,而聊天里敲 `/personality` 回"none configured" |
 | ■-11 | **一个自称"单一真源、防止各面漂移"的函数,实测在两个面上相差 780 秒** | `tools/clarify_gateway.py:388`(自述)/ `:399`(遗留键优先)/ `cli.py:523`(遗留键的 CLI 默认值 120) | 用户设 `agent.clarify_timeout: 900`(规范键):网关面得 900、CLI 面得 **120**;因 `cli.py` 默认值恒供遗留键 `clarify.timeout`,规范键在 CLI 面**永远无法生效** |
 | ■-10 | **两份默认值的第一个真实受害者**:`hermes config set agent.reasoning_effort high` 被判为未知键,并给出会弄坏配置的建议 | `hermes_cli/config.py:4810`(校验)/ `cli.py:8166`(真实读取点)/ `cli.py:479`(它所在的那份默认值) | 命令正确、值也写对了,但打印"不是已知配置键";建议改用 `agent.reasoning_overrides`,而那个键的默认值是 `{}`(字典),照做后思考力度静默失效 |
 | ■-9 | `_COMMENTED_SECTIONS` 是**已漂移的死副本** | `hermes_cli/config.py:3473` | 活版是 `_SECURITY_COMMENT`/`_FALLBACK_COMMENT`(:3601/:3609);两份同一句话已不同。维护者改到死版,对用户文件零效果 |
 | ■-8 | **两把配对钥匙行为不一致**:CLI 在 request-id 路径上也报"平台被锁定" | `hermes_cli/pairing.py:81` vs `hermes_cli/web_server.py:12346` | 用过期 request-id 批准 + 平台恰好因别的原因锁定 → CLI 告诉运维者"等 N 分钟",而真实原因是请求过期;dashboard 同一操作正确回 404 |
 | ■-7 | `OPTIONAL_ENV_VARS` 在 import 时被**原地改写** | `hermes_cli/config.py:5307` | 静态分析(含本项目第一版脚本)只看到 151/308 |
+
+### ■-13 细节:稳定键就在旁边,却拿显示名当匹配键
+
+(线索来自 `notes/r8a-raw-tools-config-b` D-12,主线已回源复核确认。)
+
+`hermes tools` 的 provider 选择器要把**插件注册**的后端插进对应类目。五个注入点
+**全部拿类目的显示名做匹配**:
+
+`hermes_cli/tools_config.py:3137 @ 863e313`
+
+```python
+    if cat.get("name") == "Image Generation":
+```
+
+`hermes_cli/tools_config.py:3150 @ 863e313`
+
+```python
+    if cat.get("name") == "Web Search & Extract":
+```
+
+**而类目字典本来就是用稳定机器键索引的**,显示名只是它旁边的一个展示字段:
+
+`hermes_cli/tools_config.py:484-485 @ 863e313`
+
+```python
+    "web": {
+        "name": "Web Search & Extract",
+```
+
+`"web"` 就在那儿,和 `icon` / `setup_title` / `setup_note` 并列的 `"name"` 显然属于表现层。
+**不是"没有稳定标识可用",是"有而不用"。**
+
+**后果的严重程度按类目不同**,而最糟的两个恰好是注释自己点明的:
+
+`hermes_cli/tools_config.py:3145-3147 @ 863e313`
+
+```python
+    # Inject plugin-registered web search backends. After PR #25182, this
+    # is the SOLE source of provider rows for the Web Search & Extract
+    # category — the per-provider hardcoded entries were deleted. The two
+```
+
+`hermes_cli/tools_config.py:3140-3141 @ 863e313`
+
+```python
+    # Inject plugin-registered video_gen backends. Unlike image_gen,
+    # video_gen has NO hardcoded providers — every backend is a plugin.
+```
+
+即 `web` 与 `video_gen` **没有任何硬编码 provider 行**,全靠这一次字符串相等注入。
+**把 `"Web Search & Extract"` 改成 `"Web Search and Extract"`(或哪天做本地化),
+整个类目会变成空的,而且不会有任何报错。**
+
+**这是本轮"跨边界耦合用了不稳定标识"的又一例**,与 ■-12(人格)、■-11(遗留键)同型:
+**边界两侧靠一个会因为无关原因变化的值对齐。** 显示名的变化理由(文案、大小写、
+本地化、加个 emoji)与"插件该不该注入"**完全无关**——这正是它不能当键的原因。
 
 ### ■-12 细节:同一个功能,一个面有 14 个选项,另一个面说"没配置"
 
