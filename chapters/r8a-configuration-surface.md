@@ -912,10 +912,33 @@ dashboard 的密钥页;`_EXTRA_ENV_KEYS`(108 条)装那些**运行时认识、�
 `HERMES_API_TIMEOUT` 环境变量"。**如果全局规则真是"config 胜 env",这句话就不必写。
 需要逐处声明,恰恰说明没有全局规则。**
 
-**▲-4 QQBot 变量名**:即 §1 那个场景。文档只讲新名,面板只读旧名,兼容分支双重失效。
+最硬的证据是:**连读凭据的公共函数都有两个方向相反的版本**——
+`get_env_value` 先查环境、`.env` 兜底;`get_env_value_prefer_dotenv` 反过来。
+后者存在是因为一次真实事故:
 
-**◇ 两个装载器的存在本身,全站零文档。** 2,386 行的配置文档与仓库根的
-`AGENTS.md` 中都没有任何提及;文档呈现的是一个单一、统一的配置系统。
+`hermes_cli/config.py:4149-4153 @ 863e313`
+
+```python
+    Used for Hermes-managed credentials where a deliberate edit to ``.env``
+    must take precedence over a stale value inherited from the parent shell
+    (Codex CLI, test scripts, login profile exports). Without this, rotating
+    a key in ``.env`` mid-session leaves callers serving the stale shell
+    value and produces persistent 401s.
+```
+
+用户的登录脚本往环境里导出过一个旧密钥;密钥过期后他改了 `.env`,改对了;
+但读取链"环境优先",于是仍拿旧值去打 API,**持续 401**,而他盯着自己刚改好的文件
+完全不明白。修法是给这类凭据换一条相反的链。**同一个仓库,同一件事,两个方向,
+由调用方挑。**
+
+**▲-4 QQBot 变量名**:即 §1 那个场景。文档只讲新名,面板只读旧名,兼容分支双重失效。
+而 §1 结尾已给出决定性证据:**配置系统这一侧把改名做得完全正确**,
+没跟上的是绕过配置系统直接读环境变量的那一段。
+
+**◇ 至少四个 `config.yaml` 读取方的存在本身,全站零文档。**
+2,386 行的配置文档与仓库根的 `AGENTS.md` 都没有任何提及;文档呈现的是一个单一、
+统一的配置系统。**§2 那条"顶层标量 → 环境变量"的桥③同样零文档**——
+而它恰恰是理解"为什么根层不校验未知键"的唯一钥匙。
 
 ---
 
