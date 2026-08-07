@@ -1080,7 +1080,31 @@ dashboard 的密钥页;`_EXTRA_ENV_KEYS`(108 条)装那些**运行时认识、�
 > **与两侧的对齐关系无关**(文案润色、大小写、本地化、加 emoji、重命名以求好看),
 > 它就不能当键。稳定标识的定义不是"现在不会变",而是**"它变的时候,恰好也是对齐关系该变的时候"**。
 
-**⑩ 做"谁读这个键"的分析时,先问"读它的是不是同一种语言"。**
+**⑩ 分级判据必须分趟扫描,不能塞进同一个循环。**
+`hermes tools` 的 provider 选择器要决定光标默认停哪儿,判据有两级:
+强信号"它当前就是激活的",弱信号"它的 key 配齐了,大概是它"。两级写在了同一趟循环里:
+
+`hermes_cli/tools_config.py:3641-3646 @ 863e313`
+
+```python
+    for i, p in enumerate(providers):
+        if _is_provider_active(p, config, force_fresh=force_fresh):
+            return i
+        # Fallback: env vars present → likely configured
+        env_vars = p.get("env_vars", [])
+        if env_vars and all(get_env_value(v["key"]) for v in env_vars):
+```
+
+弱信号在同一次迭代里就返回,于是**列表顺序压过了信号强度**。本轮实测:
+`stt.provider: groq`、`.env` 里还留着旧的 OpenAI key —— Groq 明明是激活的(index 3),
+光标却停在 OpenAI(index 2)。用户以前用 OpenAI、后来换了 Groq(旧 key 没删,没人会删),
+再进这个菜单**顺手回车就把 provider 改回去了**,而他以为自己只是看了一眼。
+
+> **判据**:只要你写下"先看 A,A 没有就看 B",而 A、B 要在**一组候选**上比较,
+> 那就必须**扫两趟**。把 B 放进同一个循环,实际语义会变成"谁排在前面谁优先"——
+> 这从来不是本意,而且因为它只在"多个候选同时有信号"时才显形,测试极难覆盖。
+
+**⑪ 做"谁读这个键"的分析时,先问"读它的是不是同一种语言"。**
 本项目自己在这里栽过:只扫 Python 就把五个由 TypeScript 消费的活键判成了死键。
 跨进程、跨语言的配置消费在现代应用里是常态,单语言的静态分析会**结构性失明**。
 
