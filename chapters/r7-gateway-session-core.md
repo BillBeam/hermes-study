@@ -324,9 +324,15 @@ session.py:1103,1108),multiplex 命名空间未记载;忙时守卫"其余一律 
 steer/redirect/自动降级引入前;DM 配对方向**写反**(不存在 /pair 命令,真实流程是陌生人
 自动收码、owner 在 CLI 批准,run.py:14493-14500);"20+ 平台"显著低估(枚举 24 显式成员 +
 22 插件平台)。scale-to-zero 的网关侧(HERMES_SCALE_TO_ZERO、idle 判定、watcher)整套
-**代码有、文档无**。两处代码内注释也在说谎:`_TELEGRAM_NOISY_STATUS_RE` 实际全平台生效;
-profile_routing docstring 的 specificity 数字与自己的示例对不上。规律与前几轮一致:
-**机制方向大体对,分支图谱与精确值系统性滞后;用户文档反而常比开发者文档新**。
+**代码有、文档无**。代码内注释同样会说谎:`_TELEGRAM_NOISY_STATUS_RE` 实际全平台生效;
+profile_routing docstring 的 specificity 数字与自己的示例对不上;start() 的
+"返回 False 表示失败"早已退化(全路径返回 True,真信号在 exit-reason 属性上)。
+最重的一级是"接线级"落差:memory_monitor 整个模块无生产调用点(§3.6);另有两个
+bug 候选只记录不修——goal 的 gate-failed 续跑模板逃逸前缀识别(识别谓词与模板集合
+脱耦的反例),原生 Discord 语义改名把接收方不认识的 kwargs 传过去、TypeError 被
+debug 级 except 吞掉(能力探测靠异常 + 宽捕获的反例)。规律与前几轮一致并加深:
+**机制方向大体对,分支图谱与精确值系统性滞后;用户文档常比开发者文档新;
+"模块存在 + 测试绿"不等于"已接线"**。
 
 ## 6. 延伸(完整精读路径)
 

@@ -176,6 +176,37 @@
   覆盖 env——注释滞后。
 - `_start_cron_ticker` docstring 引用的 debug.py 仅存在于 docstring,仓库无此文件。
 
+### B10. multi-profile 同凭据冲突:"startup fails fast" 失实 —— ▲(子代理 run-08 发现、主线复核)
+
+- **文档**:`website/docs/user-guide/multi-profile-gateways.md:189 @ 863e313`:"If two
+  profiles configure the same `(platform, token)`, startup fails fast naming both profiles"。
+- **代码**:`gateway/run.py:13336-13345 @ 863e313`——检测到重复凭据 claim 时记 ERROR
+  ("refusing to start the duplicate")并**只跳过该重复 adapter**,网关整体继续启动;
+  且注释说明故意不 disconnect(防误杀 primary 侧共享状态)。"命名双方"成立(日志含
+  owner 与当前 profile),"fails fast"(整体快速失败)不成立。
+- **裁决**:证伪(实际行为更宽容:局部拒绝而非整体失败)。
+
+### B11. 原生 Discord 语义改名 kwargs 失配 —— bug 候选(子代理 run-11 发现、主线复核)
+
+- 调用方:`gateway/run.py:19960-19966 @ 863e313`
+  ```python
+            renamed = await rename_thread(
+                target_thread_id,
+                thread_name,
+                prefer_connector_created=use_connector_guard,
+                only_if_current_name=guard_name,
+                parent_chat_id=parent_chat_id,
+            )
+  ```
+- 被调方(原生 Discord 插件适配器):`plugins/platforms/discord/adapter.py:6866-6872
+  @ 863e313`——签名仅收 `only_if_current_name`,不收 `prefer_connector_created`/
+  `parent_chat_id` → 原生 lane 调用抛 TypeError,被 `except Exception: logger.debug(...)`
+  (run.py:19972-19974)吞成 debug 日志——**原生 Discord 自动线程语义改名疑似静默失效**
+  (relay lane 的 rename_thread 收全参,测试仅覆盖 relay fake)。
+- **处置**:hermes-agent 只读,不修;记录为"能力探测靠 TypeError + 宽 except"的反例。
+  注:被调方在 R7B 文件,但调用方与吞异常点均在 run.py(R7),故本轮记案,R7B 轮复核
+  relay 侧签名后可终案。
+
 ### B3. gateway-internals.md Key Files 表 status.py 描述与其 docstring 不符 —— 记录待 R7C
 
 - 文档表:`gateway/status.py | Token lock management for profile-scoped gateway instances`
