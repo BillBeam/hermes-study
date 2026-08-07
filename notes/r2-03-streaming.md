@@ -7,8 +7,17 @@
 ## 1. 无消费者也强制流式(conversation_loop.py:2329-2381)
 
 `_use_streaming = True` 是默认,理由写死在注释里(2329-2339):流式给了非流式没有的
-细粒度健康检查——**90s 陈旧流检测、60s 读超时**;没有它,provider 用 SSE ping 保活但永不给
-响应时,安静模式调用方(子代理)会无限挂起。四个例外:
+细粒度健康检查——陈旧流检测 + 读超时;没有它,provider 用 SSE ping 保活但永不给
+响应时,安静模式调用方(子代理)会无限挂起。
+
+> **⚠ 数字更正(R2 抽查证实)**:该处注释(2330-2331)写"90s stale-stream detection,
+> 60s read timeout"是**注释漂移**。实测:**流式 stale 默认 180s**
+> (`agent/chat_completion_helpers.py:4063 @ 863e313` `env_float("HERMES_STREAM_STALE_TIMEOUT", 180.0)`),
+> **流式读超时默认 120s**(`chat_completion_helpers.py:3028` `env_float("HERMES_STREAM_READ_TIMEOUT", 120.0)`,
+> 与 env-variables.md:802-803 一致);**90s 是非流式 stale 基线**
+> (`run_agent.py:1426` `return 90.0, True`)。这条冲突计入 r2-90 定案与报告。
+
+四个例外:
 1. `agent._disable_streaming`(2352-2353):provider 曾答"stream 不支持",本会话余下都走非流式;
 2. copilot-acp(子进程 stdio,返回 SimpleNamespace 非流,2358-2363);
 3. MoA 无消费者(2373-2374):facade 在无 stream 请求时返回完整响应,保持旧行为;
@@ -51,9 +60,13 @@
 
 ## 4. 陈旧流检测与读超时(接口层)
 
-`interruptible_streaming_api_call`(chat_completion_helpers.py:2528)带 90s 无新 delta 的
-陈旧流检测与 60s 读超时;中断经 `_active_request_abort` 关 socket(r2-02 §1/§3)。
-细节与证据在 r2-10。
+`interruptible_streaming_api_call`(chat_completion_helpers.py:2528)的外层主线程 0.3s 轮询做
+**陈旧流检测**(默认 180s 无新 chunk,本地端点 900s,按上下文放大 240/300s,推理模型下限再抬),
+超过阈值即杀客户端、bump stale streak、让内层重连;httpx **读超时**默认 120s(本地放宽)——
+读超时必须 ≥ stale 阈值排序之下,否则 socket 读超时先于拥有重试/诊断权的 stale 检测器开火,
+杀掉健康的思考长停顿。跨回合熔断:连续 stale 击杀达 `HERMES_STREAM_STALE_GIVEUP=5` 时入口即抛、
+零网络等待(#58962)。中断经 `_active_request_abort` 关 socket(r2-02 §1/§3)。
+完整证据(陌生线程只 shutdown 不 close、无 finish_reason 流尾三岔口等)见 r2-23 §4。
 
 ## 5. 重实现要点
 
