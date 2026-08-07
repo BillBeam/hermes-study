@@ -421,6 +421,35 @@ TERMINAL_CONFIG_ENV_MAP = {
 且比 camofox 那例强得多(后者被三份重复字面量掩盖,现象为零)。
 **根因同一个:两份默认值,而校验器只认其中一份。**
 
+**受影响面不是一个键,主线已把它数出来。** 用 AST 展开 `cli.py` 的内联 `defaults`
+得 **89 个键**,与 `DEFAULT_CONFIG` 求差:**28 个键只存在于 CLI 那份默认值里**
+(其中 13 个是 `agent.personalities.*` 的人格文本,属数据;其余 15 个是真开关)。
+
+抽 6 个实跑 `hermes config set`,**5 个复现了假警告**:
+
+| 键 | 假警告 | 是否真被读 |
+|---|---|---|
+| `model.default` | ❌ 无 | —(走根级 model 归一化,躲过了) |
+| `agent.verbose` | ✅ 有 | 未确证 |
+| `agent.system_prompt` | ✅ 有 | **是**,`cli.py:4488` |
+| `agent.reasoning_effort` | ✅ 有 | **是**,`cli.py:8166` |
+| `clarify.timeout` | ✅ 有 | 未确证(`clarify` 整棵子树只在 CLI 默认值里) |
+| `code_execution.timeout` | ✅ 有 | 未确证 |
+| `terminal.lifetime_seconds` | ✅ 有 | 未确证 |
+
+`agent.system_prompt` 的读取点:
+
+`cli.py:4488 @ 863e313`
+
+```python
+            or CLI_CONFIG["agent"].get("system_prompt", "")
+```
+
+**已确证至少两个真实被读的键会收到假警告**(`agent.reasoning_effort`、`agent.system_prompt`);
+其余 13 个开关**是否真被读、假警告是否同样有害,未逐个确证**,
+连同完整名单移交 R8B(见 H-1 / H-2 —— `cli.py` 本就是 R8B 的主体)。
+**本轮的结论限定为:这不是孤例,是一个至少 15 个开关的家族,其中已证 2 个真出事。**
+
 ### ■-9 细节:一份**已经漂移**的死副本(第五例"一个语义写了两次")
 
 (线索来自 `notes/r8a-raw-config-c` F3 说"`_COMMENTED_SECTIONS` 是死代码";
@@ -661,7 +690,7 @@ R7C 这条附了锚点文件(`hermes_cli/status.py`),所以本轮没有走偏,�
 
 | # | 移交至 | 锚点文件 | 一句话现象 |
 |---|---|---|---|
-| H-1 | **R8B** | `cli.py:441`(`load_cli_config` 的内联 `defaults`) | 11 个顶层键的第二份默认值,其中 `clarify` 在 `DEFAULT_CONFIG` 里不存在;需查清 CLI 专属键还有哪些、谁读 |
+| H-1 | **R8B** | `cli.py:441`(`load_cli_config` 的内联 `defaults`) | **本轮已数清:89 键中 28 个不在 `DEFAULT_CONFIG`(13 个是人格文本,15 个是真开关)**,名单见 ■-10;**未做的是逐个确证这 15 个是否真被读** —— 已证 2 个真被读且收到假警告,其余待查 |
 | H-2 | **R8B** | `cli.py:599`(`defaults[key].update(...)`) | 浅合并的**实际影响面**未穷举:哪些从 `CLI_CONFIG` 读的嵌套键**没有**硬编码兜底,那些才是会真出事的 |
 | H-3 | **R8C** | `hermes_cli/web_server.py:12320`(`approve_pairing` 路由) | 本轮已读该路由本体并定案 ■-8(与 CLI 的锁定报告不一致);**未查的是它的鉴权层**——`/api/pairing/approve` 由哪一层保证只有已认证管理员可调,需在 R8C 全文精读时确证 |
 | H-4 | **R8D** | `hermes_cli/managed_scope.py` | 本轮从 `config.py:3396` 与 `cli.py:624` 两侧读到它,但**没读本体**;managed 层的叶级合并实现与失败姿态未取证 |
