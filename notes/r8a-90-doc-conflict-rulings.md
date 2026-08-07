@@ -963,7 +963,7 @@ _inject_profile_env_vars()
 
 ---
 
-## 3.5 主线驳回的子代理结论(复核制度的产出,必须记)
+## 3.5 主线驳回 / 收窄的子代理结论(复核制度的产出,必须记)
 
 本轮子代理产出质量很高,但主线逐条回源复核时**驳回了一条**,记在这里,
 因为"驳回什么"和"确认什么"同等重要。
@@ -1027,6 +1027,62 @@ _inject_profile_env_vars()
 
 ---
 
+### 收窄 · `notes/r8a-raw-config-d` 的"Skill 设置段疑似明文泄露"
+
+**子代理的观察属实,但"泄露"这个定性本轮无法成立,收窄为一条隐患移交。**
+
+属实的部分:`show_config()` 的 Skill 设置段确实**不过脱敏**,直接打印原值:
+
+`hermes_cli/config.py:4453 @ 863e313`
+
+```python
+                display_val = str(value) if value else color("(not set)", Colors.DIM)
+```
+
+而同一个函数的其他行是脱敏的:
+
+`hermes_cli/config.py:4316 @ 863e313`
+
+```python
+    print(f"  Model:        {redact_config_value(config.get('model', 'not set'))}")
+```
+
+**同一个函数里两种待遇,这条不一致成立。**
+
+**但"泄露"定不成,三条理由(主线逐条查证)**:
+
+1. **这个声明面不是为密钥设计的。** skill 通过 SKILL.md 的
+   `metadata.hermes.config` 声明配置项,字段只有 `key` / `description` /
+   `default` / `prompt` —— **没有 `password` 之类的敏感标记**
+   (对比 `OPTIONAL_ENV_VARS` 每条都有 `password: bool`)。
+   docstring 给的示例是 `wiki.path`(一个路径):
+
+`agent/skill_utils.py:706-710 @ 863e313`
+
+```python
+        metadata:
+          hermes:
+            config:
+              - key: wiki.path
+                description: Path to the LLM Wiki knowledge base directory
+```
+
+2. **skill 的密钥走的是另一条通道**:SKILL.md 的 `env_vars:` 字段
+   (`AIRTABLE_API_KEY` / `NOTION_API_KEY` / `MSGRAPH_CLIENT_SECRET` 等),
+   落到 `.env`,由别的展示路径处理——不经过这一段。
+3. **本基线里没有任何自带 skill 声明过 `metadata.hermes.config`**,
+   所以在原装安装上这一段**根本不打印任何东西**。
+
+**定案:不记 ■,收窄为隐患**——残留风险是**第三方 skill** 可以声明一个
+形如 `api.token` 的配置项,而这一段既不脱敏、也没有任何机制能识别它是密钥
+(schema 里没有可供判断的字段)。移交见 H-9。
+
+**这是本轮第二次收窄子代理结论**(第一次是驳回 F4)。
+两次的共同教训:**子代理给出的"疑似 X"必须先问"X 的前提在这个仓库里成立吗"**——
+本例中"这个面会承载密钥"这个前提,查三步就否掉了。
+
+---
+
 ## 4. 三笔移交项结论汇总
 
 | 移交项(R7C) | 结论 | 详见 |
@@ -1053,4 +1109,5 @@ R7C 这条附了锚点文件(`hermes_cli/status.py`),所以本轮没有走偏,�
 | H-4 | **R8D** | `hermes_cli/managed_scope.py` | 本轮从 `config.py:3396` 与 `cli.py:624` 两侧读到它,但**没读本体**;managed 层的叶级合并实现与失败姿态未取证 |
 | H-5 | **R9/R10** | `ui-tui/src/gatewayTypes.ts:89` 等 TS 侧读取点 | 856 个配置键中有一类**只由 TypeScript 读**;TS 侧是否有自己的默认值(即第三份默认值)未查 |
 | H-6 | **R11 复盘** | 本卷 ◇-1 | 105 个零文档键的**清单已在 `data/r8a-config-keys.tsv`**,但未逐条判断"该不该文档化";R11 对表时可直接消费该列 |
+| H-9 | **R8D** | `hermes_cli/config.py:4453`(Skill 设置段不脱敏)/ `agent/skill_utils.py:701`(声明 schema 无敏感标记) | 第三方 skill 若声明形如 `api.token` 的配置项,`hermes config` 会明文打印——本基线自带 skill 无人声明该字段,故仅为隐患;修法是给声明 schema 补 `password` 标记,或让该段统一走 `redact_config_value` |
 | H-7 | **R8B / R8D** | `hermes_cli/config.py:3065`(`require_readable_config_before_write`) | 该守卫只检查文件**可读**不检查**可解析**;`set/unset_config_value` 各自补了解析检查(见 §3.5),但**是否存在第三个调用方直接 `read_raw_config()` 后落盘**本轮未穷举——若有,坏 YAML 会被静默截断 |
