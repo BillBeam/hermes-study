@@ -326,7 +326,7 @@ async def instantiate_blueprint(body: AutomationBlueprintInstantiate, profile: s
                 # enters as a normal user turn, preserving role alternation.
 ```
    这条路径**不经过 `fill_blueprint`** —— agent 拿着 `schedule_template` 自己拼 cron,
-   然后调 `cronjob` 工具。见 `hermes_cli/blueprint_cmd.py:189-199 @ 863e313`:
+   然后调 `cronjob` 工具。见 `hermes_cli/blueprint_cmd.py:190-200 @ 863e313`:
 ```python
     lines.append(
         "Once you have my answers, create the job by calling the cronjob tool "
@@ -397,7 +397,7 @@ writes, an in-process lock, and 0600 perms.
 
 ### 2.2 防骚扰的四道闸
 
-`cron/suggestions.py:53-62 @ 863e313`:
+`cron/suggestions.py:51-60 @ 863e313`:
 ```python
 # In-process lock protecting load->modify->save cycles (the background review
 # fork and the main agent can both write).
@@ -582,7 +582,7 @@ def seed_catalog_suggestions(
 
 ### 2.5 `/suggestions` 命令面
 
-`hermes_cli/suggestions_cmd.py:7-12 @ 863e313`:
+`hermes_cli/suggestions_cmd.py:8-13 @ 863e313`:
 ```
   /suggestions                 list pending suggestions (numbered)
   /suggestions accept <N|id>   create the cron job for that suggestion
@@ -790,7 +790,7 @@ include = ["agent", "agent.*", "tools", "tools.*", "hermes_cli", "hermes_cli.*",
 ```
    `cron.*` 只有在 `cron/scripts/` 是真包(有 `__init__.py`)时才会把它打进去。
 
-**用户脚本放哪?** 不是这里 —— `cron/jobs.py:1285-1287 @ 863e313` 的 `create_job(script=...)` 文档说:
+**用户脚本放哪?** 不是这里 —— `cron/jobs.py:1286-1288 @ 863e313` 的 `create_job(script=...)` 文档说:
 ```
                 ~/.hermes/scripts/; ``.sh`` / ``.bash`` files run via bash,
 ```
@@ -806,7 +806,7 @@ $ grep -n "suggestion\|blueprint\|recipe" cron/jobs.py cron/scheduler.py cron/ex
       cron/lifecycle_guard.py cron/scheduler_provider.py
 (无输出)
 ```
-`cron/__init__.py:19-30 @ 863e313` 的公开面也只导出 jobs + scheduler.tick,**不导出 blueprint/suggestion**:
+`cron/__init__.py:18-29 @ 863e313` 的公开面也只导出 jobs + scheduler.tick,**不导出 blueprint/suggestion**:
 ```python
 from cron.jobs import (
     create_job,
@@ -906,7 +906,7 @@ commit `cb29e8a82` "refactor(cron): rebrand Cron Recipes -> Automation Blueprint
 
 prompt 文案高度雷同但**不是同一份**,且关键差异在重要邮件这条:
 
-- suggestion 版**告诉 agent 怎么跑分类器**(`cron/suggestion_catalog.py:73-76`):
+- suggestion 版**告诉 agent 怎么跑分类器**(`cron/suggestion_catalog.py:74-77`):
   ```python
                 "urgency classifier (run `python3 -m cron.scripts.classify_items "
                 "--threshold 7 --criteria ...` from the hermes-agent install — "
@@ -944,13 +944,13 @@ A "blueprint" is NOT a new object type. It is an ordinary skill (a SKILL.md the
 agent loads) that additionally declares an automation schedule in its
 frontmatter:
 ```
-`cron/suggestions.py:11-13 @ 863e313` 的 `blueprint` 来源指的是**后者**:
+`cron/suggestions.py:10-12 @ 863e313` 的 `blueprint` 来源指的是**后者**:
 ```python
   * ``blueprint``   — the user installed a skill that carries a ``blueprint:`` block
                    (see ``tools/blueprints.py``); installing it registers a
                    suggestion instead of auto-scheduling.
 ```
-文档把两者混为一谈:`website/docs/reference/automation-blueprints-catalog.mdx:31-35 @ 863e313`:
+文档把两者混为一谈:`website/docs/reference/automation-blueprints-catalog.mdx:33-36 @ 863e313`:
 ```
 A blueprint is just a skill with a `metadata.hermes.blueprint` block in its
 `SKILL.md` frontmatter. See
@@ -961,7 +961,7 @@ slot schema and how to publish one.
 `tools/blueprints.py:57-69 @ 863e313` 的 `BlueprintSpec` 字段是
 `skill_name / schedule / deliver / prompt / no_agent / model / provider / enabled_toolsets / raw`,
 没有 slots;而真正的 slot schema 在 `cron/blueprint_catalog.py:60-80`。
-`website/docs/developer-guide/creating-skills.md:344-357 @ 863e313` 的 Blueprints 一节也确实**不含任何 slot 说明**。
+`website/docs/developer-guide/creating-skills.md:342-376 @ 863e313` 的 Blueprints 一节也确实**不含任何 slot 说明**。
 读者按文档指引找 slot schema 会扑空。
 
 ### ▲-4 `clear_resolved` 的 docstring 首句与实现矛盾
@@ -1004,16 +1004,29 @@ docstring 只说 accepted "have served their purpose once the job exists"(`:252-
 
 ### ◇-2 `accept_suggestion` 的 check-then-act 不在锁内(TOCTOU)
 
-`cron/suggestions.py:231-243 @ 863e313`:
+`cron/suggestions.py:231-243 @ 863e313`(原文,未加注):
 ```python
-    s = get_suggestion(ref)                      # 无锁读
+    s = get_suggestion(ref)
     if not s or s.get("status") != _STATUS_PENDING:
         return None
-    ...
-    job = create_job(**spec)                     # 锁外副作用
-    _set_status(s["id"], _STATUS_ACCEPTED)       # 这里才拿锁
+
+    from cron.jobs import create_job
+
+    spec = dict(s.get("job_spec") or {})
+    if origin is not None and "origin" not in spec:
+        spec["origin"] = origin
+
+    job = create_job(**spec)
+    _set_status(s["id"], _STATUS_ACCEPTED)
+    return job
 ```
-两个并发 accept(例如用户在 CLI 和 Telegram 同时点)会**各建一个 job**。
+
+逐行读这段的并发语义:`:231` 的 `get_suggestion(ref)` 是**无锁读**;`:232` 的
+"是否仍为 pending" 判定基于这次无锁读的结果;`:241` 的 `create_job(**spec)` 是
+**锁外副作用**;真正取锁的 `_set_status`(`:242`)排在副作用**之后**。
+即 check(232)与 act(241)之间没有互斥,是一个典型的 TOCTOU 窗口:
+两个并发 accept(例如用户在 CLI 与 Telegram 同时点)都能通过 `:232` 的 pending 判定,
+于是**各建一个 job**,而 `_set_status` 只是把同一条 suggestion 重复标记为 accepted。
 
 ### ◇-3 `suggestions.json` 只有进程内锁,而 `cron/jobs.py` 已升级为跨进程 flock
 
@@ -1055,11 +1068,11 @@ suggestions 侧只有 `threading.Lock()`(`cron/suggestions.py:53`)。CLI 进程�
 ```
 `/suggestions catalog` 的回执(`hermes_cli/suggestions_cmd.py:134-140`)只在**一条都没加成**时提示上限,
 加成 3 条丢了 1 条时只说 "Added 3 suggestion(s)",不说丢了谁。
-(skills install 那条路径反而做对了 —— `hermes_cli/skills_hub.py:766-775` 明确告诉用户被丢了。)
+(skills install 那条路径反而做对了 —— `hermes_cli/skills_hub.py:767-776` 明确告诉用户被丢了。)
 
 ### ◇-6 文档把 `usage` / `integration` 列为可用来源,代码里无生产端产生
 
-`website/docs/developer-guide/creating-skills.md:383-387 @ 863e313`:
+`website/docs/developer-guide/creating-skills.md:382-387 @ 863e313`:
 ```
 | Source | Trigger |
 |--------|---------|
@@ -1091,7 +1104,7 @@ def build_index() -> list:
 website/static/api/automation-blueprints-index.json
 ```
 文档页只挂一个 React 组件 `<AutomationBlueprintsCatalog />`
-(`website/docs/reference/automation-blueprints-catalog.mdx:28`),运行时 fetch 那份 JSON
+(`website/docs/reference/automation-blueprints-catalog.mdx:29`),运行时 fetch 那份 JSON
 (`website/src/components/AutomationBlueprintsCatalog/index.tsx:26`:`const INDEX_URL = "/docs/api/automation-blueprints-index.json";`)。
 **这是本簇最值得抄的一条做法:用户可见的清单一律从代码生成,不手写。**
 
@@ -1252,7 +1265,7 @@ $ HERMES_PYTHON=/home/user/hermes-venv/bin/python bash scripts/run_tests.sh \
 1. `cron/scripts/classify_items.py` 零覆盖 —— `_load_items` 的三种输入形态、`_parse_scores` 的
    markdown 围栏容错与 `[...]` 兜底、四种退出码语义、"空 stdout = 静默"这条最关键的不变量,**全都没测**。
    §3.3 的 `_CLASSIFY_INSTRUCTIONS` 未使用能活到今天,直接原因就是这里。
-2. `tests/cron/test_suggestions.py:127-132` 的断言在 catalog 增长后会假失败:
+2. `tests/cron/test_suggestions.py:130-135` 的断言在 catalog 增长后会假失败:
 ```python
         created = seed_catalog_suggestions(add_fn=store.add_suggestion)
         assert len(created) == len(CATALOG)

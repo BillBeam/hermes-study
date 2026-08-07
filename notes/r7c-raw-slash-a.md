@@ -70,7 +70,7 @@
 **实现**:本文件**没有**装饰器、没有 `@command("model")`、没有字典注册。
 唯一的真源是一个 frozen dataclass 列表:
 
-`hermes_cli/commands.py:46-89 @ 863e313`
+`hermes_cli/commands.py:46-58 @ 863e313`
 ```python
 @dataclass(frozen=True)
 class CommandDef:
@@ -98,7 +98,12 @@ class CommandDef:
     busy_handler: str | None = None
     # Registry-owned shared execution (thin slice, informational commands).
     # Names a key in ``hermes_cli.slash_exec.EXECUTORS`` — a pure formatter
-    # producing the canonical, surface-independent core text.
+    # producing the canonical, surface-independent core text.  Surfaces
+    # resolve it via ``hermes_cli.slash_exec.run_execute`` and apply only
+    # their own decoration (Rich markup, emoji/markdown, telegramize).  A
+    # string key (not a callable) keeps this module import-light: the
+    # gateway can import commands.py without prompt_toolkit and without
+    # pulling in executor dependencies.
     execute: str | None = None
 ```
 
@@ -179,7 +184,7 @@ prompt_toolkit 和各 executor 的依赖树。
         parts = command_text.split(maxsplit=1)
         args = parts[1] if len(parts) > 1 else ""
         # iOS auto-corrects -- to — (em dash) and - to – (en dash)
-        args = args.replace("——", "--").replace("—", "--").replace("–", "-")
+        args = args.replace("\u2014\u2014", "--").replace("\u2014", "--").replace("\u2013", "-")
         return args
 ```
 
@@ -249,7 +254,7 @@ session 已有活跃 handler 时,先决定"这条命令是插队还是排队":
 ```python
 def should_bypass_active_session(command_name: str | None) -> bool:
     """Return True for any resolvable slash command.
-    ...
+    [中略]
     Queueing is always wrong for a recognized slash command because the
     safety net in gateway.run discards any command text that reaches
     the pending queue — which meant a mid-run /model (or /reasoning,
@@ -257,7 +262,7 @@ def should_bypass_active_session(command_name: str | None) -> bool:
     /usage, /reload-mcp, /sethome, /reset) would silently
     interrupt the agent AND get discarded, producing a zero-char
     response. See issue #5057 / PRs #6252, #10370, #4665.
-    ...
+    [中略]
     """
     return resolve_command(command_name) is not None if command_name else False
 ```

@@ -108,7 +108,7 @@ run.py 的心跳/live status),§3 走进程运行态链路(status.py)。§5 定�
 | 1-20 | docstring:四级解析顺序 + `display.streaming` 例外 + 向后兼容说明 |
 | 33-71 | `_GLOBAL_DEFAULTS`:12 个可按平台覆盖的键 + 默认值 |
 | 81-119 | 四档能力档位 `_TIER_HIGH/MEDIUM/LOW/MINIMAL` |
-| 121-181 | `_PLATFORM_DEFAULTS`:22 个平台 → 档位(含 4 处逐平台微调) |
+| 121-181 | `_PLATFORM_DEFAULTS`:20 个平台键 → 档位(含 4 处逐平台微调) |
 | 184 | `OVERRIDEABLE_KEYS`(**全仓无调用方**,见 §6 ◇C-7) |
 | 187-249 | `resolve_display_setting`:四级 fallback |
 | 256-311 | `_normalise`:YAML 1.1 怪癖归一 + 三态/枚举收敛 |
@@ -121,7 +121,7 @@ run.py 的心跳/live status),§3 走进程运行态链路(status.py)。§5 定�
 
 用户在 Telegram/Slack 里发一句"帮我把整个测试套跑一遍",agent 可能跑 20 分钟。
 期间平台上只有一个 `typing…` 气泡(甚至没有)。用户无法区分"还在跑"和"已经死了"。
-`display_config.py:126-128 @ 863e313` 把这个 UX 目标写死在注释里:
+`gateway/display_config.py:126-128 @ 863e313` 把这个 UX 目标写死在注释里:
 
 ```python
     # heartbeats (long_running_notifications) so the user has signal between
@@ -341,7 +341,7 @@ def choose_status_phrase(
    (`gateway/display_config.py:78 @ 863e313`)。
 
 **收尾**:`cleanup_progress` 开启时,心跳消息 id 进 `_cleanup_msg_ids`,回合成功后统一删除。
-适配器不实现 `delete_message` 则静默关掉该功能(`gateway/run.py:24508-24515 @ 863e313`):
+适配器不实现 `delete_message` 则静默关掉该功能(`gateway/run.py:24509-24516 @ 863e313`):
 
 ```python
         _cleanup_delete = getattr(type(_cleanup_adapter), "delete_message", None) if _cleanup_adapter is not None else None
@@ -393,7 +393,7 @@ Hermes 把"这行字"当成第三块可写的屏幕。
 - `plugins/platforms/slack/adapter.py:875 @ 863e313`:`supports_status_text = True`
 - `gateway/relay/adapter.py:154 @ 863e313`:按 relay 握手 descriptor 动态判断(relay 代理 Slack 时才为真)
 
-relay 侧把短语塞进 typing 帧(`gateway/relay/adapter.py:1228-1234 @ 863e313`):
+relay 侧把短语塞进 typing 帧(`gateway/relay/adapter.py:1227-1233 @ 863e313`):
 
 ```python
         frame: Dict[str, Any] = {
@@ -431,8 +431,17 @@ relay 侧把短语塞进 typing 帧(`gateway/relay/adapter.py:1228-1234 @ 863e31
 
 ### 2.8 与 stream_consumer(R7 已读)的分工
 
-`gateway/stream_consumer.py` 全文对 "status" 只有一处无关命中,对 typing 只有一处
-"暂停刷新"钩子(`gateway/stream_consumer.py:215-217 @ 863e313`):
+`gateway/stream_consumer.py` 全文只有 **1 处** "status" 命中,而且指的是**另一件事**
+—— 模型自己产出的 commentary 文本(`gateway/stream_consumer.py:1818-1821 @ 863e313`):
+
+```python
+            # Commentary messages are interim status updates (e.g. "Using browser
+            # tool..."), not the final response. Setting already_sent would cause
+            # the final response to be incorrectly suppressed when there are
+            # multiple tool calls. See: https://github.com/NousResearch/hermes-agent/issues/10454
+```
+
+对 typing 也只有一处"暂停刷新"钩子(`gateway/stream_consumer.py:215-217 @ 863e313`):
 
 ```python
         # Fired once when the stream transitions into its finalization path.
@@ -586,7 +595,7 @@ C 层数值相同,会走 `GenerateConsoleCtrlEvent(0, pid)` —— **向目标 P
 
 ### 3.4 网关命令行判别器:从子串匹配升级到子命令解析
 
-**事故经过**(`gateway/status.py:370-388 @ 863e313`):
+**事故经过**(`gateway/status.py:371-389 @ 863e313`):
 
 ```python
     """Return the Hermes gateway lifecycle subcommand from a command line.
@@ -687,7 +696,7 @@ def write_runtime_status(
 每次都写成"当前进程"的值。这正是重启后接手旧文件时把陈旧 PID 顶掉的机制,
 测试 `tests/gateway/test_status.py:173 test_write_runtime_status_overwrites_stale_pid_on_restart` 守着。
 
-**副作用外发**:写完后触发状态迁移事件,失败静默(`gateway/status.py:1030-1034 @ 863e313`):
+**副作用外发**:写完后触发状态迁移事件,失败静默(`gateway/status.py:1029-1033 @ 863e313`):
 
 ```python
     _write_json_file(path, payload)
@@ -986,7 +995,7 @@ append 到 `~/.hermes/gateway-starts.log`,窗口内启动次数超阈值就返�
 **分档的第一判据是"平台支不支持编辑消息"**,这就是 §2.6 那个"编辑优先、send 兜底"策略的
 配置面镜像:不能编辑 → 每条进度都是永久污染 → 整档关掉。
 
-22 个平台的映射在 `gateway/display_config.py:121-181`。四处逐平台微调:
+20 个平台键的映射在 `gateway/display_config.py:121-181`(telegram / discord / slack / mattermost / matrix / feishu / signal / whatsapp / whatsapp_cloud / photon / bluebubbles / weixin / wecom / wecom_callback / dingtalk / email / sms / webhook / homeassistant / api_server)。四处逐平台微调:
 - `telegram`(`:130-134`):TIER_HIGH 但 `tool_progress: off` + `busy_ack_detail: False` ——
   理由是"手机收件箱",但**保留** interim 与心跳(注释 `:124-131`)。
 - `discord`(`:138`):TIER_HIGH + `reasoning_style: "subtext"`,因为 Discord 有原生的
@@ -1086,7 +1095,8 @@ B-13 的先例)。
    `resolve_gateway_liveness(profile_dir=...)`(`:1175`)全都是多 profile 的一等公民机制,
    `website/docs/user-guide/multi-profile-gateways.md` 是一整篇用户文档。
 4. **docstring 声称的用途也偏窄**。它说 PID 检测是 "used by send_message's check_fn to gate
-   availability in the CLI"。实际消费方远不止:23 个非测试模块导入本文件,
+   availability in the CLI"。实际消费方远不止:40 个非测试 `.py` 文件 `from gateway.status import`
+   (`grep -rln "from gateway.status import\|from gateway import status" --include=*.py . | grep -v "^./tests/" | grep -v "^./gateway/status.py" | wc -l` → 40),
    `hermes_cli/web_server.py`(仪表盘)、`hermes_cli/kanban.py`、
    `agent/monitoring/gateway_health.py`、`gateway/platforms/api_server.py`(`/api/status`)、
    `gateway/platforms/base.py`(适配器状态上报)都在其中。
@@ -1269,7 +1279,7 @@ test_status_phrase_does_not_leak_raw_preview_or_args`。
 | 模块叫 `status.py`,写的文件叫 `gateway_state.json`,字段叫 `gateway_state` | `gateway/status.py:38`;`_RUNTIME_STATUS_FILE = "gateway_state.json"` |
 | 常量 `_RUNTIME_STATUS_FILE` / 函数 `write_runtime_status` 用 "status",落盘用 "state" | `gateway/status.py:38 / 980` |
 | `gateway/status.py`(进程态)与 `gateway/status_phrases.py`(聊天文案)同前缀、零关系 | 两文件均无交叉 import |
-| 22 个下划线私有函数被跨模块导入(`_pid_exists` 被 23 个非测试文件用) | `cli.py`、`cron/executions.py`、`tools/*`、`plugins/platforms/*` 等 |
+| 下划线私有函数被大量跨模块导入:`_pid_exists` 出现在 **22 个**非测试 `.py` 文件里,`_try_acquire_file_lock` / `_release_file_lock` / `_snapshot_gateway_children` / `_pid_from_record` 同样被外部导入 —— "私有"命名已名不副实 | `cli.py`、`cron/executions.py`、`gateway/kanban_watchers.py:71`、`tools/*`、`plugins/platforms/*` 等 |
 | `live_status`(display 键)vs `_live_status_mode`(run.py)vs `set_status_text`(适配器)vs `build_status_phrase`(agent/display.py):同一通道四个名字 | 见 §2.7 |
 
 ---
@@ -1290,6 +1300,7 @@ test_status_phrase_does_not_leak_raw_preview_or_args`。
 | **#12029** | `gateway/run.py:24996`(切片外,与心跳直接相关) | 现象:一个 "running: delegate_task" 心跳气泡活得比产生它的那次 run 还久。修法:心跳每次醒来先调 `_should_emit_long_running_notification(session_key, agent, executor_task)`,不再持有会话槽位就 break。 |
 | **#3459 / #3458** | `gateway/run.py:24434`(切片外) | `tool_progress: log` 模式的来源:把工具调用写进 `~/.hermes/logs/tool_calls.log` 而不是聊天。 |
 | **#18859** | `gateway/relay/adapter.py:1216`(切片外,与 live status 相关) | relay 顶层 DM 无 thread 锚点导致心跳被静默丢弃;修法是从 per-chat inbound 缓存合成 thread 锚点,同时保留 flat 模式的 no-op。 |
+| **#10454** | `gateway/stream_consumer.py:1821`(切片外,§2.8 引) | 现象:多次工具调用时最终回复被错误抑制。原因:commentary(模型的中途叙述)被当成终稿,置了 `_already_sent`。修法:commentary 只算 interim status update,不置 `_already_sent`。**注意此处的 "status" 指模型自己写的叙述文本,与本切片的三条通道都不是一回事。** |
 
 ---
 
