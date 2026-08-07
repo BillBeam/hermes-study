@@ -223,6 +223,13 @@ RULES = [
     ("hermes_cli/**", "L2", "R8"),
     ("gateway/**", "L2", "R7"),             # platform adapters + assets
     ("plugins/model-providers/**", "L2", "R2"),   # provider 插件注册面,随 R2 结构级学习
+    # R6 修订:8 个记忆后端的实现 .py 促升 L1(R6 卡片要求对本簇达 L1 完成标准;
+    # 它们是 MemoryProvider ABC 契约的全部生产实现,机制精读才能定案各家取舍)。
+    # README/plugin.yaml 留 L2(文档与元数据,结构级即可)。
+    ("plugins/memory/**/README.md", "L2", "R6"),
+    ("plugins/memory/**/plugin.yaml", "L2", "R6"),
+    ("plugins/memory/**/*.py", "L1", "R6"),
+    ("plugins/memory/*.py", "L1", "R6"),
     ("plugins/**", "L2", "R6"),
     ("tui_gateway/**", "L2", "R10"),
     ("acp_adapter/**", "L2", "R10"),
