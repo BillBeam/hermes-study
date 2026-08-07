@@ -460,7 +460,59 @@ SUPPORT_FLOOR_VERSION = 12
 > (严格升序、无低于下限的残留);(b) **删除安全性**:淘汰老步骤时,
 > 证明受支持区间的输出不变。只测单个迁移步骤做了什么,这两类事故都拦不住。
 
-### 3.7 命令注册表:一份定义,四个各自过滤的视图
+### 3.7 工具集配置:一个"从子集反推"的坑,和它的修法
+
+先锚一个专名:**toolset(工具集)**是"一组工具"的命名集合,配置里用它整组开关工具,
+而不是一个个点名。Hermes 还允许**复合工具集**——比如 `hermes-cli` 本身就包含全部核心工具。
+
+**场景**:用户在 Discord 上关掉了某个工具集。保存后重启,**它又回来了。**
+
+原因在"用户到底启用了哪些工具集"这个判定上。配置存在 `platform_toolsets` 里
+(平台名 → 工具集名列表):
+
+`hermes_cli/tools_config.py:2232 @ 863e313`
+
+```python
+    platform_toolsets = config.get("platform_toolsets") or {}
+```
+
+朴素的实现会**从复合工具集反推子集**:看到 `hermes-cli`,就认为它包含的每个工具集都启用了。
+于是用户明明关掉了 `spotify`,而列表里还有 `hermes-cli`,反推一遍——`spotify` 又"启用"了。
+
+修法是**换判据**:先看用户存的列表里有没有**可配置工具集的名字直接出现**;
+有,就说明用户显式配过这个平台,**直接按成员判定,不再做子集反推**:
+
+`hermes_cli/tools_config.py:2257-2262 @ 863e313`
+
+```python
+    # If the saved list contains any configurable keys directly, the user
+    # has explicitly configured this platform — use direct membership.
+    # This avoids the subset-inference bug where composite toolsets like
+    # "hermes-cli" (which include all _HERMES_CORE_TOOLS) cause disabled
+    # toolsets to re-appear as enabled.
+    has_explicit_config = any(ts in configurable_keys for ts in toolset_names)
+```
+
+> **可带走**:当配置里同时存在**粗粒度集合**与**细粒度开关**时,
+> 不要用"集合展开后是否包含"来回答"这一项开没开"——**"没写"和"写了又关掉"在展开后
+> 长得一模一样**。要么记录显式意图(用户到底动过哪些开关),要么让细粒度开关
+> 在数据结构上压过集合,不能靠反推。
+
+顺带一个很具体的 YAML 坑,值得所有读 YAML 的人记住:
+
+`hermes_cli/tools_config.py:2249-2250 @ 863e313`
+
+```python
+    # YAML may parse bare numeric names (e.g. ``12306:``) as int.
+    # Normalise to str so downstream sorted() never mixes types.
+```
+
+**YAML 会把纯数字的键解析成整数**。这里有个叫 `12306` 的工具集(中国铁路购票网站),
+于是这个键会变成 `int`,下游 `sorted()` 拿到 `int` 和 `str` 混合列表就抛 `TypeError`。
+在 Python 里这是运行时崩溃;在 Go / Java 里则是编译期就不会让你写出这种混合列表——
+**动态语言读外部数据时,类型归一化必须显式做,不能指望输入。**
+
+### 3.8 命令注册表:一份定义,四个各自过滤的视图
 
 **场景**:用户在聊天里敲 `/help`,想知道有哪些命令。同时 Telegram 的输入框也要弹出
 一个命令菜单,网页面板要做自动补全,网关要判断"这条消息是不是一个已知命令"。
@@ -508,7 +560,7 @@ for _cmd in COMMAND_REGISTRY:
 Telegram 那一路尤其复杂(平台限制最多 100 条,默认只放 60 条,还有优先级重排),
 这些规则散在四个常量和三个函数里。
 
-### 3.8 配对批准:门只能从外面开,而钥匙捅穿了封装
+### 3.9 配对批准:门只能从外面开,而钥匙捅穿了封装
 
 **场景**:陌生人给机器人发私信。机器人不能直接就聊——那等于谁都能用你的账号跑 agent。
 所以有一套"配对"流程:机器人给对方一个配对码,**账号主人**在自己已认证的通道里批准。
