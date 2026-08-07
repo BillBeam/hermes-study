@@ -148,8 +148,8 @@ agent/lsp/servers.py	text	1187	L1	R3-R7	R1-inventoried
 agent/lsp/workspace.py	text	223	L1	R3-R7	R1-inventoried
 agent/manual_compression_feedback.py	text	120	L1	R5	R1-inventoried
 agent/markdown_tables.py	text	309	L1	R3-R7	R1-inventoried
-agent/memory_manager.py	text	1241	L1	R3-R7	R1-inventoried
-agent/memory_provider.py	text	357	L1	R3-R7	R1-inventoried
+agent/memory_manager.py	text	1241	L1	R5	R1-inventoried
+agent/memory_provider.py	text	357	L1	R5	R1-inventoried
 agent/message_content.py	text	50	L1	R5	R1-inventoried
 agent/message_sanitization.py	text	852	L1	R5	R1-inventoried
 agent/moa_loop.py	text	2384	L1	R9	R1-inventoried
@@ -206,7 +206,7 @@ agent/secret_sources/bitwarden.py	text	1048	L1	R3-R7	R1-inventoried
 agent/secret_sources/command.py	text	501	L1	R3-R7	R1-inventoried
 agent/secret_sources/onepassword.py	text	682	L1	R3-R7	R1-inventoried
 agent/secret_sources/registry.py	text	470	L1	R3-R7	R1-inventoried
-agent/session_activity.py	text	106	L1	R3-R7	R1-inventoried
+agent/session_activity.py	text	106	L1	R5	R1-inventoried
 agent/shell_hooks.py	text	930	L1	R3-R7	R4-structure
 agent/skill_bundles.py	text	438	L1	R3-R7	R1-inventoried
 agent/skill_commands.py	text	812	L1	R3-R7	R1-inventoried
@@ -2681,7 +2681,7 @@ hermes_state.py	text	9691	L1	R5	R1-inventoried
 hermes_state_common.py	text	614	L1	R5	R1-inventoried
 hermes_state_portability.py	text	714	L1	R5	R1-inventoried
 hermes_state_schema.py	text	1079	L1	R5	R1-inventoried
-hermes_state_search.py	text	2230	L1	R6	R1-inventoried
+hermes_state_search.py	text	2230	L1	R5	R1-inventoried
 hermes_time.py	text	135	L2	R8	R1-inventoried
 locales/af.yaml	text	440	L3	R11	R1-inventoried
 locales/ar.yaml	text	442	L3	R11	R1-inventoried
@@ -2709,9 +2709,9 @@ mcp-research-data/ue_hard_rows.json	text	2541	L4	-	R1-inventoried
 mcp_serve.py	text	1037	L2	R8	R1-inventoried
 mini_swe_runner.py	text	732	L1	R9	R1-inventoried
 model_tools.py	text	1569	L1	R3	R3-deep-read
-native/fts5_cjk/README.md	text	24	L2	R10	R1-inventoried
-native/fts5_cjk/build.sh	text	19	L2	R10	R1-inventoried
-native/fts5_cjk/fts5_cjk.c	text	252	L2	R10	R1-inventoried
+native/fts5_cjk/README.md	text	24	L2	R5	R1-inventoried
+native/fts5_cjk/build.sh	text	19	L2	R5	R1-inventoried
+native/fts5_cjk/fts5_cjk.c	text	252	L2	R5	R1-inventoried
 native/fts5_cjk/vendor/sqlite3.h	text	13775	L2	R10	R1-inventoried
 native/fts5_cjk/vendor/sqlite3ext.h	text	723	L2	R10	R1-inventoried
 nix/checks.nix	text	582	L2	R11	R1-inventoried
@@ -6998,7 +6998,7 @@ tools/browser_dialog_tool.py	text	148	L1	R4	R4-deep-read
 tools/browser_supervisor.py	text	1518	L1	R4	R4-deep-read
 tools/browser_tool.py	text	5098	L1	R4	R4-structure
 tools/budget_config.py	text	114	L1	R3-R4	R1-inventoried
-tools/checkpoint_manager.py	text	1953	L1	R3-R4	R1-inventoried
+tools/checkpoint_manager.py	text	1953	L1	R5	R1-inventoried
 tools/clarify_gateway.py	text	459	L1	R3-R4	R1-inventoried
 tools/clarify_tool.py	text	266	L1	R3-R4	R1-inventoried
 tools/close_terminal_tool.py	text	70	L1	R4	R4-deep-read
@@ -7058,7 +7058,7 @@ tools/mcp_oauth_manager.py	text	785	L1	R3	R3-structure
 tools/mcp_schema_cache.py	text	121	L1	R3	R3-deep-read
 tools/mcp_stdio_watchdog.py	text	157	L1	R3	R3-deep-read
 tools/mcp_tool.py	text	7230	L1	R3	R3-deep-read
-tools/memory_tool.py	text	1240	L1	R3-R4	R1-inventoried
+tools/memory_tool.py	text	1240	L1	R5	R1-inventoried
 tools/microsoft_graph_auth.py	text	245	L1	R3-R4	R1-inventoried
 tools/microsoft_graph_client.py	text	400	L1	R3-R4	R1-inventoried
 tools/neutts_samples/jo.txt	text	1	L3	R11	R1-inventoried
@@ -7078,7 +7078,7 @@ tools/read_terminal_tool.py	text	93	L1	R4	R4-deep-read
 tools/registry.py	text	956	L1	R3	R3-deep-read
 tools/schema_sanitizer.py	text	591	L1	R3	R3-deep-read
 tools/send_message_tool.py	text	2116	L1	R3-R4	R1-inventoried
-tools/session_search_tool.py	text	1161	L1	R3-R4	R1-inventoried
+tools/session_search_tool.py	text	1161	L1	R5	R1-inventoried
 tools/skill_manager_tool.py	text	1781	L1	R3-R4	R1-inventoried
 tools/skill_provenance.py	text	78	L1	R3-R4	R1-inventoried
 tools/skill_usage.py	text	1340	L1	R3-R4	R1-inventoried
