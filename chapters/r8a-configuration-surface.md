@@ -817,6 +817,7 @@ dashboard 对同一个操作会正确地回 404("请求或码未找到/已过期
 | `loopback_host_alias` 的默认字面量 | 3 | 把上一条的现象**盖住了**,更难发现 |
 | 顶层标量 → 环境变量的桥 | 2(`gateway/run.py:2058` / `hermes_cli/send_cmd.py:311`) | 两处必须同步演化,没有任何机制保证 |
 | 读凭据的优先级 | 2(方向相反,§5 ▲-3) | 调用方挑错一个就是线上 401 |
+| 写进用户文件的注释模板 | 2(活的 `_SECURITY_COMMENT`/`_FALLBACK_COMMENT`,死的 `_COMMENTED_SECTIONS`) | **两份已经不一样了**;而死的那份名字更像正主 |
 
 第二份桥的实现:
 
@@ -831,9 +832,19 @@ dashboard 对同一个操作会正确地回 404("请求或码未找到/已过期
         os.environ[key] = str(val)
 ```
 
+最后那一行给出了这个问题的答案。`save_config()` 往用户 `config.yaml` 末尾追加
+被注释掉的配置模板,写出去的是 `_SECURITY_COMMENT` 与 `_FALLBACK_COMMENT`;
+而 `_COMMENTED_SECTIONS` 装着同样两段的一份旧副本、**全仓零引用**。
+同一句关于密钥脱敏的说明,活版是"…are masked in tool output, logs, and chat responses
+before the model or user ever sees them",死版是"Set to false to pass tool output,
+logs, and chat responses through unmodified"——**已经漂了。**
+
 **判据**:每当你发现一段逻辑"在别处也有一份",不要只问"两份一样吗",要问
 **"它们会不会一起改"**。没有共享函数、没有共享常量、没有一致性测试的两份实现,
 在时间尺度上必然分叉——而分叉的那一刻不会有任何报错。
+**死副本尤其危险,因为它往往起了个更像正主的名字**:
+维护者想改"那些注释段",第一眼看到的就是 `_COMMENTED_SECTIONS`,
+改完却对用户文件毫无影响。
 
 **③ 配置解析失败时,兜底方向是"保持现状",不是"回到出厂"。** 尤其当配置里含有
 限制性规则(黑名单、配额、拒绝策略)时,回到出厂等于**把限制解除了**。
