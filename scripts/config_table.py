@@ -2,10 +2,22 @@
 """Build the R8A configuration-key table from the hermes-agent baseline.
 
 The authoritative definition of every Hermes config key is the literal
-``DEFAULT_CONFIG`` dict in ``hermes_cli/config_defaults.py``; the authoritative
-list of recognized environment variables is ``OPTIONAL_ENV_VARS`` in the same
-file. Both are pure data (the module's own docstring says so), so they can be
-read exactly by AST — no import, no execution, no guessing.
+``DEFAULT_CONFIG`` dict in ``hermes_cli/config_defaults.py``; the *statically
+declared* environment variables are ``OPTIONAL_ENV_VARS`` in the same file.
+Both are pure data (the module's own docstring says so), so they can be read
+exactly by AST — no import, no execution, no guessing.
+
+**Caveat that matters for anyone using the env-var output.** ``OPTIONAL_ENV_VARS``
+is not the whole list at runtime. Importing ``hermes_cli.config`` MUTATES THAT
+DICT IN PLACE — it is literally the same object — through two injection passes
+that add provider-profile and platform-plugin variables
+(``hermes_cli/config.py:5307``, ``_inject_profile_env_vars``, run eagerly at
+import). Measured on this baseline: **151 entries in the source literal, 308
+after import**. So this script's env table covers the ~49% that is statically
+declared; the rest exists only once the process is running. That is a property
+of the codebase, not a limitation we can engineer away here — an AST pass
+cannot see a dict that a different module fills in at import time. Treat the
+env table as "what is written down", not "what the wizard will ask for".
 
 For each key this script reports four columns:
 

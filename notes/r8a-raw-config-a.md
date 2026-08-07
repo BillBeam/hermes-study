@@ -342,7 +342,7 @@ _LAST_EXPANDED_CONFIG_BY_PATH: Dict[str, Any] = {}
 ### 2.3 为什么这么设计
 
 - **不重置用户文件**:注释里明确对比了 Gemini CLI 的 policy-file recovery(把线上文件重置成
-  干净状态),Hermes 选择只备份不动原文件 —— 用户手改好之后下一次加载就自动生效。`hermes_cli/config.py:53-57 @ 863e313`
+  干净状态),Hermes 选择只备份不动原文件 —— 用户手改好之后下一次加载就自动生效。`hermes_cli/config.py:51-55 @ 863e313`
 
 ```python
     they re-run the setup wizard or ``hermes config set`` (which rewrites
@@ -902,7 +902,7 @@ managed 的影响面(本段内):跳过 `_secure_dir`/`_secure_file`、`ensure_he
 
 问题场景很值得记:Docker 文档鼓励把 `~/.hermes` bind-mount 进容器,于是宿主的 git 安装
 和容器里的镜像安装共享同一个数据目录。旧实现把 `.install_method` 写在 home 里 —— 容器每次
-启动写 `docker`,宿主 `hermes update` 读到 `docker` 就拒绝更新。`hermes_cli/config.py:429-436 @ 863e313`
+启动写 `docker`,宿主 `hermes update` 读到 `docker` 就拒绝更新。`hermes_cli/config.py:427-434 @ 863e313`
 
 ```python
     ``$HERMES_HOME`` is a shared DATA directory — the Docker docs deliberately
@@ -1792,10 +1792,9 @@ profile → HERMES_HOME 的翻译走的是 `--profile` 参数 + `active_profile`
 `hermes_cli/config.py:62-64 @ 863e313`
 
 ```python
-    backup is best-effort — any failure (permissions, symlink, disk full) is
-    swallowed so config loading is never blocked by backup problems.
-
     Returns the backup path on success, else ``None``. Symlinks are not
+    followed/copied (mirrors the Gemini #21541 lstat guard) to avoid
+    clobbering whatever a malicious/misconfigured symlink points at.
 ```
 
 语义上 `is_symlink()` 确实基于 lstat,不算冲突,但"lstat guard"的措辞会让读者去找
