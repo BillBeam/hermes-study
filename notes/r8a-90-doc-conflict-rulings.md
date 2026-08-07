@@ -246,6 +246,28 @@ display:
 _KNOWN_ROOT_KEYS = frozenset(DEFAULT_CONFIG.keys()) | _EXTRA_KNOWN_ROOT_KEYS
 ```
 
+第二个集合是手工维护的 **23 个根键**,代码注释说得很坦白:
+
+`hermes_cli/config.py:1850-1854 @ 863e313`
+
+```python
+# DEFAULT_CONFIG is the single source of truth for documented roots; keep this
+# set derived so new defaults (skills, security, browser, …) are accepted
+# automatically. A few optional/legacy roots are valid on disk but intentionally
+# absent from DEFAULT_CONFIG (omitted when unused / alternate schema forms).
+```
+
+**"documented roots"这个限定词是关键**:`DEFAULT_CONFIG` 是**已文档化根键**的
+单一真源,不是**全部合法根键**的真源。这 23 个里包括 `mcp_servers`(MCP 服务器定义)、
+`platforms`(每平台设置)、`platform_toolsets`(每平台工具集,由安装向导写)、
+`image_gen` / `video_gen`、以及一批网关认的"顶层便捷写法"。
+
+**后果**:它们**没有默认值、没有嵌套键定义**,于是
+`mcp_servers` / `platforms` 之下的任何子键**都不在这 856 个里**,
+本轮的配置项全表对那几棵子树**零覆盖**。
+脚本已增补 `data/r8a-extra-root-keys.tsv` 把这 23 个显式列出来,
+让这个洞是**可见的**,而不是被一张"看起来很全"的表盖住。
+
 **主线先把它误读成了"根键校验白名单",复核后更正——它不是。**
 `_KNOWN_ROOT_KEYS` 全仓**只有一个使用点**,而且那里不是"拒绝未知根键",
 只是给四个"看起来放错地方的 provider 字段"做去重判断:
@@ -267,6 +289,36 @@ _KNOWN_ROOT_KEYS = frozenset(DEFAULT_CONFIG.keys()) | _EXTRA_KNOWN_ROOT_KEYS
     # users can feed skills and external apps env-style keys from config.yaml
     # — a closed-world allowlist can never enumerate those.
 ```
+
+### ◇-1c 第三条桥:config.yaml 的顶层标量会变成环境变量(方向与 `${VAR}` 相反)
+
+顺着上面那条注释查到了本轮**最后一个、也是最反直觉的机制**:
+
+`gateway/run.py:2057-2060 @ 863e313`
+
+```python
+        # Top-level simple values (fallback only — don't override .env)
+        for _key, _val in _cfg.items():
+            if isinstance(_val, (str, int, float, bool)) and _key not in os.environ:
+                os.environ[_key] = str(_val)
+```
+
+**`config.yaml` 里每一个顶层标量键都会被灌进 `os.environ`**(仅当环境里还没有同名变量)。
+这意味着两件事:
+
+1. **两个系统之间的桥是双向的。** `${VAR}` 是"环境 → 配置";这条是"配置 → 环境"。
+   所以用户可以在 `config.yaml` 里写一个任意名字的顶层标量,给**技能脚本和外部程序**
+   当环境变量用 —— 这也正是**根层不能做闭世界校验**的原因:那些键名按定义无法穷举。
+2. **这条桥再一次与文档的优先级相反。** 注释里明写 `fallback only — don't override .env`,
+   判据是 `_key not in os.environ`:**环境已有值就不覆盖**。
+   文档说"两边都设了以 `config.yaml` 为准",这条桥恰恰相反。
+
+**顺带一个数**:这条桥**不走 `load_config()`**,用的是原始读 `read_user_config_raw`
+——刻意如此,因为**只有用户真正写下的键才可以被桥进环境**
+(先合并默认值的话,`DEFAULT_CONFIG` 的 82 个顶层键会整体变成环境变量)。
+算上它,`config.yaml` 的读取方到本条为止已有四个
+(`load_config` / `load_cli_config` / `read_raw_config` / `read_user_config_raw`),
+**头条那句"两个装载器"其实说少了**;后文 ■-12 还会补上第五个。
 
 ### ◇-1d 又一处"表外键":`terminal.*` 的配置→环境桥与默认值不同构
 
@@ -295,57 +347,6 @@ TERMINAL_CONFIG_ENV_MAP = {
 23 个额外根键的整棵子树、以及像这 8 个一样散落在各投影表里的嵌套键。
 **已在 `scripts/config_table.py` 的开头说明里声明此边界。**
 
-### ◇-1c 第三条桥:config.yaml 的顶层标量会变成环境变量(方向与 `${VAR}` 相反)
-
-顺着上面那条注释查到了本轮**最后一个、也是最反直觉的机制**:
-
-`gateway/run.py:2057-2060 @ 863e313`
-
-```python
-        # Top-level simple values (fallback only — don't override .env)
-        for _key, _val in _cfg.items():
-            if isinstance(_val, (str, int, float, bool)) and _key not in os.environ:
-                os.environ[_key] = str(_val)
-```
-
-**`config.yaml` 里每一个顶层标量键都会被灌进 `os.environ`**(仅当环境里还没有同名变量)。
-这意味着两件事:
-
-1. **两个系统之间的桥是双向的。** `${VAR}` 是"环境 → 配置";这条是"配置 → 环境"。
-   所以用户可以在 `config.yaml` 里写一个任意名字的顶层标量,给**技能脚本和外部程序**
-   当环境变量用 —— 这也正是**根层不能做闭世界校验**的原因:那些键名按定义无法穷举。
-2. **这条桥再一次与文档的优先级相反。** 注释里明写 `fallback only — don't override .env`,
-   判据是 `_key not in os.environ`:**环境已有值就不覆盖**。
-   文档说"两边都设了以 `config.yaml` 为准",这条桥恰恰相反。
-
-**顺带一个数**:这条桥**直接读 config.yaml,不走 `load_config()`**(注释自己说的
-"This bridge reads config.yaml directly (not via load_config)"),
-所以它是本轮点到的**第四个**读配置文件的地方
-(`load_config` / `load_cli_config` / `read_raw_config` / 这条桥),
-每个各有各的合并与优先级姿态。**头条那条"两个装载器"其实说少了。**
-
-第二个集合是手工维护的 **23 个根键**,代码注释说得很坦白:
-
-`hermes_cli/config.py:1850-1854 @ 863e313`
-
-```python
-# DEFAULT_CONFIG is the single source of truth for documented roots; keep this
-# set derived so new defaults (skills, security, browser, …) are accepted
-# automatically. A few optional/legacy roots are valid on disk but intentionally
-# absent from DEFAULT_CONFIG (omitted when unused / alternate schema forms).
-```
-
-**"documented roots"这个限定词是关键**:`DEFAULT_CONFIG` 是**已文档化根键**的
-单一真源,不是**全部合法根键**的真源。这 23 个里包括 `mcp_servers`(MCP 服务器定义)、
-`platforms`(每平台设置)、`platform_toolsets`(每平台工具集,由安装向导写)、
-`image_gen` / `video_gen`、以及一批网关认的"顶层便捷写法"。
-
-**后果**:它们**没有默认值、没有嵌套键定义**,于是
-`mcp_servers` / `platforms` 之下的任何子键**都不在这 856 个里**,
-本轮的配置项全表对那几棵子树**零覆盖**。
-脚本已增补 `data/r8a-extra-root-keys.tsv` 把这 23 个显式列出来,
-让这个洞是**可见的**,而不是被一张"看起来很全"的表盖住。
-
 ### ◇-2 对照组:环境变量侧覆盖率 100%,原因值得抄
 
 同一套检索跑 `OPTIONAL_ENV_VARS` 的 151 条静态条目:**零缺口**。
@@ -358,7 +359,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 **可迁移的设计原则**:把"这个键是什么"做成**数据结构里的必填字段**,而不是注释。
 覆盖率就不再依赖纪律,而是依赖类型。这是本轮最值得带走的一条,详见成品章 §4。
 
-### ◇-3 两个装载器的存在本身全站零文档
+### ◇-3 多个读取方的存在本身全站零文档
 
 `notes/r8a-01` §2.1 那条"同一份 config.yaml 被两个装载器以不同合并语义读取",
 在 `website/docs/user-guide/configuration.md` 全文(2,386 行)与 `AGENTS.md` 中
@@ -366,6 +367,13 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 对使用者的实际后果:在 CLI/TUI 里设一个嵌套键,与在 config.yaml 里设同一个键给网关用,
 **行为可能不同**,而没有任何文档提示需要区分这两件事。
+
+**本轮点清的读取方共五个**,各有各的合并、缓存与优先级姿态:
+`load_config`(含 `load_config_readonly`,深合并 + 归一化 + 展开 + managed)/
+`load_cli_config`(自带默认值,浅合并)/ `read_raw_config`(原始 + mtime 缓存)/
+`read_user_config_raw`(原始、不吞异常;顶层标量→环境桥用它)/
+`_load_gateway_config`(原始 + managed 叠加,不合并默认值)。
+**■-10 / ■-11 / ■-12 三条缺陷都是这五者之间的差异直接造成的。**
 
 ---
 
