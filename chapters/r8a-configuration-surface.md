@@ -622,6 +622,43 @@ Telegram 那一路尤其复杂(平台限制最多 100 条,默认只放 60 条,�
 CLI 会在运维者最需要它的那条路径上炸掉,而这条路径日常几乎不会被走到。
 **这里缺的是一个该有而没有的接口**:一个明确标注"仅限已认证侧"的诊断 API。
 
+**这道门其实有两把钥匙,而它们的行为不一致——这是本节最实用的一条。**
+第二把在 dashboard 里,走 HTTP:
+
+`hermes_cli/web_server.py:12335 @ 863e313`
+
+```python
+    by_request_id = bool(body.request_id) or store.looks_like_request_id(target)
+```
+
+两把钥匙**都**用"看起来像 request-id 吗"来二选一分发,**也都**捅穿了同一个私有成员。
+但 dashboard 多做了一件事:**只在"码"这条路径上报告锁定**,并写明了理由:
+
+`hermes_cli/web_server.py:12343-12346 @ 863e313`
+
+```python
+    # Lockout only gates the code path, so only report it there — otherwise a
+    # stale request id would surface as a bogus 429 while the platform sat
+    # locked out for an unrelated reason.
+    if not by_request_id and store._is_locked_out(platform):
+```
+
+**CLI 没有这个限定**——它在两条路径上都无差别地检查锁定:
+
+`hermes_cli/pairing.py:81 @ 863e313`
+
+```python
+    elif store._is_locked_out(platform):
+```
+
+**后果是可复述的**:运维者从 `hermes pairing list` 里拷了一个**已经过期**的 request-id
+去批准。真正的原因是"这条请求过期了",但如果该平台此刻恰好因为**别的**原因处于锁定期,
+CLI 会告诉他"平台被锁定,请等 N 分钟"。**他会去等一个跟他的问题毫无关系的计时器。**
+dashboard 对同一个操作会正确地回 404("请求或码未找到/已过期")。
+
+**这正是 §4 那条"一个语义实现两次"的又一例**:两把钥匙是分别写的,
+其中一把后来修好了一个边角情况,另一把没有跟上,而**没有任何东西会报错**。
+
 > **可带走**:当"对外不可区分、对内要可区分"同时成立时,应当**显式提供一个
 > 受限的诊断接口**,而不是让调用方去捅私有成员。安全需求造成的信息隐藏,
 > 应该由一个有名字的出口来解除,而不是由调用方绕过去。
