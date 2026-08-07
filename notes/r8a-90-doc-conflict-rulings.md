@@ -369,7 +369,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 ---
 
-## ■ 组:代码内部缺陷(10 条,只记录不修)
+## ■ 组:代码内部缺陷(11 条,只记录不修)
 
 | # | 缺陷 | 锚点 | 怎么会踩到 |
 |---|---|---|---|
@@ -379,10 +379,80 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-4 | `display.copy_shortcut` 是**全仓唯一一次出现** | `hermes_cli/config_defaults.py:1280` | 用户按注释里列的四个取值去设,永远无效 |
 | ■-5 | `NOUS_BASE_URL` 在环境变量清单里,但代码读的是另外两个名字 | `hermes_cli/config_defaults.py:3132` | 安装流程会**主动向用户索要**一个没人读的变量 |
 | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
+| ■-11 | **一个自称"单一真源、防止各面漂移"的函数,实测在两个面上相差 780 秒** | `tools/clarify_gateway.py:388`(自述)/ `:399`(遗留键优先)/ `cli.py:523`(遗留键的 CLI 默认值 120) | 用户设 `agent.clarify_timeout: 900`(规范键):网关面得 900、CLI 面得 **120**;因 `cli.py` 默认值恒供遗留键 `clarify.timeout`,规范键在 CLI 面**永远无法生效** |
 | ■-10 | **两份默认值的第一个真实受害者**:`hermes config set agent.reasoning_effort high` 被判为未知键,并给出会弄坏配置的建议 | `hermes_cli/config.py:4810`(校验)/ `cli.py:8166`(真实读取点)/ `cli.py:479`(它所在的那份默认值) | 命令正确、值也写对了,但打印"不是已知配置键";建议改用 `agent.reasoning_overrides`,而那个键的默认值是 `{}`(字典),照做后思考力度静默失效 |
 | ■-9 | `_COMMENTED_SECTIONS` 是**已漂移的死副本** | `hermes_cli/config.py:3473` | 活版是 `_SECURITY_COMMENT`/`_FALLBACK_COMMENT`(:3601/:3609);两份同一句话已不同。维护者改到死版,对用户文件零效果 |
 | ■-8 | **两把配对钥匙行为不一致**:CLI 在 request-id 路径上也报"平台被锁定" | `hermes_cli/pairing.py:81` vs `hermes_cli/web_server.py:12346` | 用过期 request-id 批准 + 平台恰好因别的原因锁定 → CLI 告诉运维者"等 N 分钟",而真实原因是请求过期;dashboard 同一操作正确回 404 |
 | ■-7 | `OPTIONAL_ENV_VARS` 在 import 时被**原地改写** | `hermes_cli/config.py:5307` | 静态分析(含本项目第一版脚本)只看到 151/308 |
+
+### ■-11 细节:本轮最强的一条 —— "单一真源"被第二份默认值击穿
+
+顺着 ■-10 的名单查 `clarify.timeout` 时撞见的,**主线运行时实测**。
+
+`tools/clarify_gateway.py` 提供一个解析澄清超时的函数,docstring 把设计意图写得斩钉截铁:
+
+`tools/clarify_gateway.py:388-389 @ 863e313`
+
+```python
+    Single source of truth shared by every surface (messaging gateway, CLI,
+    TUI/desktop) so the timeout can't drift between them.  Resolution order:
+```
+
+它的解析顺序是**遗留键优先**:
+
+`tools/clarify_gateway.py:399-401 @ 863e313`
+
+```python
+    raw = (config.get("clarify") or {}).get("timeout")
+    if raw is None:
+        raw = (config.get("agent") or {}).get("clarify_timeout", 3600)
+```
+
+即先看顶层遗留键 `clarify.timeout`,没有才看规范键 `agent.clarify_timeout`。
+**这本身没问题** —— 前提是"没设过遗留键"时 `raw` 为 `None`。
+
+**问题在于 `cli.py` 的那份默认值把遗留键钉死了:**
+
+`cli.py:522-523 @ 863e313`
+
+```python
+        "clarify": {
+            "timeout": 120,  # Seconds to wait for a clarify answer before auto-proceeding
+```
+
+于是在 CLI 侧,`clarify.timeout` **永远存在**(值 120),`raw` **永远不是 None**,
+规范键 `agent.clarify_timeout` **永远轮不到**。
+
+**实测(同一份 config.yaml,只设了规范键 `agent.clarify_timeout: 900`)**:
+
+| 调用面 | 传入的配置对象 | 得到的超时 |
+|---|---|---|
+| 网关(`get_clarify_timeout`,`tools/clarify_gateway.py:426`) | `load_config()` | **900** ✅ |
+| CLI(`cli.py:13195`) | `CLI_CONFIG` | **120** ❌ |
+| CLI 回调(`hermes_cli/callbacks.py:32`) | `CLI_CONFIG` | **120** ❌ |
+
+三个调用点,两个传 `CLI_CONFIG`:
+
+`hermes_cli/callbacks.py:32 @ 863e313`
+
+```python
+    timeout = resolve_clarify_timeout(CLI_CONFIG)
+```
+
+`tools/clarify_gateway.py:426 @ 863e313`
+
+```python
+        return resolve_clarify_timeout(load_config() or {})
+```
+
+**结论:一个为"防止各面漂移"而写的单一真源函数,在两个面上相差 780 秒
+(900 vs 120),而且用户设的规范键在 CLI 面根本没有生效路径。**
+函数本身完全正确;击穿它的是**第二份默认值**。
+
+**这是本轮头条最有力的收尾**:重复默认值的危害不止于"多维护一份",
+它会**让别处正确的抽象失效**——而失效点距离病根有三跳
+(第二份默认值 → 遗留键恒存在 → 优先级判据恒走遗留分支),
+现场排查几乎不可能反推回去。
 
 ### ■-10 细节:两份默认值的第一个真实受害者(线索来自 `r8a-raw-defaults-a` D-1,主线运行时复核)
 

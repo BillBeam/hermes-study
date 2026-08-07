@@ -392,6 +392,63 @@ def _loopback_rewrite_host(camofox_cfg: Dict[str, Any]) -> str:
 既真被读、又收到假警告;其余的是否同样有害没有逐个查(`cli.py` 属下一轮范围)。
 **但"孤例"这个可能性已经排除了。**
 
+#### 最后一层:重复的默认值会让**别处正确的抽象**失效
+
+前面两例的受害者都是配置键本身。**这一例的受害者是一个写得完全正确的函数。**
+
+`tools/clarify_gateway.py` 里有个解析"澄清超时"(agent 问用户一个问题后等多久)的函数,
+docstring 把意图写得斩钉截铁:
+
+`tools/clarify_gateway.py:388-389 @ 863e313`
+
+```python
+    Single source of truth shared by every surface (messaging gateway, CLI,
+    TUI/desktop) so the timeout can't drift between them.  Resolution order:
+```
+
+**"单一真源,共享给每个面,让超时不会在各面之间漂移。"** 它的解析顺序是遗留键优先:
+
+`tools/clarify_gateway.py:399-401 @ 863e313`
+
+```python
+    raw = (config.get("clarify") or {}).get("timeout")
+    if raw is None:
+        raw = (config.get("agent") or {}).get("clarify_timeout", 3600)
+```
+
+先看老写法 `clarify.timeout`,没设过才看规范写法 `agent.clarify_timeout`。
+**这个设计是对的**——前提是"没设过"时那个键真的不存在。
+
+**而 `cli.py` 的第二份默认值把老写法钉死了:**
+
+`cli.py:522-523 @ 863e313`
+
+```python
+        "clarify": {
+            "timeout": 120,  # Seconds to wait for a clarify answer before auto-proceeding
+```
+
+于是在 CLI 侧,`clarify.timeout` **永远存在**(=120),`raw` 永远不是 `None`,
+**规范键永远轮不到**。实测:同一份只设了 `agent.clarify_timeout: 900` 的配置文件——
+
+| 调用面 | 传进去的配置 | 实际超时 |
+|---|---|---|
+| 网关 | `load_config()` | **900** ✅ |
+| CLI(`cli.py:13195`) | `CLI_CONFIG` | **120** ❌ |
+| CLI 回调(`hermes_cli/callbacks.py:32`) | `CLI_CONFIG` | **120** ❌ |
+
+**一个为"防止漂移"而生的单一真源函数,在两个面之间漂了 780 秒。**
+函数本身一行都没写错;击穿它的是那份多出来的默认值。
+
+**而且失效点离病根有三跳**——第二份默认值 → 老写法恒存在 → 优先级判据恒走老分支。
+用户只会看到"我设了 900,CLI 里却像是两分钟就超时了";
+顺着 `agent.clarify_timeout` 查下去,会一路查到那个**看起来完全正确**的解析函数,
+然后卡住。
+
+> **这就是为什么"多一份默认值"不能算技术债的利息,而要算本金。**
+> 它不只让你多维护一处,它会**悄悄取消掉别人为正确性做的努力**——
+> 而受害的抽象越是写得好、越是自信地宣称自己是单一真源,读代码的人越不会怀疑它。
+
 **测试为什么没抓住它?这一段比 bug 本身更值得看。**
 仓库里**有**一支以这条性质命名的测试:
 
