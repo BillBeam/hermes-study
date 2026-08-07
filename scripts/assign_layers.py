@@ -231,9 +231,18 @@ RULES = [
     ("gateway/message_timestamps.py", "L1", "R7"),
     ("gateway/__init__.py", "L1", "R7"),
     ("cron/**/*.py", "L1", "R7C"),
+    # R7C 修订:cron/ 顶层 .py 促升 L1。原先只有 cron/scripts/*.py 命中上一条
+    # (fnmatch 下 "cron/**/*.py" 要求路径里有第二个 "/"),cron/scheduler.py 等
+    # 九个文件落到末尾的 ("cron/**", "L2") 上。而 R7C 的主题就是"定时调度",
+    # 卡片要求本簇达 L1 完成标准,主题本体不能留在 L2。先例:R6 同理由促升 8 个
+    # memory backend 实现(commit 141a06e)。
+    ("cron/*.py", "L1", "R7C"),
     ("gateway/platforms/*.py", "L1", "R7B"),
     ("gateway/relay/*.py", "L1", "R7B"),
     ("gateway/*.py", "L1", "R7C"),
+    # R7C 修订:短语库 yaml 是 gateway/status_phrases.py 的数据本体(52 行),
+    # 读 .py 不读它等于没读懂短语选择;与实现同层。
+    ("gateway/assets/status_phrases.yaml", "L1", "R7C"),
 
     # ---- L2: structure-level ----
     ("cli.py", "L2", "R8"),

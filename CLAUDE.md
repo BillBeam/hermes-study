@@ -119,10 +119,32 @@ reports/round-N-*.md       # 每轮报告(结论 + 台账报数 + 定案 + 下�
 ## 测试环境(可选,恢复后按需重建)
 
 ```bash
-python3 -m venv /home/user/hermes-venv && /home/user/hermes-venv/bin/pip install -e "/home/user/hermes-agent[dev]"
-cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python bash scripts/run_tests.sh tests/agent/<file> 
-# 已验证可用(第一轮);模型凭据不需要,也不得自行配置。
+# 1) 建 venv + 装 dev extra
+python3 -m venv /home/user/hermes-venv
+/home/user/hermes-venv/bin/pip install -e "/home/user/hermes-agent[dev]"
+
+# 2) 必补:aiohttp 不在 [dev] extra 里(R7B 定位,见下)
+/home/user/hermes-venv/bin/pip install "aiohttp==3.14.1" "brotlicffi==1.2.0.1"
+
+# 3) 跑测试
+cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python \
+  bash scripts/run_tests.sh tests/agent/<file>
 ```
+
+**为什么第 2 步是必需的(R7B 定位,R7C 并入本文件)**:`aiohttp` **不在 `[dev]` extra**,
+而在 `messaging` / `slack` / `matrix` / `teams` / `homeassistant` / `sms` 等**平台 extra** 里
+(`pyproject.toml:176 @ 863e313`),但 `gateway/platforms/api_server.py`、`webhook.py`、
+`whatsapp_cloud.py` 都**直接 import 它**。只装 `[dev]` 会让 `tests/gateway/test_api_server*.py`
+等约 20 个文件在**收集阶段**就失败(表现为 ImportError,不是断言失败,容易误判成"测试挂了")。
+补装后这些文件全部转为通过。
+
+**已知环境限制(非代码缺陷,勿误判)**:本类云端容器**无 IPv6 协议族**
+(`bind('::')` → `EAFNOSUPPORT`,`/proc/net/if_inet6` 不存在),故
+`tests/gateway/test_webhook_adapter.py::TestDualStackBind::test_default_bind_serves_both_families`
+必然失败。被测代码 `DEFAULT_HOST = None`(`gateway/platforms/webhook.py:129 @ 863e313`)的语义是
+"按解析出的每个地址族各建一个套接字",只解析出 IPv4 时只建 IPv4 **是正确行为**。
+
+模型凭据不需要,也不得自行配置。
 
 ## 学习方案索引
 
