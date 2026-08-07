@@ -127,10 +127,56 @@ Settings are resolved in this order (highest priority first):
 (`website/docs/user-guide/configuration.md:87`)。**如果全局规则真的是"config 胜 env",
 这句话就不必写。** 需要逐处声明,恰恰说明没有全局规则。
 
-**定案**:▲ 成立。真实模型是:**config.yaml 有一条统一的合并链;
-环境变量没有统一规则,每个消费点自己决定谁先谁后。**
-文档把后者简化成了"低一级的一层",这个简化在最需要它的时候(排查"我明明配了为什么不生效")
-恰好是错的。
+**"每个消费点自己决定"还不够准确——连读凭据的公共函数本身都有两个方向相反的版本。**
+(此条由 `notes/r8a-raw-config-c` §1.3 发现,主线已回源逐行复核确认。)
+
+链 A `get_env_value`:**先 `os.environ`,`.env` 兜底**——
+
+`hermes_cli/config.py:4138-4143 @ 863e313`
+
+```python
+    if val is not None:
+        return val
+
+    # Then check .env file
+    env_vars = load_env()
+    return env_vars.get(key)
+```
+
+链 B `get_env_value_prefer_dotenv`:**先 `.env`,`os.environ` 兜底**——
+
+`hermes_cli/config.py:4146 @ 863e313`
+
+```python
+def get_env_value_prefer_dotenv(key: str) -> Optional[str]:
+```
+
+链 B 存在的理由写在自己的 docstring 里,而且是个真实事故:
+
+`hermes_cli/config.py:4149-4153 @ 863e313`
+
+```python
+    Used for Hermes-managed credentials where a deliberate edit to ``.env``
+    must take precedence over a stale value inherited from the parent shell
+    (Codex CLI, test scripts, login profile exports). Without this, rotating
+    a key in ``.env`` mid-session leaves callers serving the stale shell
+    value and produces persistent 401s.
+```
+
+**因果经过**:用户的登录脚本(或上一层 CLI)往环境里导出过一个旧密钥;用户密钥过期后
+去改 `~/.hermes/.env`,改对了;但读取链是"环境优先",于是仍然拿旧值去打 API,
+**持续 401**,而用户看着自己刚改好的 `.env` 完全不明白。修法是给这类
+"Hermes 自己管理的凭据"换一条相反的链。
+
+**两条链还有一个更细的分歧**:链 A 用 `val is not None` 判命中,
+所以 `os.environ` 里一个**空串**也算命中并直接返回空串,不会再去看 `.env`;
+链 B 用 `if val:` 判真值,空串会继续往下走。**对一个刚被清空的槽位,两条链给出不同答案。**
+
+**定案**:▲ 成立,且比初判更强。真实模型是:**config.yaml 有一条统一的合并链;
+环境变量这一侧没有统一规则——不但每个消费点自己决定谁先谁后,
+连公共读取函数都提供了两个方向相反的版本供调用方挑。**
+文档把这一整摊简化成"低于 config.yaml 的一层",这个简化在最需要它的时候
+(排查"我明明配了为什么不生效")恰好是错的。
 
 ### ▲-4 QQBot 环境变量:文档只讲新名,面板只读旧名
 
@@ -142,16 +188,63 @@ Settings are resolved in this order (highest priority first):
 
 ## ◇ 组:文档缺口
 
-### ◇-1 856 个配置键里 105 个全站零提及(覆盖率 87.7%,且是宽松估计)
+### ◇-1 856 个配置键里 **105 个全站零提及**(这是本条唯一站得住的数)
 
 用 `scripts/config_table.py` 从 `DEFAULT_CONFIG` 字面量 AST 抽取全部 **856 个键**
 (719 叶子 + 137 分支),对六类文档面(`.env.example` / `AGENTS.md` / `README*` /
 `CONTRIBUTING*` / `website/docs/**` / `docs/**`)逐键检索:**105 个键零命中**。
 
-**这个 87.7% 是上限而非实测值**:脚本先用点分全路径匹配,不中则退回**叶子名**匹配,
-而叶子名如 `enabled` / `timeout` / `mode` 在文档里到处都是,会把大量实际没被文档化的键
-算成"已覆盖"(表里 `ambiguous=AMBIG` 一列标出了 121 个这类键)。
-真实覆盖率**低于** 87.7%。
+**"覆盖率 87.7%"这个说法本轮被自己推翻了,过程值得记下来。** 我先想给一个严格下界:
+只统计**点分全路径**(如 `display.show_cost`)在文档里逐字出现的键。实测结果是
+**0 个,0.0%**。原因不是文档差,是**文档根本不用这种写法**——它写 YAML 块:
+
+```yaml
+display:
+  show_cost: false        # Show estimated $ cost in the CLI status bar
+```
+
+所以"点分路径匹配"量的是**排版习惯**,不是覆盖情况,这个下界没有意义。
+另一头,退回**叶子名**匹配得到 87.7%,但叶子名如 `enabled` / `timeout` / `mode`
+在文档里到处都是,会把大量没被文档化的键算成"已覆盖"
+(表里 `ambiguous=AMBIG` 一列标出了 **121 个**这类键)。
+
+**结论:0% 和 87.7% 是两个都不可用的边界,真实覆盖率落在中间且无法用检索定量。**
+本条唯一可靠的数是那 **105 个键——它们的叶子名在全部文档面上一次都没出现过**,
+这是一个**保守的、确定成立的**缺口下界。后续轮次(H-6)应据此清单逐条判断,
+而不是继续引用任何百分比。
+
+### ◇-1b 补充:`DEFAULT_CONFIG` 并不是全部合法配置键
+
+上面那 856 个键还有一个**范围上的**限定,必须写清楚,否则这张表会被误当成全集。
+`config.yaml` 的根键校验白名单是**两个集合的并集**:
+
+`hermes_cli/config.py:1881 @ 863e313`
+
+```python
+_KNOWN_ROOT_KEYS = frozenset(DEFAULT_CONFIG.keys()) | _EXTRA_KNOWN_ROOT_KEYS
+```
+
+第二个集合是手工维护的 **24 个根键**,代码注释说得很坦白:
+
+`hermes_cli/config.py:1850-1854 @ 863e313`
+
+```python
+# DEFAULT_CONFIG is the single source of truth for documented roots; keep this
+# set derived so new defaults (skills, security, browser, …) are accepted
+# automatically. A few optional/legacy roots are valid on disk but intentionally
+# absent from DEFAULT_CONFIG (omitted when unused / alternate schema forms).
+```
+
+**"documented roots"这个限定词是关键**:`DEFAULT_CONFIG` 是**已文档化根键**的
+单一真源,不是**全部合法根键**的真源。这 24 个里包括 `mcp_servers`(MCP 服务器定义)、
+`platforms`(每平台设置)、`platform_toolsets`(每平台工具集,由安装向导写)、
+`image_gen` / `video_gen`、以及一批网关认的"顶层便捷写法"。
+
+**后果**:它们**没有默认值、没有嵌套键定义**,于是
+`mcp_servers` / `platforms` 之下的任何子键**都不在这 856 个里**,
+本轮的配置项全表对那几棵子树**零覆盖**。
+脚本已增补 `data/r8a-extra-root-keys.tsv` 把这 24 个显式列出来,
+让这个洞是**可见的**,而不是被一张"看起来很全"的表盖住。
 
 ### ◇-2 对照组:环境变量侧覆盖率 100%,原因值得抄
 

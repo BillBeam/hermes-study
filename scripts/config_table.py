@@ -62,6 +62,7 @@ import sys
 from pathlib import Path
 
 DEFAULTS_FILE = "hermes_cli/config_defaults.py"
+CONFIG_FILE = "hermes_cli/config.py"
 
 # Documentation surfaces, in the order they are reported.
 DOC_SURFACES = [
@@ -127,6 +128,32 @@ def flatten(d: ast.Dict, prefix: str = "") -> list[tuple[str, str, int, bool]]:
         if is_branch:
             out.extend(flatten(v_node, prefix=f"{key}."))
     return out
+
+
+def extra_root_keys(repo: Path) -> list[tuple[str, int]]:
+    """Root keys valid on disk but deliberately absent from DEFAULT_CONFIG.
+
+    ``hermes_cli/config.py`` maintains ``_EXTRA_KNOWN_ROOT_KEYS`` beside
+    ``DEFAULT_CONFIG`` and unions the two into the validator's whitelist. Its own
+    comment is explicit that DEFAULT_CONFIG is the source of truth for
+    *documented* roots, not for *all valid* ones — legacy list forms, optional
+    blocks omitted when unused, and top-level convenience forms the gateway
+    bridges all live only here. They therefore have no defaults and no nested key
+    definitions, so nothing under them appears in the key table above. Emitting
+    them separately keeps that hole visible instead of implying the table is total.
+    """
+    tree = ast.parse((repo / CONFIG_FILE).read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for tgt in node.targets:
+                if isinstance(tgt, ast.Name) and tgt.id == "_EXTRA_KNOWN_ROOT_KEYS":
+                    if isinstance(node.value, ast.Set):
+                        return [
+                            (e.value, e.lineno)
+                            for e in node.value.elts
+                            if isinstance(e, ast.Constant) and isinstance(e.value, str)
+                        ]
+    return []
 
 
 def env_var_entries(d: ast.Dict) -> list[tuple[str, str, int]]:
@@ -219,14 +246,32 @@ def main() -> None:
     cfg_keys = flatten(top_level_dict(tree, "DEFAULT_CONFIG"))
     env_keys = env_var_entries(top_level_dict(tree, "OPTIONAL_ENV_VARS"))
 
+    extras = extra_root_keys(repo)
+
     args.out_dir.mkdir(parents=True, exist_ok=True)
     cfg_out = args.out_dir / "r8a-config-keys.tsv"
     env_out = args.out_dir / "r8a-env-vars.tsv"
+    extra_out = args.out_dir / "r8a-extra-root-keys.tsv"
 
+    roots = sum(1 for k, _, _, _ in cfg_keys if "." not in k)
     print(f"DEFAULT_CONFIG: {len(cfg_keys)} keys "
           f"({sum(1 for _, _, _, b in cfg_keys if b)} branches, "
-          f"{sum(1 for _, _, _, b in cfg_keys if not b)} leaves)")
-    print(f"OPTIONAL_ENV_VARS: {len(env_keys)} entries")
+          f"{sum(1 for _, _, _, b in cfg_keys if not b)} leaves); "
+          f"{roots} root keys")
+    print(f"_EXTRA_KNOWN_ROOT_KEYS: {len(extras)} further valid roots "
+          f"(no defaults, no nested definitions — not covered by the key table)")
+    print(f"  => {roots + len(extras)} valid root keys in total")
+    print(f"OPTIONAL_ENV_VARS: {len(env_keys)} entries in the source literal "
+          f"(mutated in place at import; see module docstring)")
+
+    with extra_out.open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f, delimiter="\t")
+        w.writerow(["root_key", "def_at", "py_sites", "py_sites_sample", "docs"])
+        for name, lineno in sorted(extras):
+            py = read_sites(repo, name, DEFAULTS_FILE, PY_GLOBS)
+            w.writerow([name, f"{CONFIG_FILE}:{lineno}", len(py),
+                        "; ".join(py[:3]), ",".join(doc_hits(repo, name))])
+    print(f"wrote {extra_out}")
 
     with cfg_out.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f, delimiter="\t")
