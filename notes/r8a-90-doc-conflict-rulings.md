@@ -377,7 +377,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 ---
 
-## ■ 组:代码内部缺陷(18 条,只记录不修)
+## ■ 组:代码内部缺陷(19 条,只记录不修)
 
 | # | 缺陷 | 锚点 | 怎么会踩到 |
 |---|---|---|---|
@@ -388,6 +388,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-5 | `NOUS_BASE_URL` 在环境变量清单里,但代码读的是另外两个名字 | `hermes_cli/config_defaults.py:3132` | 安装流程会**主动向用户索要**一个没人读的变量 |
 | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
 | ■-16 | **第二例“默认值撞上硬编码值”**:`resource_attributes["service.name"]` 被无条件覆盖 | `agent/monitoring/gateway_health_export.py:85`(覆盖)/ 默认值恰等于该硬编码值 | 用户改 `service.name` 毫无效果;因默认值==硬编码值,在默认值上验证必然假阳性。同块的 `deployment.environment.name` 却是好的 |
+| ■-19 | **自我拆台的守卫**:检查了成员资格,随后赋的值却没再检查 → `KeyError` 崩栈 | `hermes_cli/tools_config.py:3794-3795`(守卫)/ `:3817`(`catalog[mid]` 崩) | 任何第三方 image_gen / video_gen 插件的 `default_model()` 返回值不在 `list_models()` 里(或为 None),用户在 `hermes tools` 里选中它即崩溃退出;video 版同形(`:3956`) |
 | ■-18 | **读-改-写用了两份各自 `load_config()` 的副本,后写的抹掉前一份** | `hermes_cli/tools_config.py:4356`(内层自己重载)/ `:5153-5154`(外层随后存过期副本) | 在 `hermes tools` 里配好 vision 模型 → 主流程随后一存,该值被**清空回默认**;键还在、值没了,比"配置项消失"更难查。主线运行时确证 |
 | ■-17 | **`or` 兜底链让“显式 0”无法表达** | `hermes_logging.py:313`(`backup_count or cfg_backup or 3`);正确写法见 `gateway/platforms/base.py:742` | `logging.backup_count: 0`(不留备份)静默变 3;`max_size_mb: 0`、`model_catalog.ttl_hours: 0` 同型。同仓库两种写法并存 |
 | ■-15 | **同一进程里两个界面对“cua-driver 装好没有”给出相反答案** | 安装成功判定 `hermes_cli/tools_config.py:1585`(裸 `shutil.which`)vs 就绪判定 `:3273`(走 `_resolved_cua_driver_cmd`,`:760`) | 从 Finder/Dock 启动的 Desktop(PATH 窄)里点安装:实际装到了 `~/.local/bin`,安装器打印“did not complete”,而就绪标志同时报 ready |
@@ -431,6 +432,35 @@ TERMINAL_CONFIG_ENV_MAP = {
 > 因为这种情形下,**最自然的验证方式(在默认值上跑一遍看看对不对)必然给出假阳性**。
 > 反过来说,写代码时应当**刻意让默认值与任何硬编码兜底不同**——
 > 哪怕差一点点,也能让"没接线"在第一次测试时就暴露。
+
+### ■-19 细节:守卫检查了 A,却把 B 赋了进去
+
+`hermes_cli/tools_config.py:3793-3795 @ 863e313`
+
+```python
+    current_model = cur_cfg.get("model") or default_model
+    if current_model not in catalog:
+        current_model = default_model
+```
+
+**这个守卫是自我拆台的**:它确认 `current_model` 在 `catalog` 里,不在就换成 `default_model`
+——**而 `default_model` 本身从来没被检查过**。于是 `ordered[0]` 可能是个 catalog 里没有的 id,
+下一步直接下标取值:
+
+`hermes_cli/tools_config.py:3817 @ 863e313`
+
+```python
+        row = _format_imagegen_model_row(mid, catalog[mid], widths)
+```
+
+**`KeyError`,`hermes tools` 崩栈退出。** 触发条件:第三方 image_gen / video_gen 插件的
+`default_model()` 返回了不在自己 `list_models()` 里的 id(或 `None`)。
+video 版同形(`hermes_cli/tools_config.py:3956`)。
+
+> **判据**:"不满足条件就换成兜底值"这种写法,**兜底值必须满足同一个条件**——
+> 否则守卫只是把崩溃点往后挪了几行。写法上更稳的是让兜底值参与同一次校验
+> (`if current_model not in catalog: current_model = next(iter(catalog), None)`),
+> 或在函数入口就断言插件契约。
 
 ### ■-18 细节:读-改-写用了两份各自加载的配置,后写的那份把前一份抹掉(主线运行时确证)
 
