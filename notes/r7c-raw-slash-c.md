@@ -33,9 +33,10 @@ removing the bulk from run.py.
 ```
 
 注意两处已经过时的自述(命名/计数漂移,记为 ◇-1):
-- 号称 "There are 42 of them" —— 实际本文件里 `_handle_*_command` 有 **57 个**
-  (`grep -c "def _handle_.*_command"`),另有 2 个 handler(`_handle_suggestions_command`
-  `gateway/run.py:18617`、`_handle_blueprint_command` `gateway/run.py:18647`)根本没搬进来。
+- 号称 "There are 42 of them" —— 实际本文件里 `def _handle_*` 有 **52 个**
+  (`grep -c "    async def _handle_\|    def _handle_"`,其中 51 个以 `_command` 结尾),
+  另有 2 个 handler(`_handle_suggestions_command` `gateway/run.py:18617`、
+  `_handle_blueprint_command` `gateway/run.py:18647`)根本没搬进来。
 - 号称 "~3,200 LOC" —— 实际 5693 行。
 
 整个类只有一个:`GatewaySlashCommandsMixin`(`gateway/slash_commands.py:101`),
@@ -60,7 +61,7 @@ removing the bulk from run.py.
   │        gateway/run.py:14781  忙路径闸门
   │
   └─(3) 分发 ─────── 忙 → gateway/run.py:14098 _dispatch_busy_slash_command (表驱动)
-                     闲 → gateway/run.py:15061+ 一长串 `if canonical == "..."` (60 个分支)
+                     闲 → 一长串 `if canonical == "..."`(60 个分支,gateway/run.py 15061 起)
 ```
 
 三层各自的"真源"分别是:元数据 `hermes_cli/commands.py`、权限 `gateway/slash_access.py`、
@@ -608,7 +609,7 @@ BotFather 设置截图,但用 `_should_send_telegram_capability_hint`(`gateway/r
 `always` 时 `save_config_value("approvals.mcp_reload_confirm", False)` 持久化。
 底座是 `_request_slash_confirm`(`gateway/run.py:20595`),它先 `register` 再发按钮:
 
-`gateway/run.py:20630-20632 @ 863e313`
+`gateway/run.py:20631-20633 @ 863e313`
 ```python
         # Register the pending confirm FIRST so a super-fast button click
         # cannot race the send_slash_confirm return.
@@ -728,7 +729,7 @@ docstring(5249-5254)说消费点在 `_run_agent_turn` "~L11025"。**这个行号
 区分"有记录但线程已不阻塞"(expired)和"完全没有"(no_pending)。
 
 **`/deny` 多一个 reason**(5459-5476),来源是外部仓库移植:
-`gateway/slash_commands.py:5443-5444`
+`gateway/slash_commands.py:5442-5443`
 ```
         ``/deny <reason>`` (or ``/deny all <reason>``) attaches a one-line
         reason that is relayed back to the agent so it can adapt instead of
@@ -993,7 +994,7 @@ key 映射(`gateway/slash_access.py:163-167`):
 | dm | `allow_admin_from` | `user_allowed_commands` |
 | group | `group_allow_admin_from` | `group_user_allowed_commands` |
 
-**不对称回退**(`gateway/slash_access.py:170-193`):
+**不对称回退**(`gateway/slash_access.py:173-196`):
 ```python
     DM scope falls back to group scope keys ONLY for ``user_allowed_commands``
     when the DM scope didn't specify its own. This keeps the common case
@@ -1072,7 +1073,7 @@ key 映射(`gateway/slash_access.py:163-167`):
             if _denied is not None:
                 return _denied
 ```
-忙路径 `gateway/run.py:14768-14783 @ 863e313`
+忙路径 `gateway/run.py:14767-14782 @ 863e313`
 ```python
             # /status and /context are intentionally pre-gate so users
             # always see session state.
@@ -1131,7 +1132,7 @@ Quick command 这条路当初正是被同样的洞咬过、后来补上的:
 
 ### 3.9 `/whoami` 是这套模型的自省界面
 
-`gateway/slash_commands.py:381-430`。三态输出对应 §3.3 三档。注意 415:
+`gateway/slash_commands.py:415-464`。三态输出对应 §3.3 三档。注意 415:
 ```python
         floor = ["help", "whoami"]  # mirrors slash_access._ALWAYS_ALLOWED_FOR_USERS
 ```
@@ -1166,15 +1167,15 @@ Quick command 这条路当初正是被同样的洞咬过、后来补上的:
 flowchart TD
     A["用户输入 /xxx args"] --> B["resolve_command<br/>hermes_cli/commands.py:362"]
     B -->|命中 CommandDef| C{"_is_session_running?"}
-    B -->|未命中| Q["quick_commands / plugin / bundle / skill<br/>gateway/run.py:15410-15600"]
-    C -->|忙| D["status/context 直通<br/>run.py:14768"]
-    D --> E["_check_slash_access<br/>run.py:14781"]
-    E --> F["_dispatch_busy_slash_command<br/>run.py:14098<br/>按 busy_policy 表驱动"]
-    C -->|闲| G["_check_slash_access<br/>run.py:15002"]
-    G --> H["command:canonical hook<br/>run.py:15024"]
-    H --> I["if canonical == ... 链<br/>run.py:15061-15400<br/>60 分支"]
+    B -->|未命中| Q["quick_commands / plugin / bundle / skill<br/>gateway/run.py:15405-15626"]
+    C -->|忙| D["status/context 直通<br/>gateway/run.py:14768"]
+    D --> E["_check_slash_access<br/>gateway/run.py:14781"]
+    E --> F["_dispatch_busy_slash_command<br/>gateway/run.py:14098<br/>按 busy_policy 表驱动"]
+    C -->|闲| G["_check_slash_access<br/>gateway/run.py:15002"]
+    G --> H["command:canonical hook<br/>gateway/run.py:15024"]
+    H --> I["if canonical == ... 链<br/>gateway/run.py:15061-15402<br/>60 分支"]
     I --> J["GatewaySlashCommandsMixin._handle_*"]
-    Q --> K["_check_slash_access 只在 quick 分支<br/>run.py:15421"]
+    Q --> K["_check_slash_access 只在 quick 分支<br/>gateway/run.py:15421"]
 ```
 
 ### 4.1 gateway 可用命令(61 条)
@@ -1302,7 +1303,7 @@ quit/exit(340)。
 
 | # | 命令 | 代码证据 | 文档状态 | 裁定 |
 |---|---|---|---|---|
-| ◇-A | `/export` | `hermes_cli/commands.py:136-137`:`CommandDef("export", "Export a profile (config, skills, theme) to a shareable archive", "Configuration", cli_only=True, args_hint="[profile] [-o output.tar.gz]")`;已接线 `cli.py:10252` `elif canonical == "export":` | `slash-commands.md` 全文 **0 次**提到 `/export` —— 既不在 Configuration 表里,也不在 "Notes" 的 CLI-only 清单里 | ◇ |
+| ◇-A | `/export` | `hermes_cli/commands.py:136-137`:`CommandDef("export", "Export a profile (config, skills, theme) to a shareable archive", "Configuration", cli_only=True, args_hint="[profile] [-o output.tar.gz]")`;已接线 `cli.py:10252` `elif canonical == "export":` | `slash-commands.md` 全文 **0 次**提到 `/export` —— 既不在 Configuration 表里,也不在 `:288` 那条列了 31 条命令的 CLI-only 清单里 | ◇ |
 | ◇-B | `/import` | `hermes_cli/commands.py:138-139`;已接线 `cli.py:10254` | 同上,0 次 | ◇ |
 | ◇-C | 别名 `/compact` | `hermes_cli/commands.py:131`:`aliases=("compact",)` | 文档 `/compress` 两处条目(CLI 表 `:48`、messaging 表 `:281`)都**没写 compact 别名** | ◇ |
 | ◇-D | 别名 `/v` | `hermes_cli/commands.py:334`:`aliases=("v",)` | 文档 `/version` 条目未提 | ◇ |
@@ -1520,7 +1521,7 @@ Discord slash picker。加一条命令只改一处。派生结构全部在 impor
 - ▲-D:`/yolo`(关掉全部危险命令审批)无二次 admin 判定,`/approvals`(改同一件事)有(`slash_commands.py:3773-3775`)
 
 **◇(代码有、文档/注册表未覆盖或不一致)**
-- ◇-1 文件头 docstring 说 "42 个 / ~3200 LOC",实为 57 个 / 5693 行
+- ◇-1 文件头 docstring 说 "42 个 / ~3200 LOC"(`slash_commands.py:5-6`),实为 52 个 handler / 5693 行
 - ◇-2 `/compress` 顶层异常文案不脱敏,aux 错误脱敏(4282-4284 vs 4330)
 - ◇-3 `_handle_topic_command` 的 `args` 形参是死参数(4332 vs 4353)
 - ◇-4 `/topic` 授权检查 `except Exception` 后继续执行 = fail-open(4350-4351)
