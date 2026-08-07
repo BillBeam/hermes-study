@@ -340,6 +340,70 @@ _inject_profile_env_vars()
 
 ---
 
+## 3.5 主线驳回的子代理结论(复核制度的产出,必须记)
+
+本轮子代理产出质量很高,但主线逐条回源复核时**驳回了一条**,记在这里,
+因为"驳回什么"和"确认什么"同等重要。
+
+### 驳回 · `notes/r8a-raw-config-c` 的 F4:"坏 YAML 会被 `hermes config set` 静默截断"
+
+**子代理的论证**:写前守卫 `require_readable_config_before_write` 只做 `f.read(1)`
+(只检查**可读**,不检查**可解析**),而 `read_raw_config()` 对坏 YAML 返回 `{}`;
+因此跑 `hermes config set X Y` 会拿到空字典,写出一个只剩少量键的新文件,
+用户其余配置从磁盘消失。
+
+**前半段属实**(守卫确实只读一个字节),**但结论不成立**。
+
+**主线实测**:临时 home 放一份 13 行、含 `approvals.deny` 与多个键的 config.yaml,
+末行故意写成坏 YAML(未闭合的 flow 序列),然后调 `set_config_value('display.compact','false')`。
+结果:命令**拒绝执行并退出**,打印
+
+```
+✗ Cannot parse .../config.yaml: while parsing a flow sequence
+  The file contains a YAML syntax error. Fix the error
+  in your config file first, then retry.
+  (hermes config edit will open it in your editor.)
+```
+
+**文件逐字节未改**(仍 13 行,内容一致),目录下也没有产生任何新文件。
+
+**原因**:`set_config_value` 并不走 `read_raw_config()`,它**自己再解析一次**并在失败时
+硬退出:
+
+`hermes_cli/config.py:4883,4885-4891 @ 863e313`
+
+```python
+            with open(config_path, encoding="utf-8") as f:
+```
+
+`hermes_cli/config.py:4885-4891 @ 863e313`
+
+```python
+        except Exception as exc:
+            print(
+                f"✗ Cannot parse {config_path}: {exc}\n"
+                f"  The file contains a YAML syntax error. Fix the error\n"
+                f"  in your config file first, then retry.\n"
+                f"  (hermes config edit will open it in your editor.)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+```
+
+同样的守卫在 `unset_config_value` 里也有一份(`hermes_cli/config.py:5102`)。
+即**两个用户可达的写入命令都各自挡住了坏 YAML**。
+
+**定案:F4 驳回。** 子代理的失误在于——它读到了 `require_readable_config_before_write`
+只检查可读,就推断"没有解析检查",而没有继续读**调用方紧接着的那几行**。
+真正的检查不在共用守卫里,而在每个写命令自己身上。
+
+**这条驳回本身有价值**:它说明"共用守卫弱"不等于"整条路径弱",
+判定一条写路径安不安全,必须看**调用方的完整序列**,不能只看它调用的守卫函数。
+残留的合理疑问是:**是否存在某个不经这两个命令、直接 `read_raw_config()` 后落盘的调用方**
+——那才是 F4 描述的形态。本轮未穷举,列为移交项 H-7。
+
+---
+
 ## 4. 三笔移交项结论汇总
 
 | 移交项(R7C) | 结论 | 详见 |
@@ -366,3 +430,5 @@ R7C 这条附了锚点文件(`hermes_cli/status.py`),所以本轮没有走偏,�
 | H-4 | **R8D** | `hermes_cli/managed_scope.py` | 本轮从 `config.py:3396` 与 `cli.py:624` 两侧读到它,但**没读本体**;managed 层的叶级合并实现与失败姿态未取证 |
 | H-5 | **R9/R10** | `ui-tui/src/gatewayTypes.ts:89` 等 TS 侧读取点 | 856 个配置键中有一类**只由 TypeScript 读**;TS 侧是否有自己的默认值(即第三份默认值)未查 |
 | H-6 | **R11 复盘** | 本卷 ◇-1 | 105 个零文档键的**清单已在 `data/r8a-config-keys.tsv`**,但未逐条判断"该不该文档化";R11 对表时可直接消费该列 |
+| H-7 | **R8B / R8D** | `hermes_cli/config.py:3065`(`require_readable_config_before_write`) | 该守卫只检查文件**可读**不检查**可解析**;`set/unset_config_value` 各自补了解析检查(见 §3.5),但**是否存在第三个调用方直接 `read_raw_config()` 后落盘**本轮未穷举——若有,坏 YAML 会被静默截断 |
+| H-8 | **R8D** | `hermes_cli/config.py:3473`(`_COMMENTED_SECTIONS`) | 一大段被注释掉的 provider 配置模板,全仓除定义处零引用;维护者更新 provider 列表时可能改到这份不生效的副本(来自 `r8a-raw-config-c` F3,主线未复核) |
