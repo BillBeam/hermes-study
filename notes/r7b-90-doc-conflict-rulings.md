@@ -111,8 +111,25 @@ telegram / discord 迁至 `plugins/platforms/*/adapter.py`;Baileys 版 WhatsApp 
 `plugins/platforms/whatsapp/adapter.py:381 @ 863e313`(**确实**继承 `WhatsAppBehaviorMixin`,
 所以结论对、路径错)。
 
-**定案**:三处路径失实。同文档 §16 给出的自检 grep 只扫 `gateway/`,**扫不到插件目录**,
+**定案**:三处路径失实。同文档 "Quick Verification" 一节给出的自检 grep
+(`gateway/platforms/ADDING_A_PLATFORM.md:400-402 @ 863e313`)**扫描集里没有 `plugins/`**,
 所以这类漂移不会被它自己的验证手法发现。
+
+> **R7C 修订(2026-08-07)**:此处原写作"§16 给出的自检 grep 只扫 `gateway/`",两点失准,
+> 现更正 —— **结论不变**。
+> (a) 该 grep 的扫描集是**六个路径**,不止 `gateway/`:
+>
+> `gateway/platforms/ADDING_A_PLATFORM.md:400-402 @ 863e313`
+> ```bash
+> # Grep for your platform name to find any missed integration points
+> grep -r "telegram\|discord\|whatsapp\|slack" gateway/ tools/ agent/ cron/ hermes_cli/ toolsets.py \
+>   --include="*.py" -l | sort -u
+> ```
+> (b) 它不在 §16(§16 是 "Tests",`:372`),而在其后的 "## Quick Verification"
+> (`:392`)一节。
+> **结论为什么不变**:六个路径里**依然没有 `plugins/`**,而 B-3 的三处失效路径指向的正是
+> `plugins/platforms/*/adapter.py`。扫描集更大,但恰好漏掉了唯一相关的那个目录 ——
+> 自检手法发现不了自己这条 ▲,这一判断成立。
 
 ### ▲ B-4 —— "Optional methods (have default stubs in base)" 覆盖了三个基类没有的方法
 
@@ -319,7 +336,10 @@ R7 归纳的"机制方向大体对、分支图谱与精确值系统性滞后;用
 
 1. **说谎的载体从 markdown 蔓延到 .py 的模块 docstring**(B-5)。文件迁移时,
    markdown 里的路径引用和代码注释里的路径引用**同样会腐烂**,而后者更难被发现 ——
-   `ADDING_A_PLATFORM.md` 自带的自检 grep 只扫 `gateway/`,连它自己的 B-3 都发现不了。
+   `ADDING_A_PLATFORM.md` 自带的自检 grep 扫 `gateway/ tools/ agent/ cron/ hermes_cli/ toolsets.py`
+   六个路径,**唯独不含 `plugins/`** —— 而 B-3 的失效路径正指向 `plugins/platforms/*/adapter.py`,
+   于是它连自己这条 ▲ 都发现不了。
+   *(R7C 修订:原写作"只扫 `gateway/`",扫描集表述有误,结论不变;双侧证据见本文件 B-3 定案段。)*
 
 2. **"有测试守着的文档"与"没测试守着的文档"是两个物种**。relay 有
    `test_contract_doc_conformance.py`,于是它的开发者契约文档是全仓最准的;

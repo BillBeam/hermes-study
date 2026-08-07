@@ -737,7 +737,12 @@ relay 这一簇有 `tests/gateway/relay/test_contract_doc_conformance.py`,
 
 而 `gateway-internals.md`、`session-lifecycle.md`、`ADDING_A_PLATFORM.md` 没有这种测试,
 本轮 7 条 ▲ 里 6 条出自它们。更讽刺的是,`ADDING_A_PLATFORM.md` 自带一段自检 grep,
-但那段 grep 只扫 `gateway/` 目录 —— **连它自己的 ▲3 都发现不了。**
+它扫 `gateway/ tools/ agent/ cron/ hermes_cli/ toolsets.py` 六个路径 ——
+**唯独不含 `plugins/`,而 ▲3 的失效路径正指向 `plugins/platforms/*/adapter.py`。**
+自检手法覆盖面看着不小,却恰好绕开了唯一相关的那个目录,**连它自己的 ▲3 都发现不了。**
+
+*(R7C 修订:此处原写作"只扫 `gateway/` 目录",扫描集表述有误,已按
+`gateway/platforms/ADDING_A_PLATFORM.md:400-402 @ 863e313` 更正;结论不变。)*
 
 这就是第 4 节第 24 条原则的来源。
 

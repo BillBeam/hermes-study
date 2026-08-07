@@ -6,8 +6,15 @@
 `tests/gateway/relay/test_contract_doc_conformance.py` 做代码-文档一致性检查,
 本轮在它身上**一条 ▲ 都没找到**;而没有此类测试的 `gateway-internals.md` /
 `session-lifecycle.md` / `ADDING_A_PLATFORM.md`,贡献了本轮 7 条 ▲ 中的 6 条。
-最讽刺的是 `ADDING_A_PLATFORM.md` 自带一段自检 grep,但只扫 `gateway/` 目录,
-**连它自己那条失效路径引用都发现不了**(notes/r7b-90 §5)。
+最讽刺的是 `ADDING_A_PLATFORM.md` 自带一段自检 grep,扫描集列了六个路径
+(`gateway/ tools/ agent/ cron/ hermes_cli/ toolsets.py`)却**唯独漏掉 `plugins/`**,
+而它自己那条失效路径引用正指向 `plugins/platforms/*/adapter.py` ——
+**扫得再宽,也发现不了自己**(notes/r7b-90 §5)。
+
+> **R7C 修订(2026-08-07)**:本段原表述为"只扫 `gateway/` 目录",扫描集写窄了;
+> 实际扫描集为上列六路径(`gateway/platforms/ADDING_A_PLATFORM.md:400-402 @ 863e313`)。
+> **结论不变** —— `plugins/` 不在扫描集内,故其自身失效引用不可被该自检发现。
+> 同一修订已同步到 `notes/r7b-90` B-3 定案段与 §5、`chapters/r7b-platform-integration.md` §4。
 
 ## 0. 执行说明
 
