@@ -283,7 +283,7 @@ QQBot 双重死代码 / `bedrock.discovery` 三键未接线 / 两个装载器合
 **第二例"默认值撞上硬编码值"**(`service.name` 被无条件覆盖,默认值恰等于硬编码值)/
 **`or` 兜底链让"显式 0"无法表达**(`logging.backup_count: 0` 静默变 3;同仓库有正确写法)/
 **读-改-写用两份各自加载的副本**(在 `hermes tools` 里配好 vision 模型,主流程随后一存就被清空回默认,主线运行时确证)/
-**自我拆台的守卫**(检查了成员资格、随后赋的兜底值却没再检查 → 第三方插件可让 `hermes tools` 崩栈)。
+**自我拆台的守卫**(检查了成员资格、随后赋的兜底值却没再检查 → 第三方插件可让 `hermes tools` 崩栈)/
 **两把配对钥匙行为不一致**(CLI 在 request-id 路径上也报"平台被锁定",dashboard 有此限定而 CLI 没有)/
 `_COMMENTED_SECTIONS` 是**已经漂移的死副本**(活版是 `_SECURITY_COMMENT` / `_FALLBACK_COMMENT`,
 同一句话两份已不同;维护者最容易改到的恰是那份不生效的)。
