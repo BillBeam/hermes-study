@@ -40,6 +40,40 @@ R7B/R7C 两轮都遇到的 `TestDualStackBind`(容器无 IPv6)**不在本轮规�
 确认恢复干净、测试环境未受影响。这也是"基线完整性"值得做成脚本关卡的又一个理由:
 **出事之后,你需要一个能证明"已经恢复原状"的动作,而不是只能靠印象。**
 
+**第三次:全部产出定稿前的收尾复核 —— 而它抓到了一件事。**
+
+```
+=== Summary: 170 files, 3190 tests passed, 0 failed (100% complete) in 92.9s (8 workers) ===
+```
+
+**同样 170 个文件、同样 0 失败,但通过数从 3,183 变成了 3,190,多了 7 个。**
+查证结论如下(过程本身值得记,因为"数变了"是最容易被含糊过去的一类信号):
+
+1. `--collect-only` 收集到 **3,211** 个用例;本次跑有 **20 个 skip**(3,211 − 20 ≈ 3,190),
+   而按第一次的数字反推,当时约有 **27 个 skip**。**差的正是这 7 个。**
+2. 本次仍有 skip 的 7 个文件,全部是**可选依赖门控**的:
+   `honcho_plugin/test_client.py`(12)、`test_install_cua_driver.py`(2)、
+   `test_secret_scope_tier1_migration.py`(2)、`test_voice_command.py`(1)、
+   `test_tool_token_estimation.py`(1)、`test_wake_word.py`(1)、`test_web_server.py`(1)。
+3. **直接断言环境,而不是推测**:`/home/user/hermes-venv` 的 `site-packages` 里
+   有 **32 个 `.dist-info` 的时间戳落在 15:19–15:24**(其余 87 个更早),
+   内容是 `boto3` / `botocore` / `dingtalk_stream` / `apscheduler` / `aiofiles` /
+   `websocket_client` / `lark_oapi` / `qrcode` 等**平台 extra 的依赖**。
+   那个时间窗正是本轮最后三个子代理开始工作的时刻。
+   **即:有子代理往共享测试 venv 里装了平台 extra,于是原先被 skip 的 7 个用例这次真跑了——全过。**
+
+**定性**:这不是基线污染(基线 `git status --porcelain` 三次复核均为空,
+所有 `路径:行号 @ 863e313` 引用不受影响),而是**测试环境漂移**。
+`CLAUDE.md` 把 venv 定义成"可选、按需重建"的便利设施,不是引用基准,所以损害有限;
+但它**确实改变了报告里的一个数**,因此必须写清楚,不能让 3,183 与 3,190 两个数
+在不同文档里并存而无人解释。
+
+> **给后续轮的一条**(建议并入 `CLAUDE.md` 测试环境一节):
+> **报测试数时,一并记下 venv 的包数或 `pip freeze` 摘要。**
+> 用例数是环境的函数,不是代码的函数;只报"3,183 通过"而不说"在哪个环境下",
+> 下一轮拿到不同的数会无从判断是代码变了还是环境变了。
+> 本轮两个数都真实、都 0 失败,差别**完全**由可选依赖是否装齐造成。
+
 ---
 
 ## 2. 值得抄走的规格:迁移的"floor 不变量"
