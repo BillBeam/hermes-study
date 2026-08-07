@@ -181,8 +181,28 @@ docstring 把意图讲得很直白,举的正是上面这个例子:
 会解析成 `None`。要是把这个 `None` 当作覆盖值,整个 `terminal` 默认字典会被替换成 `None`,
 所有下游都会崩。所以 `None` 覆盖一个字典默认值时**被当作没写**。
 
-**取舍**:深合并意味着用户**没法删掉**一个有默认值的键——写什么都是合并,不是替换。
-Hermes 接受了这个取舍,并另外提供了 `hermes config unset` 来做删除。
+**取舍**:深合并意味着**在 `config.yaml` 里写什么都是"合并",不是"替换"**——
+用户没有办法通过编辑文件把一个有默认值的键变没。
+Hermes 接受了这个取舍,另配了一条 `hermes config unset` 来**撤销自己的覆盖**
+(把键恢复成默认值,而不是让键消失):
+
+`hermes_cli/config.py:5062-5063 @ 863e313`
+
+```python
+def unset_config_value(key: str):
+    """Remove a user-set configuration or .env value."""
+```
+
+顺带一个值得学的细节:如果这个键是**管理员钉死的**,`unset` 会直接拒绝并说明理由——
+因为下一次加载 managed 层会把它装回去,让用户执行一条**表面成功、实则无效**的命令
+是更坏的体验:
+
+`hermes_cli/config.py:5067-5068 @ 863e313`
+
+```python
+    # Managed scope guard: a key pinned by the managed layer cannot be unset by
+    # the user — the next load would reinstate it anyway (mirrors set_config_value).
+```
 
 ### 3.2 头条:同一份文件,两个装载器,合并语义不同
 
