@@ -224,7 +224,7 @@ display:
 _KNOWN_ROOT_KEYS = frozenset(DEFAULT_CONFIG.keys()) | _EXTRA_KNOWN_ROOT_KEYS
 ```
 
-第二个集合是手工维护的 **24 个根键**,代码注释说得很坦白:
+第二个集合是手工维护的 **23 个根键**,代码注释说得很坦白:
 
 `hermes_cli/config.py:1850-1854 @ 863e313`
 
@@ -236,14 +236,14 @@ _KNOWN_ROOT_KEYS = frozenset(DEFAULT_CONFIG.keys()) | _EXTRA_KNOWN_ROOT_KEYS
 ```
 
 **"documented roots"这个限定词是关键**:`DEFAULT_CONFIG` 是**已文档化根键**的
-单一真源,不是**全部合法根键**的真源。这 24 个里包括 `mcp_servers`(MCP 服务器定义)、
+单一真源,不是**全部合法根键**的真源。这 23 个里包括 `mcp_servers`(MCP 服务器定义)、
 `platforms`(每平台设置)、`platform_toolsets`(每平台工具集,由安装向导写)、
 `image_gen` / `video_gen`、以及一批网关认的"顶层便捷写法"。
 
 **后果**:它们**没有默认值、没有嵌套键定义**,于是
 `mcp_servers` / `platforms` 之下的任何子键**都不在这 856 个里**,
 本轮的配置项全表对那几棵子树**零覆盖**。
-脚本已增补 `data/r8a-extra-root-keys.tsv` 把这 24 个显式列出来,
+脚本已增补 `data/r8a-extra-root-keys.tsv` 把这 23 个显式列出来,
 让这个洞是**可见的**,而不是被一张"看起来很全"的表盖住。
 
 ### ◇-2 对照组:环境变量侧覆盖率 100%,原因值得抄
@@ -333,6 +333,18 @@ _inject_profile_env_vars()
 ```
 
 实测(同一个 dict 对象):**import 前 151 条,import `hermes_cli.config` 后 308 条。**
+
+**而同一个模块里的 `DEFAULT_CONFIG` 没有这个问题** —— 这个对照是本条的关键:
+
+| | AST 静态抽取 | import 后运行时 | 一致? |
+|---|---|---|---|
+| `DEFAULT_CONFIG` | 856 键(137 分支 / 719 叶子 / 82 根) | 856 键(137 / 719 / 82) | ✅ **逐位相等** |
+| `OPTIONAL_ENV_VARS` | 151 条 | **308 条** | ❌ 翻倍 |
+
+**同一个"纯数据叶子模块"导出的两个字典,一个是真不可变的,另一个被别人当成注册表在灌。**
+所以"这个模块是纯数据"这句话对**模块**成立,对**它导出的每个对象**不成立——
+必须逐个对象验证,不能从模块的自述推断。
+(本项目的配置项全表因此对 `DEFAULT_CONFIG` 侧是可信全集,对环境变量侧只是 49%。)
 
 **这条的价值不在缺陷本身,在方法论**:凡"权威清单"类数据结构,先问一句
 **"它在运行时会不会被别人改"**。本项目第一版抽取脚本就栽在这里,

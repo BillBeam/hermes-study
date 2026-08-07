@@ -125,7 +125,7 @@ data/ledger.tsv            # 覆盖台账(path/kind/lines/layer/round/status)
 data/capability-mining.json# 14 路子系统挖掘的结构化原始产出(能力点的数据源)
 data/r8a-config-keys.tsv   # R8A 资产:856 个配置键(默认值/定义处/py 与 ts 读取点/文档覆盖)
 data/r8a-env-vars.tsv      # R8A 资产:151 条静态环境变量(运行时会涨到 308,见脚本说明)
-data/r8a-extra-root-keys.tsv # R8A 资产:24 个不在 DEFAULT_CONFIG 里但合法的根键
+data/r8a-extra-root-keys.tsv # R8A 资产:23 个不在 DEFAULT_CONFIG 里但合法的根键
 scripts/inventory.py       # 盘点脚本(行数规则的唯一权威定义)
 scripts/assign_layers.py   # 分层规则(首条匹配生效;不匹配即报错;重生成保留 status 列)
 scripts/verify_ledger.py   # 台账校验(文件集一致 + 行数复核 + 分层加总 = 全仓总行数)
