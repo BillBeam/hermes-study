@@ -31,9 +31,12 @@ Hermes 维护**两张** env 表(一张"运行时认识"、一张"向用户推荐
 连带更正:主线一度把 `_KNOWN_ROOT_KEYS` 当成"根键校验白名单",实际它**全仓只有一个使用点**,
 且只用来给四个"看起来放错位置的 provider 字段"去重,**不拒绝任何未知根键**。
 这条桥的判据是 `_key not in os.environ`,于是它是**第三处**与文档优先级相反的地方。
-按此,头条那句"两个装载器"其实说少了:`config.yaml` **至少有四个读取方**
-(`load_config` / `load_cli_config` / `read_raw_config` / 这条桥,后者直接读文件不走 `load_config`),
-**各有各的合并与优先级姿态**。
+按此,头条那句"两个装载器"其实说少了:`config.yaml` 有**四个读取函数**
+(`load_config`(含 `load_config_readonly`)/ `load_cli_config` / `read_raw_config` /
+`read_user_config_raw`),**各有各的合并、缓存与优先级姿态**;这条桥用的是最后一个。
+桥**必须**用原始读而不能用合并读,理由写在注释里,是一条很好的设计点:
+**只有用户真正写下的键才可以被桥进环境**——若先合并默认值,
+`DEFAULT_CONFIG` 的 82 个顶层键会**整体变成环境变量**。
 
 ---
 
