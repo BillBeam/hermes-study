@@ -89,7 +89,7 @@ containment / denylist check." 否则 `~/.hermes/cache/images/x.png → /etc/sha
 
 **很聪明也很脆**:它把"这个文件是本次会话产出的吗"近似成"mtime 够新吗"。
 代码自己意识到了这个近似会被打破 —— 拒绝名单里专门列了
-`google_token.json` 并注明原因(`gateway/platforms/base.py:1408-1412 @ 863e313`):
+`google_token.json` 并注明原因(`gateway/platforms/base.py:1360-1363 @ 863e313`):
 
 ```python
         # Google Workspace skill: auto-refreshing OAuth token (mtime bumps

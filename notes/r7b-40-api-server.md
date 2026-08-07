@@ -191,7 +191,7 @@ aiohttp 已经有 8 KiB 的头上限,但这里更紧,免得调用方用一个几
             # the whole gateway down).
 ```
 
-(`gateway/platforms/api_server.py:7000-7010 @ 863e313`)
+(`gateway/platforms/api_server.py:6991-6999 @ 863e313`)
 
 **故事**:密钥配错 → `connect()` 返回 False → 重连看门狗当成网络抖动 → 无限重试。
 每次重试**重新构造适配器**,而适配器构造时会开一个 SQLite 连接(`ResponseStore`)。

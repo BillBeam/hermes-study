@@ -126,7 +126,7 @@ handle_message(event)
    │  │  └─ 其余(/approve /deny /status /background /restart)
    │  │        → inline:直接 await _message_handler + 发回复    base.py:5627-5654
    │  ├─ [非命令] 有待决 clarify? → inline 路由到 clarify 解析器  base.py:5656-5706
-   │  ├─ _busy_session_handler(event, key) 返回 True → return   base.py:5708-5713
+   │  ├─ _busy_session_handler(event, key) 返回 True → return   base.py:5711-5713
    │  ├─ [PHOTO] → merge_pending_message_event,不打断           base.py:5715-5719
    │  ├─ [queue 模式的普通文本] → _queue_text_debounce           base.py:5721-5730
    │  └─ 其余 → merge_pending_message_event(merge_text=TEXT)    base.py:5731-5744
@@ -195,7 +195,7 @@ handle_message(event)
 
 `merge_pending_message_event`(`gateway/platforms/base.py:2438-2499 @ 863e313`)不是简单覆盖:
 
-- 双方都是 PHOTO → 媒体列表**拼接**,文案合并(相册/连拍是多条事件);
+- 双方都是 PHOTO → 媒体列表**拼接**,文案合并(`:2463-2469`;相册/连拍是多条事件);
 - 任一方带媒体 → 拼接媒体、合并文案、类型向 PHOTO/非 TEXT 收敛;
 - `merge_text=True` 且双方都是 TEXT → 文本按行**追加**(多段思路不被截断);
 - 其余 → 覆盖(`pending_messages[session_key] = event`)。
