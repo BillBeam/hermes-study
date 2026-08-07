@@ -108,6 +108,13 @@ provider 生态与 Python 异步生态**的工程师。验收判定 = 该读者�
 ## 边界
 
 - hermes-agent 仓库**只读**:不修改任何文件,绝不向其远端推送。
+  **R8A 起由脚本强制**:`scripts/verify_ledger.py` 第一项检查除了核对 HEAD,
+  还要求 `git status --porcelain` **为空**——基线不干净时直接 FAIL 并给出恢复命令。
+  *理由(R8A 实测)*:本轮有子代理在基线里跑了 npm 相关操作,重写了 `package-lock.json`
+  (npm 重解析依赖,给约 30 个条目盖了 `"peer": true`)。它**恰好**被行数复核撞见;
+  若被改的文件行数不变,就会静默通过,而此后所有 `路径:行号 @ 863e313` 引用**全部失去意义**。
+  基线是整个项目的引用基准,"它还干净吗"必须**直接断言**,不能靠间接推断。
+  恢复:`git -C /home/user/hermes-agent checkout -- . && git -C /home/user/hermes-agent clean -fd`。
 - 本仓库分支策略:每轮工作在 `claude/hermes-agent-round-<N>-*` 分支推进并 push;
   轮次完成后可合入 main。任何新会话仅凭远端即可恢复全部产出与进度。
 - 不配置任何付费凭据;真实跑通所需的配置项列在报告里等待提供,不自行猜测或伪造。
@@ -128,7 +135,8 @@ data/r8a-env-vars.tsv      # R8A 资产:151 条静态环境变量(运行时会�
 data/r8a-extra-root-keys.tsv # R8A 资产:23 个不在 DEFAULT_CONFIG 里但合法的根键
 scripts/inventory.py       # 盘点脚本(行数规则的唯一权威定义)
 scripts/assign_layers.py   # 分层规则(首条匹配生效;不匹配即报错;重生成保留 status 列)
-scripts/verify_ledger.py   # 台账校验(文件集一致 + 行数复核 + 分层加总 = 全仓总行数)
+scripts/verify_ledger.py   # 台账校验(基线 HEAD + **基线工作区干净** + 文件集一致 +
+                           # 行数复核 + 分层加总 = 全仓总行数)
 scripts/verify_citations.py# 引用校验(R7C 新增,R8A 起为定稿关卡):`路径:行号` 后的代码块
                            # 与基线逐字比对;--fix 修无歧义漂移,用后必须裸跑复核
 scripts/config_table.py    # R8A 新增:从 DEFAULT_CONFIG / OPTIONAL_ENV_VARS 字面量 AST
