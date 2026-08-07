@@ -445,9 +445,34 @@ docstring 把意图写得斩钉截铁:
 顺着 `agent.clarify_timeout` 查下去,会一路查到那个**看起来完全正确**的解析函数,
 然后卡住。
 
-> **这就是为什么"多一份默认值"不能算技术债的利息,而要算本金。**
+**必须补一个对照,否则这条会被读成"这个仓库到处都坏"——它不是。**
+同一个形状(老键名 + 新键名 + CLI 默认值里钉着老键名)在 `terminal` 上**被正确处理了**:
+
+`cli.py:639-643 @ 863e313`
+
+```python
+    # Normalize config key: the new config system (hermes_cli/config.py) and all
+    # documentation use "backend", the legacy cli-config.yaml uses "env_type".
+    # Accept both, with "backend" taking precedence (it's the documented key).
+    if "backend" in terminal_config:
+        terminal_config["env_type"] = terminal_config["backend"]
+```
+
+实测:用户只设 `terminal.backend: docker`,CLI 侧 `env_type` 正确变成 `docker`。
+**作者完全知道这个坑,并在 `terminal` 上补了归一化。**
+
+**差别在哪儿?在归一化写在哪。**
+`terminal` 那次写在 **`load_cli_config` 内部**——也就是**那份重复默认值自己的家里**;
+而 `clarify` 的解析写在一个**共享 helper** 里,那个 helper**根本不知道世界上还有第二份默认值**。
+
+> **所以真正的教训比"别写两份默认值"更精确:**
+> **如果重复的默认值已经存在,那么任何依赖"这个键没被设过"的判断,
+> 都必须在重复默认值所在的那一层做归一化——因为只有那一层知道它们存在。**
+> 写在共享层的判断,再正确也会被上游那份默认值架空。
+>
+> 而这也说明了为什么"多一份默认值"不能算技术债的利息,要算本金:
 > 它不只让你多维护一处,它会**悄悄取消掉别人为正确性做的努力**——
-> 而受害的抽象越是写得好、越是自信地宣称自己是单一真源,读代码的人越不会怀疑它。
+> 受害的抽象越是写得好、越是自信地宣称自己是单一真源,读代码的人越不会怀疑它。
 
 **测试为什么没抓住它?这一段比 bug 本身更值得看。**
 仓库里**有**一支以这条性质命名的测试:

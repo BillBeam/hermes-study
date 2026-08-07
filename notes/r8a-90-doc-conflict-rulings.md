@@ -449,9 +449,31 @@ TERMINAL_CONFIG_ENV_MAP = {
 (900 vs 120),而且用户设的规范键在 CLI 面根本没有生效路径。**
 函数本身完全正确;击穿它的是**第二份默认值**。
 
-**这是本轮头条最有力的收尾**:重复默认值的危害不止于"多维护一份",
-它会**让别处正确的抽象失效**——而失效点距离病根有三跳
-(第二份默认值 → 遗留键恒存在 → 优先级判据恒走遗留分支),
+**对照组必须给,否则这条会被误读成"这仓库到处都坏"。**
+同一形状在 `terminal` 上**被正确处理了**:
+
+`cli.py:639-643 @ 863e313`
+
+```python
+    # Normalize config key: the new config system (hermes_cli/config.py) and all
+    # documentation use "backend", the legacy cli-config.yaml uses "env_type".
+    # Accept both, with "backend" taking precedence (it's the documented key).
+    if "backend" in terminal_config:
+        terminal_config["env_type"] = terminal_config["backend"]
+```
+
+实测用户只设 `terminal.backend: docker`,CLI 侧 `env_type` 正确得到 `docker`。
+**作者知道这个坑,并在 `terminal` 上补了归一化。**
+
+**关键差别是归一化写在哪一层**:`terminal` 那次写在 **`load_cli_config` 内部**
+(即那份重复默认值自己的家里);`clarify` 的解析写在**共享 helper** 里,
+而那个 helper 不知道世界上还有第二份默认值。
+
+**这是本轮头条最有力的收尾,教训也因此更精确**:
+重复默认值的危害不止于"多维护一份",它会**让别处正确的抽象失效**;
+而**凡依赖"这个键没被设过"的判断,必须做在重复默认值所在的那一层**——
+只有那一层知道它们存在,写在共享层的判断再正确也会被架空。
+失效点距病根有三跳(第二份默认值 → 遗留键恒存在 → 优先级恒走遗留分支),
 现场排查几乎不可能反推回去。
 
 ### ■-10 细节:两份默认值的第一个真实受害者(线索来自 `r8a-raw-defaults-a` D-1,主线运行时复核)
