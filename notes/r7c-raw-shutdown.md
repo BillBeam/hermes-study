@@ -33,7 +33,7 @@
 | P2 | selector 地板定时器(让事件循环 selector 等待有限) | 每 5s 自续 | `gateway/run.py:10632-10636` → `gateway/shutdown_watchdog.py:96-107`, 常量 `:48` |
 | P3 | 事件循环存活看门狗(OS 线程,探针) | 每 30s 探一次 / 探针超时 10s / 连续 3 次未响应 → `os._exit(75)` | `gateway/run.py:10638-10643` → `gateway/shutdown_watchdog.py:110-209`,常量 `:49-51` |
 | P4 | systemd `TimeoutStopSec` 对齐自检(不匹配只 WARNING) | 启动时一次,`systemctl` 调用超时 2.0s | `gateway/run.py:10727-10743` → `gateway/shutdown_forensics.py:322-406`(`timeout=2.0` 在 `:371`) |
-| P5 | 事件循环心跳文件 `state/gateway.heartbeat`(含内存采样) | 每 30s 重写 | `gateway/run.py:11360-11366` → `gateway/shutdown_watchdog.py:431-457`,常量 `:47` |
+| P5 | 事件循环心跳文件 `state/gateway.heartbeat`(含内存采样) | 每 30s 重写 | `gateway/run.py:11361-11366` → `gateway/shutdown_watchdog.py:431-457`,常量 `:47` |
 | P6 | 外部排水标记监视器(`.drain_request.json`) | 每 1.0s 轮询 | `gateway/run.py:11560` → `gateway/run.py:7881-7909` → `gateway/drain_control.py:210-226` |
 | P7 | 上次遗留的 pending 消息恢复 | 一次性,`runner.start()` 之后 | `gateway/run.py:26826-26834` → `gateway/shutdown_flush.py:169-269` |
 
@@ -65,7 +65,7 @@ P3 的实际时间常数(`gateway/shutdown_watchdog.py:141-197`):循环体是
 |---|---|---|---|---|---|
 | 1 | 信号送达处理器(跑在事件循环线程里,同步) | `loop.add_signal_handler(sig, shutdown_signal_handler, sig)` | 无 | — | `gateway/run.py:26721-26723`;handler 定义 `:26604` |
 | 2 | 判定是否 `--replace` 接管(消费 `.gateway-takeover.json`) | 总是 | 无 | 是接管 → 记 planned,exit 0 语义 | `gateway/run.py:26614-26619` |
-| 3 | 判定是否计划内停止(SIGINT 或 `.gateway-planned-stop.json`) | 非接管时 | 无 | 都不是 → `_signal_initiated_shutdown = True` | `gateway/run.py:26623-26632`, `:26661-26667` |
+| 3 | 判定是否计划内停止(SIGINT 或 `.gateway-planned-stop.json`) | 非接管时 | 无 | 都不是 → `_signal_initiated_shutdown = True` | `gateway/run.py:26624-26632`, `:26661-26669` |
 | 4 | 同步取证快照 `snapshot_shutdown_context()` | 总是 | **自律 <10ms**,无强制超时(纯 stdlib + /proc) | 抛异常 → `_shutdown_ctx = None`,继续 | `gateway/run.py:26640-26649` → `gateway/shutdown_forensics.py:104-194` |
 | 5 | 一行 key=value 现场日志 | `_shutdown_ctx is not None` | 无 | 异常吞掉 | `gateway/run.py:26675-26681` → `shutdown_forensics.py:281-311` |
 | 6 | 重型取证子进程(`ps auxf`/`pstree`/`dmesg`)detach 派发 | 同上 | **5.0s**(子进程自带 `timeout 5`) | 子进程自杀,主进程不受影响 | `gateway/run.py:26686-26696` → `shutdown_forensics.py:197-278`,`Popen(["timeout", ...])` 在 `:257-264` |
@@ -77,28 +77,28 @@ P3 的实际时间常数(`gateway/shutdown_watchdog.py:141-197`):循环体是
 | 12 | 取消次级 profile 重连任务 | multiplex 模式 | **每批 5.0s**(= adapter disconnect 预算) | WARNING 后继续 | `gateway/run.py:12808` → `:12603-12633`(`asyncio.wait(tasks, timeout=timeout)` 在 `:12627`) |
 | 13 | 通知活跃会话 + home 频道"要关了" | 适配器仍连着 | 无(逐条 best-effort) | 单条失败吞掉 | `gateway/run.py:12812` → `:9253`;home 广播被 `drain_notification_suppressed()` 门控于 `:9383-9395` |
 | 14 | 预标记 `resume_pending`(排水**前**就落盘) | 每个 running agent | 无 | 单条失败只 debug | `gateway/run.py:12823-12836`(#27856) |
-| 15 | **排水等待** `_drain_active_agents(D)` | 有 agent/cron/api 在跑 | **D 秒**(默认 0 → 立即判定超时) | 返回 `timed_out=True` | `gateway/run.py:12818`, `:12840` → `:9184-9241`;`timeout<=0` 直接 `return snapshot, True` 在 `:9222-9223`;轮询 0.1s 在 `:9235` |
+| 15 | **排水等待** `_drain_active_agents(D)` | 有 agent/cron/api 在跑 | **D 秒**(默认 0 → 立即判定超时) | 返回 `timed_out=True` | `gateway/run.py:12818`, `:12840` → `:9184-9241`;`timeout<=0` 直接 `return snapshot, True` 在 `:9221-9222`;轮询 0.1s 在 `:9234` |
 | 16 | 超时分支:再标 `resume_pending` → 硬中断所有 agent | `timed_out` | — | — | `gateway/run.py:12904-12916` |
 | 17 | 等 agent 真正退出 | `timed_out` | **5.0s**(轮询 0.1s) | 不等了,直接往下走 | `gateway/run.py:12918-12920` |
 | 18 | 提前杀工具子进程 `_kill_tool_subprocesses("post-interrupt")` | `timed_out` | 无(各子步骤 best-effort) | — | `gateway/run.py:12931`;实现 `:12681-12744`(#8202) |
-| 19 | 落盘每个 agent 的在途 transcript(`_flush_messages_to_session_db`) | 每个排水快照里的 agent | 无 | **抛异常 → `flush_agent_history_to_file()` 存 JSON 快照** | `gateway/run.py:12943` → `:9452-9520`;失败分支 `:9494-9506` → `shutdown_flush.py:272-321` |
+| 19 | 落盘每个 agent 的在途 transcript(`_flush_messages_to_session_db`) | 每个排水快照里的 agent | 无 | **抛异常 → `flush_agent_history_to_file()` 存 JSON 快照** | `gateway/run.py:12943` → `:9452-9521`;失败分支 `:9496-9506` → `shutdown_flush.py:272-321` |
 | 20 | 每个 agent 的资源清理(memory provider 等)转线程池 | 同上 | **30.0s**(`_CLEANUP_TIMEOUT_S`) | 超时后继续(#53175) | `gateway/run.py:9519-9521`, `:9556`, `:9596-9628` |
 | 21 | 空闲 agent 缓存的 provider 清理 | `_agent_cache` 非空 | 每个 **30.0s** | 同上 | `gateway/run.py:12946-12965` |
 | 22 | 逐适配器断开 `_bounded_adapter_teardown` | 每个 adapter × 2 次 await | **每 await 5.0s**(`HERMES_GATEWAY_ADAPTER_DISCONNECT_TIMEOUT`,默认 `_ADAPTER_DISCONNECT_TIMEOUT_SECS_DEFAULT`) | 取消旧任务、WARNING、强制往下 | `gateway/run.py:12967-12976` → `:6525-6575`;默认值 `gateway/run.py:81`;读取 `:6577-6590`(#14128) |
 | 23 | 取消所有后台任务(跳过 `_stop_task` / `_restart_task`) | 总是 | 无 | — | `gateway/run.py:12978-12994`(#12875) |
-| 24 | **`flush_pending_to_file()` 再 `.clear()`** | 总是 | 无 | 整段 `except Exception: pass` | `gateway/run.py:13002-13006`(flush)、`:13014`(clear)→ `shutdown_flush.py:82-137`(#72680) |
+| 24 | **`flush_pending_to_file()` 再 `.clear()`** | 总是 | 无 | 整段 `except Exception: pass` | `gateway/run.py:13003-13007`(flush)、`:13016`(clear)→ `shutdown_flush.py:82-137`(#72680) |
 | 25 | `_shutdown_event.set()` | 总是 | 无 | — | `gateway/run.py:13020` |
 | 26 | 兜底再杀一遍工具子进程 `("final-cleanup")` | 总是 | 无 | — | `gateway/run.py:13029` |
 | 27 | 回收进程级 auxiliary client 缓存 | 总是 | 无 | debug | `gateway/run.py:13036-13041`(#14210) |
 | 28 | 关 SQLite(释放 WAL 写锁)+ 关线程池 | 总是 | 无 | debug | `gateway/run.py:13055-13064` |
 | 29 | 删 PID 文件 + 释放 runtime lock | 总是 | 无 | — | `gateway/run.py:13070-13072` |
-| 30 | 写 `.clean_shutdown` 标记 | **仅 `not timed_out`** | 无 | 排水超时则**故意不写**,下次启动挂起最近活跃会话 | `gateway/run.py:13081-13091` |
+| 30 | 写 `.clean_shutdown` 标记 | **仅 `not timed_out`** | 无 | 排水超时则**故意不写**,下次启动挂起最近活跃会话 | `gateway/run.py:13082-13092` |
 | 31 | 卡死会话计数 +1(3 次触发自动挂起) | `active_agents` 非空 | — | — | `gateway/run.py:13100-13101`(#7536) |
 | 32 | 计划重启:写通知标记 / 走 systemd 快捷路径 / 定 exit 75 | `_restart_requested` | 无 | — | `gateway/run.py:13103-13137`;`GATEWAY_SERVICE_RESTART_EXIT_CODE = 75` 在 `gateway/restart.py:10` |
 | 33 | `_draining=False`,持久化终态 `gateway_state` | 总是 | 无 | 非预期信号 → 写 `running`(保住 s6 自启意图) | `gateway/run.py:13139`, `:13161-13169`(#42675) |
 | 34 | **解除关停看门狗** `_watchdog_done.set()`(`finally`) | 总是 | — | — | `gateway/run.py:12787-12788` |
 | 35 | `main()` 统一出口 `_exit_after_graceful_shutdown(exit_code)` | 总是(含 `SystemExit`) | — | — | `gateway/run.py:27060-27071`,定义 `:27074` |
-| 36 | 出口:flush stdio → 删 PID/释锁 → **`mark_exited(code,"graceful_shutdown")`** → drain 日志队列 → `os._exit` | 总是 | 日志 drain **1.0s** | 超时也照样 `os._exit` | `gateway/run.py:27107-27141`;`mark_exited` 在 `:27127-27130` → `lifecycle_ledger.py:271-301`;`drain_log_queue(timeout=1.0)` 在 `:27138` |
+| 36 | 出口:flush stdio → 删 PID/释锁 → **`mark_exited(code,"graceful_shutdown")`** → drain 日志队列 → `os._exit` | 总是 | 日志 drain **1.0s** | 超时也照样 `os._exit` | `gateway/run.py:27107-27141`;`mark_exited` 在 `:27127-27130` → `lifecycle_ledger.py:271-301`;`drain_log_queue(timeout=1.0)` 在 `:27139` |
 
 ### 1.2 外圈升级阶梯(谁先动手)
 
@@ -118,7 +118,7 @@ SIGKILL 一定先到,看门狗永远等不到开火**。所以在 systemd 部署
 所以它永远不会就"看门狗比 SIGKILL 晚"这件事报警。
 
 ```python
-# gateway/shutdown_forensics.py:396-406
+# gateway/shutdown_forensics.py:394-406
     timeout_stop_sec = timeout_us / 1_000_000.0
     # systemd needs headroom for: post-interrupt kill, adapter disconnect,
     # SessionDB close, file unlinks, etc.  30s matches the unit-template
@@ -192,11 +192,11 @@ messages` 就整条失败,消息只能留在内存的 `_pending_messages` 槽里
 
 1. **待处理的入站用户消息**(`_pending_messages`)。这是"agent 正忙时用户又发了一条"
    排在槽里的消息。两个来源:适配器层
-   (`gateway/platforms/base.py:6559-6564`,`reason="adapter_shutdown"`,值是 `MessageEvent`)
-   和 runner 层(`gateway/run.py:13002-13005`,`reason="shutdown"`,值可能是纯字符串)。
+   (`gateway/platforms/base.py:6560-6563`,`reason="adapter_shutdown"`,值是 `MessageEvent`)
+   和 runner 层(`gateway/run.py:13004-13005`,`reason="shutdown"`,值可能是纯字符串)。
 2. **agent 的在途 transcript**(`agent._session_messages`),只在
    `_flush_messages_to_session_db` **抛异常**时才走这条路
-   (`gateway/run.py:9494-9506` → `shutdown_flush.py:272-321`),`reason` 固定为
+   (`gateway/run.py:9496-9506` → `shutdown_flush.py:272-321`),`reason` 固定为
    `"shutdown-with-unpersisted-agent-history"`。
 
 **怎么实现。** 落盘目录 `<HERMES_HOME>/pending_messages/`,0700:
@@ -258,7 +258,8 @@ def _write_payload(flush_dir: Path, payload: Dict[str, Any]) -> None:
   best-effort backup"(`:285-286`)。
 
 **恢复路径 —— 这里有个结构性缺陷(重要发现)。** `recover_pending_to_db` 在启动时跑
-(`gateway/run.py:26826-26834`),它需要 `data["session_id"]` 才能 `append_message`:
+(接线点 `gateway/run.py:26826-26834`),它需要 `data["session_id"]` 才能 `append_message` ——
+见 `gateway/shutdown_flush.py:228-249`:
 
 ```python
 # gateway/shutdown_flush.py:228-249
@@ -309,7 +310,7 @@ def _serialise_value(value: Any) -> Optional[dict]:
 ```
 
 **但真实的 `MessageEvent` 一个都没有这些字段。** dataclass 定义在
-`gateway/platforms/base.py:2053-2130`,字段是 `text` / `message_type` / `source` /
+`gateway/platforms/base.py:2053-2159`,字段是 `text` / `message_type` / `source` /
 `raw_message` / `message_id` / `platform_update_id` / `media_urls` / `media_types` /
 `reply_to_message_id` / `reply_to_text` / `reply_to_author_id` / `reply_to_author_name` /
 `reply_to_is_own_message` / `prompt_response` / `auto_skill` / `channel_prompt` /
@@ -363,7 +364,7 @@ class MessageEvent:
 **解决什么问题。** docstring 第一段就是全篇的论点:
 
 ```python
-# gateway/shutdown_watchdog.py:1-8
+# gateway/shutdown_watchdog.py:1-7
 """Out-of-loop shutdown and event-loop liveness backstops (#66892, #69089).
 
 When the asyncio loop freezes mid-drain, every asyncio-based recovery path is
@@ -371,7 +372,6 @@ structurally unable to fire: the drain deadline, status rewrites, and forensics
 all need the same loop that is stuck. launchd/systemd KeepAlive only restarts a
 *dead* process, so a wedged-but-alive gateway sits as a zombie until manual
 SIGKILL.
-"""
 ```
 
 关键洞察:**排水超时本身是一个 asyncio 定时器**,循环冻了它就永远不会到期;
@@ -575,7 +575,7 @@ the async helper, never in the synchronous probe.
 两个刻意的工程约束:
 
 ```python
-# gateway/shutdown_forensics.py:163-192
+# gateway/shutdown_forensics.py:163-171
     # Race-detection hint: did somebody recently start a sibling gateway
     # with --replace?  We can't see the new process directly here, but if
     # there's a takeover marker on disk that DOESN'T name us, that's a
@@ -621,7 +621,7 @@ import 轻量"。这是有意的重复,代价是 `gateway/status.py` 改名会�
 为什么这么做的历史原因写在调用方:
 
 ```python
-# gateway/run.py:26635-26639
+# gateway/run.py:26634-26639
         # Fast (<10ms) snapshot of who's asking us to shut down — runs
         # synchronously inside the asyncio signal handler, so we keep it
         # purely stdlib + /proc reads, no subprocesses.  See PR #15826
@@ -642,7 +642,7 @@ import 轻量"。这是有意的重复,代价是 `gateway/status.py` 改名会�
 "关停取证",而是**启动时的配置错配预警**,只是因为病因同源才放在一起:
 
 ```python
-# gateway/shutdown_forensics.py:322-337
+# gateway/shutdown_forensics.py:322-330
 def check_systemd_timing_alignment(drain_timeout: float) -> Optional[Dict[str, Any]]:
     """At startup, sanity-check that systemd's TimeoutStopSec >= drain_timeout.
 
@@ -673,10 +673,10 @@ systemd 配置校验器,搭了个便车。** 这是可以拆的。
 ### 2.4 `gateway/drain_control.py`(273 行)—— 排水标记契约
 
 **"排水"排的到底是什么。** 注意:本文件的 drain 与 `_stop_impl_body` 里那个
-"排水等待"**不是一回事**,`gateway/run.py:5945-5955` 的注释专门澄清这点:
+"排水等待"**不是一回事**,`gateway/run.py:5946-5956` 的注释专门澄清这点:
 
 ```python
-# gateway/run.py:5945-5955
+# gateway/run.py:5946-5955
         # External (NAS-driven) drain state — distinct from the shutdown
         # ``_draining`` flag above. Set by ``_drain_control_watcher`` when the
         # ``.drain_request.json`` marker is present: the gateway flips
@@ -706,7 +706,7 @@ systemd 配置校验器,搭了个便车。** 这是可以拆的。
 **排水期间新消息怎么办。** 在 `_handle_message` 里被一个门挡下,回一句提示:
 
 ```python
-# gateway/run.py:15654-15664
+# gateway/run.py:15654-15663
         if self._external_drain_active and not is_internal:
             logger.info(
                 "Refusing new turn for session %s — external drain active.",
@@ -720,10 +720,10 @@ systemd 配置校验器,搭了个便车。** 这是可以拆的。
 ```
 
 关键限定 `not is_internal` —— 内部/系统事件(重启恢复重放、后台进程完成回调)照常放行
-(理由在 `gateway/run.py:15651-15652`)。cron 也被同一个闸门挡住:
+(理由在 `gateway/run.py:15651-15652`)。cron 也被同一个闸门挡住,见 `gateway/run.py:26910-26913`:
 
 ```python
-# gateway/run.py:26909-26912
+# gateway/run.py:26910-26913
     if isinstance(cron_provider, InProcessCronScheduler):
         cron_start_kwargs["can_dispatch"] = lambda: not (
             runner._draining or runner._external_drain_active
@@ -736,7 +736,7 @@ systemd 配置校验器,搭了个便车。** 这是可以拆的。
 **排水完成的判定条件。** 本模块**不判定**。契约是"网关只负责不接新活",
 "完成"由外部调用者(NAS/dashboard)轮询 `/api/status` 直到 `active_agents == 0` 自己判
 (`gateway/drain_control.py:2-8` 与 `gateway/run.py:7826-7831` 的注释,
-`hermes_cli/web_server.py:4076-4079` 回显 `draining`)。这是本设计最反直觉也最重要的
+`hermes_cli/web_server.py:4074-4080` 回显 `draining`)。这是本设计最反直觉也最重要的
 一条:**没有 HTTP 控制通道能打进运行中的网关**,唯一通道就是文件标记。
 
 ```python
@@ -755,7 +755,6 @@ gateway the same way: it writes (or removes) a marker file, and a gateway
 background watcher reacts to it. This module owns that marker contract so both
 sides — the dashboard endpoint (writer) and the gateway watcher (reader) —
 share one definition and can never disagree.
-"""
 ```
 
 **实例化 epoch —— NS-570 的核心。** 这是本文件最有含量的 60 行:
@@ -876,7 +875,7 @@ epoch 错了应该多接受(避免误锁死),静音错了应该多说话(避免�
 **为什么需要。** 因为 SIGKILL / OOM / 整机消失时**没有任何 handler 会跑**:
 
 ```python
-# gateway/lifecycle_ledger.py:1-12
+# gateway/lifecycle_ledger.py:1-11
 """Gateway lifecycle ledger — durable termination-reason evidence (NS-608).
 
 The gateway already has *graceful* shutdown forensics
@@ -888,7 +887,6 @@ before any handler runs, so the next boot has no idea the previous life
 ended violently — support tickets like NS-608 then require manually
 cross-correlating four log files and two external APIs to answer "what
 killed the gateway?".
-"""
 ```
 
 推理是反过来的:**不能记录"我死了",就记录"我还活着";下次启动看到"还活着"就知道上一世
@@ -912,7 +910,7 @@ killed the gateway?".
 **证据里最有价值的一条:死前内存快照。**
 
 ```python
-# gateway/lifecycle_ledger.py:196-221
+# gateway/lifecycle_ledger.py:197-220
     # Enrich with the last heartbeat: when did the loop last prove liveness,
     # and what did memory look like at that moment?
     try:
@@ -978,7 +976,7 @@ def mark_exited(
 2. **PID 复用 + 活主检测**:
 
 ```python
-# gateway/lifecycle_ledger.py:145-178(节选)
+# gateway/lifecycle_ledger.py:145-151
 def _pid_alive_with_start_time(pid: Any, start_time: Any) -> bool:
     """True when ``pid`` is a live process matching ``start_time`` (±2s).
 
@@ -986,7 +984,10 @@ def _pid_alive_with_start_time(pid: Any, start_time: Any) -> bool:
     be mid-teardown when the new one boots — a live matching owner is a
     planned handover, not an unclean death.
     """
-    ...
+```
+
+```python
+# gateway/lifecycle_ledger.py:158-162
     try:
         # NOT os.kill(pid, 0): on Windows that sends CTRL_C_EVENT to the
         # target's console group (bpo-14484). _pid_exists is the repo's
@@ -1040,7 +1041,7 @@ def _pid_alive_with_start_time(pid: Any, start_time: Any) -> bool:
 | `context_as_json` | `:314` | **无** | ❌ 生产死代码 |
 | `_parse_systemd_duration_to_us` | `:409` | 模块内 `:385` | ✅ |
 | `drain_requested` | `drain_control.py:210` | `gateway/run.py:7895/7897`;`hermes_cli/web_server.py:4039`(经 import 列表),`:4078` | ✅ |
-| `write_drain_request` / `clear_drain_request` | `:135` / `:173` | `hermes_cli/web_server.py:4065` / `:4056` | ✅ |
+| `write_drain_request` / `clear_drain_request` | `:135` / `:173` | `hermes_cli/web_server.py:4065` / `:4055` | ✅ |
 | `drain_notification_suppressed` | `:229` | `gateway/run.py:9384-9385` | ✅ |
 | `read_drain_request` | `:254` | 模块内 `:221`/`:246`/`:261` | ✅(公开 API 但仅内部用) |
 | `current_instantiation_epoch` | `:67` | 模块内 `:166`/`:201` | ✅ |
@@ -1116,9 +1117,9 @@ float(DEFAULT_CONFIG["agent"]["restart_drain_timeout"])` → 0.0。
 **差 900 倍,且方向相反(文档说"等 15 分钟",实际是"立刻中断")。**
 
 同一行文档还有第二个错:它说这是 `/restart` 的排水预算。代码里 `/restart` 走的是
-`restart_after_turn_timeout`(默认 **21600s = 6h**,`config_defaults.py:54`),
+`restart_after_turn_timeout`(默认 **21600s = 6h**,`hermes_cli/config_defaults.py:54`),
 `restart_drain_timeout` 只是 `stop()` 开始之后的强制中断预算 —— 这个区分在
-`gateway/restart.py:27-31` 和 `hermes_cli/tips.py:295` 都写明了:
+`hermes_cli/tips.py:295` 和 `gateway/restart.py:27-31` 都写明了:
 
 ```python
 # gateway/restart.py:27-31
@@ -1193,12 +1194,12 @@ systemd unit 只把 75 放进 `RestartForceExitStatus`(`hermes_cli/gateway.py:29
 `_pending_messages` 槽里等下一轮;同时 agent 在途的 `_session_messages` 也无法通过
 `_flush_messages_to_session_db` 写盘。用户看不出异常 —— 直到网关关停。
 **为什么。** `_stop_impl` 里那句 `self._pending_messages.clear()`
-(现 `gateway/run.py:13014`)清掉的是**唯一幸存副本**;`_finalize_shutdown_agents` 里
+(现 `gateway/run.py:13016`)清掉的是**唯一幸存副本**;`_finalize_shutdown_agents` 里
 flush 抛出的异常此前只是一行 debug 日志。进程退出 = 会话永久消失。
 **怎么修。** 三个钩子:(a) `clear()` 之前先 `flush_pending_to_file()`
-(`gateway/run.py:13002-13005`,以及适配器侧 `gateway/platforms/base.py:6559-6564`);
+(`gateway/run.py:13003-13005`,以及适配器侧 `gateway/platforms/base.py:6560-6563`);
 (b) flush 抛异常时 `flush_agent_history_to_file()` 把内存 transcript 倒成 JSON
-(`gateway/run.py:9494-9506`);(c) 启动时 `recover_pending_to_db()` 回灌
+(`gateway/run.py:9496-9506`);(c) 启动时 `recover_pending_to_db()` 回灌
 (`gateway/run.py:26826-26834`)。落盘介质刻意选 JSON 文件而不是数据库 ——
 因为故障前提就是数据库坏了。
 **残留。** (c) 在生产上恒失败(见 §2.1);实际交付的是 (a)(b) 的"人工可救"。
@@ -1273,15 +1274,15 @@ flush 抛出的异常此前只是一行 debug 日志。进程退出 = 会话永�
 |---|---|---|
 | PR #15826 | `gateway/run.py:26637-26639` | 旧实现在信号处理器里同步跑 `ps aux`,阻塞事件循环最长 3s,适配器拆卸起不来 → 改成 detached 子进程 |
 | #53107 | `gateway/run.py:27074-27081`;`lifecycle_ledger.py:26` | 卡死的非 daemon 工作线程让 `Py_FinalizeEx` 的 join 挂住 → 所有退出路径统一走 `os._exit` |
-| #8202 | `gateway/run.py:12683-12688`, `:12921-12930` | 中断后不立刻杀工具子进程,systemd 的 SIGKILL 会先到,bash/sleep 子进程变成 systemd 的孤儿 |
+| #8202 | `gateway/run.py:12684-12688`, `:12923-12931` | 中断后不立刻杀工具子进程,systemd 的 SIGKILL 会先到,bash/sleep 子进程变成 systemd 的孤儿 |
 | #14128 | `gateway/run.py:6532-6537` | 适配器 disconnect 无界等待冲破 `TimeoutStopSec`,SIGKILL 跳过 atexit 的 PID 清理,下次启动 "PID file race lost" |
 | #53175 | `gateway/run.py:9519-9521`, `:9548-9555` | 卡死的 memory provider 在循环上同步清理 → SIGTERM 永远完不成;改为 off-loop + 30s 上限 |
 | #42675 | `gateway/run.py:13141-13160` | `docker restart` 的 s6 SIGTERM 被当成"用户想停",持久化 `stopped`,下次开机不自启,消息通道静默 |
-| #27856 | `gateway/run.py:12820-12822` | 排水**前**先写 `resume_pending`,这样中途被服务管理器杀掉也能恢复在途会话 |
+| #27856 | `gateway/run.py:12820-12823` | 排水**前**先写 `resume_pending`,这样中途被服务管理器杀掉也能恢复在途会话 |
 | #7536 | `gateway/run.py:13093-13098` | 连续 3 次重启时都在跑的会话自动挂起,打断卡死循环 |
 | #12875 | `gateway/run.py:12986-12991` | 取消 `_restart_task` 会把 CancelledError 传进 `_stop_impl`,跳过 `_shutdown_event.set()` 和 exit 75 |
-| #14210 | `gateway/run.py:13031-13036` | 绑在已死 worker loop 上的 httpx transport 只在这里回收,否则 macOS 默认 `RLIMIT_NOFILE=256` 下 EMFILE |
-| #51228 | `gateway/restart.py:12-16`;`run.py:27085` | 致命配置错误 exit 78,s6 finish 翻译成 125 让 supervisor 停止重启 |
+| #14210 | `gateway/run.py:13035-13041` | 绑在已死 worker loop 上的 httpx transport 只在这里回收,否则 macOS 默认 `RLIMIT_NOFILE=256` 下 EMFILE |
+| #51228 | `gateway/restart.py:12-16`;`run.py:27087` | 致命配置错误 exit 78,s6 finish 翻译成 125 让 supervisor 停止重启 |
 | #77184 | `gateway/restart.py:27-31` | 区分 `restart_after_turn_timeout`(stop 之前等回合跑完)与 `restart_drain_timeout`(stop 之后的强制中断预算) |
 | #33778 | `gateway/run.py:26732-26740` | Windows 上 `add_signal_handler` 抛 NotImplementedError,drain 从不运行、会话静默丢失 → 用标记轮询线程补 |
 | bpo-14484 | `lifecycle_ledger.py:159-161` | Windows 上 `os.kill(pid, 0)` 会真发 CTRL_C_EVENT |

@@ -36,10 +36,7 @@ kanban task.
 `website/docs/user-guide/features/kanban.md:11 @ 863e313`:
 
 ```
-Hermes Kanban is a durable task board, shared across all your Hermes profiles, that lets
-multiple named agents collaborate on work without fragile in-process subagent swarms. Every
-task is a row in `~/.hermes/kanban.db`; every handoff is a row anyone can read and write;
-every worker is a full OS process with its own identity.
+Hermes Kanban is a durable task board, shared across all your Hermes profiles, that lets multiple named agents collaborate on work without fragile in-process subagent swarms. Every task is a row in `~/.hermes/kanban.db`; every handoff is a row anyone can read and write; every worker is a full OS process with its own identity.
 ```
 
 ### 1.2 它在架构里的位置:与 `delegate_task` 是两种不同原语
@@ -96,7 +93,7 @@ Mixin 里没有 `__init__`,所有状态字段都靠 `getattr(self, ..., default)
 ### 2.1 谁启动、什么时候启动
 
 两个 loop 都在 `GatewayRunner.start()` 里被 `_spawn_supervised` 拉起
-(`gateway/run.py:11484` 与 `11490 @ 863e313`):
+(`gateway/run.py:11481` 与 `11490 @ 863e313`):
 
 ```python
         # Start background kanban notifier — each gateway delivers events for
@@ -111,7 +108,7 @@ Mixin 里没有 `__init__`,所有状态字段都靠 `getattr(self, ..., default)
         self._spawn_supervised(self._kanban_dispatcher_watcher, "kanban_dispatcher_watcher")
 ```
 
-`_spawn_supervised` 的关键语义(`gateway/run.py:11621-11627 @ 863e313`):
+`_spawn_supervised` 的关键语义(`gateway/run.py:11625-11630 @ 863e313`):
 
 ```python
             exc = t.exception()
@@ -247,7 +244,7 @@ Mixin 里没有 `__init__`,所有状态字段都靠 `getattr(self, ..., default)
 因为 notifier(198 行)是靠这个字段判断"我能不能收 legacy 订阅"的;如果先放 OS 锁
 再清字段,中间窗口里另一个网关拿到锁,两个进程会同时认为自己拥有 legacy 订阅。
 
-派单周期(`gateway/kanban_watchers.py:1029-1036 @ 863e313`),下限 1 秒:
+派单周期(`gateway/kanban_watchers.py:1028-1036 @ 863e313`),下限 1 秒:
 
 ```python
         try:
@@ -396,7 +393,7 @@ $ grep -rn "steer" --include="*.py" . | grep -i kanban
 而不是等它跑完、失败、你再 block→comment→unblock 重跑一遍。
 
 **第 1 跳 · 触发时机 = agent 的活动心跳,而不是一个独立 loop。**
-`run_agent.py:3666-3671 @ 863e313`(函数签名与 docstring 开头):
+`run_agent.py:3666-3672 @ 863e313`(函数签名与 docstring 开头):
 
 ```python
     def _touch_activity(
@@ -450,7 +447,7 @@ $ grep -rn "steer" --include="*.py" . | grep -i kanban
     _comment_poll_last_attempt = now
 ```
 
-节流常量 6 秒(`tools/kanban_tools.py:343 @ 863e313`),注释解释了为什么比心跳的 60s 紧:
+节流常量 6 秒(`tools/kanban_tools.py:338 @ 863e313`),注释解释了为什么比心跳的 60s 紧:
 
 ```python
 # Live operator-note injection: poll the worker's task for new comments and
@@ -783,8 +780,8 @@ wake 文案由 i18n 组装(`gateway/kanban_watchers.py:620-647 @ 863e313`):
 ```
 
 继续下落,internal 事件不满足 debounce 候选条件
-(`gateway/platforms/base.py:5158-5165 @ 863e313`,`not getattr(event, "internal", False)`),
-于是走 else 分支入队(`gateway/platforms/base.py:5734-5747 @ 863e313`):
+(`gateway/platforms/base.py:5156-5164 @ 863e313`,`not getattr(event, "internal", False)`),
+于是走 else 分支入队(`gateway/platforms/base.py:5735-5748 @ 863e313`):
 
 ```python
             else:
@@ -876,7 +873,7 @@ worker 调 kanban_complete → task_events 写 completed 行
                                 )
 ```
 
-**(d) 连续失败 12 次退订**(`gateway/kanban_watchers.py:172-181 @ 863e313`):
+**(d) 连续失败 12 次退订**(`gateway/kanban_watchers.py:171-180 @ 863e313`):
 
 ```python
         # Per-subscription send-failure counter. Adapter.send raising
@@ -999,15 +996,14 @@ test_notifier_wakeup_uses_subscription_chat_type`。
 | 事件名 | `agent:start` / `command:*` 这类冒号命名 | `pre_tool_call` / `post_llm_call` 这类下划线命名 |
 | 返回值 | `emit` 丢弃;`emit_collect` 收集 | 各 hook 各自约定 |
 
-文档明确区分(`website/docs/user-guide/features/hooks.md:357-359 @ 863e313`):
+文档明确区分(`website/docs/user-guide/features/hooks.md:358 @ 863e313`):
 
 ```
-Gateway hooks only fire in the **gateway** (Telegram, Discord, Slack, WhatsApp, Teams). The
-CLI does not load gateway hooks. For hooks that work everywhere, use [plugin hooks](#plugin-hooks).
+Gateway hooks only fire in the **gateway** (Telegram, Discord, Slack, WhatsApp, Teams). The CLI does not load gateway hooks. For hooks that work everywhere, use [plugin hooks](#plugin-hooks).
 ```
 
 两者在同一次请求里都会出现:`handle_message` 里既调 `_invoke_hook("pre_gateway_dispatch", ...)`
-(插件钩子,`gateway/run.py:14405-14412 @ 863e313`),又调 `self.hooks.emit("agent:start", ...)`
+(插件钩子,`gateway/run.py:14406-14412 @ 863e313`),又调 `self.hooks.emit("agent:start", ...)`
 (网关钩子,`gateway/run.py:17540`)。
 
 ### 4.2 契约:发现 → 加载 → 注册 → 触发
@@ -1084,7 +1080,7 @@ handler 会被触发两次(无去重)。
   唯一生产消费者是 slash 命令策略(`gateway/run.py:15024-15057 @ 863e313`),
   支持 `allow` / `deny` / `handled` / `rewrite` 四种 decision。
 
-两者都用同一条容错原则(`gateway/hooks.py:196-198 @ 863e313`):
+两者都用同一条容错原则(`gateway/hooks.py:197-198 @ 863e313`):
 
 ```python
             except Exception as e:
@@ -1098,7 +1094,7 @@ handler 会被触发两次(无去重)。
 
 | 事件 | 触发点 | 备注 |
 |---|---|---|
-| `gateway:startup` | `gateway/run.py:11378` | `discover_and_load()` 在 `run.py:10987` |
+| `gateway:startup` | `gateway/run.py:11378` | `discover_and_load()` 在 `gateway/run.py:10987` |
 | `session:start` | `gateway/run.py:16408` | |
 | `session:end` | `gateway/slash_commands.py:238` | `/new`、`/reset` |
 | `session:reset` | `gateway/slash_commands.py:245` | |
@@ -1107,7 +1103,7 @@ handler 会被触发两次(无去重)。
 | `agent:end` | `gateway/run.py:17788` | |
 | `command:<name>` | `gateway/run.py:15024`(`emit_collect`) | 唯一的决策式钩子 |
 | `reaction:added` / `reaction:removed` | `gateway/run.py:7196-7210` | 适配器经 `set_reaction_handler` 转发 |
-| `session:compress` | `agent/conversation_compression.py:3479`、`agent/codex_runtime.py:253` | 经 `_event_callback_sync`(`gateway/run.py:4350-4357`)桥回 |
+| `session:compress` | `agent/conversation_compression.py:3479`、`agent/codex_runtime.py:253` | 经 `_event_callback_sync`(`gateway/run.py:4350-4358`)桥回 |
 
 一处性能细节(`gateway/run.py:4869 @ 863e313`):
 
@@ -1145,7 +1141,7 @@ handler 会被触发两次(无去重)。
 ```
 
 事实四:**为什么空**——文档里有完整的因果
-(`website/docs/user-guide/features/hooks.md:344-346 @ 863e313`):
+(`website/docs/user-guide/features/hooks.md:345-347 @ 863e313`):
 
 ```
 #### Why this isn't a built-in
@@ -1292,7 +1288,7 @@ the legacy code path.
 一股脑全 import → 连 `hermes chat`(完全不碰网关)也要多等好几秒。修法是发现阶段
 只登记一个零参 loader,真正 import 推迟到有人 `get(name)` / `create_adapter(name)`。
 
-登记侧(`hermes_cli/plugins.py:1748-1754 @ 863e313`):
+登记侧(`hermes_cli/plugins.py:1751-1754 @ 863e313`):
 
 ```python
         try:
@@ -1507,7 +1503,7 @@ if not _configured_cwd or _configured_cwd in CWD_PLACEHOLDERS:
 |---|---|---|
 | `gateway/kanban_watchers.py` | `gateway/run.py:2377`(import)、`5759`(继承)、`11484`/`11490`(spawn);模块级函数 `_resolve_auto_decompose_settings` 经 `1341` 内部调用;`_acquire_singleton_lock` 经 `1012` | **已接线**,双 loop 均在 `start()` 中拉起 |
 | `gateway/hooks.py` | `gateway/run.py:6225-6226`(实例化)、`10987`(discover)、9 处 emit(见 §4.3) | **已接线** |
-| `gateway/builtin_hooks/__init__.py` | **零 import**(仅自身 + `hooks.py:72/91` 的同名方法 + `tests/gateway/test_hooks.py:32` 的 patch 目标) | **未接线的空壳包**;但为**有意保留的插槽**,AGENTS.md:249 已如实标注 |
+| `gateway/builtin_hooks/__init__.py` | **零 import**(仅自身 + `gateway/hooks.py:72`/`91` 的同名方法 + `tests/gateway/test_hooks.py:32` 的 patch 目标) | **未接线的空壳包**;但为**有意保留的插槽**,`AGENTS.md:249` 已如实标注 |
 | `gateway/platform_registry.py` | 30+ 处,覆盖 `gateway/`(run/config/session/pairing/authz/slash/relay/webhook/channel_directory)、`hermes_cli/`(main/plugins/gateway/status/platforms/web_server)、`cron/scheduler.py`、`tools/send_message_tool.py`、`agent/system_prompt.py`、`toolsets.py`、3 个平台插件 | **重度接线**,是全仓引用最广的注册表之一 |
 | `gateway/cwd_placeholder.py` | `gateway/run.py:2323`(import)、`2327`(调用)—— **仅一处** | **已接线**,但仅覆盖网关路径;CLI/TUI 各有独立复刻 |
 
@@ -1522,8 +1518,7 @@ if not _configured_cwd or _configured_cwd in CWD_PLACEHOLDERS:
 - **文档**:`website/docs/user-guide/features/kanban.md:897 @ 863e313`:
 
 ```
-The gateway's background notifier polls `task_events` every few seconds and delivers one
-message per terminal event (`completed`, `blocked`, `gave_up`, `crashed`, `timed_out`) to that chat.
+When you run `/kanban create …` from the gateway (Telegram, Discord, Slack, etc.), the originating chat is automatically subscribed to the new task. The gateway's background notifier polls `task_events` every few seconds and delivers one message per terminal event (`completed`, `blocked`, `gave_up`, `crashed`, `timed_out`) to that chat. Completed tasks also send the first line of the worker's `--result` so you see the outcome without having to `/kanban show`.
 ```
 
 - **代码**:`gateway/kanban_watchers.py:158 @ 863e313` 有 9 种:
@@ -1555,13 +1550,12 @@ message per terminal event (`completed`, `blocked`, `gave_up`, `crashed`, `timed
 - **文档**:`website/docs/user-guide/features/kanban.md:836 @ 863e313`:
 
 ```
-- You spot a card that needs human context → `/kanban comment t_xyz "use the 2026 schema, not
-  2025"` lands on the task thread and the *next* run of that task will read it in `kanban_show()`.
+- You spot a card that needs human context → `/kanban comment t_xyz "use the 2026 schema, not 2025"` lands on the task thread and the *next* run of that task will read it in `kanban_show()`.
 ```
 
   文档明确说"**下一次运行**才会读到"。而代码里 worker 每 6 秒轮询一次,**当前运行中**就会
   以 steer 形式吃进去(前提是该 worker 由 dispatcher 拉起、`HERMES_KANBAN_TASK` 已设)。
-  `kanban.md:64` 也只写 "when a worker is (re-)spawned it reads the full comment thread"。
+  `website/docs/user-guide/features/kanban.md:64` 也只写 "when a worker is (re-)spawned it reads the full comment thread"。
 - **裁决 ◇ 偏 ▲**:代码能力强于文档承诺。严格说 836 行的断言在"worker 正在跑"这个情形下
   **是失实的**(不是"next run",是"this run")。但它没有说错方向,只是漏说了更强的行为。
   记为 ◇(代码有而文档无),并在此标注该句的适用边界。
@@ -1619,9 +1613,9 @@ HOOKS_DIR = get_hermes_home() / "hooks"
 - `AGENTS.md:249` 对 `builtin_hooks/` 的描述 "(none shipped)" **准确**。
 - `docs/kanban/multi-gateway.md:8-18` 的"单派单 + profile 归属投递"与
   `gateway/kanban_watchers.py:144-148`/`198` 完全一致。
-- `platform_registry.py:7-8` 的 "Built-in adapters continue to use the existing if/elif
+- `gateway/platform_registry.py:7-8` 的 "Built-in adapters continue to use the existing if/elif
   ... for now" 基本准确,但有**一个例外**:`relay` 是以 `source="builtin"` 注册进注册表的
-  (`gateway/relay/__init__.py:879-890 @ 863e313`):
+  (`gateway/relay/__init__.py:879-888 @ 863e313`):
 
 ```python
     platform_registry.register(
@@ -1636,7 +1630,7 @@ HOOKS_DIR = get_hermes_home() / "hooks"
     )
 ```
 
-  它因此被 `plugin_entries()`(`platform_registry.py:266-269`,过滤 `source == "plugin"`)
+  它因此被 `plugin_entries()`(`gateway/platform_registry.py:266-269`,过滤 `source == "plugin"`)
   排除在插件列表外,但走 `_create_adapter` 的注册表分支。属"docstring 略滞后",
   影响极小,记为 ▲-轻微/边缘,不单列。
 
@@ -1648,20 +1642,20 @@ HOOKS_DIR = get_hermes_home() / "hooks"
 
 | 编号 | 行号 | 因果经过 |
 |---|---|---|
-| **#49638** | `kanban_watchers.py:33`、`38`、`1331`、`1440` | auto-decompose 的开关在网关启动时被捕获一次。用户还在**输入任务描述**的过程中,自动分解器就把它拆成子任务并派单跑了破坏性操作;用户把 `kanban.auto_decompose` 改成 false 想紧急停车,却"关不掉"——网关用的仍是启动时的旧值,必须重启网关才生效。修法:每跳重读配置(`_resolve_auto_decompose_settings`,28-57),且**读失败时 fail-safe 返回 `(False, 3)`**,绝不因一次读错把用户关掉的功能又打开。 |
-| **#22941** | `kanban_watchers.py:166` | (被引用为同形 bug 的先例)`blocked` 事件发出后就退订,导致 unblock 再 block 的循环里用户只收到第一次。当前代码把这个教训推广到全部非终态事件:只有 `done`/`archived` 才退订。 |
-| **#21378** | `kanban_watchers.py:293`、`1224` | `connect()` 首次打开已跑过 schema + 幂等迁移;旧代码又显式调 `init_db()`,后者会**故意清掉进程内缓存**并在**第二条连接**上重跑迁移,与第一条竞争 → 每次网关对着 legacy DB 启动都刷一条 `duplicate column name` traceback,还间歇报 "database is locked"。修法:`_add_column_if_missing` 容忍该竞态,同时**删掉这次多余调用**。 |
-| **#56580** | `kanban_watchers.py:719` | wake 时 `chat_type` 曾被硬编码成 `"group"`。`build_session_key()` 对 DM 用完全不同的形状(`:dm:<chat_id>`),于是 DM/thread 里创建任务的用户被 wake 到一个**全新的空会话**里,看不到上下文。修法:从订阅行持久化的 `chat_type` 列还原。 |
-| **#60600** | `kanban_watchers.py:725` | 上一条的兼容尾巴:`chat_type` 列存在之前写入的老订阅行,`chat_type` 可能藏在 `delivery_metadata` 里。三级回落 `sub.chat_type → delivery_metadata.chat_type → "group"`。 |
-| **#27145** | `kanban_watchers.py:1101` | 从仪表盘创建的卡片没有 assignee,dispatcher 永远跳过它们(无限滞留 ready)。引入 `kanban.default_assignee` 作为兜底路由 profile;空串(schema 默认)= 保持旧的"继续跳过"行为,向后兼容。 |
-| **#21582** | `kanban_watchers.py:1113` | 全局 `max_in_progress` 挡不住"某一个 profile 被扇出打爆":该 profile 的本地模型 / API 配额 / 浏览器池是它自己的瓶颈。引入 `kanban.max_in_progress_per_profile` 做每 profile 并发帽。 |
+| **#49638** | `gateway/kanban_watchers.py:33`、`:38`、`:1331`、`:1440` | auto-decompose 的开关在网关启动时被捕获一次。用户还在**输入任务描述**的过程中,自动分解器就把它拆成子任务并派单跑了破坏性操作;用户把 `kanban.auto_decompose` 改成 false 想紧急停车,却"关不掉"——网关用的仍是启动时的旧值,必须重启网关才生效。修法:每跳重读配置(`_resolve_auto_decompose_settings`,28-57),且**读失败时 fail-safe 返回 `(False, 3)`**,绝不因一次读错把用户关掉的功能又打开。 |
+| **#22941** | `gateway/kanban_watchers.py:166` | (被引用为同形 bug 的先例)`blocked` 事件发出后就退订,导致 unblock 再 block 的循环里用户只收到第一次。当前代码把这个教训推广到全部非终态事件:只有 `done`/`archived` 才退订。 |
+| **#21378** | `gateway/kanban_watchers.py:293`、`:1224` | `connect()` 首次打开已跑过 schema + 幂等迁移;旧代码又显式调 `init_db()`,后者会**故意清掉进程内缓存**并在**第二条连接**上重跑迁移,与第一条竞争 → 每次网关对着 legacy DB 启动都刷一条 `duplicate column name` traceback,还间歇报 "database is locked"。修法:`_add_column_if_missing` 容忍该竞态,同时**删掉这次多余调用**。 |
+| **#56580** | `gateway/kanban_watchers.py:719` | wake 时 `chat_type` 曾被硬编码成 `"group"`。`build_session_key()` 对 DM 用完全不同的形状(`:dm:<chat_id>`),于是 DM/thread 里创建任务的用户被 wake 到一个**全新的空会话**里,看不到上下文。修法:从订阅行持久化的 `chat_type` 列还原。 |
+| **#60600** | `gateway/kanban_watchers.py:725` | 上一条的兼容尾巴:`chat_type` 列存在之前写入的老订阅行,`chat_type` 可能藏在 `delivery_metadata` 里。三级回落 `sub.chat_type → delivery_metadata.chat_type → "group"`。 |
+| **#27145** | `gateway/kanban_watchers.py:1101` | 从仪表盘创建的卡片没有 assignee,dispatcher 永远跳过它们(无限滞留 ready)。引入 `kanban.default_assignee` 作为兜底路由 profile;空串(schema 默认)= 保持旧的"继续跳过"行为,向后兼容。 |
+| **#21582** | `gateway/kanban_watchers.py:1113` | 全局 `max_in_progress` 挡不住"某一个 profile 被扇出打爆":该 profile 的本地模型 / API 配额 / 浏览器池是它自己的瓶颈。引入 `kanban.max_in_progress_per_profile` 做每 profile 并发帽。 |
 
 `hooks.py` / `platform_registry.py` / `cwd_placeholder.py` / `builtin_hooks/__init__.py`
 四个文件内**无 issue 编号引用**。
 
 相邻但对本切片理解必要的编号(在其他文件):
 - **#72016 / #72039**(`run_agent.py:3683`):单一活动观测源契约——链 A 挂靠的那口钟。
-- **#31752**(`run_agent.py:3661-3663`):`_touch_activity` 桥接 kanban 心跳字段,
+- **#31752**(`run_agent.py:3675-3679`):`_touch_activity` 桥接 kanban 心跳字段,
   防止 dispatcher 看门狗把正在干活的 worker 当 stale 回收。链 A 与它同一处代码。
 - **#18594**(`hermes_constants.py:130`):`get_hermes_home` 的 profile 回退告警,
   与 ◇3 相关。
@@ -1720,7 +1714,7 @@ new comments steer, and own-authored comments are skipped.
 """
 ```
 
-其 `FakeAgent`(`tests/tools/test_kanban_comment_injection.py:27-32 @ 863e313`)
+其 `FakeAgent`(`tests/tools/test_kanban_comment_injection.py:27-33 @ 863e313`)
 把契约钉成一个方法:
 
 ```python
@@ -1753,12 +1747,12 @@ Covers the wrong-session-wake / silent-loss fixes:
 
 **mixin 拆分的防回归规格**(`tests/gateway/test_kanban_watchers_mixin.py:1`,
 "Tests for the extracted GatewayKanbanWatchersMixin (god-file Phase 3)"):它只断言
-6 个方法名在 mixin 上存在(`:15-26`)。这是一条**结构契约测试**——保证 run.py 里的
+6 个方法名在 mixin 上存在(`:14-26`)。这是一条**结构契约测试**——保证 run.py 里的
 `self._kanban_*` 调用点不会因为搬家而 AttributeError。
 
 ### 10.4 测试里暴露的隐式契约(重实现时必须复现)
 
-`tests/gateway/test_kanban_notifier_apiserver_wake.py:66-72 @ 863e313` 用
+`tests/gateway/test_kanban_notifier_apiserver_wake.py:67-73 @ 863e313` 用
 `object.__new__` 造 runner,只补 5 个字段:
 
 ```python
@@ -1784,7 +1778,7 @@ def _make_runner(adapters):
 1. **后台 loop 一律走"监督器 + 干净返回不重启"**。
    自禁用型 watcher(配置关、锁被占)必须能干净返回,监督器必须能区分
    "干净返回 = 我不该跑" 与 "异常 = 重启我"。否则每个 gate 都会变成忙等。
-   参考 `gateway/run.py:11621-11627`。
+   参考 `gateway/run.py:11625-11630`。
 
 2. **多进程共享队列的通知,去重用"每订阅游标 + `BEGIN IMMEDIATE` 原子推进",不用内存表。**
    直接得到跨进程语义,零协调协议。代价是 claim 先于送达,所以**每一条失败路径都必须

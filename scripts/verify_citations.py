@@ -34,6 +34,7 @@ import sys
 from pathlib import Path
 
 WINDOW = 40  # how far to search for the real location when a citation misses
+STUDY_ROOT = Path(__file__).resolve().parent.parent  # this study repo
 
 # `gateway/run.py:1234 @ 863e313`  /  **`cron/jobs.py:10-20`**  /  path:1234
 CITE = re.compile(
@@ -42,9 +43,37 @@ CITE = re.compile(
 )
 FENCE = re.compile(r"^\s*```")
 
+# Notes sometimes open a fenced block with a locator comment naming the source,
+# e.g. `# gateway/shutdown_flush.py:228-249`. That is annotation, not source —
+# skip it and compare against the first real line of the excerpt.
+LOCATOR = re.compile(r"^\s*(?:#|//|--)\s*[A-Za-z0-9_][A-Za-z0-9_./-]*\.\w+:\d+")
+
 
 def norm(s: str) -> str:
     return " ".join(s.split())
+
+
+def first_source_line(block):
+    """First non-blank line of a fenced block, skipping a leading locator comment."""
+    for b in block:
+        if not b.strip():
+            continue
+        if LOCATOR.match(b):
+            continue
+        return b
+    return None
+
+
+def block_locator(block):
+    """The `# path:line` comment a block may open with — it, not the prose line,
+    is then the authoritative claim about where the excerpt came from."""
+    for b in block:
+        if not b.strip():
+            continue
+        if LOCATOR.match(b):
+            return CITE.search(b)
+        return None
+    return None
 
 
 def check_note(repo: Path, note: Path, fix: bool = False):
@@ -55,12 +84,21 @@ def check_note(repo: Path, note: Path, fix: bool = False):
     i = 0
     while i < len(lines):
         line = lines[i]
-        m = None
-        for m in CITE.finditer(line):
-            pass  # take the LAST citation on the line — that's the one the block follows
-        if not m:
+
+        # Never scan for citations *inside* a fenced block: `path:line` there is a
+        # diagram label or an excerpt's own text, not an assertion being sourced.
+        if FENCE.match(line):
+            i += 1
+            while i < len(lines) and not FENCE.match(lines[i]):
+                i += 1
             i += 1
             continue
+
+        cands = list(CITE.finditer(line))
+        if not cands:
+            i += 1
+            continue
+        m = cands[-1]  # default: the last citation is usually the one the block follows
 
         # find the next non-blank line; it must open a fence for us to check content
         j = i + 1
@@ -78,9 +116,36 @@ def check_note(repo: Path, note: Path, fix: bool = False):
             block.append(lines[k])
             k += 1
 
+        first = first_source_line(block)
+
+        def resolve(pth):
+            t = repo / pth
+            # A note may legitimately cite this study repo's own files (prior-round
+            # reports, chapters). Resolve against the baseline first, then locally.
+            if not t.is_file() and (STUDY_ROOT / pth).is_file():
+                t = STUDY_ROOT / pth
+            return t
+
+        def matches(cand):
+            t = resolve(cand.group("path"))
+            if not t.is_file() or first is None:
+                return False
+            src = t.read_text(encoding="utf-8", errors="replace").splitlines()
+            n = int(cand.group("start"))
+            return 1 <= n <= len(src) and norm(src[n - 1]) == norm(first)
+
+        # A block that opens with its own `# path:line` locator is asserting that
+        # location; believe the locator over the surrounding prose citation.
+        loc = block_locator(block)
+        if loc is not None and resolve(loc.group("path")).is_file():
+            m = loc
+        # A prose line may carry several citations (the call site AND the callee).
+        # The block belongs to whichever one it actually matches.
+        elif len(cands) > 1:
+            m = next((c for c in cands if matches(c)), m)
+
         path, start = m.group("path"), int(m.group("start"))
-        target = repo / path
-        first = next((b for b in block if b.strip()), None)
+        target = resolve(path)
 
         if not target.is_file():
             results.append(("MISSING-FILE", f"{note.name}:{i+1}  {path}"))

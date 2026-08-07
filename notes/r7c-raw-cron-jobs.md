@@ -493,7 +493,7 @@ permanently dead scheduler."**(`cron/jobs.py:321 @ 863e313`)
 
 ### 2.6 `load_jobs`:三档自愈
 
-`cron/jobs.py:1013-1062 @ 863e313`(节选关键分支)
+`cron/jobs.py:1022-1062 @ 863e313`(自 `load_jobs` 的 try 起,节选关键分支)
 
 ```python
     try:
@@ -792,7 +792,7 @@ def _normalize_workdir(workdir: Optional[str]) -> Optional[str]:
     check_gateway_lifecycle(prompt_text, normalized_script)
 ```
 
-`cron/lifecycle_guard.py:12-16 @ 863e313` 复述同一逻辑:
+`cron/lifecycle_guard.py:11-15 @ 863e313` 复述同一逻辑:
 
 ```python
 This module rejects cron job specs whose prompt or script contains a
@@ -1066,7 +1066,7 @@ def _owner_is_live(pid: int, started_at: Optional[int]) -> bool:
    也不留一个永远 `running` 的幽灵行"——而且因为 `unknown` **不触发重试**,误判的代价
    仅限于审计噪音。
 
-`cron/executions.py:199-233 @ 863e313` 的恢复循环:
+`cron/executions.py:209-243 @ 863e313` 的恢复循环:
 
 ```python
         for row in rows:
@@ -1912,7 +1912,7 @@ def _prune_job_output(job_output_dir: Path, keep: int) -> int:
 
 ### ▲-1 `"every monday 9am"` 根本不被支持(高置信,可复现)
 
-**文档侧** `AGENTS.md:1061-1063 @ 863e313`
+**文档侧** `AGENTS.md:1059-1061 @ 863e313`
 
 ```
 Supported schedule formats:
@@ -1955,7 +1955,7 @@ Supported schedule formats:
 | `running` | Currently executing (transient state) |
 ```
 
-同文档 tick 伪码 `cron-internals.md:91-92 @ 863e313` 也写着:
+同文档 tick 伪码 `website/docs/developer-guide/cron-internals.md:90-91 @ 863e313` 也写着:
 
 ```
   4. For each due job:
@@ -1966,7 +1966,7 @@ Supported schedule formats:
 `state` 写入点)。运行中状态是靠 `run_claim`(`cron/jobs.py:2501-2503`)与
 scheduler 的内存集合 `_running_job_ids`(`cron/scheduler.py:4292-4295`)表达的,不落在 `state` 上。
 
-反向:`cron/jobs.py:1769 @ 863e313` 写入的 `"error"` 状态在文档表里完全缺席。
+反向:`cron/jobs.py:1768 @ 863e313` 写入的 `"error"` 状态在文档表里完全缺席。
 
 ```python
                     if kind in {"cron", "interval"}:
@@ -1975,7 +1975,7 @@ scheduler 的内存集合 `_running_job_ids`(`cron/scheduler.py:4292-4295`)表�
 
 ### ▲-3 到期过滤条件写错
 
-**文档侧** `cron-internals.md:89 @ 863e313`
+**文档侧** `website/docs/developer-guide/cron-internals.md:89 @ 863e313`
 
 ```
   3. Filter to due jobs (next_run <= now AND state == "scheduled")
@@ -2008,7 +2008,7 @@ Hardening invariants:
 _DEFAULT_CRON_INACTIVITY_TIMEOUT = 600.0
 ```
 
-`cron/jobs.py:200-204 @ 863e313` 更明确地说明它是**不活跃超时**而非墙钟上限:
+`cron/jobs.py:201-205 @ 863e313` 更明确地说明它是**不活跃超时**而非墙钟上限:
 
 ```python
 # TTL only recovers a claim left by a tick that DIED mid-run. HERMES_CRON_TIMEOUT
@@ -2025,15 +2025,18 @@ tokens",与代码完全一致。
 
 ### ▲-5 jobs.json 路径:文档写死默认 home,代码是 per-profile
 
-**文档侧** `cron-internals.md:36 @ 863e313`:"Jobs are stored in `~/.hermes/cron/jobs.json`";
+**文档侧** `website/docs/developer-guide/cron-internals.md:36 @ 863e313`:"Jobs are stored in `~/.hermes/cron/jobs.json`";
 `website/docs/user-guide/features/cron.md:780 @ 863e313` 同样表述。
 
-**代码侧** `cron/jobs.py:70-73 @ 863e313`
+**代码侧** `cron/jobs.py:69-74 @ 863e313`(原文,未省略):
 
 ```python
-# profile-scoped gateway runs that profile's jobs under that same HERMES_HOME —
-# so a job authored in profile `coder` lives in
-# `~/.hermes/profiles/coder/cron/jobs.json` and executes with `coder`'s ...
+# store under its own HERMES_HOME, and a profile-scoped gateway runs that
+# profile's jobs under that same HERMES_HOME — so a job authored in profile
+# `coder` lives in `~/.hermes/profiles/coder/cron/jobs.json` and executes with
+# `coder`'s `.env`, `config.yaml`, and skills. We deliberately anchor on
+# `get_hermes_home()` (the active profile home), NOT `get_default_hermes_root()`
+# (the shared root). Anchoring at the root would funnel every profile's jobs
 ```
 
 非默认 profile 下路径是 `~/.hermes/profiles/<name>/cron/jobs.json`。文档未提 profile 维度,
@@ -2052,11 +2055,10 @@ tokens",与代码完全一致。
 
 ### ◇-2 `.jobs.lock`(存储锁)全无文档
 
-文档只讲了 tick 锁:`cron-internals.md:283 @ 863e313`
+文档只讲了 tick 锁:`website/docs/developer-guide/cron-internals.md:283 @ 863e313`
 
 ```
-The scheduler uses cross-process file-based locking (`fcntl.flock` on Unix, `msvcrt.locking`
-on Windows) to prevent overlapping ticks ...
+The scheduler uses cross-process file-based locking (`fcntl.flock` on Unix, `msvcrt.locking` on Windows) to prevent overlapping ticks from executing the same due-job batch twice — even between the gateway's in-process ticker and a standalone `hermes cron` / manual `tick()` call. If the lock cannot be acquired, `tick()` returns 0 immediately.
 ```
 
 `AGENTS.md:1077 @ 863e313` 也只提 `~/.hermes/cron/.tick.lock`。
@@ -2067,7 +2069,7 @@ on Windows) to prevent overlapping ticks ...
 
 ### ◇-3 job 记录示例缺 15 个字段
 
-`cron-internals.md:38-63 @ 863e313` 的 JSON 示例列了 14 个字段。
+`website/docs/developer-guide/cron-internals.md:38-63 @ 863e313` 的 JSON 示例列了 14 个字段。
 代码 `cron/jobs.py:1391-1434` 写入 27 个键 + 3 个运行期键。文档缺席的:
 `provider_snapshot` `model_snapshot` `base_url` `no_agent` `context_from`
 `enabled_toolsets` `workdir` `paused_at` `paused_reason` `last_error`
@@ -2082,12 +2084,12 @@ on Windows) to prevent overlapping ticks ...
 - `MAX_TERMINAL_EXECUTIONS`(`cron/executions.py:21`)
 
 `grep -rn "output_retention\|completed_retention_days" website/` **零命中**。
-`cron-internals.md:97` 只说 "If repeat count exhausted → state = 'completed'",
+`website/docs/developer-guide/cron-internals.md:97` 只说 "If repeat count exhausted → state = 'completed'",
 未提记录会被保留后清除。用户看不到这些可调项。
 
 ### ◇-5 `cron/executions.py` 未列入开发者文档的 Key Files 表
 
-`cron-internals.md:13-19 @ 863e313` 的 Key Files 表列了
+`website/docs/developer-guide/cron-internals.md:13-19 @ 863e313` 的 Key Files 表列了
 `cron/jobs.py` / `cron/scheduler.py` / `tools/cronjob_tools.py` / `gateway/run.py` /
 `hermes_cli/cron.py`,**没有 `cron/executions.py`**,整篇 303 行也没有 "executions" 一词
 (`grep -c` 确认 cron-internals.md 中 "executions" 只在 179 行以 "cron executions" 泛指出现)。
@@ -2113,20 +2115,25 @@ on Windows) to prevent overlapping ticks ...
 
 ### ◇-8 命名漂移:注释里的 `add_job()` 不存在
 
-`cron/jobs.py:2181 @ 863e313`:`"A direct jobs.json edit that bypassed add_job()"`
-`cron/jobs.py:2331 @ 863e313`:`"typically a direct jobs.json edit that bypassed add_job()"`
+`cron/jobs.py:2180 @ 863e313`:`"jobs.json edit that bypassed add_job() can leave a record without an \"id\""`
+`cron/jobs.py:2331 @ 863e313`:`"direct jobs.json edit that bypassed add_job() — left"`
 
 全仓无 `def add_job`。真实函数名是 `create_job`。CLI 侧 `add` 是 `create` 的别名
 (`hermes_cli/subcommands/cron.py:27-29 @ 863e313`),注释大概率是从 CLI 动词漂过来的。
 
 ### ◇-9 半死代码:`TICKER_HEARTBEAT_FILE` / `TICKER_SUCCESS_FILE`
 
-`cron/jobs.py:88-94 @ 863e313`
+`cron/jobs.py:86-94 @ 863e313`(原文,未省略):
 
 ```python
-# Heartbeat file the in-process ticker touches on every loop iteration. ...
+# Heartbeat file the in-process ticker touches on every loop iteration. The
+# gateway process and the (separate) ``hermes cron status`` process share it
+# so status can tell whether the ticker THREAD is alive, not just whether the
+# gateway PROCESS exists — a ticker that dies silently inside a live gateway
+# would otherwise report healthy (#32612, #32895).
 TICKER_HEARTBEAT_FILE = CRON_DIR / "ticker_heartbeat"
-# Last tick that completed WITHOUT raising. ...
+# Last tick that completed WITHOUT raising. Distinguishing this from the plain
+# heartbeat lets status detect a ticker that is alive but failing every tick.
 TICKER_SUCCESS_FILE = CRON_DIR / "ticker_last_success"
 ```
 
@@ -2174,8 +2181,9 @@ TICKER_SUCCESS_FILE = CRON_DIR / "ticker_last_success"
 
 ## 8. issue 溯源
 
-`jobs.py` 共 **39 处** issue 引用,覆盖 **17 个不同编号**;`executions.py` 与 `__init__.py`
-**零引用**。按编号列出因果经过(输入 → 现象 → 原因 → 修法):
+`jobs.py` 共 **39 行** 带 issue 引用,覆盖 **18 个不同编号**;`executions.py` 与 `__init__.py`
+**零引用**。下表 17 行(#32612 与 #32895 同源合并)。按编号列出因果经过
+(输入 → 现象 → 原因 → 修法):
 
 | 编号 | 行号 | 因果 |
 |---|---|---|

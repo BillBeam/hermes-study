@@ -109,7 +109,7 @@ $ echo $?
 `_deliver_result` 确实存在(`cron/scheduler.py:1467 @ 863e313`),但它不做平台名到枚举的
 映射,而是把整件事委托给 `_resolve_delivery_targets`:
 
-`cron/scheduler.py:1477-1478 @ 863e313`
+`cron/scheduler.py:1478-1479 @ 863e313`
 ```python
     targets = _resolve_delivery_targets(job)
     if not targets:
@@ -129,7 +129,7 @@ $ echo $?
 **附带的第二层失实**:§8 声称不改就会 "silently fails"。对**插件平台**这句话也不成立——
 插件平台根本不需要改 `cron/scheduler.py`,它们从平台注册表拿投递环境变量:
 
-`cron/scheduler.py:1031-1038 @ 863e313`
+`cron/scheduler.py:1033-1040 @ 863e313`
 ```python
     Built-in platforms are in ``_HOME_TARGET_ENV_VARS``; plugin platforms are
     resolved from the platform registry.
@@ -229,7 +229,7 @@ _LEGACY_HOME_TARGET_ENV_VARS = {
 }
 ```
 
-`cron/scheduler.py:1042-1051 @ 863e313`
+`cron/scheduler.py:1043-1052 @ 863e313`
 ```python
 def _get_home_target_chat_id(platform_name: str) -> str:
     """Return the configured home target chat/room ID for a delivery platform."""
@@ -324,7 +324,7 @@ reports/round-7b-platform-integration.md:161:与 R7B 新增的三项(`status.py`
 R7B 的头条叙述里说 `ADDING_A_PLATFORM.md` 自带的自检 grep "只扫 `gateway/`"。
 主线复核:**扫描集是六个路径**,不止一个。
 
-`gateway/platforms/ADDING_A_PLATFORM.md:399-403 @ 863e313`
+`gateway/platforms/ADDING_A_PLATFORM.md:400-404 @ 863e313`
 ```bash
 # Grep for your platform name to find any missed integration points
 grep -r "telegram\|discord\|whatsapp\|slack" gateway/ tools/ agent/ cron/ hermes_cli/ toolsets.py \

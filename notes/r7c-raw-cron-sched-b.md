@@ -494,7 +494,7 @@ tools/terminal_tool.py(_HERMES_GATEWAY=1 时)
 **保险一:凭据外泄兜底(F8,`_guard_job_credential_exfil`,2733-2776,调用点 3329)。**
 `fail closed` 的边界很讲究:
 
-`cron/scheduler.py:2751-2768 @ 863e313`
+`cron/scheduler.py:2752-2769 @ 863e313`
 ```python
         # Fail CLOSED: this is the last guard before provider resolution, so an
         # unexpected validator/import error must not silently allow an unvetted
@@ -1135,13 +1135,13 @@ tick(321-334)、心跳(342-356)。
                logger.warning("Chronos start() reconcile failed: %s", e)
            # Intentionally return — no loop, no periodic wake.
    ```
-   入站开火 webhook 真实存在:`gateway/platforms/api_server.py:5642`
+   入站开火 webhook 真实存在:`gateway/platforms/api_server.py:5643`(handler 定义在 `:5642`)
    `"""POST /api/cron/fire — Chronos managed-cron fire webhook (NAS → agent)."""`。
 
 **但有两条重要限定,文档没写(记 ◇,见 §6):**
 - **cron 不再是唯一定时唤醒源。** 网关无条件另起一条 housekeeping 线程,
   它自己有 60s 循环,与 provider 无关:
-  `gateway/run.py:26136-26139 @ 863e313`
+  `gateway/run.py:26134-26137 @ 863e313`
   ```python
       Split out of the historical ``_start_cron_ticker`` so the cron *trigger*
       can live behind the ``CronScheduler`` provider (built-in or external) while
@@ -1366,7 +1366,7 @@ gateway 侧的 cron 关机协作(在 scheduler.py,不在 guard):
   `| running | Currently executing (transient state) |`
   以及 `:92` tick 伪码 `a. Set state to "running"`。
 - 代码:`cron/jobs.py` 全文没有任何 `state = "running"` 的写入。实际写入的三个值是
-  `"scheduled"`(`cron/jobs.py:1561`、`:1787`)、`"completed"`(`:1752`、`:1785`、`:1878`)、
+  `"scheduled"`(`cron/jobs.py:469`、`:1787`)、`"completed"`(`:1752`、`:1785`、`:1878`)、
   `"error"`(`:1769`)。在飞状态只存在于**进程内内存集合**:
   `cron/scheduler.py:334 @ 863e313`
   ```python
@@ -1384,7 +1384,7 @@ gateway 侧的 cron 关机协作(在 scheduler.py,不在 guard):
   - `next_run_at` 是在**任何执行开始前**、锁内一次性批量前推的:`cron/scheduler.py:4224`
     `advance_next_runs([job["id"] for job in due_jobs])`;
   - 执行是**分两个持久线程池并发**的:`:4266-4267` 分池 + `:4340-4363` 派发;
-  - 网关 ticker 用 `sync=False`(`cron/scheduler_provider.py:234`),
+  - 网关 ticker 用 `sync=False`(`cron/scheduler_provider.py:235`),
     tick **不等**作业结束就返回并释放锁(`:4392-4412` 只挂 done-callback);
   - 投递发生在 `run_one_job`(`:4063`),在锁外的工作线程里。
 - 影响:读者按文档会得出"cron 作业彼此串行、锁覆盖整个执行"的错误模型。
@@ -1416,7 +1416,7 @@ gateway 侧的 cron 关机协作(在 scheduler.py,不在 guard):
   `"### Session Isolation — Cron deliveries are NOT mirrored into gateway session
   conversation history."`
 - 代码:存在完整的镜像通路,只是**默认关**:
-  `cron/scheduler.py:626-631 @ 863e313`
+  `cron/scheduler.py:627-632 @ 863e313`
   ```python
       Precedence (first decisive value wins):
         1. Per-job ``attach_to_session`` (bool) — set via the ``cronjob`` tool,
@@ -1503,7 +1503,7 @@ UPDATE via cronjob tool: True -> 'hermes gateway restart'
 
 - ABC:`cron/scheduler_provider.py:52-59` 只有 `(stop_event, *, adapters, loop, interval)`;
 - 内置:`:176-185` 多了 `can_dispatch=None, profile_homes=None`;
-- 调用方只能类型判断:`gateway/run.py:26886-26887`、`:26910`
+- 调用方只能类型判断:`gateway/run.py:26910-26911`、`:26910`
   ```python
       if isinstance(cron_provider, InProcessCronScheduler):
           cron_start_kwargs["can_dispatch"] = lambda: not (...)
@@ -1511,7 +1511,7 @@ UPDATE via cronjob tool: True -> 'hermes gateway restart'
 - 与模块自己立的规矩(`:7-8` "never a changed signature on start()")构成张力:
   内置没改 ABC 签名,但**加了 ABC 不知道的必需能力**,导致外部 provider 结构性拿不到
   drain 闸门(Chronos 的 drain 保护改由 `api_server._draining_response()` 在 HTTP 层做,
-  `gateway/platforms/api_server.py:5692-5694`)。
+  `gateway/platforms/api_server.py:5691-5693`)。
 
 ### ◇-5 `workdir` 只对 `no_agent` 作业影响脚本 cwd
 
