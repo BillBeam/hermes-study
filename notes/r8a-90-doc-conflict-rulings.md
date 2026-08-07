@@ -184,6 +184,28 @@ def get_env_value_prefer_dotenv(key: str) -> Optional[str]:
 `website/docs` 中 `QQBOT_HOME_CHANNEL` 出现 3 次、`QQ_HOME_CHANNEL` **0 次**;
 `hermes_cli/status.py:483` 的表里写死旧名。**定案:▲ 成立,同时记 ■-1。**
 
+**收尾补一条,它改变了这条定案的性质判断。** 主线实测两张 env 注册表对这次改名的处置:
+
+`hermes_cli/config.py:289 @ 863e313`
+
+```python
+    "QQ_HOME_CHANNEL", "QQ_HOME_CHANNEL_NAME",  # legacy aliases (pre-rename, still read for back-compat)
+```
+
+| 变量 | `_EXTRA_ENV_KEYS`(认识) | `OPTIONAL_ENV_VARS`(推荐) | 文档 |
+|---|---|---|---|
+| `QQBOT_HOME_CHANNEL` | ✅ | ✅ | ✅ 3 处 |
+| `QQ_HOME_CHANNEL` | ✅ | ❌ | ❌ 0 处 |
+
+**配置系统这一侧把改名做得完全正确**:旧名仍被认识(老配置不坏)、不被推荐、不进文档。
+另外实测:108 个 `_EXTRA_ENV_KEYS` 里有 **8 个零文档**,而这 8 个里就有
+`QQ_HOME_CHANNEL` 与 `QQ_HOME_CHANNEL_NAME` —— **它们零文档是对的,不是缺口**
+(废弃别名本就不该出现在文档里)。
+
+**所以 ▲-4 的性质不是"文档没跟上",而是"`status.py` 没跟上"**,
+而 `status.py` 恰恰是**直接读环境变量、完全绕过配置系统**的那一段。
+**这条定案因此从"某处笔误"升格为一条结构性结论:配置系统的纪律,管不到不走配置系统的代码。**
+
 ---
 
 ## ◇ 组:文档缺口
