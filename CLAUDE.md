@@ -162,7 +162,19 @@ python3 -m venv /home/user/hermes-venv
 # 3) 跑测试
 cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python \
   bash scripts/run_tests.sh tests/agent/<file>
+
+# 4) 报测试数时,同时记下环境(R8A 新增,理由见下)
+ls -d /home/user/hermes-venv/lib/python*/site-packages/*.dist-info | wc -l
 ```
+
+**报测试通过数时必须一并记环境(R8A 实测催生)**:用例数是**环境的函数**,不是代码的函数。
+R8A 同一套 170 个测试文件先后报出 **3,183** 与 **3,190** 两个数,**两次都 0 失败**,
+差别完全来自"有子代理往共享 venv 里装了平台 extra,于是 7 个被可选依赖门控 skip 的用例真跑了"。
+**不记环境,下一轮拿到不同的数就无从判断是代码变了还是环境变了。**
+查证方法与"基线是否干净"同理——**直接断言,不要间接推断**:
+去看 `site-packages/*.dist-info` 的时间戳,而不是猜。
+(注:venv 是可选、可重建的便利设施,**不是引用基准**;它漂移不影响
+`路径:行号 @ 863e313` 的有效性,但会改变报告里的数,所以必须交代。)
 
 **为什么第 2 步是必需的(R7B 定位,R7C 并入本文件)**:`aiohttp` **不在 `[dev]` extra**,
 而在 `messaging` / `slack` / `matrix` / `teams` / `homeassistant` / `sms` 等**平台 extra** 里
