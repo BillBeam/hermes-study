@@ -209,9 +209,31 @@ RULES = [
     ("tools/memory_tool.py", "L1", "R5"),
     ("tools/*.py", "L1", "R3-R4"),
     ("tools/**/*.py", "L1", "R3-R4"),
-    ("cron/**/*.py", "L1", "R7"),
-    ("gateway/*.py", "L1", "R7"),
-    ("gateway/platforms/base.py", "L1", "R7"),
+    # R7 机制簇:网关会话核心与多路复用(显式列举,R7 轮定稿)。
+    # 切片理由:原方案 R7=整个 gateway+cron(110k 行)超单轮预算,按 R1 方案
+    # 允许的拆分条款切三片——R7 会话核心引擎(session_key 路由/会话状态/看门狗/
+    # steer/流式桥)、R7B 平台接入面(platforms+relay)、R7C 运维生命周期与调度
+    # (delivery/shutdown/slash/authz/cron)。R7B/R7C 开轮时再显式定轮。
+    ("gateway/run.py", "L1", "R7"),
+    ("gateway/session.py", "L1", "R7"),
+    ("gateway/session_context.py", "L1", "R7"),
+    ("gateway/session_state.py", "L1", "R7"),
+    ("gateway/session_stall.py", "L1", "R7"),
+    ("gateway/memory_monitor.py", "L1", "R7"),
+    ("gateway/turn_lease.py", "L1", "R7"),
+    ("gateway/turn_context.py", "L1", "R7"),
+    ("gateway/wake.py", "L1", "R7"),
+    ("gateway/stream_consumer.py", "L1", "R7"),
+    ("gateway/stream_events.py", "L1", "R7"),
+    ("gateway/stream_dispatch.py", "L1", "R7"),
+    ("gateway/config.py", "L1", "R7"),
+    ("gateway/profile_routing.py", "L1", "R7"),
+    ("gateway/message_timestamps.py", "L1", "R7"),
+    ("gateway/__init__.py", "L1", "R7"),
+    ("cron/**/*.py", "L1", "R7C"),
+    ("gateway/platforms/*.py", "L1", "R7B"),
+    ("gateway/relay/*.py", "L1", "R7B"),
+    ("gateway/*.py", "L1", "R7C"),
 
     # ---- L2: structure-level ----
     ("cli.py", "L2", "R8"),
@@ -221,7 +243,8 @@ RULES = [
     ("hermes_time.py", "L2", "R8"),
     ("utils.py", "L2", "R8"),
     ("hermes_cli/**", "L2", "R8"),
-    ("gateway/**", "L2", "R7"),             # platform adapters + assets
+    ("gateway/platforms/**", "L2", "R7B"),  # adapter docs (ADDING_A_PLATFORM.md)
+    ("gateway/**", "L2", "R7C"),            # assets (status_phrases.yaml)
     ("plugins/model-providers/**", "L2", "R2"),   # provider 插件注册面,随 R2 结构级学习
     # R6 修订:8 个记忆后端的实现 .py 促升 L1(R6 卡片要求对本簇达 L1 完成标准;
     # 它们是 MemoryProvider ABC 契约的全部生产实现,机制精读才能定案各家取舍)。
@@ -247,7 +270,7 @@ RULES = [
     ("docker/**", "L2", "R11"),
     ("nix/**", "L2", "R11"),
     (".github/**", "L2", "R11"),
-    ("cron/**", "L2", "R7"),
+    ("cron/**", "L2", "R7C"),
 
     # ---- L3: cataloged content ----
     ("skills/**", "L3", "R6"),
