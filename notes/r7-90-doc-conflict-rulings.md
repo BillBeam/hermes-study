@@ -120,6 +120,62 @@
   对**所有**非 raw-text 聊天平台生效(run.py:725-755;#39293 已把 #28533 的 Telegram-only
   过滤推广到全部聊天面)。名字是历史遗留,误导作用域。
 
+### B4. stream_consumer 模块头仍称 edit-only transport —— ▲(docstring 滞后)
+
+- **文档(模块 docstring)**:`gateway/stream_consumer.py:10-11 @ 863e313`:
+  "Design: Uses the edit transport (send initial message, then editMessageText)"。
+- **代码**:`StreamConsumerConfig.transport` 已支持 `auto/draft/edit/off` 四态,Telegram DM
+  可走原生 draft 动画(stream_consumer.py:142-153,1669-1750);edit 只是默认与回落。
+- **裁决**:docstring 写于 draft 通道引入前,未更新。机制侧详见 r7-raw-stream-consumer。
+
+### B5. start() docstring 返回值语义失实 —— ▲(子代理 run-07 发现、主线复核)
+
+- **文档(docstring)**:`gateway/run.py:10668 @ 863e313`:"Returns True if at least one
+  adapter connected successfully"。
+- **代码**:start() 全路径 return True(10664-11576 区间 grep 无 `return False`);失败通过
+  exit-reason 属性(should_exit_with_failure/exit_code,run.py:6664-6677)表达,
+  connected_count==0 走四层决策树(纯致命 exit 78 / degraded / cron-only)而非返回 False。
+- **裁决**:证伪;返回值已退化为惯例,真实信号在属性上。
+
+### B6. 重启失败计数注释与实现相反 —— ▲(子代理 run-06 发现、主线复核)
+
+- **注释**:`gateway/run.py:9717-9718 @ 863e313`:"Keep any entries that are still above 0
+  even if not active now (they might become active again next restart)"。
+- **代码**:`new_counts` 仅由 `active_session_keys` 构建(9714-9716),非活跃条目被**丢弃**,
+  与注释所述"保留"相反。
+- **裁决**:注释失实(行为上丢弃更保守:非活跃会话的失败计数清零,不会误熔断)。
+
+### B7. goal 续跑前缀识别逃逸 —— bug 候选(代码内部不一致,非文档问题)
+
+- `_is_goal_continuation_event` 按前缀识别 goal 续跑合成事件:
+  `gateway/run.py:7753 @ 863e313`
+  ```python
+        return str(text).startswith("[Continuing toward your standing goal]\nGoal:")
+  ```
+- 但 gate-failed 续跑模板首行为 `"[Continuing toward your standing goal — a quality gate
+  failed]\n"`(hermes_cli/goals.py:132-134),em-dash 后缀使前缀不匹配 → gate-failed 续跑
+  事件不被识别为 goal 续跑,`/goal pause`/`clear` 的摘除与 drain 复核对它失效。
+- **处置**:hermes-agent 只读,不修;作为学习产出记录(识别谓词与模板集合脱耦的反例)。
+
+### B8. memory_monitor 全仓零生产调用点 —— ◇▲(本轮头等发现;子代理 run-13 首报、主线全仓复核)
+
+- **模块自述**:`gateway/memory_monitor.py:27-28 @ 863e313`:"Config: ``logging.memory_monitor``
+  in ``config.yaml`` — see ``hermes_cli/config.py`` for the defaults block."
+- **主线全仓复核**:`grep -rn "memory_monitor|start_memory_monitoring" --include="*.py" .`
+  除模块自身与 tests/gateway/test_memory_monitor.py 外**零命中**;hermes_cli/config.py 中
+  **不存在** `memory_monitor` 配置块。即:该模块从 cline/cline#10343 移植、带完整测试,
+  但网关启动路径(start_gateway/main)从未调用 `start_memory_monitoring()`,声称的配置
+  接线也不存在——**休眠模块**。
+- **裁决**:▲ docstring 声称的配置集成不存在;◇ 机制本体"代码有、接线无、文档无"。
+  学习价值:测试通过 ≠ 已接线;"移植完成"与"投入生产"之间隔着一个调用点。
+
+### B9. run-13 段其余三条(子代理发现、主线抽验 docstring 侧)
+
+- `main()` 的 `--verbose` 旗标解析后从未使用(run.py:27021 起参数区)——死旗标。
+- run.py:25115 附近注释称 "env var takes precedence",而 #18413 之后实际是 config 无条件
+  覆盖 env——注释滞后。
+- `_start_cron_ticker` docstring 引用的 debug.py 仅存在于 docstring,仓库无此文件。
+
 ### B3. gateway-internals.md Key Files 表 status.py 描述与其 docstring 不符 —— 记录待 R7C
 
 - 文档表:`gateway/status.py | Token lock management for profile-scoped gateway instances`
@@ -138,8 +194,29 @@
 | status.py 文档描述矛盾(B3) | gateway/status.py | R7C |
 | 能力点 98 REPL 忙时输入(cli.py) | cli.py | R8 |
 
-## D. 待补定案(等子代理证据合入后本轮内定)
+## D. 补定案
 
-- 能力点 82:网关路由持久化与对等体会话找回(session.py:1865-2034 侧)——
-  session-py 底稿合入后定案(hermes_state gateway_routing 表侧 R5 已学)。
-- 子代理各段新报的 docstring/issue 引用不符候选——逐条主线复核后追加。
+### D1. 能力点 82:网关路由持久化与对等体会话找回 —— ◇▲ 证实(session.py 侧,本轮定案)
+
+- **代码侧**(证据详见 notes/r7-raw-session-py):路由持久化双路——`gateway_routing` 表
+  (scope=sessions_dir)为**主源**、sessions.json 为 legacy 镜像,快路(单行 UPSERT)与
+  慢路(全量重写)共享一个 generation 计数器构成总序(session.py:1479-1543);会话行冗余
+  存 session_key,使进程重启后可从 DB **精确重建** 键→会话映射(_recover_session_from_db /
+  _query_recoverable_session / _record_gateway_session_peer,session.py:1865-2034);可复活
+  判定走 end_reason 白名单;Slack scoped 查询禁 peer 回退 + legacy key 一次性认领。
+- **文档侧**:session-storage.md 对 gateway_routing 仅一行提及(R1 已核),主/从关系、
+  generation 总序、end_reason 白名单、legacy 认领协议均无文档;SessionStore 类 docstring
+  的 JSONL 回退话术已过时(spec 002 已删该机制;子代理发现、主线采信其 grep 复核)。
+- **裁决**:◇(整套找回协议"代码有、地图无")+ ▲(docstring 滞后)双证实。R1 判断维持
+  并补全:R5 学的是表侧,本轮补齐 SessionStore 消费侧,该能力点闭环。
+
+### D2. 子代理其余候选的处置
+
+- session-py:▲ gateway-internals.md Session Key Format 滞后——并入 A1(同一条,证据加厚)。
+- run-05:双层守卫 bypass 命令清单不完整(真源 commands.py busy_policy 注册表)——并入 A2。
+- run-04:scale-to-zero 注释引用仓库外 `~/nous/specs` 编号(D3/F7/NS-609 等)不可解引用
+  ——记录为"注释引用私有规格库"现象,不计冲突(无从证伪)。
+- gateway-config:StreamingConfig transport 文档缺 draft 态等 5 条——机制侧已并入 B4,
+  其余留在 r7-raw-gateway-config 底稿备查。
+- run-10:hygiene 阈值/heartbeat 重启语义等 5 条——留底稿备查,其中 AGENTS.md 条款侧
+  待 R11 文档全面对照轮统一裁决。
