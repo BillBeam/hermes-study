@@ -377,7 +377,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 ---
 
-## ■ 组:代码内部缺陷(14 条,只记录不修)
+## ■ 组:代码内部缺陷(15 条,只记录不修)
 
 | # | 缺陷 | 锚点 | 怎么会踩到 |
 |---|---|---|---|
@@ -387,6 +387,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-4 | `display.copy_shortcut` 是**全仓唯一一次出现** | `hermes_cli/config_defaults.py:1280` | 用户按注释里列的四个取值去设,永远无效 |
 | ■-5 | `NOUS_BASE_URL` 在环境变量清单里,但代码读的是另外两个名字 | `hermes_cli/config_defaults.py:3132` | 安装流程会**主动向用户索要**一个没人读的变量 |
 | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
+| ■-15 | **同一进程里两个界面对“cua-driver 装好没有”给出相反答案** | 安装成功判定 `hermes_cli/tools_config.py:1585`(裸 `shutil.which`)vs 就绪判定 `:3273`(走 `_resolved_cua_driver_cmd`,`:760`) | 从 Finder/Dock 启动的 Desktop(PATH 窄)里点安装:实际装到了 `~/.local/bin`,安装器打印“did not complete”,而就绪标志同时报 ready |
 | ■-14 | **两级优先级写成了一趟循环**,弱信号在同一次迭代里短路,于是**列表顺序压过信号强度** | `hermes_cli/tools_config.py:3641-3646` | 用过 OpenAI 转录、后来切到 Groq 的用户,进 `hermes tools → Speech-to-Text`,光标默认停在 **OpenAI**;**直接回车就把 provider 悄悄改回去了** |
 | ■-13 | **插件 provider 的注入点用类目"显示名"做匹配键**,而稳定键就在同一个 dict 里 | `hermes_cli/tools_config.py:3137/3142/3150/3158/3164`(五处)/ `:484-485`(稳定键 `"web"` 与显示名并列) | 改一个界面文案(大小写、`&` 写法)→ 该类目的插件行**静默消失**;`video_gen` 与 `web` 两个类目**没有任何硬编码 provider**,一改就整类目空掉 |
 | ■-12 | **14 个内置人格在网关侧完全不存在** | `cli.py:477`(14 条只在 CLI 默认值里)/ `gateway/slash_commands.py:2502`(网关读法)/ `gateway/run.py:3145`(网关用的是**原始读**,不合并默认值) | 全新安装下,CLI 有 14 个人格可选,而聊天里敲 `/personality` 回"none configured" |
@@ -395,6 +396,54 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-9 | `_COMMENTED_SECTIONS` 是**已漂移的死副本** | `hermes_cli/config.py:3473` | 活版是 `_SECURITY_COMMENT`/`_FALLBACK_COMMENT`(:3601/:3609);两份同一句话已不同。维护者改到死版,对用户文件零效果 |
 | ■-8 | **两把配对钥匙行为不一致**:CLI 在 request-id 路径上也报"平台被锁定" | `hermes_cli/pairing.py:81` vs `hermes_cli/web_server.py:12346` | 用过期 request-id 批准 + 平台恰好因别的原因锁定 → CLI 告诉运维者"等 N 分钟",而真实原因是请求过期;dashboard 同一操作正确回 404 |
 | ■-7 | `OPTIONAL_ENV_VARS` 在 import 时被**原地改写** | `hermes_cli/config.py:5307` | 静态分析(含本项目第一版脚本)只看到 151/308 |
+
+### ■-15 细节:同一个问题,同一个文件,两个答案
+
+(线索来自 `notes/r8a-raw-tools-config-a` B1,主线已回源复核确认。)
+
+"cua-driver 这个二进制装好了吗"在同一个文件里被回答了两次。**就绪判定**用的是宽解析器:
+
+`hermes_cli/tools_config.py:3273 @ 863e313`
+
+```python
+    "cua_driver": lambda: _resolved_cua_driver_cmd() is not None,
+```
+
+而这个解析器的 docstring 明说它就是**规范答案**:
+
+`hermes_cli/tools_config.py:761 @ 863e313`
+
+```python
+    """Resolve cua-driver exactly as the runtime and Desktop status do."""
+```
+
+**安装成功判定却退回了裸 PATH 查找:**
+
+`hermes_cli/tools_config.py:1585 @ 863e313`
+
+```python
+        if result.returncode == 0 and shutil.which(driver_cmd):
+```
+
+为什么这有区别,被测代码自己解释过——从 Finder/Dock 启动的桌面应用继承的 PATH 很窄,
+而上游安装器习惯把二进制放进 `~/.local/bin`:
+
+`tools/computer_use/cua_backend.py:699-703 @ 863e313`
+
+```python
+    Desktop apps launched from Finder/Dock often inherit a narrow PATH that
+    omits user-local install directories. The upstream cua-driver installer
+    commonly places the binary under ``~/.local/bin`` on POSIX systems, so a
+    Hermes Desktop/TUI session can otherwise filter out the `computer_use`
+    tool even though `hermes computer-use doctor` succeeds from a login shell.
+```
+
+**现象**:窄 PATH 的 Desktop 里点"运行设置",安装**其实成功了**,
+安装器打印 "cua-driver installing did not complete"、返回 False;
+**而同一进程里的就绪标志同时报 ready**。两个界面当着用户的面互相打脸。
+
+**这是本轮"一个语义两处实现"的第六例**,而且是最刺眼的一种:
+**规范答案已经存在、还写了 docstring 声明自己是规范答案,安装路径就是没用它。**
 
 ### ■-14 细节:两级优先级不能写成一趟循环(主线独立复现)
 
