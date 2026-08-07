@@ -63,7 +63,7 @@ RestartPreventExitStatus={GATEWAY_FATAL_CONFIG_EXIT_CODE}
 即:**75 = 强制当作失败去重启(即使 `Restart=on-failure`);78 = 永不重启。**
 
 78 在 s6(Docker)侧的翻译不是签进仓库的脚本,而是**运行时生成**的
-`hermes_cli/service_manager.py:711-733 @ 863e313`:
+`hermes_cli/service_manager.py:712-734 @ 863e313`:
 ```python
     @staticmethod
     def _render_finish_script() -> str:
@@ -148,7 +148,7 @@ def is_container_restart_context() -> bool:
 
 **(4) 路由在哪:`/restart` 处理器。**
 
-`gateway/slash_commands.py:1609-1628 @ 863e313`:
+`gateway/slash_commands.py:1610-1629 @ 863e313`:
 ```python
         # When running under a service manager (systemd/launchd) or inside a
         # Docker/Podman container, use the service restart path: exit with
@@ -236,8 +236,10 @@ def is_container_restart_context() -> bool:
   `GenerateConsoleCtrlEvent` 的坑(bpo-14484,`gateway/run.py:9832-9834`)。
 
 **(5) 状态怎么传到新进程 —— 不靠内存,全靠 HERMES_HOME 下的 JSON marker。**
-`/restart` 处理器在发起前先写去重 marker,`gateway/slash_commands.py:1575-1606 @ 863e313`
-写 `.restart_last_processed.json`;`stop()` 里写 planned-restart 通知 marker,
+`/restart` 处理器在发起前先写两个 marker:`gateway/slash_commands.py:1581-1585 @ 863e313`
+写 `.restart_notify.json`(新网关发完"已重启"通知后会 unlink 它),
+`gateway/slash_commands.py:1589-1607 @ 863e313` 写 `.restart_last_processed.json`
+(**持久保留**,给新网关识别 Telegram 的延迟重投用);`stop()` 里写 planned-restart 通知 marker,
 `gateway/run.py:13102-13114 @ 863e313`:
 ```python
             if self._restart_requested and self._restart_command_source is None:
@@ -504,7 +506,7 @@ def check_and_record(
 (删那个 json)。
 
 **接线点。** 只有一处,在枚举完 `resume_pending` 会话之后、真正调度续跑之前,
-`gateway/run.py:10491-10509 @ 863e313`:
+`gateway/run.py:10490-10508 @ 863e313`:
 ```python
         # Defense-3 (#30719): break the SIGTERM-respawn loop. Only count this
         # boot when there are restart-interrupted sessions to resume — a clean
@@ -649,7 +651,7 @@ def collect_runtime_readiness(
 
 1. **API server 的 `/health/detailed`** —— dashboard 跨容器探测(上面)。
 2. **桌面/dashboard 的 `/api/status`** —— 复用其中一个私有探针,
-   `hermes_cli/web_server.py:3245-3266 @ 863e313`:
+   `hermes_cli/web_server.py:3246-3267 @ 863e313`:
 ```python
         # Component-level health rollup. Counts and status enums only — this
         # payload is public (PUBLIC_API_PATHS), so no messages, paths, or
@@ -1022,7 +1024,7 @@ def _systemd_watchdog_service_fields(
   但这是"宁杀错不放过"的取向。
 - **构造器有 `lag_tolerance_seconds` 参数(`:67`),但生产侧调用点不传**
   (`gateway/run.py:12645`:`SystemdWatchdog(config_enabled=True)`)—— 容差目前**不可配**,
-  只有测试用得上(`tests/gateway/test_systemd_notify.py:71`)。
+  只有测试用得上(`tests/gateway/test_systemd_notify.py:69`:`SystemdWatchdog(lag_tolerance_seconds=1.0)`)。
 
 ---
 
@@ -1748,7 +1750,7 @@ test without a live gateway.
                 if not callable(go_dormant):
                     continue
 ```
-落地动作 `gateway/run.py:7645-7662 @ 863e313`:
+落地动作 `gateway/run.py:7644-7661 @ 863e313`:
 ```python
                 logger.info(
                     "scale-to-zero: gateway idle for >= %.0fs — going dormant "
@@ -1880,7 +1882,7 @@ bg tasks: 1
 起一个 `while r._running: await asyncio.sleep(0.01)` 的协程(即 watcher 的形状),
 再调同一方法得 `True`。
 
-**为什么测试没抓到:** `tests/gateway/test_scale_to_zero_watcher.py:38` 把
+**为什么测试没抓到:** `tests/gateway/test_scale_to_zero_watcher.py:39` 把
 `r._background_tasks = set()` 设为空集,并且在 watcher 测试里直接
 monkeypatch 掉了 `_scale_to_zero_is_idle`(`:42`),绕开了这条路径:
 ```python
@@ -1965,7 +1967,7 @@ monkeypatch 掉了 `_scale_to_zero_is_idle`(`:42`),绕开了这条路径:
 | `restart_after_turn_timeout` | **0** |
 | `systemd_watchdog_seconds` | 1(`website/docs/user-guide/messaging/index.md:173`) |
 | `RestartForceExitStatus` | 1(`website/docs/user-guide/messaging/index.md:574`) |
-| `restart_drain_timeout` | 2(`.../environment-variables.md:760` + zh-Hans 译本 `:521`) |
+| `restart_drain_timeout` | 2(`website/docs/reference/environment-variables.md:760` + 中文译本 `website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/reference/environment-variables.md:521`) |
 | `external[-_]supervisor` | 2(`website/docs/reference/cli-commands.md:259,261`) |
 | `health/detailed` | 4(其中 `website/docs/user-guide/features/api-server.md:327` 是正文) |
 
@@ -2065,7 +2067,8 @@ ExecStopPost=-{python_path} -m gateway.cgroup_cleanup
 ```
 | `HERMES_RESTART_DRAIN_TIMEOUT` | Gateway: seconds to wait for active runs to drain on `/restart` before forcing the restart (default: `900`). |
 ```
-  (中文译本 `website/i18n/zh-Hans/.../environment-variables.md:521` 同样写 900。)
+  (中文译本 `website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/reference/environment-variables.md:521`
+  同样写 900。)
 - 代码 `hermes_cli/config_defaults.py:38-47 @ 863e313`:
 ```python
         # Force-interrupt budget once gateway stop()/drain has begun
@@ -2098,7 +2101,7 @@ ExecStopPost=-{python_path} -m gateway.cgroup_cleanup
 
 **▲4 —— `tests/gateway/test_restart_service_detection.py` 的 docstring 说 launchd plist 用
 `KeepAlive.SuccessfulExit=false`,实际是无条件 `KeepAlive=true`。**
-- 测试 docstring `tests/gateway/test_restart_service_detection.py:5-9 @ 863e313`:
+- 测试 docstring `tests/gateway/test_restart_service_detection.py:3-7 @ 863e313`:
 ```
 The /restart handler routes through ``request_restart(via_service=True)``
 when a service manager supervises the gateway, so the process exits with
@@ -2106,7 +2109,7 @@ the service-restart code and the manager relaunches it.  Under macOS
 launchd the plist uses ``KeepAlive.SuccessfulExit=false`` — a clean exit 0
 is treated as a deliberate stop and the gateway stays dead (#43475) — so
 ```
-- 代码 `hermes_cli/gateway.py:4132-4133 @ 863e313`:
+- 代码 `hermes_cli/gateway.py:4133-4134 @ 863e313`:
 ```
     <key>KeepAlive</key>
     <true/>
@@ -2122,7 +2125,7 @@ is treated as a deliberate stop and the gateway stays dead (#43475) — so
 - 事实:签进仓库的只有 `docker/s6-rc.d/dashboard/finish`(**dashboard 的,不是网关的**);
   网关的 finish 由 `hermes_cli/service_manager.py:712-733` 在服务注册时生成。
   `docker/s6-rc.d/main-hermes/run` 更是明确写着 "For now this service is a no-op: it
-  sleeps forever"(`docker/s6-rc.d/main-hermes/run:23-25`),网关是"per-profile gateways
+  sleeps forever"(`docker/s6-rc.d/main-hermes/run:23-26`),网关是"per-profile gateways
   register dynamically via /run/service/ at runtime (Phase 4)"。
 - 裁决:▲(极轻微,措辞)。断言正确,只是定冠词让人以为能 `find` 到。**我为此绕了一圈,
   记下来给后来者省时间。**
@@ -2202,13 +2205,15 @@ D/F/Q 编号(◇7);code_skew 用的是一个测试文件路径 + 一个 gateway 
 1518671026962174144)")。
 
 **跨簇引用到的编号(在调用点注释里,归属其他轮次但与本簇路径相关):**
-`#8202`(排水超时后 systemd SIGKILL cgroup 抢走 bash/sleep 子进程,`gateway/run.py:12929`)、
+`#8202`(排水超时后 systemd SIGKILL cgroup 抢走 bash/sleep 子进程,
+`gateway/run.py:12687` 与 `:12929`)、
 `#42675`(`docker compose up --force-recreate` 后 gateway_state 被写成 stopped,
-下次开机不自启,`gateway/run.py:13154`)、
-`#53107`(卡死的非守护线程阻塞解释器退出,os._exit 兜底,`gateway/run.py:26988` 附近)、
-`#53175`(memory provider 卡死导致 SIGTERM 杀不掉,`gateway/run.py:12950`)、
-`#54220/#56747`(Windows 上用 pythonw 会让每个控制台子进程弹出 conhost,`gateway/run.py:9891`)、
-`#23778`(自动续跑没校验 allowlist,`gateway/run.py:10530` 附近)。
+下次开机不自启,`gateway/run.py:5963`、`:13152`、`:13165`)、
+`#53107`(卡死的非守护线程阻塞解释器退出,os._exit 兜底,`gateway/run.py:27053`)、
+`#53175`(memory provider 卡死导致 SIGTERM 杀不掉,`gateway/run.py:9519`、`:9554`、`:12962`)、
+`#54220/#56747`(Windows 上用 pythonw 会让每个控制台子进程弹出 conhost,`gateway/run.py:9883`)、
+`#23778`(自动续跑没校验 allowlist,`gateway/run.py:10537`)、
+`#72039`(单一进度源契约,`gateway/run.py:12130`、`:12333`)。
 
 ---
 
@@ -2256,7 +2261,7 @@ $ cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python 
 不是 mock,是端到端。
 
 **(c) 三个信号的顺序被断言。**
-`tests/gateway/test_systemd_notify.py:75-79 @ 863e313`:
+`tests/gateway/test_systemd_notify.py:76-80 @ 863e313`:
 ```python
     assert any(message.startswith("READY=1") for message in calls)
     assert "WATCHDOG=1" in calls
@@ -2266,7 +2271,7 @@ $ cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python 
 `calls[-1] == "STOPPING=1"` 就是"STOPPING 必须是最后一条"的规格。
 
 **(d) cgroup 收割在探针文件不可读时必须**不**发信号。**
-`tests/gateway/test_cgroup_cleanup.py:36-42 @ 863e313`:
+`tests/gateway/test_cgroup_cleanup.py:38-42 @ 863e313`:
 ```python
         def _explode(*_a, **_kw):
             pytest.fail("os.kill must not be called when cgroup.procs is unreadable")
@@ -2313,9 +2318,10 @@ def test_idle_exactly_at_threshold():
   缺的是"一个 armed 的 runner 在真实 startup 之后仍然能判出 idle"这一级的集成测试。
 - **`is_restart_loop_tripped` 与 `clear()` 只有测试用**,测试覆盖了不存在的生产路径 ——
   覆盖率不等于接线正确。
-- **`cgroup_cleanup` 无 happy-path 测试**:`TestReapCgroup` 类里只有
-  `test_noop_when_procs_file_missing` 一个用例(`tests/gateway/test_cgroup_cleanup.py:26-42`),
-  "真的读到 PID 列表并逐个 kill"这条主路径没有用例。
+- **`cgroup_cleanup` 无 happy-path 测试**:`TestReapCgroup` 类(`:27`)里只有
+  `test_noop_when_procs_file_missing` 一个用例(`tests/gateway/test_cgroup_cleanup.py:30-42`),
+  "真的读到 PID 列表并逐个 kill"这条主路径没有用例。整文件只有 2 个用例
+  (另一个是 `TestOwnCgroupPath::test_parses_v2_cgroup_path`,`:14-24`)。
 - **`readiness._probe_disk` 的 90% 阈值无用例**(现有两个用例都只断言
   `in {"ok","degraded"}`,`tests/gateway/test_readiness.py:38`)。
 

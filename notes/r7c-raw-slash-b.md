@@ -2007,8 +2007,9 @@ relay 与 whatsapp 都专门处理了这一点:
 
 ### ▲-03 AGENTS.md 的「新增 slash 命令」步骤指向已搬走的位置
 
-**文档侧**:`AGENTS.md:397-410 @ 863e313`
-「3. If the command is available in the gateway, add a handler in `gateway/run.py`」。
+**文档侧**:`AGENTS.md:407 @ 863e313`
+「3. If the command is available in the gateway, add a handler in `gateway/run.py`:」
+(「Adding a Slash Command」小节起于 `AGENTS.md:395`)。
 AGENTS.md 全文 grep 不到 `slash_commands.py`。
 
 **代码侧**:handler 已在 Phase 3b 搬到 `gateway/slash_commands.py`
