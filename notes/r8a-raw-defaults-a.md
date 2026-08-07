@@ -204,7 +204,7 @@ def _resolve_allow_private_urls() -> bool:
 ```
 
 同一函数里还藏着一条**三级 fallback 链**:环境变量 > `security.allow_private_urls` >
-`browser.allow_private_urls`(遗留)。`tools/url_safety.py:252 @ 863e313`
+`browser.allow_private_urls`(遗留)。`tools/url_safety.py:251 @ 863e313`
 
 ```python
     # 1. Env var override (highest priority)
@@ -231,7 +231,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 ```
 
 桥接函数的语义:**用户文件里显式写过的 terminal 键覆盖 env;仅来自默认的值只回填缺失的 env**。
-`hermes_cli/config.py:3232 @ 863e313`
+`hermes_cli/config.py:3231 @ 863e313`
 
 ```python
 def apply_terminal_config_to_env(
@@ -1488,7 +1488,7 @@ aggregator 提示也脱敏(#59959)。`hermes_cli/config_defaults.py:1774 @ 863e3
 **D-1 `hermes config set agent.reasoning_effort <v>` 会给出误导性的"你是不是想写"建议。**
 `agent.reasoning_effort` 是真实被支持的键,但不在 `DEFAULT_CONFIG["agent"]` 里,于是
 `_validate_config_key` 走到"未知子键"分支,用 `difflib.get_close_matches(cutoff=0.6)` 在同级里找近似。
-`hermes_cli/config.py:4812 @ 863e313`
+`hermes_cli/config.py:4810 @ 863e313`
 
 ```python
             sibling_suggestion = _suggest_closest_key(seg, set(node.keys()))
@@ -1511,7 +1511,7 @@ aggregator 提示也脱敏(#59959)。`hermes_cli/config_defaults.py:1774 @ 863e3
 
 于是函数在 load 路径上只剩 `config.pop("max_turns", None)` 一句有效——
 真正的遗留键搬迁发生在合并**之前**的一段独立代码里。
-`hermes_cli/config.py:3341 @ 863e313`
+`hermes_cli/config.py:3340 @ 863e313`
 
 ```python
                 if "max_turns" in user_config:
@@ -1523,20 +1523,20 @@ aggregator 提示也脱敏(#59959)。`hermes_cli/config_defaults.py:1774 @ 863e3
 **D-3 `_strip_default_values` 把"该键被剥掉"和"该键的值就是 `None`"混为一谈。**
 内部递归函数用 `return None` 表示"与默认相同,剥掉",而叶子分支在值 ≠ 默认时
 `return copy.deepcopy(value)`——如果 `value` 本身是 `None`,返回的还是 `None`。
-`hermes_cli/config.py:2735 @ 863e313`
+`hermes_cli/config.py:2733 @ 863e313`
 
 ```python
         if value == default:
             return None
 ```
 
-`hermes_cli/config.py:2737 @ 863e313`
+`hermes_cli/config.py:2736 @ 863e313`
 
 ```python
         return copy.deepcopy(value)
 ```
 
-调用方只认 `is not None`:`hermes_cli/config.py:2725 @ 863e313`
+调用方只认 `is not None`:`hermes_cli/config.py:2726 @ 863e313`
 
 ```python
                 if stripped_child is not None:
@@ -1557,7 +1557,7 @@ _allow_private_resolved = False
 
 **怎么会踩到**:长跑的 gateway 进程里,用户改了 `security.allow_private_urls` 并期待
 (像 MCP 那样)被文件监视器热应用——不会,必须重启。代码里唯一的重置入口写明"only for tests"。
-`tools/url_safety.py:281 @ 863e313`
+`tools/url_safety.py:282 @ 863e313`
 
 ```python
 def _reset_allow_private_cache() -> None:
@@ -1642,7 +1642,693 @@ from hermes_cli.config import (
 值为 `{ … }` 表示该键是容器(非空嵌套 dict),其子键在紧随其后的行里逐条列出。
 注释列是源码注释原文压成一行(超长截断至 420 字符),空白表示**该键在源码里没有任何注释**。
 
-<!-- TABLE -->
+| 行 | 键(点分路径) | 默认值 | 注释(源码原文,压成一行) |
+|---|---|---|---|
+| 8 | `model` | `''` |  |
+| 9 | `providers` | `{}` |  |
+| 10 | `fallback_providers` | `[]` |  |
+| 11 | `credential_pool_strategies` | `{}` |  |
+| 12 | `toolsets` | `['hermes-cli']` |  |
+| 16 | `database` | `{ … }` | SQLite journal mode used by every Hermes database opener. WAL is the normal default; set DELETE for weak-fsync/shared filesystems where WAL is not crash-safe (for example macOS virtiofs, NFS, or SMB). |
+| 17 | `database.journal_mode` | `'wal'` |  |
+| 20 | `database.wal_autocheckpoint` | `None` | Optional WAL sizing pragmas, applied when set to integers. None = SQLite defaults (autocheckpoint 1000 pages, no size limit). |
+| 21 | `database.journal_size_limit` | `None` |  |
+| 25 | `max_concurrent_sessions` | `None` | Global active chat session cap across CLI, TUI/dashboard, and messaging. None/0 = unbounded. |
+| 30 | `max_live_sessions` | `16` | Soft LRU cap on in-memory TUI/desktop/dashboard sessions. When more than this many are live, the gateway evicts the least-recently-active DETACHED sessions (no live client) so accumulated agents don't pile up under memory pressure. Reopening one re-resumes it from disk. 0/null disables. |
+| 31 | `agent` | `{ … }` |  |
+| 32 | `agent.max_turns` | `500` |  |
+| 37 | `agent.gateway_timeout` | `1800` | Inactivity timeout for gateway agent execution (seconds). The agent can run indefinitely as long as it's actively calling tools or receiving API responses. Only fires when the agent has been completely idle for this duration. 0 = unlimited. |
+| 47 | `agent.restart_drain_timeout` | `0` | Force-interrupt budget once gateway stop()/drain has begun (seconds). Applies to SIGTERM/external stop and to the final phase of in-band restart after any after-turn wait. 0 = interrupt immediately (the default). Keep this short and under systemd TimeoutStopSec — a long value here invites SIGKILL-mid-cleanup. For in-band restart (/restart, SIGUSR1), prefer restart_after_turn_timeout below so active turns finish *befo … |
+| 54 | `agent.restart_after_turn_timeout` | `21600` | In-band restart wait for active turns to finish before stop() (seconds). /restart and SIGUSR1 refuse new work, then wait up to this cap for in-flight agents/cron/api runs to complete naturally so the requesting turn is not amputated by restart_drain_timeout. 0 = legacy behaviour (enter stop()/drain immediately). Default 6h is a safety valve for wedged agents, not a target latency. |
+| 62 | `agent.build_wait_timeout` | `600` | Upper bound (seconds) a submitted prompt waits for the deferred agent build (MCP discovery, model metadata, skills scan) before failing with a visible error (#63078). The gateway's wait is patient — the prompt is delivered the moment the build completes and a progress notice is emitted past 30s — so this cap only fires on a genuinely hung build. Raise it for deployments with many slow or unreachable MCP servers. |
+| 71 | `agent.api_max_retries` | `3` | Max app-level retry attempts for API errors (connection drops, provider timeouts, 5xx, etc.) before the agent surfaces the failure. The OpenAI SDK already does its own low-level retries (max_retries=2 default) for transient network errors; this is the Hermes-level retry loop that wraps the whole call. Lower this to 1 if you use fallback providers and want fast failover on flaky primaries; raise it if you prefer to to … |
+| 72 | `agent.service_tier` | `''` |  |
+| 78 | `agent.tool_use_enforcement` | `'auto'` | Tool-use enforcement: injects system prompt guidance that tells the model to actually call tools instead of describing intended actions. Values: "auto" (default — applies to gpt/codex models), true/false (force on/off for all models), or a list of model-name substrings to match (e.g. ["gpt", "codex", "gemini", "qwen"]). |
+| 88 | `agent.intent_ack_continuation` | `'auto'` | Intent-ack continuation: when the model opens a turn by narrating an action it will take ("I'll go check the logs...") but emits no tool call, intercept the turn-end, inject a "continue now, execute the tools" nudge, and loop instead of ending the turn (capped at 2 nudges per turn). This is the corrective sibling of tool_use_enforcement (the preventive prompt-side guard). Values: "auto" (default — fires only on the c … |
+| 94 | `agent.task_completion_guidance` | `True` | Universal "finish the job" guidance — short prompt block applied to all models that targets two cross-family failure modes: (1) stopping after a stub instead of finishing the artifact, (2) fabricating plausible-looking output when a real path is blocked. Costs ~80 tokens in the cached system prompt. Set False to disable globally. |
+| 103 | `agent.parallel_tool_call_guidance` | `True` | Universal parallel-tool-call guidance — short prompt block applied to all models that tells the model to batch independent tool calls (reads, searches, web fetches, read-only commands) into one turn instead of one call per turn. The runtime already runs independent calls concurrently, so this just steers the model to produce the batch — cutting round-trips and the resent-context cost that compounds over a long conver … |
+| 111 | `agent.environment_probe` | `True` | Local-environment toolchain probe — surfaces Python/pip/uv/PEP-668 state in the system prompt when something non-default is detected (e.g. python3 has no pip module, pip→python version mismatch, PEP 668 enforcement without uv). Costs zero tokens when the env is clean (probe emits nothing). Skipped for remote terminal backends (docker/modal/ssh — they have their own probe). Set False to disable entirely. |
+| 118 | `agent.environment_hint` | `''` | Embedder-supplied environment description appended to the system prompt's environment-hints block. Lets a host that wraps Hermes (sandbox runner, managed platform) explain the runtime environment — proxy, credential handling, mount layout — without editing the identity slot (SOUL.md). Empty by default. The HERMES_ENVIRONMENT_HINT env var overrides this (build-time/container mechanism). |
+| 133 | `agent.coding_context` | `'auto'` | Coding posture — on interactive coding surfaces (CLI, TUI, desktop app, ACP) in a code workspace, Hermes adds a coding operating brief + a live git/workspace snapshot to the system prompt. See agent/coding_context.py. "auto" (default) — prompt-only posture when the surface is interactive AND cwd is a code workspace. Toolsets are never touched; messaging platforms unaffected. "focus" — auto + collapse the toolset to t … |
+| 140 | `agent.coding_instructions` | `''` | Standing operator instructions for the coding posture. A string (or list of strings) appended to the coding brief as an extra stable system block — pin project-wide workflow rules here instead of editing the shipped brief, e.g. "For UI work, don't run tsc/lint until I approve. Clean the diff before you commit and push." Cache-safe: takes effect next session. Empty by default. |
+| 145 | `agent.verify_guidance` | `True` | When verify-on-stop finds edited code without fresh verification evidence, append guidance for creative UI work (avoid broad tsc/lint/test before visual approval) and clean-diff expectations. Set false to keep the evidence nudge terse. |
+| 148 | `agent.max_verify_nudges` | `3` | Upper bound on consecutive `pre_verify` "continue" nudges in a single turn, so a user/plugin hook can never trap the loop. |
+| 158 | `agent.verify_on_stop` | `'auto'` | Verification closure: after the agent edits files in a code workspace, do not accept a final answer until fresh verification evidence exists or the agent explains why it cannot run checks. The loop is bounded and uses the passive verification ledger. Default is "auto" — surface-aware: on for interactive coding surfaces (CLI, TUI, desktop) and programmatic callers, off for conversational messaging surfaces (Telegram, … |
+| 162 | `agent.gateway_timeout_warning` | `900` | Staged inactivity warning: send a warning to the user at this threshold before escalating to a full timeout. The warning fires once per run and does not interrupt the agent. 0 = disable warning. |
+| 174 | `agent.clarify_timeout` | `3600` | Maximum time (seconds) the gateway will block an agent waiting for a clarify-tool response from the user. Hit this and the agent unblocks with "[user did not respond within Xm]" so it can adapt rather than pinning the running-agent guard forever. CLI clarify blocks indefinitely (input() is synchronous) and ignores this. Default 3600 (1h): real users step away (meetings, AFK) and the old 600s default evicted the entry … |
+| 182 | `agent.gateway_notify_interval` | `180` | Periodic "still working" notification interval (seconds). Sends a status message every N seconds so the user knows the agent hasn't died during long tasks. 0 = disable notifications. Lower values mean faster feedback on slow tasks but more chat noise; 180s is a compromise that catches spinning weak-model runs (60+ tool iterations with tiny output) before users assume the bot is dead and /restart. |
+| 193 | `agent.session_stall_timeout` | `300` | Session stall watchdog (seconds). Scope (#76354): this is a RECOVERY notifier for an in-process AIAgent that has an adapter-queued follow-up (pending inbound / queued event) while its activity clock is stale — NOT a general gateway/session stall detector. It does not observe startup restoration, build sentinels, turn leases, debounce state, or work owned by another process; the scan cadence is per AIAgent instance, n … |
+| 207 | `agent.gateway_auto_continue_freshness` | `3600` | Freshness window for the gateway auto-continue note (seconds). After a gateway crash/restart/SIGTERM mid-run, the next user message gets a "[System note: your previous turn was interrupted — process the unfinished tool result(s) first]" prepended so the model picks up where it left off. That's the right behaviour while the interruption is fresh, but stale markers (transcript last touched hours or days ago) can revive … |
+| 219 | `agent.gateway_startup_restore_drain_timeout` | `30` | Max seconds the gateway waits for boot auto-resume turns to finish before it releases the startup-restore inbound gate. While startup restore is in progress the gateway QUEUES every inbound message instead of replying, so no channel gets an answer until this gate opens. Without a bound, one pathologically long resumed turn holds the gate shut and every channel's inbound piles up unanswered for as long as that turn ru … |
+| 226 | `agent.local_stream_stale_timeout` | `900` | Stale-stream ceiling for local providers (Ollama, oMLX, llama-cpp) in seconds. When the base stale timeout is at its default (180s) and a local endpoint is detected, this finite ceiling replaces the former infinite disable so a wedged local server eventually trips the detector instead of hanging forever. The env var ``HERMES_LOCAL_STREAM_STALE_TIMEOUT`` overrides for escape-hatch use. |
+| 240 | `agent.image_input_mode` | `'auto'` | How user-attached images are presented to the main model on each turn. "auto" — attach natively when the active model reports supports_vision=True AND the user hasn't explicitly configured auxiliary.vision.provider. Otherwise fall back to text (vision_analyze pre-analysis). "native" — always attach natively; non-vision models will either error at the provider or get a last-chance text fallback (see run_agent._prepare … |
+| 241 | `agent.disabled_toolsets` | `[]` |  |
+| 248 | `agent.reasoning_overrides` | `{}` | Per-model reasoning effort overrides (spelling-tolerant). Dict mapping model names (any reasonable spelling) to effort levels. Takes precedence over agent.reasoning_effort when the current model matches a key in this dict. Edit directly in config.yaml (no CLI support due to dots in keys). |
+| 251 | `terminal` | `{ … }` |  |
+| 252 | `terminal.backend` | `'local'` |  |
+| 253 | `terminal.modal_mode` | `'auto'` |  |
+| 254 | `terminal.cwd` | `'.'` | Use current directory |
+| 262 | `terminal.font_family` | `''` | Terminal font family for the desktop app's embedded xterm.js terminal. When set (e.g. "'CaskaydiaCoveNerdFont', 'JetBrains Mono', monospace"), the desktop terminal uses this as the CSS font-family value, with the built-in default ("'JetBrains Mono', 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace") as fallback when the field is empty or unset. This lets users install a Nerd Font (or any custom font) and config … |
+| 263 | `terminal.timeout` | `180` |  |
+| 269 | `terminal.daemon_term_grace_seconds` | `2.0` | Bounded grace period (seconds) between SIGTERM and an escalated SIGKILL when terminating a host process tree (browser daemons, etc.). A daemon that stalls in its SIGTERM handler is force-killed after this window so it can't leak indefinitely. 0 disables escalation (SIGTERM only — the historical behavior). Floored internally at 0. |
+| 273 | `terminal.env_passthrough` | `[]` | Environment variables to pass through to sandboxed execution (terminal and execute_code). Skill-declared required_environment_variables are passed through automatically; this list is for non-skill use cases. |
+| 280 | `terminal.home_mode` | `'auto'` | HOME handling for host tool subprocesses: auto — host keeps the real OS-user HOME; containers use HERMES_HOME/home for persistent state (default) real — force the real OS-user HOME profile — force HERMES_HOME/home when it exists (old strict per-profile CLI config isolation) |
+| 293 | `terminal.shell_init_files` | `[]` | Extra files to source in the login shell when building the per-session environment snapshot. Use this when tools like nvm, pyenv, asdf, or custom PATH entries are registered by files that a bash login shell would skip — most commonly ``~/.bashrc`` (bash doesn't source bashrc in non-interactive login mode) or zsh-specific files like ``~/.zshrc`` / ``~/.zprofile``. Paths support ``~`` / ``${VAR}``. Missing files are si … |
+| 306 | `terminal.auto_source_bashrc` | `True` | When true (default), Hermes sources the user's shell rc files (``~/.profile``, ``~/.bash_profile``, ``~/.bashrc``) in the login shell used to build the environment snapshot. This captures PATH additions, shell functions, and aliases — which a plain ``bash -l -c`` would otherwise miss because bash skips bashrc in non-interactive login mode, and because a default Debian/Ubuntu ``~/.bashrc`` short-circuits on non-intera … |
+| 307 | `terminal.docker_image` | `'nikolaik/python-nodejs:python3.11-nodejs20'` |  |
+| 308 | `terminal.docker_forward_env` | `[]` |  |
+| 314 | `terminal.docker_env` | `{}` | Explicit environment variables to set inside Docker containers. Unlike docker_forward_env (which reads values from the host process), docker_env lets you specify exact key-value pairs — useful when Hermes runs as a systemd service without access to the user's shell environment. Example: {"SSH_AUTH_SOCK": "/run/user/1000/ssh-agent.sock"} |
+| 315 | `terminal.singularity_image` | `'docker://nikolaik/python-nodejs:python3.11-nodejs20'` |  |
+| 316 | `terminal.modal_image` | `'nikolaik/python-nodejs:python3.11-nodejs20'` |  |
+| 317 | `terminal.daytona_image` | `'nikolaik/python-nodejs:python3.11-nodejs20'` |  |
+| 320 | `terminal.vercel_runtime` | `'node24'` | Vercel Sandbox runtime (vercel_sandbox backend only). Supported: node24, node22, python3.13. |
+| 322 | `terminal.container_cpu` | `1` | Container resource limits (docker, singularity, modal, daytona, vercel_sandbox — ignored for local/ssh) |
+| 323 | `terminal.container_memory` | `5120` | MB (default 5GB) |
+| 324 | `terminal.container_disk` | `51200` | MB (default 50GB) |
+| 325 | `terminal.container_persistent` | `True` | Persist filesystem across sessions |
+| 333 | `terminal.docker_volumes` | `[]` | Docker volume mounts — share host directories with the container. Each entry is "host_path:container_path" (standard Docker -v syntax). Example: ["/home/user/projects:/workspace/projects", "/home/user/.hermes/cache/documents:/output"] For gateway MEDIA delivery, write inside Docker to /output/... and emit the host-visible path in MEDIA:, not the container path. |
+| 336 | `terminal.docker_mount_cwd_to_workspace` | `False` | Explicit opt-in: mount the host cwd into /workspace for Docker sessions. Default off because passing host directories into a sandbox weakens isolation. |
+| 339 | `terminal.docker_network` | `True` | Opt-in egress lockdown for Docker terminal sessions. When false, Docker runs with --network=none so commands cannot reach the network. |
+| 340 | `terminal.docker_extra_args` | `[]` | Extra flags passed verbatim to docker run |
+| 345 | `terminal.docker_shm_size` | `'1g'` | /dev/shm size for the Docker sandbox. Docker's 64 MB default silently breaks Chromium/Playwright and PyTorch DataLoader workers; tmpfs is lazily allocated so the higher ceiling costs nothing until used. Set to "" (or "0") to omit the flag and use Docker's default. |
+| 356 | `terminal.docker_run_as_host_user` | `False` | Explicit opt-in: run the Docker container as the host user's uid:gid (via `--user`). When enabled, files written into bind-mounted dirs (docker_volumes, the persistent workspace, or the auto-mounted cwd) are owned by your host user instead of root, which avoids needing `sudo chown` after container runs. Default off to preserve behavior for images whose entrypoints expect to start as root (e.g. the bundled Hermes imag … |
+| 361 | `terminal.persistent_shell` | `True` | Persistent shell — keep a long-lived bash shell across execute() calls so cwd/env vars/shell variables survive between commands. Enabled by default for non-local backends (SSH); local is always opt-in via TERMINAL_LOCAL_PERSISTENT env var. |
+| 364 | `web` | `{ … }` |  |
+| 365 | `web.backend` | `''` | shared fallback — applies to both search and extract |
+| 366 | `web.search_backend` | `''` | per-capability override for web_search (e.g. "searxng") |
+| 367 | `web.extract_backend` | `''` | per-capability override for web_extract (e.g. "native") |
+| 368 | `web.extract_char_limit` | `15000` | per-page char budget for web_extract; larger pages truncate + store full text in cache/web |
+| 371 | `browser` | `{ … }` |  |
+| 372 | `browser.inactivity_timeout` | `120` |  |
+| 373 | `browser.command_timeout` | `30` | Timeout for browser commands in seconds (screenshot, navigate, etc.) |
+| 374 | `browser.record_sessions` | `False` | Auto-record browser sessions as WebM videos |
+| 375 | `browser.headed` | `False` | Local mode: launch Chromium with a visible window (also skips per-turn cleanup so the window persists between turns; idle reaper still applies) |
+| 376 | `browser.allow_private_urls` | `False` | Allow navigating to private/internal IPs (localhost, 192.168.x.x, etc.) |
+| 383 | `browser.engine` | `'auto'` | Browser engine for local mode. Passed as ``--engine <value>`` to agent-browser v0.25.3+. "auto" — use Chrome (default, don't pass --engine at all) "lightpanda" — use Lightpanda (1.3-5.8x faster navigation, no screenshots) "chrome" — explicitly request Chrome Also settable via AGENT_BROWSER_ENGINE env var. |
+| 384 | `browser.auto_local_for_private_urls` | `True` | When a cloud provider is set, auto-spawn local Chromium for LAN/localhost URLs instead of sending them to the cloud |
+| 385 | `browser.cdp_url` | `''` | Optional persistent CDP endpoint for attaching to an existing Chromium/Chrome |
+| 386 | `browser.allow_unsafe_evaluate` | `False` | Legacy override: when true, browser_console(expression=...) bypasses the restrict_evaluate denylist entirely |
+| 387 | `browser.restrict_evaluate` | `False` | Opt-in denylist blocking sensitive JS primitives (cookies/storage/clipboard/network/form values) in browser_console(expression=...) |
+| 392 | `browser.dialog_policy` | `'must_respond'` | must_respond \| auto_dismiss \| auto_accept |
+| 393 | `browser.dialog_timeout_s` | `300` | Safety auto-dismiss after N seconds under must_respond |
+| 394 | `browser.camofox` | `{ … }` |  |
+| 398 | `browser.camofox.managed_persistence` | `False` | When true, Hermes sends a stable profile-scoped userId to Camofox so the server maps it to a persistent Firefox profile automatically. When false (default), each session gets a random userId (ephemeral). |
+| 401 | `browser.camofox.user_id` | `''` | Optional externally managed Camofox identity. Useful when another app owns the visible browser and Hermes should operate in it. |
+| 402 | `browser.camofox.session_key` | `''` |  |
+| 404 | `browser.camofox.adopt_existing_tab` | `False` | Rehydrate tab_id from Camofox before creating a new tab. |
+| 408 | `browser.camofox.rewrite_loopback_urls` | `False` | Docker Camofox opens page URLs from inside the container. Enable this to rewrite loopback page URLs (localhost/127.0.0.1/::1) to a host alias while leaving CAMOFOX_URL itself unchanged. |
+| 409 | `browser.camofox.loopback_host_alias` | `'host.docker.internal'` |  |
+| 423 | `checkpoints` | `{ … }` | Filesystem checkpoints — automatic snapshots before destructive file ops. When enabled, the agent takes a snapshot of the working directory once per conversation turn (on first write_file/patch call). Use /rollback to restore. Defaults changed in v2 (single shared shadow store, real pruning): - enabled: True -> False (opt-in; most users never use /rollback) - max_snapshots: 50 -> 20 (now actually enforced via ref rew … |
+| 424 | `checkpoints.enabled` | `False` |  |
+| 428 | `checkpoints.max_snapshots` | `20` | Max checkpoints to keep per working directory. Pre-v2 this only limited the `/rollback` listing; v2 actually rewrites the ref and garbage-collects older commits. |
+| 433 | `checkpoints.max_total_size_mb` | `500` | Hard ceiling on total ``~/.hermes/checkpoints/`` size (MB). When exceeded, the oldest checkpoint per project is dropped in a round-robin pass until total size falls under the cap. 0 disables the size cap. |
+| 437 | `checkpoints.max_file_size_mb` | `10` | Skip any single file larger than this when staging a checkpoint. Prevents accidental snapshotting of datasets, model weights, and other large generated assets. 0 disables the filter. |
+| 454 | `checkpoints.auto_prune` | `True` | Auto-maintenance: hermes sweeps the checkpoint base at startup (at most once per ``min_interval_hours``) and: * deletes project entries whose last_touch is older than ``retention_days`` * GCs the single shared store to reclaim unreachable objects * enforces ``max_total_size_mb`` across remaining projects * deletes ``legacy-*`` archives older than ``retention_days`` NOTE: this automatic sweep never deletes "orphan" en … |
+| 455 | `checkpoints.retention_days` | `7` |  |
+| 456 | `checkpoints.min_interval_hours` | `24` |  |
+| 465 | `context_file_max_chars` | `None` | Hard cap (chars) for a single automatic context file such as SOUL.md, AGENTS.md, CLAUDE.md, .hermes.md, or .cursorrules before Hermes applies head/tail truncation. ``null`` (the default) lets the cap scale with the model's context window (floor 20K, ceiling 500K) so large-context models rarely truncate a project doc. Set a positive integer to pin a fixed cap and override the dynamic behavior. Separate from read_file … |
+| 470 | `file_read_max_chars` | `100000` | Maximum characters returned by a single read_file call. Reads that exceed this are rejected with guidance to use offset+limit. 100K chars ≈ 25–35K tokens across typical tokenisers. |
+| 485 | `mcp_discovery_timeout` | `1.5` | Seconds to wait at agent-build time for in-flight MCP server discovery to finish before the agent snapshots its tool list. MCP discovery runs in a background thread so a slow/dead server can't freeze startup; this bounds how long the first agent build blocks on it. The wait returns the INSTANT discovery completes, so users with no MCP servers (the common case) or fast servers pay ~0s regardless of this value — the bo … |
+| 495 | `mcp_single_query_discovery_timeout` | `15.0` | Single-query (``hermes -q/-z "..."``) variant of mcp_discovery_timeout. In one-shot mode there is only ONE turn, so the between-turns late-binding refresh never runs: a server that misses the small interactive bound is invisible to the LLM for the whole session. This larger bound gives slow cold-start servers (npx, uvx, remote HTTP) a chance to land in the one tool snapshot. ``thread.join(timeout)`` returns the insta … |
+| 499 | `mcp` | `{ … }` | MCP runtime behavior (distinct from the per-server definitions in mcp_servers: and from the auxiliary.mcp side-LLM task settings). |
+| 508 | `mcp.auto_reload_on_config_change` | `True` | Auto-reload MCP connections when config.yaml's mcp_servers section changes at runtime (CLI file watcher, default on). Set to false to stop the automatic reload: every automatic reload rebuilds the agent tool surface and INVALIDATES the provider prompt cache (the next message re-sends the full input prefix), which is expensive on long-context / high-reasoning models. When disabled, the watcher still detects the change … |
+| 525 | `tool_output` | `{ … }` | Tool-output truncation thresholds. When terminal output or a single read_file page exceeds these limits, Hermes truncates the payload sent to the model (keeping head + tail for terminal, enforcing pagination for read_file). Tuning these trades context footprint against how much raw output the model can see in one shot. Ported from anomalyco/opencode PR #23770. - max_bytes: terminal_tool output cap, in chars (default … |
+| 526 | `tool_output.max_bytes` | `50000` |  |
+| 527 | `tool_output.max_lines` | `2000` |  |
+| 528 | `tool_output.max_line_length` | `2000` |  |
+| 534 | `tool_loop_guardrails` | `{ … }` | Tool loop guardrails nudge models when they repeat failed or non-progressing tool calls. Soft warnings are always-on by default; hard stops are opt-in so interactive CLI/TUI sessions keep flowing. |
+| 535 | `tool_loop_guardrails.warnings_enabled` | `True` |  |
+| 536 | `tool_loop_guardrails.hard_stop_enabled` | `False` |  |
+| 537 | `tool_loop_guardrails.warn_after` | `{ … }` |  |
+| 538 | `tool_loop_guardrails.warn_after.exact_failure` | `2` |  |
+| 539 | `tool_loop_guardrails.warn_after.same_tool_failure` | `3` |  |
+| 540 | `tool_loop_guardrails.warn_after.idempotent_no_progress` | `2` |  |
+| 542 | `tool_loop_guardrails.hard_stop_after` | `{ … }` |  |
+| 543 | `tool_loop_guardrails.hard_stop_after.exact_failure` | `5` |  |
+| 544 | `tool_loop_guardrails.hard_stop_after.same_tool_failure` | `8` |  |
+| 545 | `tool_loop_guardrails.hard_stop_after.idempotent_no_progress` | `5` |  |
+| 555 | `tool_loop_guardrails.loop_caps` | `{ … }` | Per-turn runaway-loop caps (inspired by Claude Code v2.1.212, Week 29, July 2026). Hard ceilings on how many times a runaway-prone tool may be called within a SINGLE agent loop (turn); the counters reset at the start of every turn, so a legitimate multi-turn session is never starved. They are always-on and fire regardless of the warn/hard-stop thresholds above. A single turn issuing dozens of web searches or spawning … |
+| 556 | `tool_loop_guardrails.loop_caps.max_web_searches` | `50` | max web_search calls per turn (0 = unlimited) |
+| 557 | `tool_loop_guardrails.loop_caps.max_subagents` | `50` | max subagents spawned per turn (0 = unlimited) |
+| 561 | `compression` | `{ … }` |  |
+| 562 | `compression.enabled` | `True` |  |
+| 563 | `compression.progress_notices` | `False` | opt-in (#52995): when True, routine compression progress statuses (compacting/preflight/pre-API/ idle/retry) are delivered to chat gateway platforms instead of being suppressed by the gateway noise filter. Default False keeps routine compression silent-by-design on chat surfaces (server-side logging only). Failure notices and manual /compress feedback are always visible regardless of this setting. |
+| 572 | `compression.threshold` | `0.5` | compress when context usage exceeds this ratio. Models with context windows below 512K are floored at 0.75 (raise-only) so compaction doesn't fire with half the window still free; set this above 0.75 to override the floor. |
+| 577 | `compression.threshold_tokens` | `None` | absolute token cap — when set, compression triggers at the lower of the ratio-based threshold and this token count. Clamped to the model's context length at apply-time. |
+| 581 | `compression.target_ratio` | `0.2` | fraction of threshold to preserve as recent tail |
+| 582 | `compression.protect_last_n` | `20` | minimum recent messages to keep uncompressed |
+| 583 | `compression.min_tail_user_messages` | `1` | REAL (actionable) user messages guaranteed to survive in the uncompressed tail. 1 = existing single last-user anchor (default, behavior- preserving); raise to e.g. 3 to keep the last 3 real user turns verbatim when bulky tool outputs fill the tail token budget. |
+| 589 | `compression.max_attempts` | `3` | compression retry rounds before a turn gives up with "max compression attempts reached". Raise (e.g. 6) for tool-schema-heavy sessions where 3 rounds cannot clear the request estimate. Validated >= 1, hard-capped at 10. |
+| 594 | `compression.proactive_prune_tokens` | `0` | opt-in trigger (tokens) for the deterministic, no-LLM tool-result prune, run independently of `threshold` above. On large-window models `threshold` (≈50% of the window) rarely fires, so old tool output otherwise rides in history and is re-sent every turn; a low value like 48000 reclaims it early. 0 = off. Recent tail protected by `protect_last_n`. Built-in compressor only (other engines inherit a no-op). NOTE: each c … |
+| 607 | `compression.proactive_prune_min_result_chars` | `8000` | the prune's summarize pass only |
+| 611 | `compression.proactive_prune_min_reclaim_tokens` | `4096` | a proactive prune only commits |
+| 617 | `compression.micro_compact` | `False` | opt-in: after each completed turn, fold the oldest un-absorbed exchange into a rolling summary, amortizing compression cost instead of paying it in one batch stall. Default False because a pass rewrites already-sent history and so breaks the provider prompt-cache prefix EVERY turn — the per-turn cache break that `proactive_prune_min_reclaim_tokens` above exists to avoid. Enable only when you have measured that the am … |
+| 629 | `compression.micro_compact_every_n_turns` | `1` | cadence: run a pass every Nth completed |
+| 636 | `compression.micro_compact_defrag_threshold_tokens` | `2000` | once the rolling summary |
+| 640 | `compression.hygiene_hard_message_limit` | `5000` | gateway session-hygiene force-compress threshold by message count |
+| 641 | `compression.hygiene_timeout_seconds` | `30` | max seconds gateway waits for pre-agent hygiene compression WITHOUT forward progress. The summary call streams, so this is an inactivity budget: a slow model still producing tokens keeps extending the wait; only a silent/hung call is cut off. |
+| 646 | `compression.hygiene_total_ceiling_seconds` | `600` | absolute cap on the hygiene compression wait even |
+| 649 | `compression.hygiene_failure_cooldown_seconds` | `300` | skip repeated failed hygiene attempts for this session |
+| 650 | `compression.context_timeout_seconds` | `120` | inactivity budget for in-agent compress_context |
+| 657 | `compression.context_total_ceiling_seconds` | `600` | absolute cap on the *pre-commit* |
+| 671 | `compression.protect_first_n` | `3` | non-system head messages always preserved verbatim, in ADDITION to the system prompt (which is always implicitly protected). Set to 0 for long-running rolling-compaction sessions where you want nothing pinned except the system prompt + rolling summary + recent tail. |
+| 677 | `compression.abort_on_summary_failure` | `False` | When True, auto-compression that fails |
+| 688 | `compression.codex_gpt55_autoraise` | `True` | Historical key name kept for compatibility. When True, gpt-5.4 / gpt-5.5 / gpt-5.6 on the ChatGPT Codex OAuth route raise their compaction trigger to 85% (vs the global `threshold` above). Codex hard-caps these families at a 272K window, so the default 50% would compact at ~136K and waste half the usable context. Set to False to opt back down to the global threshold (e.g. 0.50) for those Codex sessions. Only this exa … |
+| 700 | `compression.codex_gpt55_autoraise_notice` | `True` | Display the one-time Codex gpt-5.4/5.5/5.6 |
+| 704 | `compression.codex_app_server_auto` | `'native'` | Codex app-server (codex CLI runtime) thread |
+| 712 | `compression.in_place` | `True` | When True, compaction rewrites the message list and rebuilds the system prompt WITHOUT rotating the session id — the conversation keeps one durable id for its whole life (no parent_session_id chain, no `name #N` renumbering). Eliminates the session-rotation bug cluster (#33618 /goal loss, #14238 lost response, #33907 orphans, #45117 search gaps, #42228 null cwd) — see #38763. Non-destructive: the live context is comp … |
+| 728 | `compression.model_thresholds` | `{}` | Per-model threshold overrides. Keys are substring-matched against the model name (longest match wins); values replace the global `threshold` for that model, e.g. model_thresholds: "glm-5.2": 0.40 "claude-sonnet": 0.35 The small-context floor (0.75 for <512K models) still applies on top of overrides (raise-only: an override above the floor wins; one below it is raised to the floor). |
+| 739 | `compression.idle_compact_after_seconds` | `0` | Opt-in idle compaction (0 = disabled). |
+| 760 | `prompt_caching` | `{ … }` | Anthropic prompt caching (Claude via OpenRouter or native Anthropic API). cache_ttl: "5m" or "1h" (Anthropic-supported tiers). Other non-falsy values are silently ignored. Falsy values (false, null, "off", "disabled", "no", "none") disable prompt caching entirely. |
+| 761 | `prompt_caching.cache_ttl` | `'5m'` |  |
+| 779 | `openrouter` | `{ … }` | OpenRouter-specific settings. response_cache: enable OpenRouter response caching (X-OpenRouter-Cache header). When enabled, identical requests return cached responses for free (zero billing). This is separate from Anthropic prompt caching and works alongside it. See: https://openrouter.ai/docs/guides/features/response-caching response_cache_ttl: how long cached responses remain valid, in seconds (1-86400). Default 30 … |
+| 780 | `openrouter.response_cache` | `True` |  |
+| 781 | `openrouter.response_cache_ttl` | `300` |  |
+| 782 | `openrouter.min_coding_score` | `0.65` |  |
+| 787 | `bedrock` | `{ … }` | AWS Bedrock provider configuration. Only used when model.provider is "bedrock". |
+| 788 | `bedrock.region` | `''` | AWS region for Bedrock API calls (empty = AWS_REGION env var → us-east-1) |
+| 789 | `bedrock.discovery` | `{ … }` |  |
+| 790 | `bedrock.discovery.enabled` | `True` | Auto-discover models via ListFoundationModels |
+| 791 | `bedrock.discovery.provider_filter` | `[]` | Only show models from these providers (e.g. ["anthropic", "amazon"]) |
+| 792 | `bedrock.discovery.refresh_interval` | `3600` | Cache discovery results for this many seconds |
+| 794 | `bedrock.guardrail` | `{ … }` |  |
+| 798 | `bedrock.guardrail.guardrail_identifier` | `''` | e.g. "abc123def456" |
+| 799 | `bedrock.guardrail.guardrail_version` | `''` | e.g. "1" or "DRAFT" |
+| 800 | `bedrock.guardrail.stream_processing_mode` | `'async'` | "sync" or "async" |
+| 801 | `bedrock.guardrail.trace` | `'disabled'` | "enabled", "disabled", or "enabled_full" |
+| 831 | `auxiliary` | `{ … }` | Auxiliary model config — provider:model for each side task. Format: provider is the provider name, model is the model slug. "auto" for provider = auto-detect best available provider. Empty model = use provider's default auxiliary model. All tasks fall back to openrouter:google/gemini-3-flash-preview if the configured provider is unavailable. extra_body: forwarded verbatim as request body fields on every aux call for … |
+| 838 | `auxiliary.transient_retries` | `2` | Same-provider retries for a transient transport blip (connection reset / timeout / 5xx / 408) on ANY auxiliary call before falling back. Default 2 (→ 3 total attempts), clamped [0,6]. Matters most for pinned calls like MoA reference advisors, where provider fallback is not a meaningful recovery, so an unretried blip silently loses the call. |
+| 846 | `auxiliary.free_only` | `False` | Restrict the auxiliary auto-chain's OpenRouter fallback to free (:free) SKUs. When true, the OpenRouter step is skipped entirely unless the resolved fallback model ends in ":free" — a PAID lane is never engaged for background auxiliary traffic (compression, title generation, session search, vision, web extract) even when OPENROUTER_API_KEY is present. Default false keeps the historical paid fallback for users who wan … |
+| 852 | `auxiliary.openrouter_model` | `''` | Override the auxiliary auto-chain's OpenRouter fallback model (default: google/gemini-3.6-flash, a PAID model). Set e.g. "nvidia/nemotron-3-ultra-550b-a55b:free" together with free_only: true to keep auxiliary traffic free-only. A one-time WARNING is logged whenever a non-":free" model is engaged. |
+| 859 | `auxiliary.stream_only_base_urls` | `[]` | Endpoints that reject NON-streaming chat requests outright (e.g. Tencent Copilot returns HTTP 400 "Non-stream chat request is currently not supported"). Auxiliary calls to a matching endpoint are sent with stream=True and aggregated client-side. Entries are case-insensitive substrings matched against the endpoint URL; copilot.tencent.com is always treated as stream-only. |
+| 860 | `auxiliary.vision` | `{ … }` |  |
+| 861 | `auxiliary.vision.provider` | `'auto'` | auto \| openrouter \| nous \| codex \| custom |
+| 862 | `auxiliary.vision.model` | `''` | e.g. "google/gemini-2.5-flash", "gpt-4o" |
+| 863 | `auxiliary.vision.base_url` | `''` | direct OpenAI-compatible endpoint (takes precedence over provider) |
+| 864 | `auxiliary.vision.api_key` | `''` | API key for base_url (falls back to OPENAI_API_KEY) |
+| 865 | `auxiliary.vision.timeout` | `120` | seconds — LLM API call timeout; vision payloads need generous timeout |
+| 866 | `auxiliary.vision.extra_body` | `{}` | OpenAI-compatible provider-specific request fields |
+| 867 | `auxiliary.vision.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 868 | `auxiliary.vision.download_timeout` | `30` | seconds — image HTTP download timeout; increase for slow connections |
+| 870 | `auxiliary.web_extract` | `{ … }` |  |
+| 871 | `auxiliary.web_extract.provider` | `'auto'` |  |
+| 872 | `auxiliary.web_extract.model` | `''` |  |
+| 873 | `auxiliary.web_extract.base_url` | `''` |  |
+| 874 | `auxiliary.web_extract.api_key` | `''` |  |
+| 875 | `auxiliary.web_extract.timeout` | `360` | seconds (6min) — per-attempt LLM summarization timeout; increase for slow local models |
+| 876 | `auxiliary.web_extract.extra_body` | `{}` |  |
+| 877 | `auxiliary.web_extract.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 879 | `auxiliary.compression` | `{ … }` |  |
+| 880 | `auxiliary.compression.provider` | `'auto'` |  |
+| 881 | `auxiliary.compression.model` | `''` |  |
+| 882 | `auxiliary.compression.base_url` | `''` |  |
+| 883 | `auxiliary.compression.api_key` | `''` |  |
+| 884 | `auxiliary.compression.timeout` | `120` | seconds — compression summarises large contexts; increase for local models |
+| 885 | `auxiliary.compression.extra_body` | `{}` |  |
+| 886 | `auxiliary.compression.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 892 | `auxiliary.skills_hub` | `{ … }` | Note: session_search no longer uses an auxiliary LLM (PR #27590 — single-shape tool returns DB content directly). The old ``auxiliary.session_search.*`` block was removed here. Existing values in user config.yaml files are harmless leftovers and ignored. |
+| 893 | `auxiliary.skills_hub.provider` | `'auto'` |  |
+| 894 | `auxiliary.skills_hub.model` | `''` |  |
+| 895 | `auxiliary.skills_hub.base_url` | `''` |  |
+| 896 | `auxiliary.skills_hub.api_key` | `''` |  |
+| 897 | `auxiliary.skills_hub.timeout` | `30` |  |
+| 898 | `auxiliary.skills_hub.extra_body` | `{}` |  |
+| 899 | `auxiliary.skills_hub.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 901 | `auxiliary.approval` | `{ … }` |  |
+| 902 | `auxiliary.approval.provider` | `'auto'` |  |
+| 903 | `auxiliary.approval.model` | `''` | fast/cheap model recommended (e.g. gemini-flash, haiku) |
+| 904 | `auxiliary.approval.base_url` | `''` |  |
+| 905 | `auxiliary.approval.api_key` | `''` |  |
+| 906 | `auxiliary.approval.timeout` | `30` |  |
+| 907 | `auxiliary.approval.extra_body` | `{}` |  |
+| 908 | `auxiliary.approval.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 910 | `auxiliary.mcp` | `{ … }` |  |
+| 911 | `auxiliary.mcp.provider` | `'auto'` |  |
+| 912 | `auxiliary.mcp.model` | `''` |  |
+| 913 | `auxiliary.mcp.base_url` | `''` |  |
+| 914 | `auxiliary.mcp.api_key` | `''` |  |
+| 915 | `auxiliary.mcp.timeout` | `30` |  |
+| 916 | `auxiliary.mcp.extra_body` | `{}` |  |
+| 917 | `auxiliary.mcp.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 919 | `auxiliary.title_generation` | `{ … }` |  |
+| 920 | `auxiliary.title_generation.enabled` | `True` |  |
+| 921 | `auxiliary.title_generation.provider` | `'auto'` |  |
+| 922 | `auxiliary.title_generation.model` | `''` |  |
+| 923 | `auxiliary.title_generation.base_url` | `''` |  |
+| 924 | `auxiliary.title_generation.api_key` | `''` |  |
+| 925 | `auxiliary.title_generation.timeout` | `30` |  |
+| 926 | `auxiliary.title_generation.extra_body` | `{}` |  |
+| 927 | `auxiliary.title_generation.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 928 | `auxiliary.title_generation.language` | `''` |  |
+| 930 | `auxiliary.memory_query_rewrite` | `{ … }` |  |
+| 931 | `auxiliary.memory_query_rewrite.provider` | `'auto'` |  |
+| 932 | `auxiliary.memory_query_rewrite.model` | `''` |  |
+| 933 | `auxiliary.memory_query_rewrite.base_url` | `''` |  |
+| 934 | `auxiliary.memory_query_rewrite.api_key` | `''` |  |
+| 935 | `auxiliary.memory_query_rewrite.timeout` | `8` |  |
+| 936 | `auxiliary.memory_query_rewrite.extra_body` | `{}` |  |
+| 938 | `auxiliary.tts_audio_tags` | `{ … }` |  |
+| 939 | `auxiliary.tts_audio_tags.provider` | `'auto'` |  |
+| 940 | `auxiliary.tts_audio_tags.model` | `''` |  |
+| 941 | `auxiliary.tts_audio_tags.base_url` | `''` |  |
+| 942 | `auxiliary.tts_audio_tags.api_key` | `''` |  |
+| 943 | `auxiliary.tts_audio_tags.timeout` | `30` |  |
+| 944 | `auxiliary.tts_audio_tags.extra_body` | `{}` |  |
+| 945 | `auxiliary.tts_audio_tags.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 952 | `auxiliary.triage_specifier` | `{ … }` | Triage specifier — flesh out a rough one-liner in the Kanban Triage column into a concrete spec, then promote it to ``todo``. Invoked by ``hermes kanban specify`` (single id or --all). Set a cheap, capable model here (gemini-flash works well); the main model is overkill for short spec expansion. |
+| 953 | `auxiliary.triage_specifier.provider` | `'auto'` |  |
+| 954 | `auxiliary.triage_specifier.model` | `''` |  |
+| 955 | `auxiliary.triage_specifier.base_url` | `''` |  |
+| 956 | `auxiliary.triage_specifier.api_key` | `''` |  |
+| 957 | `auxiliary.triage_specifier.timeout` | `120` |  |
+| 958 | `auxiliary.triage_specifier.extra_body` | `{}` |  |
+| 959 | `auxiliary.triage_specifier.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 966 | `auxiliary.kanban_decomposer` | `{ … }` | Kanban decomposer — decomposes a triage task into a graph of child tasks routed to specialist profiles by description. Invoked by ``hermes kanban decompose`` and the kanban auto-decompose dispatcher tick. Returns a JSON task graph; uses more tokens than the specifier so allow more headroom. |
+| 967 | `auxiliary.kanban_decomposer.provider` | `'auto'` |  |
+| 968 | `auxiliary.kanban_decomposer.model` | `''` |  |
+| 969 | `auxiliary.kanban_decomposer.base_url` | `''` |  |
+| 970 | `auxiliary.kanban_decomposer.api_key` | `''` |  |
+| 971 | `auxiliary.kanban_decomposer.timeout` | `180` |  |
+| 972 | `auxiliary.kanban_decomposer.extra_body` | `{}` |  |
+| 973 | `auxiliary.kanban_decomposer.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 979 | `auxiliary.profile_describer` | `{ … }` | Profile describer — auto-generates a 1-2 sentence description of what a profile is good at. Invoked by ``hermes profile describe <name> --auto`` and the dashboard's auto-generate button. Short, cheap call. |
+| 980 | `auxiliary.profile_describer.provider` | `'auto'` |  |
+| 981 | `auxiliary.profile_describer.model` | `''` |  |
+| 982 | `auxiliary.profile_describer.base_url` | `''` |  |
+| 983 | `auxiliary.profile_describer.api_key` | `''` |  |
+| 984 | `auxiliary.profile_describer.timeout` | `60` |  |
+| 985 | `auxiliary.profile_describer.extra_body` | `{}` |  |
+| 986 | `auxiliary.profile_describer.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 991 | `auxiliary.goal_judge` | `{ … }` | Goal judge — evaluates whether a /goal run's latest response satisfies the goal/contract, and drafts goal contracts. Short structured-JSON calls; a fast cheap model is fine. |
+| 992 | `auxiliary.goal_judge.provider` | `'auto'` |  |
+| 993 | `auxiliary.goal_judge.model` | `''` |  |
+| 994 | `auxiliary.goal_judge.base_url` | `''` |  |
+| 995 | `auxiliary.goal_judge.api_key` | `''` |  |
+| 996 | `auxiliary.goal_judge.timeout` | `60` |  |
+| 997 | `auxiliary.goal_judge.extra_body` | `{}` |  |
+| 998 | `auxiliary.goal_judge.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 1005 | `auxiliary.curator` | `{ … }` | Curator — skill-usage review fork. Timeout is generous because the review pass can take several minutes on reasoning models (umbrella building over hundreds of candidate skills). "auto" = use main chat model; override via `hermes model` → auxiliary → Curator to route to a cheaper aux model (e.g. openrouter google/gemini-3-flash-preview). |
+| 1006 | `auxiliary.curator.provider` | `'auto'` |  |
+| 1007 | `auxiliary.curator.model` | `''` |  |
+| 1008 | `auxiliary.curator.base_url` | `''` |  |
+| 1009 | `auxiliary.curator.api_key` | `''` |  |
+| 1010 | `auxiliary.curator.timeout` | `600` |  |
+| 1011 | `auxiliary.curator.extra_body` | `{}` |  |
+| 1012 | `auxiliary.curator.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 1020 | `auxiliary.monitor` | `{ … }` | Monitor — urgency/importance classifier used by the important-mail monitor catalog automation (cron/scripts/classify_items.py). Scores candidate items 0-10 against the user's criteria so only above- threshold items get delivered. "auto" = main chat model; override to a cheap fast model (e.g. openrouter google/gemini-3-flash-preview, haiku) since per-item scoring is high-volume and a small model is fine. |
+| 1021 | `auxiliary.monitor.provider` | `'auto'` |  |
+| 1022 | `auxiliary.monitor.model` | `''` |  |
+| 1023 | `auxiliary.monitor.base_url` | `''` |  |
+| 1024 | `auxiliary.monitor.api_key` | `''` |  |
+| 1025 | `auxiliary.monitor.timeout` | `60` |  |
+| 1026 | `auxiliary.monitor.extra_body` | `{}` |  |
+| 1027 | `auxiliary.monitor.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 1040 | `auxiliary.background_review` | `{ … }` | Background review — the post-turn self-improvement fork that decides whether to save a memory / patch a skill. "auto" (default) = run on the main chat model, replaying the full conversation, which is already warm in the prompt cache (cheap cache reads) — unchanged, optimal. Set provider/model to a cheaper model (e.g. openrouter google/gemini-3-flash-preview) to run the review there for ~3-5x lower cost. A different m … |
+| 1041 | `auxiliary.background_review.provider` | `'auto'` |  |
+| 1042 | `auxiliary.background_review.model` | `''` |  |
+| 1043 | `auxiliary.background_review.base_url` | `''` |  |
+| 1044 | `auxiliary.background_review.api_key` | `''` |  |
+| 1045 | `auxiliary.background_review.timeout` | `120` |  |
+| 1046 | `auxiliary.background_review.extra_body` | `{}` |  |
+| 1047 | `auxiliary.background_review.reasoning_effort` | `''` | per-task thinking level: none\|minimal\|low\|medium\|high\|xhigh\|max\|ultra (empty = provider default) |
+| 1049 | `auxiliary.moa_reference` | `{ … }` |  |
+| 1050 | `auxiliary.moa_reference.provider` | `'auto'` |  |
+| 1051 | `auxiliary.moa_reference.model` | `''` |  |
+| 1052 | `auxiliary.moa_reference.base_url` | `''` |  |
+| 1053 | `auxiliary.moa_reference.api_key` | `''` |  |
+| 1054 | `auxiliary.moa_reference.timeout` | `900` |  |
+| 1055 | `auxiliary.moa_reference.extra_body` | `{}` |  |
+| 1061 | `auxiliary.moa_aggregator` | `{ … }` |  |
+| 1062 | `auxiliary.moa_aggregator.provider` | `'auto'` |  |
+| 1063 | `auxiliary.moa_aggregator.model` | `''` |  |
+| 1064 | `auxiliary.moa_aggregator.base_url` | `''` |  |
+| 1065 | `auxiliary.moa_aggregator.api_key` | `''` |  |
+| 1066 | `auxiliary.moa_aggregator.timeout` | `900` |  |
+| 1067 | `auxiliary.moa_aggregator.extra_body` | `{}` |  |
+| 1072 | `display` | `{ … }` |  |
+| 1073 | `display.compact` | `False` |  |
+| 1074 | `display.personality` | `''` |  |
+| 1075 | `display.resume_display` | `'full'` |  |
+| 1079 | `display.resume_exchanges` | `10` | max user+assistant pairs to show |
+| 1080 | `display.resume_max_user_chars` | `300` | truncate user message text |
+| 1081 | `display.resume_max_assistant_chars` | `200` | truncate non-last assistant text |
+| 1082 | `display.resume_max_assistant_lines` | `3` | truncate non-last assistant lines |
+| 1088 | `display.resume_skip_tool_only` | `True` | When True (default), assistant entries that are *only* tool calls (no visible text) are skipped in the recap. This prevents the recap from being dominated by `[2 tool calls: terminal, read_file]` lines when an exchange was tool-heavy. Set False to restore the legacy behavior of showing tool-call summaries inline. |
+| 1089 | `display.busy_input_mode` | `'interrupt'` | interrupt \| queue \| steer |
+| 1093 | `display.busy_steer_ack_enabled` | `True` | When busy_input_mode="steer", suppress only the visible "Steered into current run" confirmation bubble by setting this false. The mid-turn steering itself still happens. |
+| 1099 | `display.interface` | `'cli'` | Which interface bare `hermes` (and `hermes chat`) launches by default: "cli" — the classic prompt_toolkit REPL (default, preserves prior behavior) "tui" — the modern Ink TUI (same as passing `--tui`) Explicit flags always win over this setting: `--cli` forces the classic REPL and `--tui` (or HERMES_TUI=1) forces the TUI regardless of config. |
+| 1104 | `display.tui_auto_resume_recent` | `False` | When true, `hermes --tui` auto-resumes the most recent human- facing session on launch instead of forging a fresh one. Mirrors `hermes -c` muscle memory. Default off so existing users aren't surprised. HERMES_TUI_RESUME=<id> always wins. |
+| 1109 | `display.tui_agents_nudge` | `True` | When true (default), `hermes --tui` drops a one-time hint ("subagents working · /agents to watch live") the first time a turn starts delegating, nudging the user toward the live spawn-tree dashboard. Set false to suppress the hint. |
+| 1110 | `display.bell_on_complete` | `False` |  |
+| 1115 | `display.show_reasoning` | `True` | Stream the model's reasoning/thinking live before the response. Default ON: on thinking models the reasoning phase can run tens of seconds, and with this off the user stares at a spinner the whole time even though tokens are streaming. Set false for quiet output. |
+| 1119 | `display.reasoning_full` | `False` | When reasoning display is on, the post-response "Reasoning" recap box collapses long thinking to the first 10 lines. Set true to print the complete thinking text uncollapsed (live streaming is always full). |
+| 1125 | `display.memory_notifications` | `'on'` | Background self-improvement review notifications surfaced in chat. "off" — no chat notification (the review still runs and writes) "on" — generic "💾 Memory updated" line (default) "verbose" — include a compact content preview of what changed Per-platform overrides via display.platforms.<platform>.memory_notifications. |
+| 1126 | `display.streaming` | `False` |  |
+| 1127 | `display.timestamps` | `False` | Show timestamp on user and assistant labels |
+| 1128 | `display.timestamp_format` | `'%H:%M'` | strftime format for timestamps (e.g. "%b-%d %H:%M") |
+| 1129 | `display.final_response_markdown` | `'strip'` | render \| strip \| raw |
+| 1133 | `display.persistent_output` | `True` | Preserve recent classic CLI output across Ctrl+L, /redraw, and terminal resize full-screen clears. Disable if a terminal emulator behaves badly with replayed scrollback. |
+| 1134 | `display.persistent_output_max_lines` | `200` |  |
+| 1138 | `display.persist_prompts` | `True` | Print a one-line summary of resolved modal prompts (approval / clarify) into scrollback so the question and decision survive the panel repaint. Set false to keep scrollback untouched. |
+| 1139 | `display.inline_diffs` | `True` | Show inline diff previews for write actions (write_file, patch, skill_manage) |
+| 1147 | `display.file_mutation_verifier` | `True` | File-mutation verifier footer. When true (default), the agent appends a one-line advisory to its final response whenever a write_file / patch call failed during the turn and was never superseded by a successful write to the same path. This catches the "batch of parallel patches, half fail, model claims success" class of over-claim that otherwise forces users to run `git status` to verify edits landed. Set false to su … |
+| 1152 | `display.credits_notices` | `True` | Nous credits status-bar notices (usage bands, grant-spent, depleted / restored). When false, no credits notices are emitted — balance data is still captured and /usage keeps working. Off switch for sub + top-up users who find the gauge noisy. |
+| 1159 | `display.turn_completion_explainer` | `True` | Turn-completion explainer. When true (default), the agent appends a one-line explanation to its final response whenever a turn ends abnormally with no usable reply — empty content after retries, a partial/truncated stream, a still-pending tool result, or an iteration/budget limit. Replaces the bare "(empty)" sentinel so the failure isn't silent from the UI's perspective. Set false to suppress. |
+| 1160 | `display.show_cost` | `False` | Show $ cost in the status bar (off by default) |
+| 1163 | `display.battery` | `False` | Show a color-coded battery read-out as the first status-bar element in the CLI/TUI (off by default). No-op on machines without a battery. |
+| 1170 | `display.focus_view` | `False` | Focus view (/focus): display-only reduced-output mode. When true the CLI/TUI pins tool_progress to "off" (reusing the existing suppression path), reports a per-turn hidden-line count with a recovery hint, and pins a "focus" segment in the status bar. focus_saved_tool_progress holds the mode /focus off restores. Never affects what is sent to the model — see hermes_cli/focus_view.py. |
+| 1171 | `display.focus_saved_tool_progress` | `'all'` |  |
+| 1172 | `display.skin` | `'default'` |  |
+| 1177 | `display.language` | `'en'` | UI language for static user-facing messages (approval prompts, a handful of gateway slash-command replies). Does NOT affect agent responses, log lines, tool outputs, or slash-command descriptions. Supported: en, zh, ja, de, es, fr, tr, uk. Unknown values fall back to en. |
+| 1180 | `display.tui_status_indicator` | `'kaomoji'` | TUI busy indicator style: kaomoji (default), emoji, unicode (braille spinner), or ascii. Live-swappable via `/indicator <style>`. |
+| 1188 | `display.cli_refresh_interval` | `1.0` | Seconds between prompt_toolkit redraws in the classic CLI when idle. Default 1.0 keeps the wall-clock status-bar read-outs (idle-since- last-turn) ticking and keeps the bottom chrome alive during idle — without it prompt_toolkit stops repainting the status bar after a turn and it can go stale/disappear (#45592). Set 0 to disable the background refresh if it fights terminal auto-scroll in non-fullscreen mode on some e … |
+| 1189 | `display.user_message_preview` | `{ … }` | CLI: how many submitted user-message lines to echo back in scrollback |
+| 1190 | `display.user_message_preview.first_lines` | `2` |  |
+| 1191 | `display.user_message_preview.last_lines` | `2` |  |
+| 1193 | `display.interim_assistant_messages` | `True` | Gateway: send natural mid-turn assistant status messages. Desktop: keep mid-turn narration between tool calls instead of collapsing to the final message. |
+| 1199 | `display.show_commentary` | `True` | Codex Responses models narrate progress in a dedicated commentary channel. When true (default), completed commentary messages are delivered as visible mid-turn updates via the interim message path. When false, commentary falls back to the reasoning channel and is only visible when show_reasoning is enabled. |
+| 1200 | `display.tool_progress_command` | `False` | Enable /verbose command in messaging gateway |
+| 1205 | `display.tool_preview_length` | `0` | Max chars for tool call previews (0 = no limit, show full paths/commands) |
+| 1210 | `display.friendly_tool_labels` | `True` | Human-phrased tool status labels for built-in tools: "Searching the web for ...", "Reading <file>", "Browsing <url>" instead of the raw tool name. Applies to CLI spinner + gateway/desktop tool-progress. Custom/plugin/MCP tools always fall back to the raw preview. |
+| 1216 | `display.turn_summary` | `True` | CLI-only post-turn accounting line printed after each interactive turn: "⋯ 12.4s · edited 2 files +18 -3 · read 4 files · ran 3 commands". Observed from the tool-progress feed the CLI already receives; never printed in quiet/non-interactive paths or in gateway/messaging surfaces (those have their own runtime footer). |
+| 1220 | `display.spinner_token_flow` | `True` | CLI-only: append cumulative turn output tokens to the live spinner timer ("⚡ Reading file ( 2.3s · ↓ 1.2k tok)"). Updates as each API call in the turn reports usage. |
+| 1226 | `display.tool_progress_grouping` | `'accumulate'` | How gateway tool-progress is grouped on platforms that support message editing: "accumulate" (default) edits one bubble in place; "separate" sends one message per tool (the pre-v0.9 behavior, noisier). Only applies where tool_progress is already enabled. Per-platform override via display.platforms.<platform>.tool_progress_grouping. |
+| 1235 | `display.status_phrases` | `{}` | Optional custom phrases for generic long-running status messages. Built-in defaults live in gateway/assets/status_phrases.yaml. Users can set `path`/`paths` to HERMES_HOME-relative YAML files/directories (or rely on conventional status_phrases.yaml / status_phrases/*.yaml). Keys: status, generic. Use mode: "append" (default) to add phrases, or "replace" to fully replace configured surfaces. Per-platform overrides liv … |
+| 1241 | `display.reasoning_style` | `'code'` | How a reasoning/thinking summary renders when show_reasoning is on. "code" (default) = 💭 fenced code block; "blockquote" = "> " lines; "subtext" = "-# " lines (Discord small grey metadata text). Discord defaults to "subtext"; override per-platform via display.platforms.<platform>.reasoning_style. |
+| 1249 | `display.ephemeral_system_ttl` | `0` | Auto-delete system-notice replies (e.g. "✨ New session started!", "♻ Restarting gateway…", "⚡ Stopped…") after N seconds on platforms that support message deletion (currently Telegram; other platforms ignore and leave the message in place). Only affects slash-command replies wrapped with gateway.platforms.base.EphemeralReply — agent responses and content messages are never touched. Default 0 (disabled) preserves prio … |
+| 1267 | `display.platforms` | `{ … }` | Per-platform display/streaming overrides. Each key is a gateway platform ("telegram", "discord", "slack", …) mapping to a dict of display settings that override the global value for that platform only. A setting left unset here falls through to the global default. Shipped defaults encode the streaming experience that works best per platform: - Telegram has native animated draft streaming (sendMessageDraft), which is … |
+| 1268 | `display.platforms.telegram` | `{ … }` |  |
+| 1268 | `display.platforms.telegram.streaming` | `True` |  |
+| 1269 | `display.platforms.discord` | `{ … }` |  |
+| 1269 | `display.platforms.discord.streaming` | `False` |  |
+| 1270 | `display.platforms.slack` | `{ … }` |  |
+| 1270 | `display.platforms.slack.streaming` | `False` |  |
+| 1276 | `display.runtime_footer` | `{ … }` | Gateway runtime-metadata footer appended to the FINAL message of a turn (disabled by default to keep replies minimal). When enabled, renders e.g. `model · 68% · ~/projects/hermes`. Per-platform overrides go under display.platforms.<platform>.runtime_footer. |
+| 1277 | `display.runtime_footer.enabled` | `False` |  |
+| 1278 | `display.runtime_footer.fields` | `['model', 'context_pct', 'cwd']` | Order shown; drop any to hide |
+| 1280 | `display.copy_shortcut` | `'auto'` | "auto" (platform default) \| "ctrl_c" \| "ctrl_shift_c" \| "disabled" |
+| 1286 | `display.pet` | `{ … }` | Petdex animated mascot (https://github.com/crafter-station/petdex). A purely cosmetic sprite that reacts to agent activity across the CLI, TUI, and desktop app. Manage with `hermes pets`. Disabled until a pet is installed + selected (no effect on prompt caching — this is a display concern only). |
+| 1287 | `display.pet.enabled` | `False` |  |
+| 1290 | `display.pet.slug` | `''` | Active pet slug; resolved against installed pets in get_hermes_home()/pets/. Empty → first installed pet. |
+| 1294 | `display.pet.render_mode` | `'auto'` | Terminal render protocol for CLI/TUI: auto — detect kitty/iTerm2/sixel, else unicode half-blocks kitty \| iterm \| sixel \| unicode \| off |
+| 1300 | `display.pet.scale` | `0.33` | Master size scalar (relative to native 192×208 frames). One knob shrinks every surface: the desktop canvas scales its pixels by it and the CLI/TUI derive their terminal column width from it. The half-block fallback clamps to a legibility floor (it can't shrink as far as true-pixel kitty/GUI without turning to mush). |
+| 1304 | `display.pet.unicode_cols` | `0` | Hard override for terminal column width. 0 = auto (derive from scale); set a positive int only to pin the half-block/kitty width independently of scale. |
+| 1309 | `dashboard` | `{ … }` | Web dashboard settings |
+| 1310 | `dashboard.theme` | `'default'` | Dashboard visual theme: "default", "midnight", "ember", "mono", "cyberpunk", "rose" |
+| 1313 | `dashboard.turn_isolation` | `False` | Process-isolation rollout controls. Runtime reads these through the raw config loader, so tui_gateway.server also owns explicit defaults. |
+| 1314 | `dashboard.compute_host_heartbeat_secs` | `15` |  |
+| 1315 | `dashboard.compute_host_respawn_max` | `3` |  |
+| 1330 | `dashboard.show_token_analytics` | `False` | Hide the token/cost analytics surfaces (Analytics page, token bars and cost figures on the Models page) by default. The numbers shown there are a local debug estimate: they only count successful main-agent responses with a usable ``response.usage``, and silently exclude every auxiliary call (context compression, title generation, vision, session search, web extract, smart approval, MCP routing, plugin LLM access) plu … |
+| 1344 | `dashboard.oauth` | `{ … }` | OAuth gate configuration (engaged when ``--host`` is set and ``--insecure`` is not). The bundled Nous Portal plugin reads both keys at startup; they are the canonical surface for these settings. Each can be overridden by an environment variable — ``HERMES_DASHBOARD_OAUTH_CLIENT_ID`` and ``HERMES_DASHBOARD_PORTAL_URL`` respectively — and the env var wins when set to a non-empty value. The override path is what Fly.io' … |
+| 1345 | `dashboard.oauth.client_id` | `''` | agent:{instance_id} — Portal provisions this |
+| 1346 | `dashboard.oauth.portal_url` | `''` | blank → use plugin default (production Portal) |
+| 1369 | `dashboard.basic_auth` | `{ … }` | Username/password gate configuration — read by the bundled ``dashboard_auth/basic`` plugin (a self-hosted "just put a password on my dashboard" provider that needs no OAuth IDP). The plugin registers a password provider when ``username`` plus either ``password_hash`` (preferred — no plaintext at rest) or ``password`` (plaintext, hashed in-memory at load) are set. Each key is overridable by an env var (``HERMES_DASHBO … |
+| 1370 | `dashboard.basic_auth.username` | `''` | blank → plugin no-op (no password provider) |
+| 1371 | `dashboard.basic_auth.password_hash` | `''` | scrypt$... (preferred — no plaintext at rest) |
+| 1372 | `dashboard.basic_auth.password` | `''` | plaintext fallback (hashed in-memory at load) |
+| 1373 | `dashboard.basic_auth.secret` | `''` | token-signing key; blank → random per-process |
+| 1374 | `dashboard.basic_auth.session_ttl_seconds` | `0` | 0 → plugin default (12h) |
+| 1388 | `dashboard.drain_auth` | `{ … }` | Drain-control service-credential configuration — read by the bundled ``dashboard_auth/drain`` plugin (the first consumer of the generic non-interactive token-auth capability). The SECRET itself is a credential and is NOT configured here: it is provisioned by nous-account-service at deploy time via the ``HERMES_DASHBOARD_DRAIN_SECRET`` env var (the .env-is-for-secrets rule). These are the behavioural knobs only. The p … |
+| 1389 | `dashboard.drain_auth.scope` | `'drain'` |  |
+| 1390 | `dashboard.drain_auth.min_secret_chars` | `43` |  |
+| 1412 | `dashboard.public_url` | `''` | Public URL override (env: ``HERMES_DASHBOARD_PUBLIC_URL``). When set, this is the complete authority — scheme + host + optional path prefix (e.g. ``https://example.com/hermes``) — the OAuth ``redirect_uri`` is built from. Set this for deploys behind reverse proxies that don't reliably forward ``X-Forwarded-Host`` / ``X-Forwarded-Proto`` / ``X-Forwarded-Prefix`` (manual nginx setups, on-prem ingresses, custom-domain F … |
+| 1416 | `privacy` | `{ … }` | Privacy settings |
+| 1417 | `privacy.redact_pii` | `False` | When True, hash user IDs and strip phone numbers from LLM context |
+| 1425 | `tts` | `{ … }` | Text-to-speech configuration Each provider supports an optional `max_text_length:` override for the per-request input-character cap. Omit it to use the provider's documented limit (OpenAI 4096, xAI 15000, MiniMax 10000, ElevenLabs 5k-40k model-aware, Gemini 32000, Edge 5000, Mistral 4000, NeuTTS/KittenTTS 2000). |
+| 1428 | `tts.provider` | `'edge'` | Set explicitly to pin a backend: "edge" (free) \| "elevenlabs" (premium) \| "openai" \| "xai" \| "minimax" \| "mistral" \| "gemini" \| "deepinfra" \| "neutts" (local) \| "kittentts" (local) \| "piper" (local) |
+| 1429 | `tts.edge` | `{ … }` |  |
+| 1430 | `tts.edge.voice` | `'en-US-AriaNeural'` |  |
+| 1433 | `tts.elevenlabs` | `{ … }` |  |
+| 1434 | `tts.elevenlabs.voice_id` | `'pNInz6obpgDQGcFmaJgB'` | Adam |
+| 1435 | `tts.elevenlabs.model_id` | `'eleven_multilingual_v2'` |  |
+| 1437 | `tts.openai` | `{ … }` |  |
+| 1438 | `tts.openai.model` | `'gpt-4o-mini-tts'` |  |
+| 1439 | `tts.openai.voice` | `'alloy'` |  |
+| 1444 | `tts.gemini` | `{ … }` |  |
+| 1445 | `tts.gemini.model` | `'gemini-2.5-flash-preview-tts'` |  |
+| 1446 | `tts.gemini.voice` | `'Kore'` |  |
+| 1450 | `tts.gemini.audio_tags` | `False` | When true, Gemini 3.1 TTS uses a hidden auxiliary-model rewrite pass to insert freeform square-bracket audio tags into the TTS script. Visible chat replies are unchanged. |
+| 1455 | `tts.gemini.persona_prompt_file` | `''` | Optional local Markdown/text file with Gemini TTS performance direction. It may include AUDIO PROFILE, SCENE, DIRECTOR'S NOTES, SAMPLE CONTEXT, and either a `{transcript}` placeholder or no transcript section; Hermes appends the live transcript when absent. |
+| 1457 | `tts.xai` | `{ … }` |  |
+| 1458 | `tts.xai.voice_id` | `'eve'` | or custom voice ID — see https://docs.x.ai/developers/model-capabilities/audio/custom-voices |
+| 1459 | `tts.xai.language` | `'en'` | BCP-47 code ("en", "pt-BR") or "auto" |
+| 1460 | `tts.xai.speed` | `1.0` | 0.7–1.5, playback speed |
+| 1461 | `tts.xai.auto_speech_tags` | `False` | insert expressive audio tags via LLM rewrite |
+| 1462 | `tts.xai.optimize_streaming_latency` | `0` | 0–2, trades quality for lower latency |
+| 1463 | `tts.xai.sample_rate` | `24000` | 22050 / 24000 / 44100 / 48000 |
+| 1464 | `tts.xai.bit_rate` | `128000` | MP3 bitrate; only applies when codec=mp3 |
+| 1466 | `tts.mistral` | `{ … }` |  |
+| 1467 | `tts.mistral.model` | `'voxtral-mini-tts-2603'` |  |
+| 1468 | `tts.mistral.voice_id` | `'c69964a6-ab8b-4f8a-9465-ec0925096ec8'` | Paul - Neutral |
+| 1470 | `tts.minimax` | `{ … }` |  |
+| 1471 | `tts.minimax.model` | `'speech-02-hd'` |  |
+| 1472 | `tts.minimax.voice_id` | `'English_expressive_narrator'` |  |
+| 1474 | `tts.kittentts` | `{ … }` |  |
+| 1475 | `tts.kittentts.model` | `'KittenML/kitten-tts-nano-0.8-int8'` | nano 25MB; micro 41MB; mini 80MB |
+| 1476 | `tts.kittentts.voice` | `'Jasper'` |  |
+| 1478 | `tts.neutts` | `{ … }` |  |
+| 1479 | `tts.neutts.ref_audio` | `''` | Path to reference voice audio (empty = bundled default) |
+| 1480 | `tts.neutts.ref_text` | `''` | Path to reference voice transcript (empty = bundled default) |
+| 1481 | `tts.neutts.model` | `'neuphonic/neutts-air-q4-gguf'` | HuggingFace model repo |
+| 1482 | `tts.neutts.device` | `'cpu'` | cpu, cuda, or mps |
+| 1484 | `tts.piper` | `{ … }` |  |
+| 1488 | `tts.piper.voice` | `'en_US-lessac-medium'` | Voice name (e.g. "en_US-lessac-medium") downloaded on first use, OR an absolute path to a pre-downloaded .onnx file. Full voice list: https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/VOICES.md |
+| 1497 | `tts.deepinfra` | `{ … }` |  |
+| 1498 | `tts.deepinfra.model` | `''` | empty = first tts-tagged model from the live catalog |
+| 1499 | `tts.deepinfra.voice` | `'default'` |  |
+| 1504 | `stt` | `{ … }` |  |
+| 1505 | `stt.enabled` | `True` |  |
+| 1509 | `stt.echo_transcripts` | `True` | When true, gateway voice messages are transcribed for the agent and the raw transcript is also echoed back to the user as a 🎙️ message. Set false to keep STT for the agent while suppressing that user-facing echo. |
+| 1510 | `stt.provider` | `'local'` | "local" (free, faster-whisper) \| "groq" \| "openai" (Whisper API) \| "mistral" (Voxtral Transcribe) \| "elevenlabs" (Scribe) \| "deepinfra" |
+| 1516 | `stt.language` | `'en'` | Global language hint applied to EVERY provider unless a per-provider language overrides it. Defaults to "en" — Whisper auto-detection frequently misidentifies short/accented clips, which reads as "STT transcribed the wrong language". Set to "" to restore auto-detect, or to your language code ("es", "zh", "uk", ...). |
+| 1517 | `stt.local` | `{ … }` |  |
+| 1518 | `stt.local.model` | `'base'` | tiny, base, small, medium, large-v3 |
+| 1519 | `stt.local.language` | `''` | auto-detect by default; set to "en", "es", "fr", etc. to force |
+| 1520 | `stt.local.initial_prompt` | `''` |  |
+| 1523 | `stt.local.vad` | `True` | Silero VAD filter — silence never reaches whisper. false = old raw behavior (music/ambient). |
+| 1524 | `stt.local.vad_min_silence_ms` | `500` | min silence (ms) that splits speech chunks when vad is on |
+| 1525 | `stt.local.no_speech_prob_threshold` | `0.6` | drop a segment only if no_speech_prob is ABOVE this... |
+| 1526 | `stt.local.logprob_threshold` | `-1.0` | ...AND its avg_logprob is BELOW this (both must hit) |
+| 1528 | `stt.groq` | `{ … }` |  |
+| 1529 | `stt.groq.model` | `'whisper-large-v3-turbo'` | whisper-large-v3, whisper-large-v3-turbo, distil-whisper-large-v3-en |
+| 1530 | `stt.groq.language` | `''` | auto-detect by default; set to "en", "es", "fr", etc. to force |
+| 1532 | `stt.openai` | `{ … }` |  |
+| 1533 | `stt.openai.model` | `'whisper-1'` | whisper-1, gpt-4o-mini-transcribe, gpt-4o-transcribe, gpt-transcribe |
+| 1534 | `stt.openai.language` | `''` | auto-detect by default; set to "en", "es", "fr", etc. to force |
+| 1536 | `stt.mistral` | `{ … }` |  |
+| 1537 | `stt.mistral.model` | `'voxtral-mini-latest'` | voxtral-mini-latest, voxtral-mini-2602 |
+| 1538 | `stt.mistral.language` | `''` | auto-detect by default; set to "en", "es", "fr", etc. to force |
+| 1540 | `stt.xai` | `{ … }` |  |
+| 1541 | `stt.xai.language` | `''` | auto-detect by default; set to "en", "es", "fr", etc. to force |
+| 1543 | `stt.elevenlabs` | `{ … }` |  |
+| 1544 | `stt.elevenlabs.model_id` | `'scribe_v2'` | scribe_v2, scribe_v1 |
+| 1545 | `stt.elevenlabs.language_code` | `''` | auto-detect by default; set to "eng", "spa", "fra", etc. to force |
+| 1546 | `stt.elevenlabs.tag_audio_events` | `False` |  |
+| 1547 | `stt.elevenlabs.diarize` | `False` |  |
+| 1549 | `stt.deepinfra` | `{ … }` |  |
+| 1550 | `stt.deepinfra.model` | `''` | empty = first stt-tagged model from the live catalog |
+| 1555 | `voice` | `{ … }` |  |
+| 1556 | `voice.record_key` | `'ctrl+b'` |  |
+| 1557 | `voice.max_recording_seconds` | `120` |  |
+| 1558 | `voice.auto_tts` | `False` |  |
+| 1559 | `voice.beep_enabled` | `True` | Play record start/stop beeps in CLI voice mode |
+| 1560 | `voice.beep_volume` | `0.3` | Beep amplitude multiplier (0.0-1.0, default keeps prior hardcoded value) |
+| 1561 | `voice.thinking_sound` | `True` | Calm ambient bubble sound while the agent works in voice chat (volume follows beep_volume) |
+| 1562 | `voice.silence_threshold` | `200` | RMS below this = silence (0-32767) |
+| 1563 | `voice.silence_duration` | `3.0` | Seconds of silence before auto-stop |
+| 1564 | `voice.barge_in` | `True` | Interrupt the agent / stop TTS when the user starts talking |
+| 1565 | `voice.barge_in_grace_seconds` | `0.5` | Trip suppression right after TTS playback starts (onset transient); the mic itself is live for the whole turn |
+| 1566 | `voice.barge_in_threshold_multiplier` | `3.0` | Speech trigger = quiet-room floor x this (floor is calibrated BEFORE playback, never against speaker bleed) |
+| 1570 | `voice.stop_phrases` | `['stop']` | Saying EXACTLY one of these phrases (and nothing else) ends the voice chat instead of being sent to the agent. Case-insensitive, surrounding punctuation ignored. Set [] to disable. |
+| 1576 | `wake_word` | `{ … }` | "Hey Hermes" hands-free wake word. Always-on, on-device hotword detection that starts a fresh voice session — the "Hey Siri" pattern. Off by default; toggle with /wake or `wake_word.enabled: true`. |
+| 1577 | `wake_word.enabled` | `False` |  |
+| 1578 | `wake_word.surface` | `'auto'` | eligible surface: "auto" (first claimant) \| "cli" \| "tui" \| "gui" |
+| 1579 | `wake_word.input_device` | `None` | PortAudio input device index/name; null uses the process default |
+| 1580 | `wake_word.capture` | `'auto'` | auto \| local \| client — where PCM is captured (client = desktop streams mic via wake.feed) |
+| 1581 | `wake_word.provider` | `'openwakeword'` | "openwakeword" (free, local) \| "sherpa" (free, ANY phrase, no training) \| "porcupine" (premium; needs PORCUPINE_ACCESS_KEY) |
+| 1582 | `wake_word.phrase` | `'hey hermes'` | for "sherpa" this IS the detected phrase (any text works); for other engines it's a cosmetic label — detection is keyed by the model/keyword below |
+| 1583 | `wake_word.sensitivity` | `0.6` | 0.0-1.0 detection threshold, consistent across engines (higher = stricter, fewer false triggers) |
+| 1584 | `wake_word.confirmation_frames` | `3` | openWakeWord only: consecutive over-threshold frames required to fire (higher = fewer false triggers on ambient speech, slightly more latency; 1 = old single-frame behavior) |
+| 1585 | `wake_word.start_new_session` | `True` | start a fresh session on wake vs. continue the current one |
+| 1586 | `wake_word.profile_routing` | `True` | sherpa only: also listen for every wake-enabled profile's phrase and route the wake to the matching profile |
+| 1587 | `wake_word.openwakeword` | `{ … }` |  |
+| 1592 | `wake_word.openwakeword.model` | `'hey_hermes'` | "hey_hermes" (the bundled, works-out-of-the-box default) OR a built-in openWakeWord name ("hey_jarvis", "alexa", "hey_mycroft", ...) OR a path to a custom .onnx/.tflite model for another phrase. See the wake-word docs for the custom-model training guide. |
+| 1597 | `wake_word.openwakeword.inference_framework` | `''` | "" (auto — tflite on macOS ARM64, onnx elsewhere) \| "onnx" \| "tflite". openWakeWord's onnx backend scores near-zero on macOS ARM64 (dscripka/openWakeWord#336), so auto avoids a listener that arms but never fires. Set explicitly only to override that choice. |
+| 1599 | `wake_word.sherpa` | `{ … }` |  |
+| 1602 | `wake_word.sherpa.model_dir` | `''` | Optional path to a sherpa-onnx KWS model directory. Empty = auto-download the small English zipformer model on first use. |
+| 1604 | `wake_word.porcupine` | `{ … }` |  |
+| 1607 | `wake_word.porcupine.keyword` | `'jarvis'` | Built-in keyword ("jarvis", "computer", "bumblebee", ...) or a path to a custom .ppn from the Picovoice Console. |
+| 1611 | `human_delay` | `{ … }` |  |
+| 1612 | `human_delay.mode` | `'off'` |  |
+| 1613 | `human_delay.min_ms` | `800` |  |
+| 1614 | `human_delay.max_ms` | `2500` |  |
+| 1623 | `context` | `{ … }` | Context engine -- controls how the context window is managed when approaching the model's token limit. "compressor" = built-in lossy summarization (default). Set to a plugin name to activate an alternative engine (e.g. "lcm" for Lossless Context Management). The engine must be installed as a plugin in plugins/context_engine/<name>/ or ~/.hermes/plugins/. |
+| 1624 | `context.engine` | `'compressor'` |  |
+| 1627 | `context.memory_trim` | `{ … }` | Return freed glibc allocator pages after long-running agent/TUI cleanup boundaries. Unsupported platforms are safe no-ops. |
+| 1628 | `context.memory_trim.enabled` | `True` |  |
+| 1629 | `context.memory_trim.cooldown_seconds` | `60.0` |  |
+| 1632 | `context.memory_trim.log_every_n` | `1` | Successful trim calls are INFO logged every Nth periodic call; force paths always log so process-close behavior is visible. |
+| 1635 | `context.memory_trim.info_log_min_delta_mb` | `0.0` | Suppress INFO logs only when a readable RSS change is smaller. 0 reports every successful configured trim. |
+| 1640 | `memory` | `{ … }` | Persistent memory -- bounded curated memory injected into system prompt |
+| 1641 | `memory.memory_enabled` | `True` |  |
+| 1642 | `memory.user_profile_enabled` | `True` |  |
+| 1655 | `memory.write_approval` | `False` | Approval gate for memory writes (add/replace/remove), applied to BOTH foreground agent turns and the background self-improvement review fork (the source of unprompted "wrong assumption" saves users reported). false (default) — write freely; the gate is off (pre-gate behaviour) true — require approval: foreground writes prompt inline (entries are small enough to review in a chat bubble); background-review writes are s … |
+| 1656 | `memory.memory_char_limit` | `2200` | ~800 tokens at 2.75 chars/token |
+| 1657 | `memory.user_char_limit` | `1375` | ~500 tokens at 2.75 chars/token |
+| 1662 | `memory.provider` | `''` | External memory provider plugin (empty = built-in only). Set to a provider name to activate: "openviking", "mem0", "hindsight", "holographic", "retaindb", "byterover". Only ONE external provider is allowed at a time. |
+| 1669 | `delegation` | `{ … }` | Subagent delegation — override the provider:model used by delegate_task so child agents can run on a different (cheaper/faster) provider and model. Uses the same runtime provider resolution as CLI/gateway startup, so all configured providers (OpenRouter, Nous, Z.ai, Kimi, etc.) are supported. |
+| 1670 | `delegation.model` | `''` | e.g. "google/gemini-3-flash-preview" (empty = inherit parent model) |
+| 1671 | `delegation.provider` | `''` | e.g. "openrouter" (empty = inherit parent provider + credentials) |
+| 1672 | `delegation.base_url` | `''` | direct OpenAI-compatible endpoint for subagents |
+| 1673 | `delegation.api_key` | `''` | API key for delegation.base_url (falls back to OPENAI_API_KEY) |
+| 1674 | `delegation.api_mode` | `''` | wire protocol for delegation.base_url: "chat_completions", "codex_responses", or "anthropic_messages". Empty = auto-detect from URL (e.g. /anthropic suffix → anthropic_messages). Set this explicitly for non-standard endpoints the heuristic can't detect. |
+| 1683 | `delegation.inherit_mcp_toolsets` | `True` | "codex_responses", or "anthropic_messages". Empty = auto-detect from URL (e.g. /anthropic suffix → anthropic_messages). Set this explicitly for non-standard endpoints the heuristic can't detect. When delegate_task narrows child toolsets explicitly, preserve any MCP toolsets the parent already has enabled. On by default so narrowing (e.g. toolsets=["web","browser"]) expresses "I want these extras" without silently str … |
+| 1684 | `delegation.max_iterations` | `50` | per-subagent iteration cap (each subagent gets its own budget, independent of the parent's max_iterations) |
+| 1700 | `delegation.max_summary_chars` | `24000` | independent of the parent's max_iterations) Subagent summaries return to the parent's context verbatim. A batch fan-out (N children) returns N summaries at once, which can exceed the parent's context window and trigger a compression/429 death spiral. delegate_task sizes each summary against the parent's remaining context headroom (split across the batch); when it must trim, the full text is spilled to ~/.hermes/cache … |
+| 1702 | `delegation.child_timeout_seconds` | `0` | optional wall-clock cap per child agent. 0 (default) = no timeout: children fail only from real errors (API, tools, iteration budget), never a delegation stopwatch. Set a positive number of seconds (floor 30s) to enforce a hard cap. |
+| 1707 | `delegation.reasoning_effort` | `''` | subagent effort: "ultra", "max", "xhigh", "high", "medium", "low", "minimal", "none" (empty = inherit) |
+| 1709 | `delegation.max_concurrent_children` | `3` | unified concurrency cap: max parallel children per batch AND max concurrent background (background=true) delegation units. New async dispatches beyond the cap fall back to synchronous execution. Floor of 1, no ceiling. (Replaces the deprecated max_async_children.) |
+| 1717 | `delegation.max_spawn_depth` | `1` | depth (1 = flat [default], 2 = orchestrator→leaf, 3+ = deeper) |
+| 1718 | `delegation.orchestrator_enabled` | `True` | kill switch for role="orchestrator" |
+| 1727 | `delegation.subagent_auto_approve` | `False` | When a subagent hits a dangerous-command approval prompt, the parent's prompt_toolkit TUI owns stdin — a thread-local input() call from the subagent worker would deadlock the parent UI. To avoid the deadlock, subagent threads ALWAYS resolve approvals non-interactively: false (default) → auto-deny with a logger.warning audit line (safe) true → auto-approve "once" with a logger.warning audit line Flip to true only if y … |
+| 1733 | `prefill_messages_file` | `''` | Ephemeral prefill messages file — JSON list of {role, content} dicts injected at the start of every API call for few-shot priming. Never saved to sessions, logs, or trajectories. |
+| 1743 | `goals` | `{ … }` | Goals — persistent cross-turn goals (Ralph-style loop). After every turn, a lightweight judge call asks the auxiliary model whether the active /goal is satisfied by the assistant's last response. If not, Hermes feeds a continuation prompt back into the same session and keeps working until the goal is done, the turn budget is exhausted, or the user pauses/clears it. Judge failures fail OPEN (continue) so a flaky judge … |
+| 1748 | `goals.max_turns` | `20` | Max continuation turns before Hermes auto-pauses the goal and asks the user to /goal resume. Protects against judge false negatives (goal actually done but judge says continue) and unbounded model spend on fuzzy / unachievable goals. |
+| 1754 | `moa` | `{ … }` | Mixture of Agents — named presets used by /moa. A preset is an execution mode around the main model, not a provider/model itself: references + aggregator synthesize private guidance before each main-model iteration. |
+| 1755 | `moa.default_preset` | `'default'` |  |
+| 1756 | `moa.active_preset` | `''` |  |
+| 1763 | `moa.save_traces` | `False` | When true, every MoA turn that runs the reference fan-out writes the FULL turn (each reference's exact input messages + output + usage/cost, and the aggregator's exact input + output) to a JSONL file at <hermes_home>/moa-traces/<session_id>.jsonl. Off by default — turn it on to audit / improve MoA behavior from real runs. Set trace_dir to override the output directory. |
+| 1764 | `moa.trace_dir` | `''` |  |
+| 1774 | `moa.privacy_filter` | `''` | Privacy redaction filter for advisor (reference) outputs. Advisors can echo PII from the conversation (emails, formatted phone numbers) and credential shapes into reference blocks, traces, and the aggregator prompt. Modes ('' = off, the default): "display" — redact user-visible surfaces only (reference blocks shown in the UI + saved MoA trace records); the aggregator still sees raw advisor text. "full" — additionally … |
+| 1775 | `moa.presets` | `{ … }` |  |
+| 1776 | `moa.presets.default` | `{ … }` |  |
+| 1777 | `moa.presets.default.reference_models` | `[{'provider': 'openai-codex', 'model': 'gpt-5.5'}, {'provider': 'openrouter', 'model': 'deepseek/deepseek-v4-pro'}]` |  |
+| 1781 | `moa.presets.default.aggregator` | `{ … }` |  |
+| 1781 | `moa.presets.default.aggregator.provider` | `'openrouter'` |  |
+| 1781 | `moa.presets.default.aggregator.model` | `'anthropic/claude-opus-4.8'` |  |
+| 1782 | `moa.presets.default.max_tokens` | `4096` |  |
+| 1783 | `moa.presets.default.enabled` | `True` |  |
+| 1791 | `skills` | `{ … }` | Skills — external skill directories for sharing skills across tools/agents. Each path is expanded (~, ${VAR}) and resolved. Read-only — skill creation always goes to ~/.hermes/skills/. |
+| 1792 | `skills.external_dirs` | `[]` | e.g. ["~/.agents/skills", "/shared/team-skills"] |
+| 1797 | `skills.template_vars` | `True` | Substitute ${HERMES_SKILL_DIR} and ${HERMES_SESSION_ID} in SKILL.md content with the absolute skill directory and the active session id before the agent sees it. Lets skill authors reference bundled scripts without the agent having to join paths. |
+| 1804 | `skills.inline_shell` | `False` | Pre-execute inline shell snippets written as !`cmd` in SKILL.md body. Their stdout is inlined into the skill message before the agent reads it, so skills can inject dynamic context (dates, git state, detected tool versions, …). Off by default because any content from the skill author runs on the host without approval; only enable for skill sources you trust. |
+| 1806 | `skills.inline_shell_timeout` | `10` | Timeout (seconds) for each !`cmd` snippet when inline_shell is on. |
+| 1817 | `skills.guard_agent_created` | `False` | Run the keyword/pattern security scanner on skills the agent writes via skill_manage (create/edit/patch). Off by default because the agent can already execute the same code paths via terminal() with no gate, so the scan adds friction (blocks skills that mention risky keywords in prose) without meaningful security. Turn on if you want the belt-and-suspenders — a dangerous verdict will then surface as a tool error to t … |
+| 1829 | `skills.write_approval` | `False` | Approval gate for skill_manage (create/edit/patch/write_file/delete/ remove_file), applied to BOTH foreground agent turns and the background self-improvement review fork. false (default) — write freely; the gate is off (pre-gate behaviour) true — require approval: stage the write for review instead of committing (a SKILL.md is too large to review inline, so skills always stage rather than prompt). List with /skills p … |
+| 1842 | `curator` | `{ … }` | Curator — background skill maintenance. Periodically reviews AGENT-CREATED skills (never bundled or hub-installed) and keeps the collection tidy: marks long-unused skills as stale, archives genuinely obsolete ones (archive only, never deletes), and spawns a forked aux-model agent to consolidate overlaps and patch drift. Runs inactivity-triggered from session start — no cron daemon. See `hermes curator status` for the … |
+| 1843 | `curator.enabled` | `True` |  |
+| 1845 | `curator.interval_hours` | `24 * 7` | How long to wait between curator runs (hours). Default: 7 days. |
+| 1847 | `curator.min_idle_hours` | `2` | Only run when the agent has been idle at least this long (hours). |
+| 1849 | `curator.stale_after_days` | `30` | Mark a skill as "stale" after this many days without use. |
+| 1852 | `curator.archive_after_days` | `90` | Archive a skill (move to skills/.archive/) after this many days without use. Archived skills are recoverable — no auto-deletion. |
+| 1860 | `curator.consolidate` | `False` | Run the LLM consolidation (umbrella-building) pass. OFF by default. When off, a curator run does ONLY the deterministic inactivity prune (mark stale / archive long-unused skills) and skips the forked aux-model review entirely — no umbrella-building, no aux-model cost. Set to true to opt back into merging overlapping skills into class-level umbrellas. `hermes curator run --consolidate` overrides this for a single invo … |
+| 1871 | `curator.prune_builtins` | `True` | Also prune (archive) bundled built-in skills after the inactivity period, not just agent-created ones. ON by default. Built-ins are normally restored on every `hermes update`, so pruning them only sticks because a suppression list tells the re-seeder to leave them archived. Hub-installed skills are NEVER pruned here — they have an external upstream owner. Built-ins accrue usage telemetry and their inactivity clock st … |
+| 1876 | `curator.backup` | `{ … }` | Pre-run backup: before every real curator pass (dry-run is skipped), snapshot ~/.hermes/skills/ into ~/.hermes/skills/.curator_backups/<utc-iso>/skills.tar.gz so the user can roll back with `hermes curator rollback`. |
+| 1877 | `curator.backup.enabled` | `True` |  |
+| 1878 | `curator.backup.keep` | `5` | retain last N regular snapshots |
+| 1885 | `honcho` | `{}` | Honcho AI-native memory -- reads ~/.honcho/config.json as single source of truth. This section is only needed for hermes-specific overrides; everything else (apiKey, workspace, peerName, sessions, enabled) comes from the global config. |
+| 1889 | `timezone` | `''` | IANA timezone (e.g. "Asia/Kolkata", "America/New_York"). Empty string means use server-local time. |
+| 1892 | `slack` | `{ … }` | Slack platform settings (gateway mode) |
+| 1893 | `slack.require_mention` | `True` | Require @mention to respond in channels |
+| 1894 | `slack.free_response_channels` | `''` | Comma-separated channel IDs where bot responds without mention |
+| 1895 | `slack.allowed_channels` | `''` | If set, bot ONLY responds in these channel IDs (whitelist) |
+| 1898 | `slack.require_mention_channels` | `''` | Channel IDs where @mention is ALWAYS required, even when require_mention is false globally (per-channel force-mention override). |
+| 1902 | `slack.ignore_other_user_mentions` | `False` | Ignore a channel/thread message addressed to another user (first token @mentions someone other than the bot) unless the bot is also mentioned. Opt-in; default off keeps existing behaviour. Env: SLACK_IGNORE_OTHER_USER_MENTIONS. |
+| 1904 | `slack.thread_require_mention` | `False` | If True, require @mention in Slack thread replies too. |
+| 1905 | `slack.channel_prompts` | `{}` | Per-channel ephemeral system prompts |
+| 1909 | `discord` | `{ … }` | Discord platform settings (gateway mode) |
+| 1910 | `discord.require_mention` | `True` | Require @mention to respond in server channels |
+| 1911 | `discord.free_response_channels` | `''` | Comma-separated channel IDs where bot responds without mention |
+| 1912 | `discord.allowed_channels` | `''` | If set, bot ONLY responds in these channel IDs (whitelist) |
+| 1913 | `discord.auto_thread` | `True` | Auto-create threads on @mention in channels (like Slack) |
+| 1914 | `discord.thread_require_mention` | `False` | If True, require @mention in threads too (multi-bot threads) |
+| 1915 | `discord.bots_require_inline_mention` | `False` | Multi-bot rooms: if True, another bot must type @thisbot in its message to trigger a reply; a Discord reply/quote alone won't. Prevents two bots auto-replying to each other forever. Does not affect humans. |
+| 1916 | `discord.history_backfill` | `True` | If True, prepend recent channel scrollback when bot is triggered (recovers messages missed while require_mention gated them out) |
+| 1917 | `discord.history_backfill_limit` | `50` | Max number of recent messages to scan when assembling the backfill block |
+| 1918 | `discord.missed_message_backfill` | `{ … }` |  |
+| 1919 | `discord.missed_message_backfill.enabled` | `False` | Replay missed Discord messages after reconnect/startup |
+| 1920 | `discord.missed_message_backfill.channels` | `''` | Comma-separated channel IDs; empty uses free_response_channels |
+| 1921 | `discord.missed_message_backfill.window_seconds` | `21600` | Only inspect messages from the last 6 hours |
+| 1922 | `discord.missed_message_backfill.limit` | `100` | Global cap on messages scanned per reconnect |
+| 1923 | `discord.missed_message_backfill.max_dispatches` | `10` | Cap on recovered messages dispatched per reconnect |
+| 1925 | `discord.reactions` | `True` | Add 👀/✅/❌ reactions to messages during processing |
+| 1930 | `discord.websocket_liveness_interval_seconds` | `15` | Discord Gateway transport health. These settings inspect the active WebSocket's ready/open/heartbeat state; they never use Discord REST as proof that Gateway events are still arriving. Set any value to 0 to disable this compatibility-safe probe during a rollback. |
+| 1931 | `discord.websocket_liveness_failure_threshold` | `2` |  |
+| 1932 | `discord.websocket_heartbeat_ack_max_age_seconds` | `60` |  |
+| 1933 | `discord.websocket_max_latency_seconds` | `30` |  |
+| 1934 | `discord.channel_prompts` | `{}` | Per-channel ephemeral system prompts (forum parents apply to child threads) |
+| 1940 | `discord.dm_role_auth_guild` | `''` | Opt-in DM role-based auth (#12136). By default, DISCORD_ALLOWED_ROLES authorizes only guild messages in the role's own guild — DMs require DISCORD_ALLOWED_USERS. Set dm_role_auth_guild to a guild ID to also authorize DMs from members of that one trusted guild holding the allowed role. Unset / empty / 0 = secure default (DM role-auth off). |
+| 1948 | `discord.server_actions` | `''` | discord / discord_admin tools: restrict which actions the agent may call. Default (empty) = all actions allowed (subject to bot privileged intents). Accepts comma-separated string ("list_guilds,list_channels,fetch_messages") or YAML list. Unknown names are dropped with a warning at load time. Actions: list_guilds, server_info, list_channels, channel_info, list_roles, member_info, search_members, fetch_messages, list_ … |
+| 1954 | `discord.allow_any_attachment` | `False` | DEPRECATED / no-op. Any uploaded file is now always cached and surfaced to the agent regardless of file type — authorization to message the agent is the gate, not the extension. Kept so existing configs that set it do not error. Env override: DISCORD_ALLOW_ANY_ATTACHMENT. |
+| 1959 | `discord.max_attachment_bytes` | `33554432` | Maximum bytes per attachment the gateway will cache. The whole file is held in memory while being written, so unlimited uploads carry a real memory cost. Default 32 MiB matches the historical hardcoded cap. Set to 0 for no cap. Env override: DISCORD_MAX_ATTACHMENT_BYTES. |
+| 1964 | `discord.approval_mentions` | `False` | When True, Discord approval prompts mention numeric allowed users so owners notice approval requests in shared channels/threads. Env override: DISCORD_APPROVAL_MENTIONS. Default false avoids surprise pings. |
+| 1967 | `discord.voice_channel_inactivity_timeout_seconds` | `300` | Discord voice-channel inactivity timeout, in seconds. Set to 0 to keep the bot in VC until an explicit `/voice leave` / disconnect. |
+| 1971 | `discord.voice_playback_timeout_seconds` | `120` | Minimum seconds to wait for a VC playback before force-stopping it. The adapter also probes clip duration and extends this floor by a padding window, so long TTS readbacks are not cut at exactly 120s. |
+| 1978 | `discord.voice_fx` | `{ … }` | Voice-channel audio effects (the continuous mixer). OFF by default. When enabled, the bot installs a software mixer on the outgoing voice stream so a low ambient "thinking" bed, verbal acknowledgements, and TTS replies can OVERLAP (ducking the ambient under speech) instead of stop-and-swap — the Grok-voice-mode feel. discord.py ships no mixer; this is implemented in plugins/platforms/discord/voice_mixer.py. |
+| 1979 | `discord.voice_fx.enabled` | `False` | master switch for the mixer subsystem |
+| 1980 | `discord.voice_fx.ambient_enabled` | `True` | play the idle "thinking" bed while tools run |
+| 1981 | `discord.voice_fx.ambient_path` | `''` | custom loop audio file; "" = synthesised pad |
+| 1982 | `discord.voice_fx.ambient_gain` | `0.18` | idle bed loudness, 0.0–1.0 |
+| 1983 | `discord.voice_fx.duck_gain` | `0.06` | ambient loudness while speech plays |
+| 1984 | `discord.voice_fx.speech_gain` | `1.0` | TTS / ack loudness, 0.0–1.0 |
+| 1985 | `discord.voice_fx.ack_enabled` | `True` | speak a short phrase before the first tool call |
+| 1986 | `discord.voice_fx.ack_phrases` | `['Let me look into that.', 'One moment.', 'Checking on that now.', 'Give me a sec.', 'On it.']` | picked at random; set [] to disable phrases |
+| 1997 | `whatsapp` | `{}` | WhatsApp platform settings (gateway mode) |
+| 2005 | `telegram` | `{ … }` | Telegram platform settings (gateway mode) |
+| 2006 | `telegram.reactions` | `False` | Add 👀/✅/❌ reactions to messages during processing |
+| 2007 | `telegram.channel_prompts` | `{}` | Per-chat/topic ephemeral system prompts (topics inherit from parent group) |
+| 2008 | `telegram.allowed_chats` | `''` | If set, bot ONLY responds in these group/supergroup chat IDs (whitelist) |
+| 2009 | `telegram.extra` | `{ … }` |  |
+| 2010 | `telegram.extra.rich_messages` | `False` | Bot API 10.1 rich messages (tables/task lists/details/math) render natively; set True to opt in. Default stays legacy MarkdownV2 because rich messages can be hard to copy as plain text in Telegram clients. |
+| 2011 | `telegram.extra.rich_drafts` | `False` | Experimental Bot API 10.1 rich draft previews during Telegram DM streaming. Default off because Telegram Desktop/macOS can visually overlay rich draft frames until the chat redraws. |
+| 2016 | `mattermost` | `{ … }` | Mattermost platform settings (gateway mode) |
+| 2017 | `mattermost.require_mention` | `True` | Require @mention to respond in channels |
+| 2018 | `mattermost.free_response_channels` | `''` | Comma-separated channel IDs where bot responds without mention |
+| 2019 | `mattermost.allowed_channels` | `''` | If set, bot ONLY responds in these channel IDs (whitelist) |
+| 2020 | `mattermost.channel_prompts` | `{}` | Per-channel ephemeral system prompts |
+| 2024 | `matrix` | `{ … }` | Matrix platform settings (gateway mode) |
+| 2025 | `matrix.require_mention` | `True` | Require @mention to respond in rooms |
+| 2026 | `matrix.free_response_rooms` | `''` | Comma-separated room IDs where bot responds without mention |
+| 2027 | `matrix.allowed_rooms` | `''` | If set, bot ONLY responds in these room IDs (whitelist) |
+| 2044 | `approvals` | `{ … }` | Approval mode for dangerous commands: manual — always prompt the user smart — use auxiliary LLM to auto-approve low-risk commands (default) off — skip all approval prompts (equivalent to --yolo) cron_mode — what to do when a cron job hits a dangerous command: deny — block the command and let the agent find another way (default, safe) approve — auto-approve all dangerous commands in cron jobs timeout — seconds to wait … |
+| 2045 | `approvals.mode` | `'smart'` |  |
+| 2046 | `approvals.timeout` | `300` |  |
+| 2047 | `approvals.cron_mode` | `'deny'` |  |
+| 2054 | `approvals.smart_policy` | `''` | Operator-customizable policy text for smart approvals. When non-empty, this is appended to the smart-approval guardian's SYSTEM prompt (trusted channel) as additional rules — e.g. "Always ESCALATE commands touching /etc" or "APPROVE docker compose restarts under ~/deploys". Inspired by ChatGPT Work's customizable auto-review guardian policy. |
+| 2061 | `approvals.denial_breaker_threshold` | `3` | Consecutive-denial circuit breaker for smart approvals: after this many guardian DENY verdicts in a row within one session, the deny message returned to the model escalates to a hard-stop instruction (report to the user / ask for manual run or /approve) instead of a plain "Do NOT retry". Any approval resets the count. 0 disables. Inspired by ChatGPT Work's auto-review circuit breaker. |
+| 2071 | `approvals.deny` | `[]` | User-defined deny rules: fnmatch globs matched against terminal commands. A match blocks the command unconditionally — BEFORE the --yolo / /yolo / mode=off bypass — making this the user-editable counterpart to the code-shipped hardline blocklist. Patterns are case-insensitive and must be quoted in YAML when they start with * or contain {}/!/: sequences. Example: deny: - "git push --force*" - "*curl*\|*sh*" |
+| 2079 | `approvals.mcp_reload_confirm` | `True` | When true, /reload-mcp asks the user to confirm before rebuilding the MCP tool set for the active session. Reloading invalidates the provider prompt cache (tool schemas are baked into the system prompt), so the next message re-sends full input tokens — this can be expensive on long-context or high-reasoning models. Users click "Always Approve" to silence the prompt permanently; that flips this key to false. |
+| 2088 | `approvals.destructive_slash_confirm` | `True` | When true, destructive session slash commands (/clear, /new, /reset, /undo) ask the user to confirm before discarding conversation state. Three-option prompt (Approve Once / Always Approve / Cancel) routed through tools.slash_confirm — native yes/no buttons on Telegram, Discord, and Slack; text fallback elsewhere. Users click "Always Approve" to silence the prompt permanently; that flips this key to false. TUI has it … |
+| 2092 | `command_allowlist` | `[]` | Permanently allowed dangerous command patterns (added via "always" approval) |
+| 2094 | `quick_commands` | `{}` | User-defined quick commands that bypass the agent loop (type: exec only) |
+| 2110 | `platform_hints` | `{}` | Per-platform system-prompt hint overrides. Lets an admin append to or replace Hermes' built-in platform hint for a single messaging platform (WhatsApp, Slack, Telegram, ...) without affecting other platforms. Useful for enterprise/managed profiles that ship platform-aware skills. Each key is a platform name; the value is either: { "append": "extra text" } — keep the default hint, append text { "replace": "full text" … |
+| 2119 | `hooks` | `{}` | Shell-script hooks — declarative bridge that invokes shell scripts on plugin-hook events (pre_tool_call, post_tool_call, pre_llm_call, subagent_stop, etc.). Each entry maps an event name to a list of {matcher, command, timeout} dicts. First registration of a new command prompts the user for consent; subsequent runs reuse the stored approval from ~/.hermes/shell-hooks-allowlist.json. See `website/docs/user-guide/featu … |
+| 2125 | `hooks_auto_accept` | `False` | Auto-accept shell-hook registrations without a TTY prompt. Also toggleable per-invocation via --accept-hooks or HERMES_ACCEPT_HOOKS=1. Gateway / cron / non-interactive runs need this (or one of the other channels) to pick up newly-added hooks. |
+| 2129 | `personalities` | `{}` | Custom personalities — add your own entries here Supports string format: {"name": "system prompt"} Or dict format: {"name": {"description": "...", "system_prompt": "...", "tone": "...", "style": "..."}} |
+| 2132 | `security` | `{ … }` | Pre-exec security scanning via tirith |
+| 2133 | `security.allow_private_urls` | `False` | Allow requests to private/internal IPs (for OpenWrt, proxies, VPNs) |
+| 2134 | `security.redact_secrets` | `True` |  |
+| 2135 | `security.tirith_enabled` | `True` |  |
+| 2136 | `security.tirith_path` | `'tirith'` |  |
+| 2137 | `security.tirith_timeout` | `5` |  |
+| 2138 | `security.tirith_fail_open` | `True` |  |
+| 2139 | `security.website_blocklist` | `{ … }` |  |
+| 2140 | `security.website_blocklist.enabled` | `False` |  |
+| 2141 | `security.website_blocklist.domains` | `[]` |  |
+| 2142 | `security.website_blocklist.shared_files` | `[]` |  |
+| 2150 | `security.acked_advisories` | `[]` | Acknowledged supply-chain security advisories. Each entry is the ID of an advisory the user has read and acted on (uninstalled the compromised package, rotated credentials). Acked advisories no longer trigger the startup banner. Add via `hermes doctor --ack <id>`; remove by editing the list directly. See ``hermes_cli/security_advisories.py`` for the catalog. |
+| 2158 | `security.allow_lazy_installs` | `True` | Allow Hermes to lazy-install opt-in backend packages from PyPI the first time the user enables a backend that needs them (e.g. installing ``elevenlabs`` when the user picks ElevenLabs as their TTS provider). Set to false to require explicit ``pip install`` for everything beyond the base set — appropriate for restricted networks, audited environments, or air-gapped systems where any runtime install is unacceptable. |
+| 2161 | `cron` | `{ … }` |  |
+| 2166 | `cron.model_drift_guard` | `True` | Fail closed when an unpinned job's current global model/provider differs from its creation-time snapshot. This prevents unattended jobs from silently inheriting a paid default. Set to false only when jobs should deliberately track changing global inference defaults. |
+| 2173 | `cron.model` | `''` | Default inference model for cron jobs (Axis A — WHAT model an agent job runs on). Resolution at fire time: per-job user pin > cron.model > global model.default. When set, unpinned jobs follow this deliberately, so the #44585 model-drift fail-closed guard does not engage for the model axis — cron spend no longer shadows chat `/model` switches. Empty string = fall through to model.default. |
+| 2176 | `cron.model_provider` | `''` | Inference provider paired with cron.model (NOT the scheduler provider below). Empty string = resolve from global config. |
+| 2184 | `cron.provider` | `''` | Active cron SCHEDULER provider (Axis B — the trigger that decides WHEN a due job fires). Empty string = the built-in in-process 60s ticker (default). Name an installed provider (plugins/cron_providers/<name>/ or $HERMES_HOME/plugins/<name>/) to relocate the trigger — e.g. "chronos", the NAS-mediated managed-cron provider for scale-to-zero deployments. An unknown or unavailable provider falls back to the built-in, so … |
+| 2190 | `cron.chronos` | `{ … }` | Chronos (NAS-mediated managed cron) settings. Only consulted when provider == "chronos". All non-secret (URLs + the JWT audience): the agent holds NO external-scheduler credentials. For hosted agents, NAS sets these at provision time. The outbound provision call reuses the agent's existing Nous Portal token — there is no token key here. |
+| 2193 | `cron.chronos.portal_url` | `'https://portal.nousresearch.com'` | NAS / portal base URL the agent calls to arm/cancel one-shots and that mints the inbound fire JWT (used as the expected issuer). |
+| 2197 | `cron.chronos.callback_url` | `''` | The agent's OWN publicly-reachable base URL for NAS→agent fires (NAS POSTs {callback_url}/api/cron/fire). Empty → Chronos is unavailable and the resolver falls back to the built-in ticker. |
+| 2199 | `cron.chronos.expected_audience` | `''` | This agent's expected JWT audience (e.g. "agent:{instance_id}"). |
+
+<!-- rows=683 -->
 
 ---
 

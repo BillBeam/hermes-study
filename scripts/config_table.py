@@ -19,6 +19,18 @@ of the codebase, not a limitation we can engineer away here — an AST pass
 cannot see a dict that a different module fills in at import time. Treat the
 env table as "what is written down", not "what the wizard will ask for".
 
+**And the config-key table is not the set of keys a user may legally write.** It
+is the complete flattening of ``DEFAULT_CONFIG`` — nothing more. Three families
+of valid keys sit outside it: (1) the 23 roots in ``_EXTRA_KNOWN_ROOT_KEYS``
+(emitted separately) together with their entire subtrees, which have no defaults
+at all; (2) nested keys that exist only in a projection table elsewhere — e.g. 8
+of the 30 keys in ``TERMINAL_CONFIG_ENV_MAP`` (hermes_cli/config.py:3183) have no
+entry under ``DEFAULT_CONFIG["terminal"]``; and (3) arbitrary top-level scalars,
+which are legal by design because the gateway bridges them into ``os.environ``
+for skills and external programs, so the root level is deliberately open-world.
+Use this table as "every key that has a declared default", which is exactly what
+it is and what the doc-coverage question needs.
+
 For each key this script reports four columns:
 
   key          dotted path (``agent.max_turns``) or env var name

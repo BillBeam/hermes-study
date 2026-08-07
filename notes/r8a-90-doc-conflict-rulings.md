@@ -246,6 +246,33 @@ _KNOWN_ROOT_KEYS = frozenset(DEFAULT_CONFIG.keys()) | _EXTRA_KNOWN_ROOT_KEYS
     # — a closed-world allowlist can never enumerate those.
 ```
 
+### ◇-1d 又一处"表外键":`terminal.*` 的配置→环境桥与默认值不同构
+
+(此条由 `notes/r8a-raw-defaults-a` §3.3 发现,主线已用 AST + 运行时集合运算复核确认。)
+
+`terminal.*` 的消费方 `tools/terminal_tool.py` **只读环境变量**(同一份工具要在
+TUI / dashboard PTY / gateway worker 等子进程里跑),所以 `config.py` 提供一张显式映射表
+把配置键投影成 env:
+
+`hermes_cli/config.py:3183-3184 @ 863e313`
+
+```python
+TERMINAL_CONFIG_ENV_MAP = {
+    "backend": "TERMINAL_ENV",
+```
+
+**这张表有 30 个键,与 `DEFAULT_CONFIG["terminal"]` 双向不同构**(主线实测):
+
+- **在桥表里、不在默认值里的 8 个**:`docker_orphan_reaper` / `docker_persist_across_processes` /
+  `lifetime_seconds` / `sandbox_dir` / `ssh_host` / `ssh_key` / `ssh_port` / `ssh_user`
+  —— 又一批**合法但表外**的配置键,且这次是**嵌套层**的(不受 ◇-1b 那 23 个根键覆盖);
+- **在默认值里、不在桥表里的 6 个** —— 这些键设了也不会传到 `terminal_tool`。
+
+**这使"配置项全表"的边界又收窄一层**:856 个键是 `DEFAULT_CONFIG` 的全集,
+但**不是"用户能在 config.yaml 里合法写下的键"的全集**——后者还包括
+23 个额外根键的整棵子树、以及像这 8 个一样散落在各投影表里的嵌套键。
+**已在 `scripts/config_table.py` 的开头说明里声明此边界。**
+
 ### ◇-1c 第三条桥:config.yaml 的顶层标量会变成环境变量(方向与 `${VAR}` 相反)
 
 顺着上面那条注释查到了本轮**最后一个、也是最反直觉的机制**:
