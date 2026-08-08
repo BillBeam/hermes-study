@@ -206,8 +206,20 @@ class ProviderConfig:
     ),
 ```
 
-影响:中。这不是纯注释问题——`resolve_api_key_provider_credentials` 用
-`pconfig.auth_type != "api_key"` 做守卫(`hermes_cli/auth.py:7151`),
+影响:中。这不是纯注释问题——`auth_type` 是**运行时分派键**,
+`resolve_api_key_provider_credentials` 拿它做守卫:
+
+`hermes_cli/auth.py:7150 @ 863e313`
+```python
+    pconfig = PROVIDER_REGISTRY.get(provider_id)
+    if not pconfig or pconfig.auth_type != "api_key":
+        raise AuthError(
+            f"Provider '{provider_id}' is not an API-key provider.",
+            provider=provider_id,
+            code="invalid_provider",
+        )
+```
+
 新增一种 `auth_type` 就要同步一处分派,而注释没有维护成"全集清单",
 下一个改这里的人容易漏掉分派点。
 
@@ -394,21 +406,32 @@ form body)、MiniMax(`/oauth/code`)三家的端点形状都不一样,所以各�
 | `~/.hermes/auth.json` | OAuth token(access/refresh/expires)、`active_provider`、`credential_pool`、`suppressed_sources` | 文件 `0o600`,父目录 `0o700` | `_save_auth_store` (`auth.py:1284`) |
 | `~/.hermes/.env` | **API key 形状的键**(见 §4) | 新建 `0o600`;已存在则**保留原权限** | `save_env_value` (`config.py:3865`) |
 | `~/.hermes/config.yaml` | `model.provider` / `model.base_url` / `model.default` —— **只有路由信息,不含密钥** | 未特殊设限 | `_update_config_for_provider` (`auth.py:7270`) |
-| ~~系统钥匙串~~ | **不作为落点** | — | 见 §3.4 |
+| ~~系统钥匙串~~ | **不作为落点** | — | 见 §3.5 |
 
 另有两个"外部借用"的读取点(Hermes **读**、原则上不写):
-- `~/.codex/auth.json`(Codex CLI 的会话)—— `hermes_cli/auth.py:3940` 的
-  `_import_codex_cli_tokens`,docstring 明写 "Does NOT write to the shared file"。
-- `~/.qwen/oauth_creds.json`(Qwen CLI 的会话)—— 这个**会写**,见 §3.3。
 
-以及一个跨 profile 的共享点:`<hermes-root>/shared/nous_auth.json`,见 §3.5。
+- `~/.codex/auth.json`(Codex CLI 的会话)—— 只读,docstring 把这条写成契约:
+
+`hermes_cli/auth.py:3940 @ 863e313`
+```python
+def _import_codex_cli_tokens() -> Optional[Dict[str, str]]:
+    """Try to read tokens from ~/.codex/auth.json (Codex CLI shared file).
+    
+    Returns tokens dict if valid and not expired, None otherwise.
+    Does NOT write to the shared file.
+    """
+```
+
+- `~/.qwen/oauth_creds.json`(Qwen CLI 的会话)—— 这个**会写**,见 §3.4。
+
+以及一个跨 profile 的共享点:`<hermes-root>/shared/nous_auth.json`,见 §3.6。
 
 ### 3.2 谁决定落哪一个
 
 分三层,互不重叠:
 
 1. **OAuth token → 永远 `auth.json`。** 没有分支。所有 `_save_*_tokens` 最终都收敛到
-   `_save_auth_store`(Qwen 是唯一例外,见 §3.3)。
+   `_save_auth_store`(Qwen 是唯一例外,见 §3.4)。
 2. **`hermes config set <key> <value>` → 由 `_is_env_config_key(key)` 决定 `.env` 还是
    `config.yaml`。** 这是唯一的动态分流点,见 §4。
 3. **provider 路由(哪个 provider、哪个 base_url、哪个默认模型)→ 永远 `config.yaml`。**
@@ -735,9 +758,23 @@ custom provider 配置)和 `.env`。`config.yaml` 的优先级**更高**。
         pass
 ```
 
-"抑制"(suppression)是 `auth.json` 里的一张 `suppressed_sources` 表
-(`hermes_cli/auth.py:1717` 的 `suppress_credential_source`),记录"用户明确删掉过
-这个来源,不要再自动把它塞回凭据池"。重新写入等于用户改主意,所以要清掉。
+"抑制"(suppression)是 `auth.json` 里的一张 `suppressed_sources` 表,
+记录"用户明确删掉过这个来源,不要再自动把它塞回凭据池":
+
+`hermes_cli/auth.py:1717 @ 863e313`
+```python
+def suppress_credential_source(provider_id: str, source: str) -> None:
+    """Mark a credential source as suppressed so it won't be re-seeded."""
+    with _auth_store_lock():
+        auth_store = _load_auth_store()
+        suppressed = auth_store.setdefault("suppressed_sources", {})
+        provider_list = suppressed.setdefault(provider_id, [])
+        if source not in provider_list:
+            provider_list.append(source)
+        _save_auth_store(auth_store)
+```
+
+结构是 `{provider_id: [source, ...]}`。重新写入凭据等于用户改主意,所以要清掉。
 `auth_commands.py` 里 `auth add` 也做同样的事,注释把这叫"一致的 re-engagement 模式":
 
 `hermes_cli/auth_commands.py:180 @ 863e313`
@@ -810,7 +847,22 @@ ACCESS_TOKEN_REFRESH_SKEW_SECONDS = 120       # refresh 2 min before expiry
 | Spotify | `SPOTIFY_ACCESS_TOKEN_REFRESH_SKEW_SECONDS` | 120 | `hermes_cli/auth.py:131` |
 | MiniMax | `MINIMAX_OAUTH_REFRESH_SKEW_SECONDS` | 60 | `hermes_cli/auth.py:95` |
 
-xAI 的 3600 是个异类,而且**它自己会踩自己**——这是一个值得完整复述的事故:
+xAI 的 3600 是个异类。它**不是**随手写大的,常量上方有一段完整的理由——
+为 gateway / cron 这类"半小时才碰一次 provider"的负载留出余量:
+
+`hermes_cli/auth.py:117 @ 863e313`
+```python
+# xAI/Grok OAuth access tokens are intentionally short-lived (about 6h in
+# current SuperGrok flows). A two-minute refresh window is too narrow for
+# gateway/cron workloads that may only touch the provider every 30 minutes,
+# leaving brief but noisy credential-expiry gaps. Refresh up to one hour
+# early so ordinary runtime calls keep the token warm without user reauth.
+XAI_ACCESS_TOKEN_REFRESH_SKEW_SECONDS = 3600
+```
+
+**注意这段注释的前提**:"about 6h" 的 token。6 小时 token 配 1 小时 skew 完全合理。
+问题出在这个前提**后来不成立了**——device-code 登录发的是 15 分钟 token,
+于是同一个常量从"合理余量"变成"永远在刷"。这是一个值得完整复述的事故:
 
 `hermes_cli/auth.py:4653 @ 863e313`
 ```python
@@ -862,6 +914,31 @@ OAuth refresh_token 是**单次使用**的,连续刷新把它烧光 ⇒ 并发�
 - **终局失败**(400/401/403、`invalid_grant`、token 被吊销):走 **quarantine(隔离)**——
   把 access/refresh token 从磁盘上抹掉,但**保留路由元数据**,并记一条
   `last_auth_error`。目的是让下一次调用**快速失败**,而不是再打一次注定失败的网络请求。
+
+判定"终局"靠的是 `AuthError` 上的 `code` + `relogin_required` 两个字段,**不是** HTTP
+状态码本身——状态码在更早的层已经被翻译成 code:
+
+`hermes_cli/auth.py:5484 @ 863e313`
+```python
+def _is_terminal_xai_oauth_refresh_error(exc: Exception) -> bool:
+    """True when retrying the same xAI OAuth refresh token cannot succeed.
+
+    ``xai_refresh_failed`` covers HTTP 400/401/403 from the token endpoint
+    (invalid_grant, token revoked, refresh_token_reused).
+    ``xai_auth_missing_refresh_token`` means the pool entry has no refresh
+    token at all — retrying will never work.
+    Both carry ``relogin_required=True``; transient failures (429, 5xx) do not.
+    """
+    return (
+        isinstance(exc, AuthError)
+        and exc.provider == "xai-oauth"
+        and exc.code in {"xai_refresh_failed", "xai_auth_missing_refresh_token"}
+        and bool(exc.relogin_required)
+    )
+```
+
+注意它还比对了 `exc.provider` —— 一个来自别的 provider 的同名 code 不会被误判成
+xAI 的终局失败。
 
 xAI 的隔离现场(可以完整看到"抹哪些字段、留哪些字段"):
 
@@ -1106,9 +1183,21 @@ memo 的安全性论证写在快速路径旁边——**能进 memo 的 token 至
 
 **现象**:profile 模式下,如果 **global** 的 `~/.hermes/auth.json` 因 EMFILE / EACCES /
 挂载卡死而读不出来,`read_credential_pool()` 会静默地返回"该 provider 在 global 没有条目",
-于是 `is_provider_explicitly_configured()`(`hermes_cli/auth.py:1783`)第 4 步查不到池条目,
-可能判定为"用户没配过这个 provider",进而拒绝使用本来存在的凭据。用户看到的是
-"没登录",而不是"读不出来"。
+于是 `is_provider_explicitly_configured()` 第 4 步查不到池条目——而这一步正是
+"用户到底有没有显式配过这个 provider"的最后一道判据:
+
+`hermes_cli/auth.py:1868 @ 863e313`
+```python
+    # 4. Check persisted credential-pool entries that came from EXPLICIT flows
+    # the user initiated inside Hermes (manual add / device-code / PKCE), plus
+    # env-backed pool entries. This intentionally excludes ambient borrowed
+    # sources like gh_cli / claude_code / qwen-cli.
+    try:
+        for entry in read_credential_pool(normalized):
+```
+
+四步全不命中就返回 False,于是可能判定为"用户没配过这个 provider",进而拒绝使用
+本来存在的凭据。用户看到的是"没登录",而不是"读不出来"。
 
 **为什么我把它标 ■ 而不是设计取舍**:注释说的理由是 "malformed global store"(格式损坏),
 而 `_load_auth_store` **已经**把格式损坏单独处理了(走 `except Exception` 那支,
@@ -1613,6 +1702,38 @@ root 绕过的是权限**检查**,不是权限**设置**,所以 `os.open(..., S_
 | `tests/hermes_cli/test_auth_store_read_failure.py` | OSError 必须**抛**、必须**保留原文件**;只有真损坏才降级 + 备份,且**没备份成功就不许在日志里说备份了** |
 | `tests/hermes_cli/test_auth_toctou_file_modes.py` | 三个凭据写入点必须落 `0o600`、父目录 `0o700`,且必须是 O_EXCL **创建时**就对 |
 | `tests/hermes_cli/test_auth_provider_gate.py` | `is_provider_explicitly_configured` 的四步判据:借来的凭据(gh_cli / claude_code / qwen-cli)**不算**用户显式配置 |
+
+### 8.4 引用校验报数与「可校验比例」的结构性说明
+
+```console
+$ cd /home/user/hermes-study && python3 scripts/verify_citations.py \
+      /home/user/hermes-agent notes/r8c-raw-auth-py.md; echo "EXIT=$?"
+
+citations=130  OK=79  UNCHECKED=51
+可校验比例 OK/130 = 60.8%  << 低于 70% 下限
+OK: every code-block-backed citation matches the baseline
+EXIT=0
+```
+
+**MISMATCH = 0,退出码 0,过关。** 首跑曾有 10 处 MISMATCH(全部为行号漂移,
+其中 2 处是 `try:` 这种非唯一首行导致的定位歧义),已逐条手工核对基线后修正;
+**未使用 `--fix`**,修正后裸跑复核如上。
+
+**可校验比例 60.8% 低于 70% 报告下限,原因是结构性的,如实拆账**:
+
+| 类别 | 条数 | 说明 |
+|---|---|---|
+| OK(带代码块、逐字比对通过) | 79 | 全部实质断言 |
+| UNCHECKED — grep/shell 输出内的 `path:line` | 17 | `console` 围栏里的检索证据本身(如 §6.2 的调用点清单),其内容就是路径行号,无法也不该再配代码块 |
+| UNCHECKED — §9 定案表 + §10 移交项的锚点 | ~28 | CLAUDE.md **要求**移交项必须附「锚点文件 + 行号」;这些锚点指向的结论多数已在正文用代码块证过,此处是索引不是新断言 |
+| UNCHECKED — 正文交叉引用 | ~6 | 如"见 §3.4"式的回指 |
+
+**没有为凑比例制造代码块**——`scripts/verify_citations.py` 自己的模块 docstring
+(第 68 行一带)明确警告 "Making it blocking would push authors to manufacture code
+blocks to clear a gate, which is worse than the disease"。本轮据此把比例如实报低,
+并把 4 处**原本只有散文断言、但确实该有证据**的地方补成了代码块
+(§2.1 的 `auth_type` 分派守卫、§5.1 的 xAI skew 立法理由、§5.2 的终局错误判定器、
+§5.4 的 `is_provider_explicitly_configured` 第 4 步)。
 
 ---
 
