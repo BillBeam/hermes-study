@@ -23,8 +23,8 @@
 `main._BUILTIN_SUBCOMMANDS`(68 项),实跑求差**双向共 45 项不一致**
 ——而前者的用途正是"阻止用户把 profile 名或别名起成命令名",
 于是 `dashboard`、`auth`、`backup` 等 **44 个真实命令今天都能被拿来当 profile 别名**。
-另一份已经付出可见代价:其中"斜杠命令注册表 vs `if/elif` 分发链"
-已经付出代价:`/whoami` 在注册表里登记且不带任何 surface 限定
+另一份则已经付出用户可见的代价——"斜杠命令注册表 vs `if/elif` 分发链":
+`/whoami` 在注册表里登记且不带任何 surface 限定
 (`hermes_cli/commands.py:181 @ 863e313`),于是 `/help` 会列出它;
 而 `cli.py` 全文**没有任何一处**提到 `whoami`——敲下去得到 "Unknown command"。
 **最值得记的是仓库自己的记录**:根 `AGENTS.md:385` 声称所有消费方从注册表**自动派生**,
