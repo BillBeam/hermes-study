@@ -574,7 +574,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 ---
 
-## ■ 组:代码内部缺陷(35 条,只记录不修)
+## ■ 组:代码内部缺陷(49 条,只记录不修)
 
 | # | 缺陷 | 锚点 | 怎么会踩到 |
 |---|---|---|---|
@@ -584,6 +584,20 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-4 | `display.copy_shortcut` 是**全仓唯一一次出现** | `hermes_cli/config_defaults.py:1280` | 用户按注释里列的四个取值去设,永远无效 |
 | ■-5 | `NOUS_BASE_URL` 在环境变量清单里,但代码读的是另外两个名字 | `hermes_cli/config_defaults.py:3132` | 安装流程会**主动向用户索要**一个没人读的变量 |
 | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
+| ■-36 | **`revoke` 报告"已撤销",而 allowlist 那一侧的失败被 `except: pass` 吞掉**——授权是两者的**并集**,于是被"撤销"的用户仍被放行 | `gateway/pairing.py:325-326`(吞异常)/ `gateway/authz_mixin.py:585`(UNION 语义)/ `hermes_cli/config.py:3865-3867`(managed 安装下 `save_env_value` **不抛异常,只打印后 return**) | 企业 managed 部署里 `hermes pairing revoke telegram 123` 打印 "Revoked access…",但 `TELEGRAM_ALLOWED_USERS` 里那条还在 → **该用户下一条消息照样被放行**。REST `/api/pairing/revoke` 同病(也只看 `store.revoke` 的布尔) |
+| ■-37 | **`hermes pairing` 的所有失败路径都 exit 0** | `hermes_cli/pairing.py:18-28`(四条分支只 print 不 return)/ `hermes_cli/main.py:12591-12592`(只在返回非零 int 时才 `sys.exit`) | `hermes pairing approve telegram WRONGCOD && notify-ok` —— 批准失败,`&&` 照样执行。运维脚本 / Ansible / CI **无法判定批准是否生效**,只能去 grep stdout 的提示文案 |
+| ■-38 | **形状判别失手会把手抄错的 request-id 记成一次暴力破解**,而锁定还连带挡住新码生成 | `gateway/pairing.py:733`(要求**恰好** 16 位 hex)/ `:718`(不匹配即 `_record_failed_attempt`)/ `:628`(`generate_code` 也被 `_is_locked_out` 挡) | 从 `hermes pairing list` 里少抄/多抄一位 → 判为 code → 不匹配 → 计一次失败;**5 次这样的手滑锁平台 1 小时,期间新用户连码都拿不到**。`approve_request` 本来明确设计成不计数,形状判错就享受不到这个保护;dashboard 因 SPA 传字段名不会踩,**CLI 无法避免** |
+| ■-39 | **同一个 dashboard 页面上,两个 UI 元素对同一个操作写进不同 profile 的库** | `hermes_cli/web_server.py:15148`(console 只设 context-local 的 `_profile_scope`)/ `hermes_cli/pairing.py:15`(`PairingStore()` 不带 profile)/ `gateway/pairing.py:437`(`self._dir = PAIRING_DIR`,**import 时定死**) | 在 dashboard 切到 profile `work`,打开 console 敲 `pairing approve telegram <id>` → 写进了 dashboard 自己 profile 的目录,`work` 的网关永远读不到;**同一页面上点「Approve」按钮却是对的**(走 REST + `PairingStore(profile="work")`) |
+| ■-40 | 配对 JSON 的跨进程"读-改-写"**没有文件锁**,只有实例内的 `threading.RLock` | `gateway/pairing.py:450`(`threading.RLock`)/ `:386-392`(`_secure_write` 只保证单次替换原子) | 网关正给用户 B 发码(写 pending),操作员同时 `hermes pairing approve … A`(读 pending → 删 A → 整表写回)→ **B 的待批条目被覆盖**,B 手里的码永远匹配不上,而且每试一次还计一次失败(叠加 ■-38) |
+| ■-41 | **`hermes status --deep` 探的那个端口与网关毫无关系**,而它给出的解读是"网关在不在跑" | `hermes_cli/status.py:683,685`(探 `127.0.0.1:18789`,注释 `Port in use = gateway likely running`)/ `gateway/status.py:1-5`(网关存活判定是 **PID 文件**)/ 全仓 18789 只属于 `plugins/google_meet/node/`(`cli.py:31` 默认端口) | **两个方向都会错**:网关正在跑但没装 google_meet node → 显示 "available",用户读成"网关没起来";网关没跑但 Mac 上装了 google_meet node → 显示 "in use",用户读成"网关在跑" |
+| ■-42 | **`is None` 在 Python 里是对的三态写法,对环境变量却是错的**——环境里没有 `None`,只有"不存在"和"空串" | `hermes_cli/status.py:445-448`(判 `persist is None` 才回落 config 默认 `True`) | `.env` 里写 `TERMINAL_CONTAINER_PERSISTENT=`(这正是大家"取消一个变量"的写法)→ 不是 `None` → `"".lower() in {...}` 为假 → 面板说 "ephemeral filesystem",而配置默认是持久化。**与 ■-17 恰好互为镜像**:那条是不该用 `or`,这条是不该只判 `None` |
+| ■-43 | **连"HERMES_HOME 在哪"这个最底层的问题也有两份实现,而副本恰好漏掉了正版的两道保护** | `hermes_cli/env_loader.py:477`(自己 `os.getenv("HERMES_HOME", Path.home() / ".hermes")`,**不 strip、不判空串、不走平台默认**)/ `hermes_constants.py:71`(正版:`.strip()` 后判真值)/ `:53-58`(正版:win32 走 `%LOCALAPPDATA%/hermes`) | (a) `HERMES_HOME=""` → `Path("")` 即 `.` → **把当前工作目录的 `./.env` 当成用户 env、以 `override=True` 装载**;(b) Windows 上其余代码找 `%LOCALAPPDATA%\hermes`,而 `.env` 装载器去 `~/.hermes` 找 → **凭据装不进来** |
+| ■-44 | 异常处理器自己抛异常:`except` 分支引用了**可能未赋值**的名字 | `hermes_cli/config_migrations.py:410`(`curator_dir = get_hermes_home() / …` 是 try 的第一句)/ `:413`(`except` 里 `f"Could not create {curator_dir}"`) | `get_hermes_home()` 抛异常时(如 `HERMES_HOME` 含 NUL),本该记一条警告,实际抛 `UnboundLocalError`,**整个 `migrate_config` 挂掉** |
+| ■-45 | v31 迁移在 `agent` 段不是 dict 时,**用 `{}` 替换掉用户写的整段** | `hermes_cli/config_migrations.py:562-563`(`config["agent"] = raw_agent`,而 `raw_agent` 在非 dict 时已被置为 `{}`) | 用户手写 `agent: some-string`(写错了但是他的数据)→ 升级一次,该值**静默消失** |
+| ■-46 | 技能平台选择器把 **Ctrl-C / EOF 当成"选择 global"** | `hermes_cli/skills_config.py:103-104`(`except (KeyboardInterrupt, EOFError): return None`)/ `:105-106`(`if not raw: return None  # global`) | 想给单个平台改设置的用户中途按 Ctrl-C **想取消**,流程不但继续,还把改动作用到**全部平台**。中断键的语义是"别做",这里被翻译成了"默认地做" |
+| ■-47 | 插件平台区块在 `hermes status` 路径上**恒为空**,且整段异常被一个 `except: pass` 吞掉 | `hermes_cli/status.py:505-513`(整段共用一个裸 `except Exception: pass`) | 用 IRC / Matrix / Mattermost / LINE / Teams 的用户在 `hermes status` 里**完全看不到自己的平台**,会以为没装上;而且"没有插件平台"与"注册表炸了"两种情况**输出完全一样** |
+| ■-48 | status 的"configured"判据与网关的**启用**判据不同源 | `hermes_cli/status.py:487`(每个平台只看一个 token 变量)/ `gateway/config.py` 各平台条件各异(QQ 是 `or`、Yuanbao 是 `and` 且 app_id 有别名) | 只设 `YUANBAO_APP_ID` → 面板 ✓ 而网关**不启用**;只设 `QQ_CLIENT_SECRET` → 网关**启用**而面板 ✗。**两个方向的错都存在**(这是 §3.6 那张表里"8 份实现"的直接后果) |
+| ■-49 | 凭据解析失败被吞成一个**看起来正常的 provider 名** | `hermes_cli/status.py:88-91`(`except AuthError: effective = requested or "auto"`) | 凭据缺失导致 `resolve_provider` 抛 `AuthError` 时,面板 Provider 行照样显示一个正常名字、不给任何提示——用户以为 provider 没问题,**一跑就 401** |
 | ■-25 | **迁移报告"已添加 15 个键",磁盘上一个也没落**:两条迁移写的值恰好等于 `DEFAULT_CONFIG`,被写入不变式整段剥掉 | `hermes_cli/config.py:2127`(`_persist_migration` 的不变式:等于默认值的一律不落盘)/ `hermes_cli/config_migrations.py:387`(v23 自述的目的正是"让用户能在 config.yaml 里看见/改动这些设置")/ `:231`(v15 同型) | 老用户升级,屏幕上打出 `✓ curator (8 default key(s))`,打开 `config.yaml` 什么都没有;因为 v23 的目的与写入不变式**直接互斥**,而互斥的那一方是静默的。主线运行时确证 |
 | ■-26 | **密钥输入的两个平台分支对"一次读一个键"的契约理解不同**:Windows 分支吞掉整个转义序列,POSIX 分支只吞 `\x1b` 本身 | `hermes_cli/secret_prompt.py:46`(共用核心只丢弃 `\x1b`)/ `:95-98`(Windows `read_char` 消费双字节)/ `:116`(POSIX `read_char` 是裸 `read(1)`) | 在 Linux/macOS 上贴完 API key 后按一下 ↑ 想检查,`[A` **静默进了密钥**;注释还写着"转义序列不应变成密钥文本"。约 15 个调用点全是往 `.env` 存 API key,症状是 provider 报 401。主线运行时确证:同一核心,POSIX 得 `'ab[Ac'`,Windows 得 `'abc'` |
 | ■-27 | **同一个 managed `.env` 在同一进程里被两个不同解析器读** | `hermes_cli/env_loader.py:588`(python-dotenv,负责灌 `os.environ`)/ `hermes_cli/managed_scope.py:180`(手写弱解析器,负责回答"这键是不是管理员钉的") | 管理员在 managed `.env` 里写 `export FOO=bar`:前者认出键名 `FOO`,后者认成 `'export FOO'` → managed 守卫不触发、`hermes config` 打印字面 `export KEY` |
@@ -613,6 +627,182 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-9 | `_COMMENTED_SECTIONS` 是**已漂移的死副本** | `hermes_cli/config.py:3473` | 活版是 `_SECURITY_COMMENT`/`_FALLBACK_COMMENT`(:3601/:3609);两份同一句话已不同。维护者改到死版,对用户文件零效果 |
 | ■-8 | **两把配对钥匙行为不一致**:CLI 在 request-id 路径上也报"平台被锁定" | `hermes_cli/pairing.py:81` vs `hermes_cli/web_server.py:12346` | 用过期 request-id 批准 + 平台恰好因别的原因锁定 → CLI 告诉运维者"等 N 分钟",而真实原因是请求过期;dashboard 同一操作正确回 404 |
 | ■-7 | `OPTIONAL_ENV_VARS` 在 import 时被**原地改写** | `hermes_cli/config.py:5307` | 静态分析(含本项目第一版脚本)只看到 151/308 |
+
+### ■-43 细节:连"HERMES_HOME 在哪"都有两份实现,而副本漏掉的正是正版专门加的那两道保护
+
+(线索来自 `notes/r8a-raw-migrations-env-secrets` D-5/D-6,主线已回源复核确认。)
+
+**这条值得排在本组前面,因为它命中的是整个配置面的地基。** 前面所有条目讲的是
+"某个键怎么读";这一条讲的是"**配置文件本身在哪**"——如果这个问题有两个答案,
+上面所有讨论的前提就都动摇了。
+
+正版解析器在 `hermes_constants.py`,两道保护写得很仔细。第一道:**取值后 strip,
+再判真值**(而不是依赖 `os.getenv` 的默认值参数):
+
+`hermes_constants.py:71 @ 863e313`
+
+```python
+    val = os.environ.get("HERMES_HOME", "").strip()
+```
+
+第二道:**平台默认不是硬编码的 `~/.hermes`**:
+
+`hermes_constants.py:53-58 @ 863e313`
+
+```python
+def _get_platform_default_hermes_home() -> Path:
+    """Return the platform-native default Hermes home path."""
+    if sys.platform == "win32":
+        local_appdata = os.environ.get("LOCALAPPDATA", "").strip()
+        base = Path(local_appdata) if local_appdata else Path.home() / "AppData" / "Local"
+        return base / "hermes"
+```
+
+**而 `.env` 装载器自己又写了一份,一行,两道保护都没有:**
+
+`hermes_cli/env_loader.py:477 @ 863e313`
+
+```python
+    home_path = Path(hermes_home or os.getenv("HERMES_HOME", Path.home() / ".hermes"))
+```
+
+**两个后果,都不是理论推演:**
+
+**(a) `HERMES_HOME=""` 会让它去装载当前工作目录的 `./.env`。**
+`os.getenv` 的第二个参数只在**键不存在**时生效;键存在而值为空串时,返回的是 `""`。
+于是 `Path("")` —— 在 Python 里等于 `Path('.')` —— 成了 home,`./.env` 成了**用户级 env**。
+用户级 env 在这套优先级里是**带 `override=True` 装载**的(它的职责就是压过陈旧的 shell 值),
+所以**当前目录里任何一个 `.env` 都能覆盖你 shell 里导出的凭据**。
+正版的 `.strip()` + 判真值恰好挡住这一种输入。
+
+**(b) Windows 上找错目录。** 其余代码按 `%LOCALAPPDATA%\hermes` 存取,
+而 `.env` 装载器去 `~/.hermes` 找 —— 找不到就当没有用户 env,**凭据装不进来**,
+而且不会报错,只会表现为"我明明在 `.env` 里写了 key,provider 还是说没配"。
+
+**为什么会长成这样,是可以理解的**:`load_hermes_dotenv()` 跑在 bootstrap 最早期,
+作者显然想避免 import `hermes_constants` 带来的循环依赖或开销
+(同文件其他地方确实用了"延迟 import"这种手法)。**理由成立,做法不成立**——
+避免 import 的正确解法是把这一个小函数搬到一个零依赖的模块里,
+而不是**重抄一份并且抄漏**。
+
+> **判据**:**"这份副本存在的理由"和"这份副本可以少做几件事"是两个问题,
+> 而它们几乎总是被合并回答。** 本例的理由(避免早期 import)完全成立,
+> 但它一个字都没有说明"为什么可以不 strip、不判空串、不认平台默认"。
+> 复制一份实现时,**先把原版做的每一件事列出来,再逐条说明副本为什么不做**——
+> 列不出来的那几条,就是将来的 bug。
+
+### ■-36 细节:一次"成功"的撤销,和一个仍然进得来的人
+
+(线索来自 `notes/r8a-raw-pairing-key` D5,主线已回源复核确认。)
+
+授权判定是 **pairing store 与 allowlist 的并集**——这一点代码注释写得很清楚,
+而且解释了为什么:批准时会**顺便把用户写进 allowlist**,好让运维者只需看一个地方。
+
+`gateway/authz_mixin.py:585-587 @ 863e313`
+
+```python
+        # attacker-controlled path. Honored as a UNION with the allowlist: a
+        # paired user is authorized regardless of the allowlist, and when an
+        # allowlist IS configured, operator approval also writes the user into
+```
+
+**并集是对的,前提是撤销也同步两边。** `revoke` 确实两边都动,
+但 allowlist 那一侧的失败被整个吞掉:
+
+`gateway/pairing.py:325-326 @ 863e313`
+
+```python
+    except Exception:
+        pass
+```
+
+而 `revoke()` 的返回值**只反映 `approved.json`**。于是命令照样打印
+"Revoked access for user … on …"。
+
+**这个 `except: pass` 在普通安装下几乎无害**——`save_env_value` / `remove_env_value`
+正常情况下会成功。**要命的是 managed(企业统一管理)安装**:那两个函数在 managed 下
+**根本不抛异常**,而是打印一句话就 return:
+
+`hermes_cli/config.py:3865-3867 @ 863e313`
+
+```python
+def save_env_value(key: str, value: str):
+    """Save or update a value in ~/.hermes/.env."""
+    if is_managed():
+```
+
+**所以在 managed 部署里,撤销的 allowlist 那一半是稳定地、静默地不生效的**,
+而运维者看到的是一句干净的成功回执。被撤销的人下一条消息照样被放行——
+因为并集里的另一半还在。REST `/api/pairing/revoke` 同病,它也只看那个布尔值。
+
+**注意这条和 ■-25 的形状差异,两者都值得记**:■-25 是**两个设计互斥**,
+组合起来一方变成空操作;这一条是**一个正确的设计(并集)+ 一个吞异常的写法**,
+组合起来让"撤销"这个安全动作变成半个。**共同点是:失败姿态都是"报告成功"。**
+
+> **判据两条**:
+> 1. **凡是"写两个地方才算数"的操作,返回值必须反映两个地方**;
+>    只反映其中一个,就等于向调用方撒谎。
+> 2. **`except: pass` 的危险不在它吞掉的异常,而在它下游那句"成功"。**
+>    安全语义的操作(撤销、封禁、注销)尤其不能吞——
+>    **"我以为我撤销了"比"撤销失败了"危险得多。**
+
+### ■-41 细节:一个探测了正确端口、却回答了另一个问题的诊断
+
+(线索来自 `notes/r8a-raw-status-qqbot` D-4,主线已回源复核确认。)
+
+`hermes status --deep` 会探一个端口,并把结果解释成"网关在不在跑":
+
+`hermes_cli/status.py:683 @ 863e313`
+
+```python
+            result = sock.connect_ex(('127.0.0.1', 18789))
+```
+
+`hermes_cli/status.py:685-686 @ 863e313`
+
+```python
+            # Port in use = gateway likely running
+            port_in_use = result == 0
+```
+
+**但网关根本不听这个端口。** 全仓 grep `18789`,除了这两行,只出现在
+**google_meet 插件的 node 服务**里——那是跑在 Mac 上的一个 WebSocket 服务:
+
+`plugins/google_meet/node/cli.py:31 @ 863e313`
+
+```python
+    run.add_argument("--port", type=int, default=18789)
+```
+
+而网关自己的存活判定用的是 **PID 文件**,与端口无关:
+
+`gateway/status.py:1-5 @ 863e313`
+
+```python
+"""
+Gateway runtime status helpers.
+
+Provides PID-file based detection of whether the gateway daemon is running,
+used by send_message's check_fn to gate availability in the CLI.
+```
+
+**于是这条诊断在两个方向上都会误导**:
+
+| 实际情况 | 面板显示 | 用户读成 |
+|---|---|---|
+| 网关在跑,没装 google_meet node | `available` | "网关没起来" ❌ |
+| 网关没跑,Mac 上装了 google_meet node | `in use` | "网关在跑" ❌ |
+
+**它甚至不是"过时的端口号"**——仓库里没有任何证据表明网关曾经监听过 18789;
+更像是某次从别处抄来的常量。代码自己留了一句 `# This is informational, not necessarily bad`,
+**这句话恰恰是问题所在**:一个既不准、又被明说"仅供参考"的诊断项,
+**唯一的作用就是在排障时把人引向错误的方向**。
+
+> **判据**:**排障工具里的每一项,都要能回答"它为假时说明什么"。**
+> 答不上来的项应当删掉,而不是加一句"仅供参考"保留着。
+> 更具体一条:**探测端口来判断进程存活,前提是你拥有那个端口。**
+> 端口是全机器共享的命名空间,`connect_ex` 成功只证明"有人在听",不证明"是他在听"。
+> 本例里真正的判据(PID 文件)就在同一个仓库里,而且已经被别的代码用着。
 
 ### ■-25 细节:本轮最锋利的一条 —— 两个各自正确的设计,合起来把其中一个变成空操作
 
@@ -1818,19 +2008,23 @@ _inject_profile_env_vars()
 | **cua-driver 装好没有** | **2** | `tools_config.py:1585`(裸 `which`)/ `:3273`(走解析器) | 同一进程两个界面给相反答案 → ■-15 |
 | **弃用变量的正名表** | **3** | `doctor.py:258` / `status.py:483` / `gateway/config.py:2432` | 两个诊断命令互相拆台 → ■-32 |
 | **skill 禁用名单** | **2** | CLI 侧吃 `load_config()` / 运行时侧读裸 YAML | 配置来源不同(managed 是否叠加) → 存疑,移交 H-12 |
+| **"HERMES_HOME 在哪"** | **2** | `hermes_constants.py:71`(正版,strip + 判空 + 平台默认)/ `hermes_cli/env_loader.py:477`(副本,三样都没有) | **地基也有两份**:空串 → 装载 `./.env`;Windows → 找错目录 → ■-43 |
+| **"某平台算不算启用"** | **2 套判据** | `hermes_cli/status.py:487`(每平台看一个 token 变量)/ `gateway/config.py`(各平台条件各异,QQ 是 `or`、Yuanbao 是 `and`) | 上一行"8 份"的细化:两个方向的错都存在 → ■-48 |
 
 **从这张表里读出来的三件事:**
 
 **一,重复本身不是缺陷,失去同步才是。** 表里没有一行是"作者偷懒复制粘贴";
 每一份都有它当时的理由(避免循环 import、避免 bootstrap 期开销、平台差异、
 避免 CLI 依赖网关模块)。**代价是把"保持一致"从编译期问题变成了纪律问题**,
-而纪律在本簇里的实测通过率是:14 项里**同步失败 12 项**。
+而纪律在本簇里的实测通过率是:**16 项里同步失败 14 项**。
 
 **二,失败的形状高度一致:修一处、测一处、另一处静默地留在原地。**
 本轮见到四例(§3.2 managed 叶级合并、■-21 moa、■-8 pairing、■-31 status),
 其中 ■-31 最刺眼——**修好的那一侧把 bug 的症状逐字写进了注释**。
 
-**三,测试覆盖的形状与缺陷分布正交。** 共用核心测得密(pairing store 29 例),
+**三,连地基也不例外。** 最后补进这张表的两项——"HERMES_HOME 在哪"与"某平台算不算启用"——说明这不是某几个边角模块的毛病:**问题越基础,重复实现的破坏面越大**,因为上面所有讨论都默认了它只有一个答案。
+
+**四,测试覆盖的形状与缺陷分布正交。** 共用核心测得密(pairing store 29 例),
 薄壳几乎不测(4 例);而分叉只可能长在壳里。■-22 与 ■-26 是这条的两个变体。
 
 > **给"造自己的 harness"的一条硬规矩**:允许一个语义有多份实现,
@@ -1873,3 +2067,6 @@ R7C 这条附了锚点文件(`hermes_cli/status.py`),所以本轮没有走偏,�
 | H-12 | **R8D** | `hermes_cli/skills_config.py`(CLI 侧吃 `load_config()`)vs `agent/skill_utils.py:401`(运行时侧读裸 YAML) | skill 禁用名单两份实现,且**配置来源不同**——managed 层钉的 `skills.disabled` 疑似只对菜单生效,对运行时无效。子代理标为存疑,主线未取证,R8D 读 skill 子系统时一并确证 |
 | H-13 | **R8B/R8C** | `hermes_cli/status.py:508`(`entry.check_fn()`)与 ■-31 已修的孪生 `hermes_cli/gateway.py:5451` | 本轮已定案 status 侧误判;**未做的是把"平台就绪判定"那 8 份逐一对齐核对**(表见 §3.6),确认除 status 外还有几份同样漏了 `is_connected`。这是 §3.6 那张表里份数最多的一项,值得单独一节 |
 | H-14 | **R8B** | `hermes_cli/status.py:344-376`(◆ Nous Tool Gateway 整节无 try) | 本轮已定位 8 处可打崩 status 的无保护调用点,并确认 4 个崩溃抵抗用例**全部集中在 xAI OAuth 一个块**;**未做的是给其余 7 处判定"该不该罩"**——排障命令的崩溃姿态本身是一条设计题,值得在 R8B 读 CLI 主干时统一处理 |
+| H-15 | **R8D** | `hermes_cli/skills_config.py:78`(`skip_disabled=True` 的形参)与其 docstring | 子代理报"docstring 与 `skip_disabled` 语义相反",**主线未确证,不记 ■**。若参数真是"过滤掉已禁用的",则已禁用的技能不会出现在勾选界面 → **无法重新启用**。R8D 读 skill 子系统时跑一次真实菜单即可定案 |
+| H-16 | **R8B** | `hermes_cli/config_migrations.py:250-266`(v16 搬完不删 `display.tool_progress_overrides`) | 旧键永久留在用户的 `config.yaml`,与 v12 / v17 / v29 / v33 的"搬完就删"风格不一致;**是否有意未确证**。若无意,它就是又一个"旧键恒存在"的种子——■-11 那条 780 秒漂移正是这么来的 |
+| H-17 | **R8B/R8C** | `hermes_cli/env_loader.py:614-669`(无锁)vs `:184`(有 `_SECRET_SOURCE_CACHE_LOCK`) | 两条写同一批全局字典的路径只有一条加锁;子代理判为并发风险,**主线未复现**。网关热重载线程与首轮路由线程并发时可能出现同一 home 双份 fetch,或缓存被空 dict 覆盖。需要一个能触发热重载的实测场景才能定案 |
