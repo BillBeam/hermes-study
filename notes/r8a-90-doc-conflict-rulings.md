@@ -255,6 +255,41 @@ def get_env_value_prefer_dotenv(key: str) -> Optional[str]:
 判据也更锋利一条:**凡代码里出现"drop any legacy X"这类迁移善后动作,
 就该顺手检查本函数 docstring 里还有没有 X**——迁移会记得改数据,常常忘了改说明。
 
+### ▲-10 一个自称"唯一收口"的写入函数,而仓库最主要的写入者绕过了它
+
+(线索来自 `notes/r8a-raw-config-b` D-10,主线已回源复核确认。)
+
+`atomic_config_write` 的 docstring 把自己定义成**制度**,不是工具:
+
+`hermes_cli/config.py:3092-3093 @ 863e313`
+
+```python
+    The single chokepoint every config-update path should use instead of
+    calling :func:`utils.atomic_yaml_write` directly. It runs
+```
+
+它守的东西是实打实的:`read_raw_config()` 对"文件不存在"和"文件在但读不出来"
+**都返回 `{}`**,于是读-改-写的调用方分不清这两种情况,一次整文件替换就能把
+一份读不出来的 `config.yaml` 顶掉。这个守卫值得有。
+
+**而全仓最主要的写入者 `save_config` 自己拼了守卫、然后裸调底层函数:**
+
+`hermes_cli/config.py:3611 @ 863e313`
+
+```python
+        atomic_yaml_write(
+```
+
+**定案:▲ 成立(以代码为准:它不是唯一收口)。** 当前两条路等价,所以这不是一个
+现在会出事的缺陷;**它的危害在时间维度上**——docstring 已经宣布了"所有人都走我这儿",
+于是下一个人加固 `atomic_config_write` 时会**合理地以为**自己加固了所有写路径,
+而 `save_config` 那条不会跟着变。
+
+> **判据**:**"唯一收口"这类制度性声明,必须由一条测试或一次 grep 断言来兑现**
+> (例如:除本函数外全仓不得出现 `atomic_yaml_write(` 的调用),否则它只是一句愿望。
+> 与 ■-20 / ■-50 是同一族问题的两种表现:**前者是"名字承诺了强制力",
+> 这里是"注释承诺了唯一性"——两者都没有任何机制去兑现那句承诺。**
+
 ### ▲-6 FAQ 把配对讲成"先到先得",而代码要求操作员批准
 
 (线索来自 `notes/r8a-raw-pairing-and-config-cmd` F-8A-P12,主线已回源复核确认。)
@@ -574,7 +609,7 @@ TERMINAL_CONFIG_ENV_MAP = {
 
 ---
 
-## ■ 组:代码内部缺陷(49 条,只记录不修)
+## ■ 组:代码内部缺陷(55 条,只记录不修)
 
 | # | 缺陷 | 锚点 | 怎么会踩到 |
 |---|---|---|---|
@@ -584,6 +619,12 @@ TERMINAL_CONFIG_ENV_MAP = {
 | ■-4 | `display.copy_shortcut` 是**全仓唯一一次出现** | `hermes_cli/config_defaults.py:1280` | 用户按注释里列的四个取值去设,永远无效 |
 | ■-5 | `NOUS_BASE_URL` 在环境变量清单里,但代码读的是另外两个名字 | `hermes_cli/config_defaults.py:3132` | 安装流程会**主动向用户索要**一个没人读的变量 |
 | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
+| ■-50 | **第三个"名叫 `VALID_*`/描述 schema、却不校验任何东西"的常量**,而且**已经过时**;唯一引用它的测试**只能在无害的方向上失败** | `hermes_cli/config.py:1884`(定义,自述"accurately describes the supported schema")/ 生产代码**零引用**/ `tests/hermes_cli/test_runtime_provider_resolution.py:1128,1145`(只断言某些键**在**集合里) | 集合里没有 `extra_headers` 与 `discover_models`,而两者都被归一化器正经处理(`config.py:1328`、`:1449-1462`)。**测试只断言"某键在里面",于是漏键永远测不出来**——它能失败的方向恰好是不会出事的那个 |
+| ■-51 | `_deep_merge` 对 base 只做**浅拷贝**,返回值与入参共享嵌套对象(隐式契约,无守卫) | `hermes_cli/config.py:2448`(`result = base.copy()`)/ 隐患调用点 `hermes_cli/web_server.py:6923`(`save_config(_deep_merge(existing, incoming))`) | 目前两个调用点都传自己的 deepcopy 所以安全;一旦 `existing` 来自 `load_config_readonly()` 的**共享缓存**,对结果的原地修改就会污染进程内缓存。**"目前安全"靠的是每个调用方都记得,而不是函数自己保证** |
+| ■-52 | `HERMES_HOME_MODE` **无下界校验**,`=0` 会把 home 权限设成 `000` | `hermes_cli/config.py:765` 一带(按八进制解析后直接 chmod) | 想收紧权限的运维者写 `HERMES_HOME_MODE=0`(以为是"最严格")→ **把自己锁在配置目录外面**,而这个变量的用途本来是**放宽**目录位好让 nginx 能 cd-through |
+| ■-53 | **任意非空 `HERMES_MANAGED` 值都会把安装伪装成 managed**,包括 `false` | `hermes_cli/config.py:357`(非空即视为 managed;`true/1/yes` → `"NixOS"`,`brew/homebrew` 被显式忽略,其余**原样返回**) | `HERMES_MANAGED=false` 想显式关掉 managed → 反而**打开**了它 → 所有写配置的路径开始硬拒("由管理员管理,请联系管理员")。**这是布尔环境变量最经典的坑,而它出现在一个决定"用户还能不能改配置"的开关上** |
+| ■-54 | **"我是不是跑在容器里"有两套检测,能力不同**,同一进程内可能给出不同答案 | `hermes_cli/config.py` 内两处容器检测(一处用于跳过 chmod 0600,一处用于 `detect_install_method` 的 docker 自愈条款) | 又一例"同一语义两份实现"(§3.6 表的第 17 项);后果是权限处理与安装方式判定可能基于**不同的**"我在不在容器里"的答案 |
+| ■-55 | `_HERMES_HOME_ENSURED` 记忆化集合**在锁外被修改** | `hermes_cli/config.py:885` 一带(骨架记忆化) | 多线程首次并发调 `load_config()` 时可能重复跑一遍 14 次 mkdir/chmod;**纯性能,无正确性后果**,记录是因为同文件其他共享状态都在 `_CONFIG_LOCK` 内 |
 | ■-36 | **`revoke` 报告"已撤销",而 allowlist 那一侧的失败被 `except: pass` 吞掉**——授权是两者的**并集**,于是被"撤销"的用户仍被放行 | `gateway/pairing.py:325-326`(吞异常)/ `gateway/authz_mixin.py:585`(UNION 语义)/ `hermes_cli/config.py:3865-3867`(managed 安装下 `save_env_value` **不抛异常,只打印后 return**) | 企业 managed 部署里 `hermes pairing revoke telegram 123` 打印 "Revoked access…",但 `TELEGRAM_ALLOWED_USERS` 里那条还在 → **该用户下一条消息照样被放行**。REST `/api/pairing/revoke` 同病(也只看 `store.revoke` 的布尔) |
 | ■-37 | **`hermes pairing` 的所有失败路径都 exit 0** | `hermes_cli/pairing.py:18-28`(四条分支只 print 不 return)/ `hermes_cli/main.py:12591-12592`(只在返回非零 int 时才 `sys.exit`) | `hermes pairing approve telegram WRONGCOD && notify-ok` —— 批准失败,`&&` 照样执行。运维脚本 / Ansible / CI **无法判定批准是否生效**,只能去 grep stdout 的提示文案 |
 | ■-38 | **形状判别失手会把手抄错的 request-id 记成一次暴力破解**,而锁定还连带挡住新码生成 | `gateway/pairing.py:733`(要求**恰好** 16 位 hex)/ `:718`(不匹配即 `_record_failed_attempt`)/ `:628`(`generate_code` 也被 `_is_locked_out` 挡) | 从 `hermes pairing list` 里少抄/多抄一位 → 判为 code → 不匹配 → 计一次失败;**5 次这样的手滑锁平台 1 小时,期间新用户连码都拿不到**。`approve_request` 本来明确设计成不计数,形状判错就享受不到这个保护;dashboard 因 SPA 传字段名不会踩,**CLI 无法避免** |
@@ -2009,6 +2050,7 @@ _inject_profile_env_vars()
 | **弃用变量的正名表** | **3** | `doctor.py:258` / `status.py:483` / `gateway/config.py:2432` | 两个诊断命令互相拆台 → ■-32 |
 | **skill 禁用名单** | **2** | CLI 侧吃 `load_config()` / 运行时侧读裸 YAML | 配置来源不同(managed 是否叠加) → 存疑,移交 H-12 |
 | **"HERMES_HOME 在哪"** | **2** | `hermes_constants.py:71`(正版,strip + 判空 + 平台默认)/ `hermes_cli/env_loader.py:477`(副本,三样都没有) | **地基也有两份**:空串 → 装载 `./.env`;Windows → 找错目录 → ■-43 |
+| **"我是不是跑在容器里"** | **2** | `hermes_cli/config.py` 内两处,一处用于跳过 chmod 0600、一处用于安装方式的 docker 自愈条款 | 能力不同,同一进程可能给出不同答案 → ■-54 |
 | **"某平台算不算启用"** | **2 套判据** | `hermes_cli/status.py:487`(每平台看一个 token 变量)/ `gateway/config.py`(各平台条件各异,QQ 是 `or`、Yuanbao 是 `and`) | 上一行"8 份"的细化:两个方向的错都存在 → ■-48 |
 
 **从这张表里读出来的三件事:**
@@ -2016,7 +2058,7 @@ _inject_profile_env_vars()
 **一,重复本身不是缺陷,失去同步才是。** 表里没有一行是"作者偷懒复制粘贴";
 每一份都有它当时的理由(避免循环 import、避免 bootstrap 期开销、平台差异、
 避免 CLI 依赖网关模块)。**代价是把"保持一致"从编译期问题变成了纪律问题**,
-而纪律在本簇里的实测通过率是:**16 项里同步失败 14 项**。
+而纪律在本簇里的实测通过率是:**17 项里同步失败 15 项**。
 
 **二,失败的形状高度一致:修一处、测一处、另一处静默地留在原地。**
 本轮见到四例(§3.2 managed 叶级合并、■-21 moa、■-8 pairing、■-31 status),
@@ -2076,3 +2118,4 @@ R7C 这条附了锚点文件(`hermes_cli/status.py`),所以本轮没有走偏,�
 | H-15 | **R8D** | `hermes_cli/skills_config.py:78`(`skip_disabled=True` 的形参)与其 docstring | 子代理报"docstring 与 `skip_disabled` 语义相反",**主线未确证,不记 ■**。若参数真是"过滤掉已禁用的",则已禁用的技能不会出现在勾选界面 → **无法重新启用**。R8D 读 skill 子系统时跑一次真实菜单即可定案 |
 | H-16 | **R8B** | `hermes_cli/config_migrations.py:250-266`(v16 搬完不删 `display.tool_progress_overrides`) | 旧键永久留在用户的 `config.yaml`,与 v12 / v17 / v29 / v33 的"搬完就删"风格不一致;**是否有意未确证**。若无意,它就是又一个"旧键恒存在"的种子——■-11 那条 780 秒漂移正是这么来的 |
 | H-17 | **R8B/R8C** | `hermes_cli/env_loader.py:614-669`(无锁)vs `:184`(有 `_SECRET_SOURCE_CACHE_LOCK`) | 两条写同一批全局字典的路径只有一条加锁;子代理判为并发风险,**主线未复现**。网关热重载线程与首轮路由线程并发时可能出现同一 home 双份 fetch,或缓存被空 dict 覆盖。需要一个能触发热重载的实测场景才能定案 |
+| H-18 | **R11 复盘 / 任何一轮的空档** | 11 份 workflow 底稿的「可疑缺陷清单」小节(`notes/r8a-raw-config-a.md:1525` 起、`raw-config-b.md:1227` 起、`raw-config-c.md`、`raw-tools-config-b/c.md`、`raw-commands.md`、`raw-defaults-a/b.md`、`raw-mcp-moa-config.md`) | **本轮定稿时统计:这 11 份底稿的清单里合计约 104 条候选条目,主线逐条挖过的约占一半;剩下约 50 条未逐条复核**(多为重复、风格类或已被其他条覆盖,但**没有逐条确认过**)。本轮已从中补挖出 ▲-10 与 ■-50…■-55 六条,说明残余里仍有真货。**不谎报覆盖**:这是本轮已知的、有明确锚点的最大一块未尽事项 |
