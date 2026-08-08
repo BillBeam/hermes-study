@@ -207,7 +207,7 @@ prompt cache 全废,下一条消息按满价重发全部 input token。这在长
     (``lcm_*``).  A naive ``agent.tools = get_tool_definitions(...)`` would
     silently DELETE those.  So after rebuilding the registry set we re-run the
     same post-build injectors ``agent_init`` used, reconstructing the full
-    surface.
+    surface.  The new ``(tools, valid_tool_names)`` pair is published together
 ```
 
 另一个细节:`enabled_toolsets` 是启动时解析一次的,本次会话中新 enable 的 MCP server 名字不在里面,
@@ -493,7 +493,7 @@ class TermuxAudioRecorder:
 Python 允许给实例挂任意属性,所以不会报错——只是三个"已生效"的配置在 Termux 上是静默死配置。
 → 缺陷 **D13**。
 
-CLI 侧确实按 `supports_silence_autostop` 换了提示文案(`cli.py:12329 @ 863e313`),但没有对
+CLI 侧确实按 `supports_silence_autostop` 换了提示文案(`cli.py:12328 @ 863e313`),但没有对
 `max_recording_seconds` 做同等提示:
 
 ```
@@ -1334,7 +1334,7 @@ approval(`cli.py:13358`、`cli.py:13376`)调用,密钥路径不调。
 
 **类比证据**:sudo 路径的作者显式意识到了缓冲区必须还原——`_sudo_password_callback` 在进入时
 `_capture_modal_input_snapshot()`(清空并保存草稿)、退出时 `_restore_modal_input_snapshot()`
-(覆盖掉刚输入的密码),`cli.py:13267 @ 863e313` / `cli.py:13282 @ 863e313`:
+(覆盖掉刚输入的密码)。进入时,`cli.py:13267 @ 863e313`:
 
 ```
         self._capture_modal_input_snapshot()
@@ -1343,10 +1343,12 @@ approval(`cli.py:13358`、`cli.py:13376`)调用,密钥路径不调。
         }
 ```
 
+退出时,`cli.py:13280 @ 863e313`:
+
 ```
-                    self._sudo_state = None
-                    self._sudo_deadline = 0
-                    self._restore_modal_input_snapshot()
+                self._sudo_state = None
+                self._sudo_deadline = 0
+                self._restore_modal_input_snapshot()
 ```
 
 密钥路径**没有**用 snapshot 机制(它用的是"进入时清空缓冲区"),因此少了这层自动还原。
@@ -1516,7 +1518,7 @@ contextvar 绑上,否则 `is_current_session_yolo_enabled()` 查不到。`cli.py
 - **现象**:连续两次 `/reload-mcp`(中间不发消息)会在历史里留下两条相邻的 `role: user`;
   即使只一次,如果上一条恰好也是 user(例如被中断的轮次),也会破坏 alternation。
 - **锚点**:`cli.py:11899 @ 863e313`(直接 append user 消息);
-  `cli.py:11928 @ 863e313`(`_reload_skills` docstring 明确说不这么做的理由是
+  `cli.py:11929 @ 863e313`(`_reload_skills` docstring 明确说不这么做的理由是
   "This preserves message alternation (no phantom user turn injected out of band)")。
 - **为什么可疑**:仓库已经演化出了正确做法(pending note,`cli.py:14020 @ 863e313`),
   MCP 路径是没跟上的遗留。
@@ -1773,7 +1775,7 @@ CLI 实际上有大量线程(agent 线程、process_loop、语音录制 / TTS / 
 一遍回调(`cli.py:13984 @ 863e313`)。注释描述的前提是错的,结论碰巧对。
 
 **◇ 7. `security.md` 对 `approvals.mode: off` 的描述过强。**
-`website/docs/user-guide/security.md:57 @ 863e313` 写
+`website/docs/user-guide/security.md:55 @ 863e313` 写
 "**off** | Disable all approval checks — equivalent to running with `--yolo`. All commands
 execute without prompts."。实际 hardline 地板、sudo-stdin guard、用户 deny 规则都在
 `mode` 判定**之前**执行(`tools/approval.py:3761 / 3771 / 3780 @ 863e313`),`mode: off` 一样绕不过。
@@ -1800,7 +1802,7 @@ execute without prompts."。实际 hardline 地板、sudo-stdin guard、用户 d
    本仓库同时存在两种,新代码(skills / model switch / speech-interrupted)全部用后者。
 3. **N 条退出路径的资源回收,化约成 1 个"suspended 标志 + 幂等看门狗"**。唤醒词的麦克风让渡
    就是这么做的,注释里明确说这是为了"covering every exit path ... without threading resume
-   logic through the voice machinery"(`cli.py:12906 @ 863e313`)。代价是引入一个轮询线程,
+   logic through the voice machinery"(`cli.py:12907 @ 863e313`)。代价是引入一个轮询线程,
    而这个线程的**终止条件必须被退出路径显式触发**——本仓库正是漏了这一步(D8)。
 4. **回调式安全边界要在被调方做白名单校验,不要靠调用方自律**。approval.py 的
    "非 deny/timeout 即 approved" 是 fail-open 尾巴(D12);正确形状是
