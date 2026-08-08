@@ -433,3 +433,86 @@ def _apply_profile_override() -> None:
 - `_apply_profile_override` 的 `value_flags` 手抄名单(§4)与真 parser 的同步,
   **本轮未发现不同步**,但无任何自动守卫。记为观察项,不记缺陷。
 - `cmd_*` 返回码约定(§5.1)无强制手段,同上。
+
+---
+
+## 8. `cli.py` 1-4204(模块层)—— 主线补位
+
+**说明**:本段原派给子代理(`notes/r8b-raw-cli-module.md`),该段**未在本轮收尾前落盘**
+(见 `reports/round-8b-*.md` §8)。为不留黑洞,主线在此补上结构级说明与两个关键机制的精读。
+其中最重的一块 `load_cli_config`(409-901)已由 `notes/r8b-02` 全文覆盖,不重复。
+
+### 8.1 段内地图
+
+| 行段 | 内容 |
+|---|---|
+| 1-95 | 模块 docstring、import、`_hermes_home` 解析 |
+| 96-408 | **惰性导入垫片**(`CanonicalUsage`/`estimate_usage_cost`/… 形如 `def X(*args, **kwargs)`)+ 文本处理(reasoning 标签剥离、markdown 表格重排) |
+| **409-901** | **`load_cli_config`** —— 第二份配置装载器(**已由 `notes/r8b-02` 覆盖**) |
+| 901-1005 | 更多惰性垫片(`AIAgent` / 工具集查询 / 清理回调注册) |
+| 1005-1410 | **退出路径**:延迟启动、退出看门狗、`_run_cleanup`、会话终结通知、终端输入模式还原 |
+| 1410-2120 | **git worktree 生命周期**:仓库根解析、基点解析、建/清/剪枝、合并缓存、锁活性判定 |
+| 2118-2520 | 状态库与检查点的自动维护、陈旧 worktree 与孤儿分支清理 |
+| 2521-3070 | ANSI / 皮肤 / 终端背景色探测(OSC11)、`_SkinAwareAnsi` |
+| 3027-3250 | **输出历史重放**(`_record_output_history` / `_replay_output_history`)与 `_cprint` |
+| 3259-3500 | 附件路径解析、文件拖放识别、图片角标渲染、剪贴板图片 |
+| 3486-3840 | **prompt_toolkit 补丁群**:bracketed paste 超时、Ctrl-Enter 换行、CPR 告警抑制、终端响应泄漏清洗 |
+| 3874-4204 | `ChatConsole`、紧凑横幅、斜杠命令识别、技能命令/bundle 缓存、`save_config_value` |
+
+### 8.2 退出看门狗:为什么"清理"需要一个兜底的自杀定时器
+
+`cli.py:1064 @ 863e313`
+
+```python
+def _arm_exit_watchdog(timeout_s: float | None = None) -> None:
+    """Guarantee the process actually exits once shutdown has begun.
+
+    Two hang classes have kept "dead" CLI processes alive for minutes:
+
+      1. A cleanup step wedged on network I/O (memory provider
+         ``on_session_end``, MCP teardown, remote terminal cleanup).
+      2. Interpreter teardown blocked joining non-daemon threads —
+         stdlib ``ThreadPoolExecutor`` workers are joined unconditionally
+         by ``concurrent.futures``' atexit hook even after
+         ``shutdown(wait=False)``, so one tool thread wedged on a socket
+         held the process open forever (#27563 class).
+```
+
+**第 2 类值得单独记,因为它是 Python 标准库的一个反直觉行为**:
+`concurrent.futures` 注册了 atexit 钩子**无条件 join 工作线程**,
+所以即使调用方 `shutdown(wait=False)`,只要有一个工作线程卡在 socket 上,
+**解释器退出就会被无限期挡住**。
+兜底手段是**守护线程定时器 + `os._exit(0)`**,理由写在同一段注释里:
+守护线程能穿过 `Py_FinalizeEx` 的线程 join 阶段继续跑,所以主线程卡死时它仍会触发。
+
+> **可迁移的一条**:凡"清理里会做网络 I/O"的程序,都需要一个**不依赖被清理对象**的退出兜底。
+> 判据是:**兜底路径本身不能用到任何可能挂住的东西**——
+> 这里用的是守护线程 + `os._exit`,两者都不参与正常的关停协议。
+
+### 8.3 worktree:把"隔离"做成可回收的,而不是可创建的
+
+`cli.py:1608 @ 863e313`
+
+```python
+def _setup_worktree(repo_root: str = None, sync_base: bool = True) -> Optional[Dict[str, str]]:
+    """Create an isolated git worktree for this CLI session.
+
+    Returns a dict with worktree metadata on success, None on failure.
+    The dict contains: path, branch, repo_root.
+
+    When *sync_base* is True (default), the worktree branches from the
+    freshly-fetched remote tip rather than the (possibly stale) local ``HEAD``
+    — see ``_resolve_worktree_base``. Set ``worktree_sync: false`` in config to
+    branch from local ``HEAD`` (the pre-#10760-followup behavior).
+    """
+```
+
+真正的设计重量不在创建,而在**回收的判据**:段内为此写了一整组辅助函数
+——`_worktree_has_unpushed_commits`(:1791)、`_worktree_is_dirty`(:1822)、
+`_worktree_commits_all_merged_upstream`(:1900)、`_worktree_lock_is_live`(:1993),
+外加一份**合并判定缓存**(`_load_worktree_merge_cache` :1854 / `_save_worktree_merge_cache` :1872)。
+
+> **可迁移的一条**:**自动创建的隔离环境,难点从来不是创建,是"什么时候可以安全删掉"。**
+> 这里的判据是三个独立否决项(有未推送提交 / 工作区脏 / 锁还活着)任一成立就不删,
+> 且把最贵的那项(是否已全部并入上游)**缓存起来**——
+> 因为它要跑 git 命令,而清理路径会对每个陈旧 worktree 都问一遍。
