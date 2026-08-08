@@ -46,6 +46,25 @@
 > R8-fix 报告 `reports/round-8-fix-review-1.md:294`(M-19 行)仍写作 ■-R8B-08:
 > 按 CLAUDE.md「`reports/` 正文不静默改写」,那处**留在原样**,更正记在该报告的勘误节。
 
+> **⚠ R8C 改判:本条下面写的「静默消失」不成立,定性下调(缺陷本身成立)。**
+>
+> 失效链完全成立,**错的是「静默」两个字**。R8C 主线直接调 `read_raw_config()`
+> 喂坏 YAML 实测:返回 `{}` **之前**它已经 (a) 往 stderr 与日志各打一条指名道姓的告警
+> ("每一条用户覆盖都正在被忽略、修好 YAML 再重启"),(b) 把原文件**逐字备份**到
+> `config.yaml.corrupt.<时间戳>.bak`。备份是 `_warn_config_parse_failure`
+> (`hermes_cli/config.py:99`)做的,它的 docstring 明写这份快照就是为了让用户内容
+> "survives any later rewrite of `config.yaml` by the setup wizard or `hermes config set`"
+> ——**上游早就想到了下游会整文件覆盖,并专门留了后路。**
+> 告警去重是进程级(`hermes_cli/config.py:42`),所以每跑一次 `hermes login` 都会重新告警。
+>
+> **准确表述**:文件会被截断成只剩本次写入那一段;过程中有明确告警,原文件有逐字备份;
+> 用户需自己看见告警并手工恢复。**仍是缺陷(fail-closed 优于 warn-then-truncate),
+> 但既不静默、也不丢数据,修复优先级低于本条原来的定性。**
+>
+> **漏掉它的原因值得记**:原判把 `read_raw_config()` 当成"解析失败 → 返回 `{}`"的黑盒
+> 一跳带过,只读了返回值、没读它返回之前做了什么。**链条上每一跳都要读完。**
+> 完整实测见 `notes/r8c-90-rulings.md` §7。
+
 **失效链**(四步,每步都在基线取过证):
 
 **第一步**,`_update_config_for_provider` 调那道守卫,然后读原始配置:

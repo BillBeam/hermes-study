@@ -381,3 +381,202 @@ class TestHomeTargetEnvVarRegistry:
 |---|---|---|---|
 | ■-R8C-06 | 内建平台 `whatsapp_cloud` 有 home 频道变量却不在投递名单里,永远进不了 cron 投递;而那条本该守住它的回归测试是空类,且承诺的不变量还是反方向的 | 高(四处源码复核 + 底稿实测) | 本卷 §5.5 |
 | ◇-R8C-a | `PairingStore()` 与 `PairingStore(profile="default")` 在目录、解析时机、旧布局合并三个维度都不等价,无任何注释提示 | 中 | 本卷 §5.3 |
+
+---
+
+## 7. 改判前轮定案:■-R8B-12 的「静默消失」不成立
+
+**这条不是本轮子代理报的,是主线在复核另一段的顺带断言时实测撞见的,
+而它推翻的是 R8-fix 那一卡的头号定案。**
+
+### 7.1 原判
+
+R8-fix 立 ■-R8B-12(原编号 ■-R8B-08),写在 `notes/r8b-90-handover-rulings.md` §1.0,
+并被 `reports/round-8b-cli-trunk-and-interaction.md` 勘误第 1 条以加粗形式复述:
+
+> **后果:用户把 `config.yaml` 改坏一个缩进,再跑一次 `hermes login` 一族的命令,
+> 落盘文件就只剩 `model:` 一段,其余配置——包括 `approvals.deny`——静默消失。**
+
+原判的失效链是:守卫只查可读不查可解析 → `read_raw_config()` 解析失败返回 `{}`
+→ `hermes_cli/auth.py:7329` 整文件替换。
+
+### 7.2 实测:链条对,形容词错
+
+**失效链本身完全成立**,本轮无异议。**不成立的是「静默」两个字,以及它暗示的不可恢复。**
+
+主线直接调 `read_raw_config()`(就是 `_update_config_for_provider` 走的那一个),
+喂一个缩进坏掉的 `config.yaml`:
+
+```console
+Failed to parse …/config.yaml: while parsing a block mapping … did not find expected key
+  … Falling back to default config — every user override (auxiliary providers, fallback
+  chain, model settings) is being IGNORED. Fix the YAML and restart. A copy of the
+  corrupted file was saved to …/config.yaml.corrupt.20260808-165319.bak.
+⚠️  hermes config: Failed to parse …/config.yaml: …(同一段,走 stderr 再打一遍)
+
+返回值: {}
+目录里现在有: ['config.yaml', 'config.yaml.corrupt.20260808-165319.bak']
+备份是否生成: True
+备份内容与原文逐字一致: True
+```
+
+**三件事同时发生,原判只记了第三件:**
+
+1. **一条指名道姓的告警**打到 stderr **和** 日志,明说"每一条用户覆盖都正在被忽略、
+   修好 YAML 再重启"。
+2. **一份逐字相同的带时间戳备份**被写在旁边。
+3. 才是返回 `{}`。
+
+而这份备份**正是为这件事准备的**——`_warn_config_parse_failure` 的 docstring 自己写着:
+
+`hermes_cli/config.py:114 @ 863e313`
+
+```python
+    first warning for a given broken file we also snapshot it to a
+```
+
+后半句是 "so the user's recoverable content survives **any later rewrite of `config.yaml`
+by the setup wizard or `hermes config set`**"。**换句话说:上游早就想到了"读出空 dict 之后
+会有人整文件覆盖"这件事,并且专门为它留了后路。**
+
+`read_raw_config` 在返回 `{}` 之前就调它:
+
+`hermes_cli/config.py:2962 @ 863e313`
+
+```python
+            _warn_config_parse_failure(config_path, e)
+```
+
+告警的去重是**进程级**的,所以每跑一次 `hermes login` 都会重新告警一次:
+
+`hermes_cli/config.py:42 @ 863e313`
+
+```python
+_CONFIG_PARSE_WARNED: set = set()
+```
+
+### 7.3 改判
+
+**■-R8B-12 的缺陷成立,定性下调。** 准确的表述应当是:
+
+> 用户把 `config.yaml` 改坏一个缩进,再跑一次 `hermes login` 一族的命令,
+> **落盘文件会被截断成只剩本次写入的那一段**;过程中**有一条明确的 stderr + 日志告警**,
+> 且原文件**被逐字备份**到 `config.yaml.corrupt.<时间戳>.bak`。
+> 用户需要自己看见告警并手工恢复——**这仍是缺陷(fail-closed 明显优于 warn-then-truncate),
+> 但既不静默、也不丢数据。**
+
+**为什么这个更正重要,而不只是措辞洁癖:**
+
+- 「静默消失」和「告警 + 留备份后截断」是**两个不同严重级别**的东西。
+  前者是数据丢失事故,后者是糟糕的用户体验。**修复优先级差一个档。**
+- R8-fix 把这条当作"本轮唯一真正的方法论教训",理由是"**负结论错了会关闭调查**"。
+  **这一条讲得完全正确,而它自己犯的是对偶的那个错**:
+  一个**正结论**的**严重性被高估**,同样会误导下一轮——
+  按"静默丢数据"的定性,下一轮会优先去修它;按真实定性,它排在本轮五条新 ■ 后面。
+- **它是怎么被漏掉的**,值得记:原判的失效链把 `read_raw_config()` 当成一个
+  "解析失败 → 返回 `{}`"的黑盒**一跳带过**,没有读它在返回之前做了什么。
+  **链条上每一跳都要读完,不能只读它的返回值。**
+
+**对 H-R8FIX-a 的影响**:结论方向不变(补解析检查仍然对,fail-closed 优于 warn-then-truncate),
+但**紧迫性下调**。已在 `notes/r8c-11-hr8fixa-guard-parse-check.md` 交叉标注。
+
+**本轮不改 `reports/round-8b-*.md` 与 `reports/round-8-fix-review-1.md` 的正文**
+(按 CLAUDE.md「`reports/` 正文不静默改写」),改判以本节 + 两份报告的勘误节呈现。
+`notes/r8b-90-handover-rulings.md` §1.0 属现役底稿,**就地加改判注记**。
+
+---
+
+## 8. ■-R8C-07:dashboard 的 PKCE 把 `code_verifier` 当 `state` 用,PKCE 退化
+
+**子代理报,主线独立重读四处源码复核。结论成立,这是本轮最重的安全发现。**
+
+**先给不熟这套术语的读者一句话**:OAuth 授权码流程里,用户从服务商页面拿到一个**授权码**,
+客户端拿它去换 token。**PKCE**(带证明密钥的授权码交换)为这个流程加了一道绑定:
+客户端先自己生成一个随机串 `code_verifier`,只把它的哈希发给服务商;换 token 时必须出示原串。
+**目的就是让授权码单独泄露也换不出 token**——因为偷到码的人没有 verifier。
+另有一个 `state` 参数,作用完全不同,是防 CSRF(跨站请求伪造)的:客户端生成随机 state,
+回调带回来时比对一致才继续。
+
+### 8.1 dashboard 这一侧
+
+`hermes_cli/web_server.py:10220 @ 863e313`
+
+```python
+    sess["state"] = verifier  # Anthropic round-trips verifier as state
+```
+
+**`state` 被直接赋成 `verifier` 本身。** 而 `state` 是要进授权 URL、
+并由服务商页面显示给用户复制的那一半。
+
+提交时,回调带回来的 state **原样透传去换 token,从不比对**:
+
+`hermes_cli/web_server.py:10265 @ 863e313`
+
+```python
+        "state": state_from_callback or sess["state"],
+```
+
+**搜索面(负结论)**:对 `hermes_cli/web_server.py` 全文搜 `state_from_callback`,
+**全文件仅 2 次命中**——`:10259` 赋值、`:10265` 透传。**没有任何比较。**
+
+### 8.2 同一个仓库的 CLI 侧是对的 —— 这是判它为缺陷的关键
+
+**同仓 CLI 走同一个 provider 的同一条流程,用的是独立随机 state:**
+
+`agent/anthropic_adapter.py:1508 @ 863e313`
+
+```python
+    oauth_state = secrets.token_urlsafe(32)
+```
+
+**并且严格比对,注释里点了 RFC 条款:**
+
+`agent/anthropic_adapter.py:1563 @ 863e313`
+
+```python
+    # Validate state to prevent CSRF (RFC 6749 §10.12)
+```
+
+`agent/anthropic_adapter.py:1564 @ 863e313`
+
+```python
+    if received_state != oauth_state:
+```
+
+**这条对照是决定性的**:CLI 那条路在生产里是能用的,
+**所以服务商并不要求 `state == verifier`**——dashboard 那句注释
+"Anthropic round-trips verifier as state" 描述的是"它会把 state 转回来"这个事实,
+**不构成"必须把 verifier 当 state"的理由**。
+
+### 8.3 后果:PKCE 退化成裸授权码流程
+
+用户从服务商页面复制的是一串 `code#state`。由于 `state == verifier`,
+**这一串里同时装着授权码和 PKCE 的验证串**——而 PKCE 的全部意义就是让这两半分开。
+
+```text
+正常 PKCE:  授权码走用户 → 客户端;verifier 只在客户端内存里,从不外出
+            ⇒ 偷到授权码的人换不出 token
+
+本处实现:  code#state 一起显示给用户、经剪贴板、可能进截图/聊天记录/支持工单
+            而 state 就是 verifier
+            ⇒ 拿到这一串的人,在任意机器上都能换出 token
+```
+
+**两条独立后果:**
+1. **PKCE 失效**(实质降级)——授权码不再被绑定到发起流程的那个客户端。
+2. **CSRF 纵深防御缺失**——完全没有 state 比对。这一条被 PKCE 本应提供的绑定兜住,
+   但第 1 条恰好把那个兜底也拿掉了。**两个缺陷互相取消了对方的兜底。**
+
+### 8.4 定案
+
+**■-R8C-07(高置信,安全)**:`hermes_cli/web_server.py:10220` 把 `code_verifier` 赋给 `state`,
+`:10265` 对回调 state 只透传不比对(全文件仅 2 次命中,无比较);
+同仓 CLI `agent/anthropic_adapter.py:1508`/`:1563-1564` 用独立随机 state 并严格比对且引 RFC,
+**证明服务商不要求两者相等**。后果是 PKCE 退化为裸授权码流程,
+用户复制的那一串 `code#state` 等价于完整凭据。
+
+**本轮未做的**:没有真的跑一次 Anthropic OAuth 换 token(**项目边界:不配置任何付费凭据**),
+所以"拿这串在别的机器上确实能换出 token"是**从协议语义推出的**,不是实测。
+**这一点必须写明**——它是本条唯一没有实证的一跳。
+
+**又是本章那个形状**:同一件事两份实现(CLI 与 GUI),只有一份带守卫。

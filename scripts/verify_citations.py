@@ -141,6 +141,56 @@ def block_locator(block):
     return None
 
 
+# Lines an excerpt uses to say "I skipped some source here".
+ELISION = re.compile(r"^\s*(?:#\s*)?(?:\.\.\.|…|<snip>|\[\.\.\.\])\s*$")
+
+
+def block_drift(block, src, start):
+    """Compare a fenced block's lines 2..N against the source, not just line 1.
+
+    The gate has always compared ONLY the block's first non-blank line against
+    the cited line. Every line after it was unverified — an excerpt could drop a
+    closing ``\"\"\"``, rename an identifier, or paraphrase a value, and the run
+    stayed green. R8C found two such blocks in one round's draft; there was no
+    mechanism that could have caught them.
+
+    Returns a short human-readable report of the differing lines, or "" when the
+    block tracks the source verbatim. Comparison stops at the first elision
+    marker (``...``), which is an author declaration that the excerpt jumps.
+
+    Reported as BLOCK-DRIFT, which does NOT fail the run yet — same staging the
+    citation gate itself went through (added R7C, promoted to blocking in R8A).
+    Promote once the corpus is clean.
+    """
+    body = list(block)
+    while body and not body[-1].strip():
+        body.pop()
+    # skip the leading locator comment and any leading blanks, the same way
+    # first_source_line does, so index 0 lines up with the cited line.
+    k = 0
+    while k < len(body) and (not body[k].strip() or LOCATOR.match(body[k])):
+        k += 1
+    diffs = []
+    for off, text in enumerate(body[k:]):
+        if ELISION.match(text):
+            break
+        n = start - 1 + off
+        if n >= len(src):
+            diffs.append((off + 1, text, "<源码已到文件尾>"))
+            break
+        if norm(src[n]) != norm(text):
+            diffs.append((off + 1, text, src[n]))
+    if not diffs:
+        return ""
+    head = diffs[0]
+    more = f"  (共 {len(diffs)} 行不符)" if len(diffs) > 1 else ""
+    return (
+        f"      块内第 {head[0]} 行与 {start + head[0] - 1} 行不符{more}\n"
+        f"      引用: {norm(head[1])[:100]}\n"
+        f"      基线: {norm(head[2])[:100]}"
+    )
+
+
 def read_block(lines, j):
     """Read the excerpt block that starts at line index *j*.
 
@@ -286,6 +336,12 @@ def check_note(repo: Path, note: Path, fix: bool = False):
                 )
             elif line_matches(src[start - 1]):
                 results.append(("OK", ""))
+                # The first line matched. Everything AFTER it in the block has
+                # never been checked by anything (R8C). See block_drift().
+                if kind == "fence":
+                    d = block_drift(block, src, start)
+                    if d:
+                        results.append(("BLOCK-DRIFT", f"{note.name}:{i+1}  {path}:{start}\n{d}"))
             else:
                 # where does it actually live?
                 lo, hi = max(0, start - 1 - WINDOW), min(len(src), start - 1 + WINDOW)
@@ -356,6 +412,11 @@ def main() -> None:
             seen[status] = seen.get(status, 0) + 1
             if status not in ("OK", "UNCHECKED"):
                 problems.append(f"[{status}] {detail}")
+    # BLOCK-DRIFT rides along on a citation that already counted as OK, so it
+    # must not inflate the citation total or dilute the verifiable ratio.
+    drift = tally.pop("BLOCK-DRIFT", 0)
+    for counts in per_file.values():
+        counts.pop("BLOCK-DRIFT", None)
 
     for p in problems:
         print(p)
@@ -392,6 +453,11 @@ def main() -> None:
         rate = tally.get("OK", 0) / checkable
         flag = "" if rate >= VERIFIABLE_FLOOR else f"  << 低于 {VERIFIABLE_FLOOR:.0%} 下限"
         print(f"可校验比例 OK/{checkable} = {rate:.1%}{flag}")
+    if drift:
+        print(
+            f"BLOCK-DRIFT={drift}  (代码块首行之后的行与基线不符;**暂不阻断**,"
+            f"见脚本 block_drift() 的说明)"
+        )
     bad = total - tally.get("OK", 0) - tally.get("UNCHECKED", 0) - tally.get("FIXED", 0)
     if bad:
         print(f"FAIL: {bad} citation(s) need fixing")

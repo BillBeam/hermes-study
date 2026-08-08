@@ -999,11 +999,25 @@ _EXCLUDED_NAMES = {
     "cron.pid",
 }
 ```
-外加:符号链接一律跳过(`_should_skip_backup_file`,`hermes_cli/backup.py:325`,注释 "zipfile.write() follows
-file symlinks, so skip links before any archive write can copy data from outside HERMES_HOME");
-`*.db` 走 `sqlite3.backup()` 一致快照,`.db-wal/.db-shm/.db-journal` 剔除;
-以及一个**保留前缀 `_external/`**,用来把 HERMES_HOME 之外的 memory provider 状态(`~/.honcho` 等)
-按"相对 $HOME"编码打进包里(`hermes_cli/backup.py:135`)。
+外加三条:**符号链接一律跳过**(否则 `zipfile.write()` 会跟着链接把 HERMES_HOME 之外的数据抄进包里):
+
+`hermes_cli/backup.py:325`
+```python
+    if abs_path.is_symlink():
+        return True
+
+    try:
+        return abs_path.resolve() == out_path.resolve()
+    except (OSError, ValueError):
+        return False
+```
+`*.db` 走 `sqlite3.backup()` 一致快照、`.db-wal/.db-shm/.db-journal` 剔除;以及一个**保留前缀**,
+用来把 HERMES_HOME 之外的 memory provider 状态(`~/.honcho` 等)按"相对 $HOME"编码打进包里:
+
+`hermes_cli/backup.py:135`
+```python
+_EXTERNAL_PREFIX = "_external/"
+```
 
 §4.2 的探针已实证 `.env` / `auth.json` / `config.yaml` 逐字进包。
 
@@ -1101,8 +1115,24 @@ _IMPORT_SKIP_NAMES = {
 _SECRET_FILE_NAMES = {".env", "auth.json", "state.db"}
 ```
 即:**`.env`、`auth.json`、`state.db`、`config.yaml` 全部被包里的版本原样覆盖**,
-唯一豁免的是 `_IMPORT_SKIP_NAMES` 那五个"跟机器绑定的运行时状态"(理由写在 `hermes_cli/backup.py:94`–`117`:
-`gateway_state.json` 会驱动容器启动协调器,还原一个别的机器上的值会让网关卡在 starting 并从 Nous portal 掉线,NS-508)。
+唯一豁免的是 `_IMPORT_SKIP_NAMES` 那五个"跟机器绑定的运行时状态",理由写得很具体:
+
+`hermes_cli/backup.py:94`
+```python
+# File names that ``hermes import`` must never overwrite, matched by basename so
+# they're caught for the root profile (``gateway_state.json``) and for named
+# profiles alike (``profiles/<name>/gateway_state.json``).
+#
+# These hold *volatile gateway/process runtime state that is namespaced to the
+# machine or container the backup was taken on* — PIDs in a dead process
+# namespace, a runtime lock, the process registry, and the gateway's last
+# recorded run/desired state. Restoring them onto a different host (or a hosted
+# container) is at best meaningless and at worst actively harmful:
+#
+#   - ``gateway_state.json`` drives the container-boot reconciler
+#     (``container_boot._read_desired_state``), which only auto-starts a
+```
+(下接 NS-508:还原一个别的机器上的 `gateway_state.json` 会让网关卡在 starting 并从 Nous portal 掉线。)
 另外 `_external/` 成员会写到 **HERMES_HOME 之外**,落在 `$HOME` 相对位置(有 `relative_to(home_dir)` 约束)。
 
 **"会不会覆盖"的另一半:非 `--force` 时其实跑不起来。**
@@ -1211,9 +1241,23 @@ def _validate_backup_zip(zf: zipfile.ZipFile) -> tuple[bool, str]:
 ```
 路径遍历本身是防住的(`relative_to(hermes_root.resolve())`,§5.2 引用),`_external/` 分支也有
 `relative_to(home_dir)`(`hermes_cli/backup.py:928`)。**真正的风险不是路径遍历,是内容置换**:
-一个通过校验的 zip 可以把 `.env` / `auth.json` / `config.yaml` / `hooks:` 块整体换掉,
-而 hooks 块的语义是"下次会话/网关重启时执行任意 shell 命令"(见 `hermes_cli/web_server.py:13046` 的
-`create_hook` docstring:"Shell hooks run arbitrary commands, so this is a privileged action")。
+一个通过校验的 zip 可以把 `.env` / `auth.json` / `config.yaml` 整体换掉,包括 `hooks:` 块——
+而这个块的语义,仓库自己在旁边的 hooks 端点上写得很清楚:
+
+`hermes_cli/web_server.py:13046`
+```python
+@app.post("/api/ops/hooks")
+async def create_hook(body: HookCreate):
+    """Add a shell hook to config.yaml (and optionally approve it).
+
+    Shell hooks run arbitrary commands, so this is a privileged action: it
+    writes to the ``hooks:`` config block and, when ``approve`` is set, records
+    consent in the allowlist so the hook actually fires.  Takes effect on the
+    next session / gateway restart.
+    """
+```
+即:`POST /api/ops/hooks` 被当作"特权动作"专门写了注释,而 `POST /api/ops/import` 可以达到同样的效果
+(整体替换 `config.yaml`),却只有一句"zip 里出现过 config.yaml 的 basename"这道校验。
 
 ### 5.4 ◇ 两条路径策略在同一簇里不对称
 
@@ -1255,8 +1299,18 @@ POST /api/cron/jobs           -> 200 {"id": "4d832b6e75b3", "name": "plain-job",
 root  jobs.json: (absent)
 work  jobs.json: EXISTS ['plain-job']
 ```
-返回的 job 对象会被 `_annotate_cron_job` 补上 `profile` / `profile_name` / `hermes_home` /
-`is_default_profile` 四个字段(`hermes_cli/web_server.py:11662`),前端靠它做"这条任务属于谁"的显示与后续路由。
+返回的 job 对象会被打上"归属"标签,前端靠它做显示与后续路由:
+
+`hermes_cli/web_server.py:11662`
+```python
+def _annotate_cron_job(job: Dict[str, Any], profile: str, home: Path) -> Dict[str, Any]:
+    annotated = dict(job)
+    annotated["profile"] = profile
+    annotated["profile_name"] = profile
+    annotated["hermes_home"] = str(home)
+    annotated["is_default_profile"] = profile == "default"
+    return annotated
+```
 
 **任务的运行历史**不在 cron 侧,而在 sessions 侧——每次 run 就是一条普通 session:
 
@@ -1286,9 +1340,23 @@ docstring 里的 id 格式与实现一致:
 ```
 这是一个漂亮的"**用 id 前缀当索引**"设计:不需要给 sessions 表加外键,一次 `[prefix, hi)` 范围扫描就是历史。
 
-**找 job 属于哪个 profile 靠遍历**:`_find_cron_job_profile`(`hermes_cli/web_server.py:11699`)
-逐个 profile 调 `list_jobs`,按 `id` 或 `name` 命中即返回。代价是 O(profiles) 次文件 I/O——
-所以每个端点都用 `_run_cron_dashboard_io`(threadpool)把它挪出事件循环。
+**找 job 属于哪个 profile 靠遍历**——没有全局索引:
+
+`hermes_cli/web_server.py:11699`
+```python
+def _find_cron_job_profile(job_id: str) -> Optional[str]:
+    for profile in _cron_profile_dicts():
+        name = str(profile.get("name") or "")
+        if not name:
+            continue
+        jobs = _call_cron_for_profile(name, "list_jobs", True)
+        if any(j.get("id") == job_id or j.get("name") == job_id for j in jobs):
+            return name
+    return None
+```
+代价是 O(profiles) 次文件 I/O(每个 profile 一次 `jobs.json` 读),
+所以每个 cron 端点都用 `_run_cron_dashboard_io`(threadpool)把它挪出事件循环。
+顺带:`job_id` 既可以是 id 也可以是**人类可读的 name**,两者共用同一个查找入口。
 
 ### 6.2 `/api/cron/fire` 为什么在免鉴权名单里
 
@@ -1359,8 +1427,22 @@ async def cron_fire_webhook(request: Request):
     "/api/cron/fire",
 })
 ```
-这个文件本身的存在也有故事:两道中间件曾各存一份白名单,漂移后 `/api/status` 在旧门下公开、
-在 OAuth 门下 401,导致 portal 的存活探测把所有健康实例报成 STARTING(`public_paths.py:11`–`17`)。
+这个文件本身的存在也有故事——两道中间件曾各存一份白名单,漂移之后出了事:
+
+`hermes_cli/dashboard_auth/public_paths.py:11`
+```python
+When the lists drifted, ``/api/status`` ended up public under the legacy
+gate but 401'd under the OAuth gate. That broke the portal's wildcard
+liveness probe (``nous-account-service`` ``fly-provider.ts``
+``getInstanceRuntimeStatus``), which fetches ``/api/status`` without a
+cookie as its sole signal of "agent dashboard is alive": every healthy
+wildcard-subdomain agent surfaced as STARTING/down in the portal UI even
+though the dashboard was serving correctly.
+
+Centralising the allowlist here so both middlewares import the same
+frozenset prevents the next drift. Keep this list minimal — only truly
+non-sensitive, read-only endpoints belong here. As a sanity check, every
+```
 现在合成一份 frozenset,并附三条自检:能给外部探测器看吗?能给未登录的 SPA 看吗?能给随手 curl 的人看吗?
 ——`/api/cron/fire` 通过这三条**不是因为它无害**,而是因为它自带门。
 
@@ -1377,8 +1459,14 @@ async def cron_fire_webhook(request: Request):
         return None
 ```
 校验项是签名(RS/ES 家族,拒对称密钥)、`aud`、`exp`/`nbf`(30s leeway)、`iss`,
-外加一个 `purpose == "cron_fire"` 声明——**目的是让一枚通用 agent JWT 不能被重放到这个端点上**
-(`plugins/cron_providers/chronos/verify.py:27`–`29`)。
+外加一个**范围声明**,专门防重放:
+
+`plugins/cron_providers/chronos/verify.py:27`
+```python
+# The purpose claim that scopes a token to the fire endpoint. A general agent
+# JWT (without this claim) must NOT be replayable against /api/cron/fire.
+_FIRE_PURPOSE = "cron_fire"
+```
 默认配置下 `cron.chronos.expected_audience` 为空 ⇒ 任何 token 都 401 ⇒ 这条公开路径默认零攻击面。
 定级 ◎(文档成立但保守):白名单文件的注释说"JWT 是边界",没说"未配置时整条路径等于关闭",而后者才是默认态。
 
@@ -1507,7 +1595,16 @@ async def instantiate_blueprint(body: AutomationBlueprintInstantiate, profile: s
         _create = functools.partial(_call_cron_for_profile, profile, "create_job", **spec)
         return await _run_cron_dashboard_io(_create)
 ```
-对照 `create_cron_job` 的签名是 `profile: Optional[str] = None`(`hermes_cli/web_routers/cron.py:67`)。
+对照同一文件里的姊妹端点:
+
+`hermes_cli/web_routers/cron.py:66`
+```python
+@router.post("/api/cron/jobs")
+async def create_cron_job(body: CronJobCreate, profile: Optional[str] = None):
+    return await _run_cron_dashboard_io(_create_cron_job_sync, body, profile)
+```
+`Optional[str] = None` 会一路传到 `_cron_profile_home(None)` → `_cron_default_profile()` → **本进程的 profile**;
+而 `profile: str = "default"` 直接把字符串 `"default"` 传进 `_call_cron_for_profile` → **根**。
 
 **实测(探针 `/tmp/r8c_probe5.py`,`HERMES_HOME=<tmp>/profiles/work`,两次都不带 `?profile=`):**
 ```console
@@ -1523,11 +1620,26 @@ POST /api/cron/blueprints/instantiate -> 200   → root/cron/jobs.json  ['Mornin
 所以 UI 上"任务在那儿"、实际"从不运行"。
 
 **为什么标(潜在)而不是直接 ■:** 两个官方前端都**显式**传值,且把 "all" 折叠成 "default":
-`web/src/pages/CronPage.tsx:792` 传 `selectedProfile === "all" ? "default" : selectedProfile`;
-`apps/desktop/src/app/cron/index.tsx:458` 同样。所以 SPA/桌面路径不触发。
-触发面是**任何不经 SPA 的调用方**(curl、插件、桌面池后端的其它代码路径),以及"all 折叠成 default"
-这条 UI 约定本身在命名 profile 后端上也会把任务写到 root。修法一行:把签名改成
-`profile: Optional[str] = None`,与 `create_cron_job` 对齐。
+
+`web/src/pages/CronPage.tsx:790`
+```tsx
+      {view === "blueprints" && (
+        <AutomationBlueprints
+          profile={selectedProfile === "all" ? "default" : selectedProfile}
+          onCreated={loadJobs}
+        />
+```
+
+`apps/desktop/src/app/cron/index.tsx:457`
+```tsx
+  async function handleBlueprintCreate(blueprint: AutomationBlueprint, values: Record<string, string>) {
+    const profile = profileScope === ALL_PROFILES ? 'default' : profileScope
+    const job = await instantiateAutomationBlueprint({ blueprint: blueprint.key, values }, profile)
+```
+所以 SPA/桌面路径不会踩到"服务端默认值"这个坑。触发面是**任何不经 SPA 的调用方**
+(curl、插件、桌面池后端的其它代码路径);而"all 折叠成 default"这条 UI 约定本身,
+在一个命名 profile 的后端上同样会把任务写到 root——只是那是 UI 的主动选择,不是服务端默认值的锅。
+修法一行:把签名改成 `profile: Optional[str] = None`,与 `create_cron_job` 对齐。
 
 ### 6.4 ■ `_profile_cli_args("default")` 与同名参数在别处的含义相反
 
@@ -1574,8 +1686,16 @@ def _gateway_subcommand(profile: Optional[str], verb: str) -> List[str]:
     return _profile_cli_args(profile) + ["gateway", verb]
 ```
 ⇒ 在 `-p work` 的 dashboard 上,`POST /api/gateway/start?profile=default`(`:12540`)
-spawn 的是 `hermes gateway start`(无 `-p`)。子进程的 `_apply_profile_override()` 在没有 `-p` 且
-`HERMES_HOME` 的父目录名是 `profiles` 时**直接信任环境变量返回**(`hermes_cli/main.py:632`–`635`),
+spawn 的是 `hermes gateway start`(无 `-p`)。而子进程在没有 `-p` 且 `HERMES_HOME` 的父目录名是
+`profiles` 时**直接信任环境变量提前返回**:
+
+`hermes_cli/main.py:632`
+```python
+    hermes_home_env = os.environ.get("HERMES_HOME", "")
+    if profile_name is None and hermes_home_env:
+        if Path(hermes_home_env).parent.name == "profiles":
+            return
+```
 于是**启动的是 work 的网关,不是 default 的**。用户以为自己启了另一个 profile 的网关。
 
 `hermes_cli/web_routers/mcp.py:445`
@@ -1591,14 +1711,37 @@ spawn 的是 `hermes gateway start`(无 `-p`)。子进程的 `_apply_profile_ove
                 action,
             )
 ```
-⇒ **同一个 handler 的两条分支对 `profile=default` 给出不同目标**:需要 git bootstrap 的条目走上面这条
-(装进 work),不需要的走下面的 `with _profile_scope(effective_profile)`(装进 root,
-`hermes_cli/web_routers/mcp.py:467`–`469`)。同一次点击、同一个参数、两个不同的 profile。
+⇒ **同一个 handler 的两条分支对 `profile=default` 给出不同目标**。另一条分支用的是 `_profile_scope`:
 
-同一个 bug 还波及 `web_routers/skills.py:62,82,100` 与 `web_routers/tools.py:618,725`(不在本段范围内,列此备查)。
-修法:`_profile_cli_args` 对 `"default"` 返回 `["-p", "default"]`(`hermes -p default` 是合法的,
-`hermes_cli/profiles.py:339` 的 `validate_profile_name` 把 `default` 当特殊别名放行,
-`normalize_profile_name` 也把它归一到 `"default"`),或至少在 docstring 里写明它被当作"本进程"。
+`hermes_cli/web_routers/mcp.py:461`
+```python
+    # No git step — install synchronously via the catalog API. install_entry
+    # routes through load_config/save_config + save_env_value, all call-time
+    # resolvers, so the context override scopes it. Wrap the to_thread body
+    # in the scope INSIDE the thread (contextvars don't propagate into
+    # to_thread the other way around — asyncio.to_thread copies context, so
+    # setting it here works; keep it explicit for clarity).
+    def _install_scoped():
+        with _profile_scope(effective_profile):
+            mcp_catalog.install_entry(entry, enable=body.enable)
+
+    try:
+        await asyncio.to_thread(_install_scoped)
+```
+即:需要 git bootstrap 的条目装进 **work**,不需要的装进 **root**。同一次点击、同一个 `profile=default` 参数、
+两个不同的 profile —— 取决于该 catalog 条目要不要 clone。
+
+同一个 bug 还波及 `hermes_cli/web_routers/skills.py:62,82,100` 与 `hermes_cli/web_routers/tools.py:618,725`
+(不在本段范围内,列此备查)。修法:`_profile_cli_args` 对 `"default"` 返回 `["-p", "default"]` ——
+`hermes -p default` 是合法的,校验函数把它当特殊别名放行:
+
+`hermes_cli/profiles.py:339`
+```python
+    if name == "default":
+        return  # special alias for ~/.hermes
+    if not _PROFILE_ID_RE.match(name):
+```
+或者退一步,至少在 docstring 里写明 `"default"` 被当作"本进程"(现在的 docstring 只说了 Empty/`current`)。
 
 ---
 
@@ -1607,8 +1750,20 @@ spawn 的是 `hermes gateway start`(无 `-p`)。子进程的 `_apply_profile_ove
 **MCP OAuth 飞行登记表(`:12122`–`:12274`)。** 三层并发控制:全局 TTL 15 分钟 + GC(`_gc_mcp_oauth_flows`)、
 待完成流上限 8(超出 429)、同一 `(home, server)` 同时只允许一个(重复 409)。
 `_mcp_oauth_transaction` 再按 `(hermes_home, server_name)` 发一把进程内锁,保证同一台服务器的
-token 写入互斥。失败路径做**双向回滚**:`storage.restore(backup, only_if_absent=True)` +
-`manager.restore_entry(...)`(`hermes_cli/web_server.py:12220`–`12227`)。
+token 写入互斥。失败路径做**双向回滚**——token 存储和 manager 条目一起还原:
+
+`hermes_cli/web_server.py:12219`
+```python
+                        reconnect_mcp_server(flow.server_name)
+                except Exception:
+                    storage.restore(backup, only_if_absent=True)
+                    manager.restore_entry(
+                        flow.server_name,
+                        previous_entry,
+                        hermes_home=flow.hermes_home,
+                    )
+                    raise
+```
 
 **MCP test 端点为什么不用 `_profile_scope`。** 这是本段里最好的"锁粒度事故"教材:
 
@@ -1631,8 +1786,16 @@ token 写入互斥。失败路径做**双向回滚**:`storage.restore(backup, on
             return tools, token_present
 
 ```
-另一处细节:`auth: oauth` 的服务器即使匿名 `tools/list` 成功也要求磁盘上有 token,
-否则报"假绿"(`hermes_cli/web_routers/mcp.py:152`–`155`)。
+另一处细节是"**假绿**"的防治:
+
+`hermes_cli/web_routers/mcp.py:152`
+```python
+    # An `auth: oauth` server that serves tools/list anonymously would probe OK
+    # with no token — a false green. Require a token on disk for it, matching the
+    # /auth verification (some providers don't enforce auth on tools/list).
+    needs_oauth_token = servers[name].get("auth") == "oauth"
+```
+即"探测成功"不等于"配置正确":声明了 oauth 的服务器,磁盘上没 token 就判失败。
 
 **Webhook(`:12378`–`:12528`)。** 秘钥只在**创建时**回显一次(`summary["secret"] = secret`,`:12493`),
 读列表只给 `secret_set: bool`。启用/停用不删订阅(便于恢复),网关热加载订阅文件,不需要重启。
@@ -1739,9 +1902,19 @@ $ git -C /home/user/hermes-agent rev-parse HEAD
    `_migrate_split_pairing_dirs()` 把 alternate 合并进 active,大概率被治好——**我没有为此写探针,未取证**。
 
 2. **`/api/cron/fire` 的 JWT 用 dashboard 自己的配置校验,却能触发任意 profile 的 job。**
-   锚点:`hermes_cli/web_routers/cron.py:148`(`cfg = load_config()`,无 profile scope)
-   与 `hermes_cli/web_routers/cron.py:169`(`_find_cron_job_profile` 跨所有 profile 搜)。
-   现象:一枚对本进程 `cron.chronos.expected_audience` 有效的 token,可以 fire 到别的 profile 的任务上;
+
+   `hermes_cli/web_routers/cron.py:143`
+   ```python
+       from plugins.cron_providers.chronos.verify import get_fire_verifier
+
+       auth = request.headers.get("Authorization", "")
+       token = auth[7:].strip() if auth.startswith("Bearer ") else ""
+
+       cfg = load_config()
+   ```
+   现象:这里的 `load_config()` **没有任何 profile scope**(拿的是本进程 home 的 `cron.chronos.*`),
+   而下面 `:169` 的 `_find_cron_job_profile(job_id)` 会跨**所有** profile 搜。
+   于是一枚对本进程有效的 token 可以 fire 到别的 profile 的任务上;
    代码无注释说明这是否有意,`tests/hermes_cli/test_cron_fire_dashboard.py` 也没有断言这一点。
 
 3. **`_pairing_store` 不做 `normalize_profile_name`,但 `PairingStore.__init__` 用 `profile == "default"` 精确比较。**
@@ -1749,15 +1922,36 @@ $ git -C /home/user/hermes-agent rev-parse HEAD
    现象:若某个调用方绕过 `_pairing_store`、直接传 `"Default"`,会落到 `<root>/profiles/Default/…`;
    dashboard 路径上被 `_resolve_profile_dir` 的 400 挡住了,**其它调用方(CLI/gateway)我没有逐个查**。
 
-4. **Ops 的 `checkpoints prune` / `doctor` / `security-audit` 三个 spawn 都不带 `-p`。**
-   锚点:`hermes_cli/web_server.py:12815`(`_spawn_hermes_action(["doctor"], "doctor")`)、
-   `:12825`、`:13175`。
-   现象:与 §6.4 的 `_profile_cli_args` 问题同源但方向相反——这三个**根本没有 profile 参数**,
-   永远跑在 dashboard 自己的 home 上;是有意还是遗漏,我没有找到注释或 issue 佐证。
+4. **Ops 的 `doctor` / `security-audit` / `checkpoints prune` 三个 spawn 都不带 `-p`,也没有 profile 形参。**
+
+   `hermes_cli/web_server.py:12812`
+   ```python
+   @app.post("/api/ops/doctor")
+   async def run_doctor():
+       try:
+           proc = _spawn_hermes_action(["doctor"], "doctor")
+       except Exception as exc:
+           _log.exception("Failed to spawn doctor")
+           raise HTTPException(status_code=500, detail=f"Failed to run doctor: {exc}")
+       return {"ok": True, "pid": proc.pid, "name": "doctor"}
+   ```
+   现象:与 §6.4 的 `_profile_cli_args` 问题同源但方向相反——这三个(另两处在 `:12825`、`:13175`)
+   **根本没有 profile 参数**,永远跑在 dashboard 自己的 home 上;是有意还是遗漏,我没有找到注释或 issue 佐证。
 
 5. **`BackupRequest.output` 可写任意路径,是否有更上层的约束?**
-   锚点:`hermes_cli/web_server.py:12846`(`args.extend(["-o", output])`,无路径校验)。
-   现象:`/api/ops/backup` 可以把含 `.env`+`auth.json` 的 zip 写到进程有写权限的任何位置;
+
+   `hermes_cli/web_server.py:12843`
+   ```python
+       args = ["backup"]
+       archive: Optional[Path] = None
+       output = (body.output or "").strip()
+       if output:
+           args.extend(["-o", output])
+       else:
+           archive = _new_dashboard_backup_path()
+   ```
+   现象:`output` 分支只做 `.strip()`,没有任何路径校验就交给 `hermes backup -o`;
+   于是 `/api/ops/backup` 可以把含 `.env`+`auth.json` 的 zip 写到进程有写权限的任何位置。
    我只确认了 download 端点读不到它,**没有查是否有部署层(容器只读文件系统、systemd 沙箱)兜底**。
 
 6. **本段路由的鉴权层。** 按分工由本轮另一段负责,本底稿未复查;

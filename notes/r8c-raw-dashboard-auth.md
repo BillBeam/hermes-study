@@ -1410,7 +1410,7 @@ validates for the boolean outcome only and discards the dict"。
 3. cookie 的 `Path`(浏览器只在请求路径以 Path 开头时回传 cookie);
 4. cookie 的**名字**(`__Host-` 规范要求 `Path=/`,有前缀就只能降级 `__Secure-`)。
 
-`hermes_cli/dashboard_auth/prefix.py:1-8 @ 863e313`
+`hermes_cli/dashboard_auth/prefix.py:1-7 @ 863e313`
 
 ```python
 """Helpers for X-Forwarded-Prefix support.
@@ -1420,7 +1420,6 @@ prefix (e.g. ``mission-control.tilos.com/hermes/*`` -> dashboard on
 :9119), injecting ``X-Forwarded-Prefix: /hermes`` so the backend can
 reconstruct prefixed URLs (Location: headers, OAuth redirect_uri,
 cookie Path attributes, SPA asset URLs).
-"""
 ```
 
 `hermes_cli/dashboard_auth/cookies.py:122-134 @ 863e313`
@@ -2016,7 +2015,7 @@ def _resolve_log_path() -> Path:
     """``$HERMES_HOME/logs/dashboard-auth.log``.
 
     Uses ``hermes_constants.get_hermes_home()`` (a leaf module — no import
-    cycle) so profile overrides and the native-Windows ``%LOCALAPPDATA``
+    cycle) so profile overrides and the native-Windows ``%LOCALAPPDATA%``
     fallback are honored.
     """
     from hermes_constants import get_hermes_home

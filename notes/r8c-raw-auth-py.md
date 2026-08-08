@@ -607,7 +607,7 @@ $ grep -rn "find-generic-password\|security add-generic" --include=*.py .
 
 ### 3.6 跨 profile 的第四个落点:共享 Nous store
 
-`hermes_cli/auth.py:5249 @ 863e313`
+`hermes_cli/auth.py:5232 @ 863e313`
 ```python
 # -----------------------------------------------------------------------------
 # Shared Nous token store — lets OAuth credentials persist across profiles
