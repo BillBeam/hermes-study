@@ -516,3 +516,85 @@ def _setup_worktree(repo_root: str = None, sync_base: bool = True) -> Optional[D
 > 这里的判据是三个独立否决项(有未推送提交 / 工作区脏 / 锁还活着)任一成立就不删,
 > 且把最贵的那项(是否已全部并入上游)**缓存起来**——
 > 因为它要跑 git 命令,而清理路径会对每个陈旧 worktree 都问一遍。
+
+### 8.4 ■-R8B-09 · 无 remote 的仓库里,`hermes -w` 清理会强删分支(数据丢失,高置信)
+
+**补记说明**:本条线索来自 `notes/r8b-raw-cli-module.md` 的正文尾部
+——该段子代理**被截断在写 §3 可疑缺陷清单之前**,正文里留下一句
+"在无 remote 的情况下,这两句合起来就是 §3-1 的数据丢失",而 §3-1 从未写出来。
+**主线据此线索独立回源查证,结论:成立。**
+
+**判定"有没有未推送提交"的函数,在没有 remote 时返回"没有"**:
+
+`cli.py:1791 @ 863e313`
+
+```python
+def _worktree_has_unpushed_commits(worktree_path: str, timeout: int = 10) -> bool:
+    """Return whether a worktree has commits not reachable from any remote branch.
+
+    ``git log HEAD --not --remotes`` compares against remote-tracking refs under
+    ``refs/remotes/*``. If a repo has no remote-tracking refs yet, there is no
+    usable remote baseline to compare against, so treat it as having no
+    "unpushed" commits.
+    """
+```
+
+实现里对应的那一句:
+
+`cli.py:1808 @ 863e313`
+
+```python
+        if not remote_refs.stdout.strip():
+            return False
+```
+
+**清理路径把这个 `False` 当成"提交都安全,可以删"**:
+
+`cli.py:2077 @ 863e313`
+
+```python
+    has_unpushed = _worktree_has_unpushed_commits(wt_path, timeout=10)
+
+    if has_unpushed:
+        print(f"\n\033[33m⚠ Worktree has unpushed commits, keeping: {wt_path}\033[0m")
+        print(f"  To clean up manually: git worktree remove --force {wt_path}")
+        _active_worktree = None
+        return
+```
+
+走不到这条"保留并警告"的分支,就一路走到**强制删分支**:
+
+`cli.py:2107 @ 863e313`
+
+```python
+        subprocess.run(
+            ["git", "branch", "-D", branch],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, cwd=repo_root,
+        )
+```
+
+**因果链**:仓库没有 remote(纯本地仓库——个人项目、实验仓、`git init` 之后还没加 remote 的仓库,
+都是极常见的形态)→ `_worktree_has_unpushed_commits` 返回 `False`
+→ 清理认为"内容都在 remote 上" → `git branch -D`(**`-D` 是强制删,不是 `-d` 的"只删已合入的"**)
+→ **这次会话在 worktree 分支上的全部提交被丢弃**,界面上不提示、不确认、不保留。
+
+**为什么这条特别值得记:它是整个函数里唯一一处 fail-open。**
+同一个函数的**每一条错误路径都返回 `True`**(即"当作有未推送提交、别删"):
+
+- `for-each-ref` 返回非零 → `return True`(`cli.py:1805`)
+- `git log` 返回非零 → `return True`(`cli.py:1816`)
+- 任何异常 → `return True`(`cli.py:1818`)
+
+**作者的意图明显是 fail-safe:拿不准就别删。** 唯独"没有 remote"这一种情况被当成了
+**确定性的"安全"**,而不是"拿不准"。**它不是疏忽某个错误分支,而是把一个
+"无法判断"的状态错误地归类成了"已判断为安全"。**
+
+> **可迁移的判据**:凡"删除前的安全检查",都要把**判据不适用**与**判据通过**严格分开。
+> 这里的判据是"与 remote 比对",而没有 remote 时**判据根本不适用**——
+> 不适用必须归到"不安全"一侧。
+> 一个好用的自检问法:**把这个检查函数的返回值改名为
+> `is_safe_to_destroy()`,再读一遍每个 `return` —— 哪些是真的"我验证过安全",
+> 哪些其实是"我没法验证"?** 后者返回 `True` 就是数据丢失的种子。
+
+**未实跑复现**(需要构造一个无 remote 的仓库并真跑 `hermes -w` 的完整清理路径),
+按 R8A 立的规矩标注为**代码确证、运行时未复现**。
