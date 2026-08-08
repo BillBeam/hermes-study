@@ -580,3 +580,85 @@ _CONFIG_PARSE_WARNED: set = set()
 **这一点必须写明**——它是本条唯一没有实证的一跳。
 
 **又是本章那个形状**:同一件事两份实现(CLI 与 GUI),只有一份带守卫。
+
+---
+
+## 9. 其余定案(子代理提出,主线逐条标注复核程度)
+
+**口径**:主线**独立重读源码**的标 ✅;只按子代理自陈边界采信、**主线未独立验证**的标 ⚠。
+**没有一条是"看着像就收"。**
+
+### ■-R8C-08 ✅ 服务端登录页不认反代前缀
+
+复核见本卷 §5.1。可用性缺陷:把 dashboard 挂在路径前缀下反代时,
+登录页发出的 URL 是根绝对路径(`hermes_cli/dashboard_auth/login_page.py:428`、`:491`),
+而同进程的 SPA 那条路认前缀(`hermes_cli/web_server.py:16070`)。
+**「basic 密码登录 + 路径前缀反代」是不可用的组合。**
+
+### ■-R8C-09 ✅ 同一个 `"default"`,两个相反的含义
+
+`hermes_cli/web_server.py:13202 @ 863e313`
+
+```python
+    if not requested or requested.lower() in {"current", "default"}:
+```
+
+`_profile_cli_args("default")` 返回 `[]`,即**不加 `-p` 参数、子进程用 dashboard 自己的档位**。
+而同一文件里 `PairingStore(profile="default")` 解析到**根(全局)库**,
+`_cron_profile_home("default")` 同理。**同一个字符串,一边指"我自己这档",一边指"全局那档"。**
+
+它喂给网关生命周期端点:
+
+`hermes_cli/web_server.py:3889 @ 863e313`
+
+```python
+    return _profile_cli_args(profile) + ["gateway", verb]
+```
+
+于是 `/api/gateway/start?profile=default` 启的是 dashboard 自己那档的网关,不是全局那档。
+**与 ◇-R8C-a 同族**:`"default"` 与"不填"这两个 token 在这个代码库里没有统一语义。
+
+### ■-R8C-10 ⚠ 用户插件可顶掉同名内置插件并继承它的启用勾
+
+**主线复核了机制、未重跑子代理的复现。** 机制成立:注册键是**路径派生**的——
+
+`hermes_cli/plugins.py:312 @ 863e313`
+
+```python
+    # Registry key — path-derived, used by ``plugins.enabled``/``disabled``
+```
+
+所以放在 `~/.hermes/plugins/kanban/` 的用户插件拿到的键就是 `kanban`,
+与内置同名插件**同键**,于是**继承用户为内置那个打的 `plugins.enabled` 勾**,
+启动时被 `exec_module` 执行。子代理报告已实测复现(marker 文件落盘 + 挂载日志)。
+**主线未独立重跑,按其自陈采信。**
+
+### ■-R8C-11 ⚠ 删档位不挡"正在用的那一档"
+
+子代理报:`delete` 整棵 `rmtree`(连 `.env` 里的凭据),**只挡 `default`,不挡当前进程正在用的档位**,
+于是 `--isolated` 起的 dashboard 能把自己的 `HERMES_HOME` 删掉。**主线未独立验证。**
+
+### ■-R8C-12 ⚠ 前缀里的控制字符触发未认证 500
+
+见本卷 §5.2。子代理自陈:仅在 `h11` 解析器下可达,而仓库依赖 `uvicorn[standard]`(带 httptools),
+**默认部署不成立**。**主线未重跑**(需切换解析器实现),按其自陈边界采信,记为潜伏项。
+
+### ■-R8C-13 ⚠ `auth.py` 的兜底 `except` 吞掉了刻意抛出的 OSError
+
+子代理报:`hermes_cli/auth.py:1081` 的 `except Exception: return {}` 吞掉 `_load_auth_store`
+刻意抛的 OSError,注释给的理由("malformed store")对应的路径在 `:1229` 已单独处理。
+只读路径不丢数据,但 profile 模式下 global 凭据会静默不可见。**主线未独立验证。**
+
+---
+
+## 10. 记号汇总
+
+| 记号 | 条数 | 说明 |
+|---|---|---|
+| ■ | **13** | ■-R8C-01 至 ■-R8C-13;其中 **7 条主线独立复核**(01/02/03/04/05/06/07 + 08/09 共 9 条 ✅),4 条按子代理自陈边界采信(⚠) |
+| ◇ | 本轮各底稿合计 **20+** | 代表性两条:◇-R8C-a(`PairingStore()` vs `"default"` 三处不等价)、◇-R8C-b(核心测密壳测稀是仓库级模式) |
+| ▲ | 各底稿合计 **10** | 最重的一条:`hermes_cli/web_server.py:640` 把中间件顺序写反 |
+| ◎ | 各底稿合计 **5** | 最重的一条:`atomic_config_write` 自称唯一收口,但它与手写守卫等价,**改用收口修不掉 ■-R8B-12** |
+
+**跨轮改判 1 条**:■-R8B-12 的「静默消失」定性推翻(本卷 §7)。
+**跨段仲裁 2 条**:前缀名单 ◇→■(本卷 §3)、配对库 docstring ▲→撤销 + ◇ 加重(本卷 §5.3)。
