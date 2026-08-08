@@ -52,6 +52,25 @@ rewritten in place to the true line number (a `N-M` range is shifted by the same
 delta, preserving its length). Ambiguous or not-found cases are never touched —
 they are left for a human. Always re-run without --fix afterwards to confirm.
 
+Per-file UNCHECKED ratio hint (R8C)
+-----------------------------------
+UNCHECKED is not a failure, and legitimately so: a prose reference to a region is
+a valid thing to write. But UNCHECKED is also exactly what a *layout* mistake
+looks like from in here. The gate pairs a citation with the block that FOLLOWS
+it; an author who puts the anchor *after* its code block produces a file whose
+every citation is UNCHECKED, and the gate says OK. That is the failure mode this
+hint exists to surface: when a single file is at or above UNCHECKED_HINT_RATIO
+(and carries at least UNCHECKED_HINT_MIN citations, so a 1-of-1 file cannot trip
+it), the run prints a "疑似锚点排版不合规" note naming the file.
+
+It is a HINT, not a failure — it does not change the exit code. A file can
+legitimately be nearly all prose. Making it blocking would push authors to
+manufacture code blocks to clear a gate, which is worse than the disease.
+
+The run also prints 可校验比例 = OK / (OK + UNCHECKED + failures), the metric R8A
+put a 70% floor under. The floor is a reporting standard, not a script gate:
+the script computes and prints the number so the round report cannot fudge it.
+
 Usage:
     python3 scripts/verify_citations.py <baseline_repo> <note.md> [note.md ...]
     python3 scripts/verify_citations.py /home/user/hermes-agent notes/r7c-*.md
@@ -63,6 +82,11 @@ from pathlib import Path
 
 WINDOW = 40  # how far to search for the real location when a citation misses
 STUDY_ROOT = Path(__file__).resolve().parent.parent  # this study repo
+
+# Per-file UNCHECKED-ratio hint (see module docstring). Non-blocking.
+UNCHECKED_HINT_RATIO = 0.90
+UNCHECKED_HINT_MIN = 5  # below this many citations the ratio says nothing
+VERIFIABLE_FLOOR = 0.70  # R8A's reporting floor for OK / all citations
 
 # `gateway/run.py:1234 @ 863e313`  /  **`cron/jobs.py:10-20`**  /  path:1234
 CITE = re.compile(
@@ -320,23 +344,54 @@ def main() -> None:
 
     tally = {}
     problems = []
+    per_file = {}  # path -> {status: count}
     for arg in argv[1:]:
         note = Path(arg)
         if not note.is_file():
             print(f"skip (not a file): {note}")
             continue
+        seen = per_file.setdefault(str(note), {})
         for status, detail in check_note(repo, note, fix=fix):
             tally[status] = tally.get(status, 0) + 1
+            seen[status] = seen.get(status, 0) + 1
             if status not in ("OK", "UNCHECKED"):
                 problems.append(f"[{status}] {detail}")
 
     for p in problems:
         print(p)
+
+    # Files that are almost entirely UNCHECKED. Usually that means the anchors
+    # were written AFTER their code blocks, so the gate never paired them up and
+    # silently checked nothing. See module docstring — hint only, never fatal.
+    suspects = []
+    for path, counts in sorted(per_file.items()):
+        n = sum(v for k, v in counts.items() if k != "FIXED")
+        if n < UNCHECKED_HINT_MIN:
+            continue
+        ratio = counts.get("UNCHECKED", 0) / n
+        if ratio >= UNCHECKED_HINT_RATIO:
+            suspects.append((path, counts.get("UNCHECKED", 0), n, ratio))
+    if suspects:
+        print(
+            f"\nHINT: 疑似锚点排版不合规 —— 以下文件 UNCHECKED 占比 >= {UNCHECKED_HINT_RATIO:.0%}"
+        )
+        print("      按制度锚点 `路径:行号 @ 863e313` 应单独成行、置于代码块/引用块**之前**;")
+        print("      写在块后会让每一条引用都配不上块,于是全部记 UNCHECKED —— 关卡看起来是绿的,")
+        print("      实际一条都没校验。请逐条确认是真散文引用,还是锚点放错了位置。")
+        for path, u, n, ratio in suspects:
+            print(f"      - {path}: UNCHECKED {u}/{n} = {ratio:.1%}")
+        print("      (提示不影响退出码。)")
+
     total = sum(tally.values())
     print(
         f"\ncitations={total}  "
         + "  ".join(f"{k}={v}" for k, v in sorted(tally.items()))
     )
+    checkable = total - tally.get("FIXED", 0)
+    if checkable:
+        rate = tally.get("OK", 0) / checkable
+        flag = "" if rate >= VERIFIABLE_FLOOR else f"  << 低于 {VERIFIABLE_FLOOR:.0%} 下限"
+        print(f"可校验比例 OK/{checkable} = {rate:.1%}{flag}")
     bad = total - tally.get("OK", 0) - tally.get("UNCHECKED", 0) - tally.get("FIXED", 0)
     if bad:
         print(f"FAIL: {bad} citation(s) need fixing")
