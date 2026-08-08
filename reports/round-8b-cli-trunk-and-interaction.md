@@ -257,7 +257,7 @@ L1 由 461 文件 / 436,384 行增至 **511 文件 / 479,923 行**。
 ### 7.1 引用校验(`scripts/verify_citations.py`,全量输出)
 
 ```
-citations=1335  OK=772  UNCHECKED=563
+citations=1342  OK=775  UNCHECKED=567
 OK: every code-block-backed citation matches the baseline
 ```
 
@@ -273,7 +273,7 @@ OK: every code-block-backed citation matches the baseline
    `prompt_toolkit/....py 第 N 行 @ prompt_toolkit 3.0.52`,既保留信息又不再冒充基线引用。
 3. **两处"实跑记录"被误当成源码块**(shell 命令与 grep 输出),已与锚点隔开并注明不参与校验。
 
-### 7.2 可校验比例:**772 / 1335 = 57.8%,低于 R8A 定的 70% 下限**
+### 7.2 可校验比例:**775 / 1342 = 57.7%,低于 R8A 定的 70% 下限**
 
 **如实报告:本轮没达到这条下限**(R8A 实测 74.5%,R7C 31.7%)。
 但本轮同时发现**这个指标本身有一个必须写下来的失真**,否则下一轮会读错它:

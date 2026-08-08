@@ -1408,7 +1408,7 @@ status 同样误报不可达。
 
 **对照**:同一 handler 的 connect 分支为了 IPv6 专门用了 `discover_local_cdp_url`:
 
-`hermes_cli/cli_commands_mixin.py:2196-2210 @ 863e313`
+`hermes_cli/cli_commands_mixin.py:2197-2211 @ 863e313`
 
 ```python
 
