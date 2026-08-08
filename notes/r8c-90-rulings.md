@@ -289,3 +289,95 @@ PAIRING_DIR = get_hermes_dir("platforms/pairing", "pairing")
 **主线复核成立**(重读两处),并已把结论并进 `notes/r8c-11-hr8fixa-guard-parse-check.md` §3:
 **"把裸写点赶进收口"这个最直觉的修法修不掉 ■-R8B-12,必须动判据本身。**
 这是本轮**一条子代理发现直接改变了另一条移交项修法建议**的例子,记下来。
+
+### 5.5 维持并加重:`whatsapp_cloud` 永远进不了 cron 投递(底稿 J 新缺陷)
+
+**复核方式**:重读四处源码 + 确认平台真实性。**结论成立,并加一层底稿没点破的东西。**
+
+`whatsapp_cloud` 是一个**真实的内建平台**——`gateway/platforms/whatsapp_cloud.py` 存在,
+枚举里也有它:
+
+`gateway/config.py:284 @ 863e313`
+
+```python
+    WHATSAPP_CLOUD = "whatsapp_cloud"
+```
+
+它在"有 home 频道的平台"这张表里:
+
+`cron/scheduler.py:280 @ 863e313`
+
+```python
+    "whatsapp_cloud": "WHATSAPP_CLOUD_HOME_CHANNEL",
+```
+
+**但不在"可作为 cron 投递目标"那张表里**:
+
+`cron/scheduler.py:255 @ 863e313`
+
+```python
+_KNOWN_DELIVERY_PLATFORMS = frozenset({
+```
+
+(该 frozenset 列了 `whatsapp` 而**没有** `whatsapp_cloud`。)
+
+判定函数先查这张表、查不到就回落到**插件**注册表:
+
+`cron/scheduler.py:1017 @ 863e313`
+
+```python
+def _is_known_delivery_platform(platform_name: str) -> bool:
+```
+
+`whatsapp_cloud` 是内建、不是插件,于是恒返 False,在枚举投递目标时被跳过:
+
+`cron/scheduler.py:1127 @ 863e313`
+
+```python
+        if not _is_known_delivery_platform(name):
+```
+
+**维持底稿定性**:一个专门给它配了 home 频道环境变量的内建平台,
+**永远不会出现在 cron 投递目标里**,显式指定也静默落空。记 **■-R8C-06**。
+
+**加一层:那个空的守卫类,即便写出来也挡不住这个 bug。**
+
+底稿 J 指出全仓有个空的回归测试类,承诺守的正是这个不变量:
+
+`tests/cron/test_scheduler.py:1608 @ 863e313`
+
+```python
+class TestHomeTargetEnvVarRegistry:
+```
+
+`tests/cron/test_scheduler.py:1609 @ 863e313`
+
+```python
+    """Regression: ``_HOME_TARGET_ENV_VARS`` must include every gateway
+```
+
+**类体只有这段 docstring,一个方法都没有**(下一行就是 `class TestCronDeliveryMirror:`)。
+
+**但主线读这段 docstring 读出了一件底稿没说的事**:它承诺的不变量方向是
+**`_HOME_TARGET_ENV_VARS` ⊇ 可投递平台**——而 `whatsapp_cloud` 的毛病恰恰是**反方向**:
+它**在** `_HOME_TARGET_ENV_VARS` 里,**不在** `_KNOWN_DELIVERY_PLATFORMS` 里。
+
+**所以即便当初有人把这个类照着 docstring 写完,也抓不到这个 bug。**
+
+**这比"有个空测试类"更值得记**:空类至少还能被"这里是空的"这一眼发现;
+**一个写满了、但守错方向的测试,会让所有人相信这块已经守住了。**
+本条的教训不是"记得把测试写完",是——
+**回归测试的 docstring 写下的是"我以为的不变量",它和"真正会出事的那个不变量"是两回事。**
+
+**范围申报**:`cron/scheduler.py` 与 `tests/cron/test_scheduler.py` **不在 R8C 的 26 个文件里**
+(它们属网关侧,台账 `round` 非 R8C)。本条是在结清 H-R8B-c 时撞见的——
+该移交项本身就横跨 9 个文件、明确要求逐份对齐,故取证在范围内、定案一并记下。
+
+---
+
+## 6. 本轮新立定案索引(补)
+
+| 编号 | 一句话 | 置信度 | 证据 |
+|---|---|---|---|
+| ■-R8C-06 | 内建平台 `whatsapp_cloud` 有 home 频道变量却不在投递名单里,永远进不了 cron 投递;而那条本该守住它的回归测试是空类,且承诺的不变量还是反方向的 | 高(四处源码复核 + 底稿实测) | 本卷 §5.5 |
+| ◇-R8C-a | `PairingStore()` 与 `PairingStore(profile="default")` 在目录、解析时机、旧布局合并三个维度都不等价,无任何注释提示 | 中 | 本卷 §5.3 |

@@ -287,13 +287,15 @@ $ grep -c 'platform_registry' cli.py      -> 0
 若把移交项额外点名的第 9 份 cli.py(被误标为"运行时真值")一并计入:
   ==> 3 份:dump.py、tools_config.py、cli.py。
 
-按判定点(13 个)计,漏 is_connected 的点是 5 个:
-  cron/scheduler.py:1606        (有意 —— 投递时机,见 §5.4)
-  hermes_cli/web_server.py:8315 (有意 —— profile 隔离,见 §5.3)
-  hermes_cli/dump.py:181        ■
+按判定点(13 个)计,漏 is_connected 的点是 7 个(= §3 表里第 4/8/9/10/11/12/13 行):
+  cron/scheduler.py:1606          有意 —— 投递时机,见 §5.4
+  hermes_cli/web_server.py:8315   有意 —— profile 隔离,见 §5.3
+  hermes_cli/dump.py:181          ■
   hermes_cli/tools_config.py:2074 ■
-  hermes_cli/status.py:487+:504 ■
-  cli.py:9794                   ■
+  hermes_cli/status.py:487        ■(次要:写死表)
+  hermes_cli/status.py:504        ■(主缺陷:用 check_fn 当就绪判据)
+  cli.py:9794                     ■
+即:7 个判定点漏,其中 2 个有意、5 个判 ■。
 ```
 
 **注意 `cron/scheduler.py` 与 `hermes_cli/setup.py` 这两份最容易判错:**
