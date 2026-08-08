@@ -11,14 +11,46 @@
 
 ### 0.1 行号自验
 
-写作完成后用脚本对 **65 条锚点**逐条比对「该行实际文本是否包含我引用的内容」:
+分两轮验证,全部用脚本对着源文件跑,不靠记忆。
 
-- 检查 65 条,**错 3 条**,均已修正:
-  - `agent/agent_runtime_helpers.py:2762` → 实际 **2764**(`old_norm = ...`);
-  - `run_agent.py:656` → 实际 **657**(`cwd=_launch_cwd_for_session(source),`);
-  - `hermes_cli/cli_commands_mixin.py:992` → 实际 **993**(`if target.isdigit():`)。
-- 三条均为「相邻注释行占位」导致的 ±1~2 偏移,修正后重跑通过。
-- 正文中所有代码原文块由脚本从源文件按行号切片导出后原样粘贴,未手工重排缩进。
+**第一轮(写作前,预定锚点)**:预挑 **65 条**逐条比对「该行实际文本是否包含我要引用的内容」。
+**错 3 条**,均已修正:
+
+| 我原以为 | 实际 | 内容 |
+|---|---|---|
+| `agent/agent_runtime_helpers.py:2762` | **2764** | `old_norm = (old_provider or "")...` |
+| `run_agent.py:656` | **657** | `cwd=_launch_cwd_for_session(source),` |
+| `hermes_cli/cli_commands_mixin.py:992` | **993** | `if target.isdigit():` |
+
+三条都是「相邻注释行占位」造成的 +1~+2 偏移。
+
+**第二轮(写完后,全量回扫)**:用正则从成稿里抽出**全部** `路径:行号 @ 863e313` 锚点
+—— 共 **173 处引用 / 144 个唯一锚点** —— 逐个验证文件存在、行号在范围内,并打印实际内容人工核对。
+**行号越界 0 处**;但**内容比对又发现 5 条语义错位**(行号合法但指错了地方),已全部修正:
+
+| 我原写 | 实际 | 内容 |
+|---|---|---|
+| `agent/agent_runtime_helpers.py:1720-1722` | **1709-1712** | `agent._fallback_activated = False` 等三行重置 |
+| `agent/agent_runtime_helpers.py:2716-2717` | **2714-2715** | `agent._cached_system_prompt = None` |
+| `agent/agent_runtime_helpers.py:2738` | **2737** | `"reasoning_config": dict(...)` |
+| `cli.py:16582-16583` | **16583-16588** | slash-confirm 倒计时渲染 |
+| `hermes_state.py:5812-5814` | **5830-5831** | `order_by_last_active` 排序语义 |
+
+**第三轮(代码块逐字回比)**:对成稿里**每一个「代码围栏 + 紧跟锚点」对**(共 **48 个**),
+按锚点行号从源文件切片,与围栏内容**逐行比对**。发现 **4 处引文截断**(锚点标了 N 行、
+围栏里只抄了不到 N 行),已全部补全:
+
+| 锚点 | 问题 |
+|---|---|
+| `cli.py:9455-9466` → 改为 **9458-9466** | 锚点比引文多算了 3 行 |
+| `cli.py:3213-3215` → 改为 **3213-3216** | 引文在句中截断 |
+| `cli.py:3073-3074` → 改为 **3073-3075** | 引文在句中截断 |
+| `cli.py:7287` | 只抄了半行,已补全 |
+
+**总计:验证 144 个唯一锚点 + 48 个代码块。发现并修正 12 处问题
+(3 条行号偏移 + 5 条语义错位 + 4 处引文截断)。最终重跑:行号越界 0、代码块不匹配 0。**
+
+正文中所有代码原文块由脚本从源文件按行号切片导出后原样粘贴,未手工重排缩进。
 
 ### 0.2 实机自验(在 `/home/user/hermes-venv` 下真实执行)
 
@@ -795,7 +827,7 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
         old_model = self.model
         _one_turn_restore_snapshot = self._snapshot_model_runtime() if one_turn else None
 ```
-`cli.py:9455-9466 @ 863e313`(节选自 9455 起)
+`cli.py:9458-9466 @ 863e313`
 
 暂存与消费:
 
@@ -1122,8 +1154,13 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 `/model` 没有 `_agent_running` 守卫,意味着 agent 正在流式输出时敲 `/model x`,
 切换会**立刻**打在 `self.agent` 上(`cli.py:9497-9503 @ 863e313` 的 `agent.switch_model`),
 而 `run_conversation` 正在另一线程里用这个 agent。`switch_model` 会重建 client、清
-`_transport_cache`、改 `agent.model` / `api_mode` / caching 标志、失效 system prompt
-(`agent/agent_runtime_helpers.py:2716-2717 @ 863e313` 的 `agent._cached_system_prompt = None`)。
+`_transport_cache`、改 `agent.model` / `api_mode` / caching 标志、失效 system prompt:
+
+```
+    # ── Invalidate cached system prompt so it rebuilds next turn ──
+    agent._cached_system_prompt = None
+```
+`agent/agent_runtime_helpers.py:2714-2715 @ 863e313`
 本段代码没有任何针对「turn 进行中」的锁或延后。→ **缺陷 #15(置信度中,需跨段确认
 `run_conversation` 是否另有保护)**。
 
@@ -1332,7 +1369,7 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
   声称三处「all three go through `_list_recent_sessions(limit=10)`」以保证一致 ——
   但一致的是**函数**,不是**结果**。
 - **触发条件**:arm 与选择之间有新的 cli 源会话被创建(并发 gateway / kanban worker /
-  另一终端)。默认排序按 `started_at`(`hermes_state.py:5812-5814 @ 863e313` docstring +
+  另一终端)。默认排序按 `started_at`(`hermes_state.py:5830-5831 @ 863e313` docstring +
   `hermes_cli/session_listing.py:77 @ 863e313` 的 `order_by_last_active=bool(search)`),
   已有行相对顺序稳定,所以只有「新增」会整体移位。
 - **置信度**:**中低**。
@@ -1356,7 +1393,7 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
   可回退的 provider 变少甚至为空。
 - **锚点**:裁剪 `agent/agent_runtime_helpers.py:2764-2773 @ 863e313`;
   快照不含 `_fallback_chain`:`cli.py:8984-8995 @ 863e313`;
-  `restore_primary_runtime` 只重置 index/flag:`agent/agent_runtime_helpers.py:1720-1722 @ 863e313`。
+  `restore_primary_runtime` 只重置 index/flag:`agent/agent_runtime_helpers.py:1709-1712 @ 863e313`。
 - **触发条件**:`--once` 且新旧 provider 不同(`old_norm != new_norm`)且配置了 fallback 链。
 - **置信度**:**高**(静态链路完整)。
 
@@ -1369,7 +1406,7 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
   还原条件 `agent/agent_runtime_helpers.py:1705-1707 @ 863e313`(`is not None` 才还原);
   两份 `_primary_runtime` 构造:agent_init 版**无** `reasoning_config`
   (`agent/agent_init.py:2777-2796 @ 863e313`),switch_model 版**有**
-  (`agent/agent_runtime_helpers.py:2738 @ 863e313`)。
+  (`agent/agent_runtime_helpers.py:2737 @ 863e313`)。
   CLI 侧 `self.reasoning_config` 也不在 `cli.py:8984-8992 @ 863e313` 的键列表里。
 - **触发条件**:进程启动后**第一条** `--once` 切换(此时 `_primary_runtime` 还是 agent_init
   那份);且新旧模型的 `reasoning_effort` 覆写不同。
@@ -1405,7 +1442,7 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
   `cli.py:9652 @ 863e313` / `cli.py:9683 @ 863e313`(steer / background 都有);
   施加点 `cli.py:9495-9503 @ 863e313`。
 - **为什么可疑**:`switch_model` 会重建 client、清 transport cache、失效 system prompt
-  (`agent/agent_runtime_helpers.py:2716-2717 @ 863e313`),而 `run_conversation`
+  (`agent/agent_runtime_helpers.py:2714-2715 @ 863e313`),而 `run_conversation`
   可能正在另一线程持有同一 agent。本段无锁、无延后。
 - **触发条件**:agent 流式输出期间敲 `/model x`。
 - **置信度**:**中**(需跨段确认 `run_conversation` 侧是否另有保护;本段确实没有)。
@@ -1455,17 +1492,19 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 ```
     Bare ``print()`` output is swallowed by ``patch_stdout`` while an
     interactive ``Application`` is running, so ``/sessions`` and ``/history``
-    would render nothing.
+    would render nothing. Route through ``_cprint`` (prompt_toolkit-native)
+    in that case, and fall back to ``print`` otherwise.
 ```
-`cli.py:3213-3215 @ 863e313`
+`cli.py:3213-3216 @ 863e313`
 
 同文件另一处的说法更精确 —— 被吞的是 **ANSI 转义**,不是纯文本:
 
 ```
     Raw ANSI escapes written via print() are swallowed by patch_stdout's
-    StdoutProxy.
+    StdoutProxy.  Routing through print_formatted_text(ANSI(...)) lets
+    prompt_toolkit parse the escapes and render real colors.
 ```
-`cli.py:3073-3074 @ 863e313`
+`cli.py:3073-3075 @ 863e313`
 
 两条注释互相冲突。**定案:未在本轮实测中判定,标记为待验证**;
 但无论哪条为真,#7(不进重放缓冲)都成立。
@@ -1497,7 +1536,7 @@ def save_config_value(key_path: str, value: any) -> bool:
 **D5 — `_restore_session_cwd` docstring 声称「Idempotent and safe to call from every resume path」**
 
 ```
-        Idempotent and safe to call from every resume path.
+        Idempotent and safe to call from every resume path. When the stored
 ```
 `cli.py:7287 @ 863e313`
 
