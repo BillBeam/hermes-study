@@ -15,8 +15,11 @@
    压缩成一组**可询问的能力位**(这个平台的一条消息最长多少?能不能编辑已发消息?
    长度按什么单位数?),内核只问不猜。
 2. **接一个平台有三条成本曲线**:内建(改 16 处核心代码)、插件(改 0 处核心代码)、
-   relay 中继(连网关侧代码都不用写)。24 个平台枚举里只剩 9 个内建适配器,
-   其余是 22 个插件 + 1 个能"一对多"的中继。
+   relay 中继(连网关侧代码都不用写)。**`Platform` 枚举有 24 个成员**:1 个本机(`LOCAL`,
+   不是聊天平台)、9 个内建适配器、1 个能"一对多"的中继(`RELAY`)、13 个插件平台。
+   **另有 10 个插件平台不占枚举位**,走 `gateway/platform_registry.py` 的动态注册;
+   连同占位的那些,`plugins/platforms/` 下共 **22 个目录**(13 个枚举位对应 12 个目录
+   ——`WECOM` 与 `WECOM_CALLBACK` 共用 `wecom` 一个目录;12 + 10 = 22 ✓)。
 3. **第一层守卫**是本簇最精巧的机制:三个字典把"同一会话同时只跑一个回合"钉在
    适配器进程内。它的全部复杂度来自一件事 —— **释放锁比获取锁难得多**,
    两个 GitHub issue(#17758 段错误、#48300 永久死锁)都栽在释放路径上。
@@ -233,7 +236,7 @@ handle_message(event)
 第一层默认**不打断**当前回合 —— 它只做"命令旁路 / 入槽 / 交给网关策略机"三选一。
 真正的打断由第二层(网关)决定,再反向调进适配器
 (`gateway/platforms/base.py:4808-4813 @ 863e313`,调用点在
-`gateway/run.py:23127`、`:23131`)。仓库文档在这一点上说反了,见第 5 节 ▲1。
+`gateway/run.py:23127 @ 863e313`、`:23131`)。仓库文档在这一点上说反了,见第 5 节 ▲1。
 
 #### 为什么审批命令必须"内联"
 
@@ -467,18 +470,21 @@ await self._process_message_background(pending_event, session_key)
 模型的输入包含别人发来的消息。如果它照做,适配器会**当真去读那个文件并作为附件发出去** ——
 发给注入者本人。不需要任何工具调用,只需要在回复文本里写一个路径标记。
 
-**这条链路的守门人是 `validate_media_delivery_path`**
-(`gateway/platforms/base.py:1451-1527 @ 863e313`)。判定顺序:
+**这条链路的守门人是 `validate_media_delivery_path`**,判定顺序是:
 
-```
-1. 清洗引号/尾标点
-2. 展开 ~;非绝对路径 → 拒
-3. resolve(strict=True)   ← 符号链接在此解析,早于一切检查
+1. 清洗引号 / 尾标点
+2. 展开 `~`;非绝对路径 → 拒
+3. `resolve(strict=True)` ← **符号链接在此解析,早于一切检查**
 4. 非普通文件 → 拒
 5. 命中允许根(缓存目录 / 运营方配置)→ 放行(无条件优先)
 6. 非严格模式(默认):命中拒绝名单 → 拒;否则放行
-7. 严格模式:未命中拒绝名单 且 文件足够新 → 放行
+7. 严格模式:未命中拒绝名单 **且** 文件足够新 → 放行
 8. 其余 → 拒
+
+`gateway/platforms/base.py:1451 @ 863e313`
+
+```python
+def validate_media_delivery_path(path: str) -> Optional[str]:
 ```
 
 **第 3 步的位置是关键**:符号链接必须在**任何**包含性检查之前解析,否则
@@ -692,13 +698,29 @@ connector 在边缘先 ACK,再把真实请求顺着**已有的出站连接**转�
 
 ## 5. 地图与代码的出入
 
-本轮定案 24 条(▲ 7 / ◇ 17),全部证据在 `notes/r7b-90-doc-conflict-rulings.md`。
+本轮定案 24 条(▲ 6 / ◇ 18),全部证据在 `notes/r7b-90-doc-conflict-rulings.md`。
 这里只讲结论和它们合起来说明的事。
+*(原记 ▲ 7 / ◇ 17;▲4 经复核后降为 ◇,理由见下。总数不变。)*
 
-**▲1(上一轮移交项,本轮结案)**。开发者文档说第一层守卫"把消息入槽**并设置中断事件**"
-(`website/docs/developer-guide/gateway-internals.md:86 @ 863e313`,中文镜像同错)。
-**后半句证伪**:base.py 全文只有一处置位,且不在 `handle_message` 里,
-调用者全在第二层。按文档理解会以为"消息一进适配器就打断当前回合",恰恰相反。
+**▲1(上一轮移交项,本轮结案)**。开发者文档那一句一共讲了三件事,**其中两件是错的**
+(`website/docs/developer-guide/gateway-internals.md:86 @ 863e313`,中文镜像同错):
+
+> 1. **Level 1 — Base adapter** (`gateway/platforms/base.py`): Checks `_active_sessions`. If the session is active, queues the message in `_pending_messages` and sets an interrupt event. This catches messages *before* they reach the gateway runner.
+
+- "queues the message in `_pending_messages`" —— **对**;
+- "and sets an interrupt event" —— **证伪**:base.py 全文只有一处置位,且不在 `handle_message` 里,
+  调用者全在第二层。按文档理解会以为"消息一进适配器就打断当前回合",恰恰相反;
+- "**catches messages *before* they reach the gateway runner**" —— **同样证伪**。适配器在入槽**之前**
+  先调网关装进来的忙时策略机(`gateway/platforms/base.py:5711 @ 863e313` 的 `_busy_session_handler`,
+  由 `gateway/run.py:11096 @ 863e313`、`:12468`、`:13410` 三处装入);策略机接手了就直接返回,
+  **消息根本到不了 pending 槽**。所以忙时消息**不是**"被挡在网关之外",
+  而是"**先送进网关的策略机,它不要才落回适配器**"。
+
+> **这一条本身就是一个教训,而且代价已经付过了。** 本轮初稿只点了中间那句
+> ("sets an interrupt event"),**最后一句原样留着**。于是 R7 那一章写"忙时消息不往下送"时,
+> 正是照着这最后一句写的——**一句过时文档,一半被证伪、一半被当成已核实过而采信进了另一章**。
+> **判据:证伪一条文档断言时,该断言所在的整句/整段要一并判定**;
+> 否则未被点名的那半句会以"这里已经查过了"的名义活下来(review-1 阻断-1 / M-1)。
 
 **▲2**。同一份文档说 `/approve`、`/deny`、`/stop` 都"内联分发"。前两个是,
 `/stop` 走的是专门序列化"取消 + 应答 + 排水"的另一条路
@@ -707,20 +729,35 @@ connector 在边缘先 ACK,再把真实请求顺着**已有的出站连接**转�
 **▲3 / ▲5**。`ADDING_A_PLATFORM.md` 让你参考 `gateway/platforms/telegram.py`、
 `discord.py`、`whatsapp.py` —— **三个里两个不存在**(已迁到插件目录)。
 更有意思的是 ▲5:**同样的失效引用也出现在 `whatsapp_cloud.py` 自己的模块 docstring 里**
-(`gateway/platforms/whatsapp_cloud.py:14-19 @ 863e313`)。
+(`gateway/platforms/whatsapp_cloud.py:7-12 @ 863e313`)。
 上一轮的规律是"接线声明会说谎";本轮把它推进一格:**代码注释里的路径引用同样会腐烂,
 而且更难被发现。**
 
-**▲4**。文档把 `send_exec_approval` / `send_model_picker` / `send_choice_picker`
-列在"有基类默认桩"的标题下,并说"不覆盖就优雅降级成纯文本"。
-**基类里这三个方法根本不存在**。优雅降级是真的,但实现在**调用点的类型探测**
-(`gateway/slash_commands.py:3463 @ 863e313`)。后果具体:照文档写适配器的人会去调
-`super().send_exec_approval(...)`,得到 `AttributeError`。
+**◇4(原记 ▲4,复核后降格)**。`ADDING_A_PLATFORM.md` 用**相邻两节**讲了**两套**降级机制,
+却从不说破它们是两套:
+
+- `:103` "**Optional methods (have default stubs in base)**" —— 辖下只有五个**媒体**方法
+  (`send_document` / `send_voice` / `send_video` / `send_animation` / `send_image_file`),
+  **它们在基类里确实都有实现**,所以这个标题对它自己的表格是准确的;
+- `:113` "**Interactive UX**" —— 另一个标题,辖下五个**交互**方法,
+  唯一的承诺是 `:115` 的 "They all degrade gracefully to plain text when not overridden"。
+
+**这五个交互方法里,两个有基类桩(`send_clarify`、`send_slash_confirm`)、三个没有**
+(`send_exec_approval` / `send_model_picker` / `send_choice_picker`),而文档**对这个分界只字未提**。
+优雅降级是真的,但那三个的降级实现在**调用点的类型探测**
+(`gateway/slash_commands.py:3463 @ 863e313`)。
+
+> **为什么从 ▲ 降到 ◇。** 本章初稿写的是"文档把这三个方法列在『有基类默认桩』的标题下"——
+> **文档从来没有这么说**,那三个在另一个标题下。▲ 的定义是"文档所述与代码矛盾",
+> 矛盾不存在就立不住,而且会污染跨轮 ▲ 计数。真实缺口是**信息不全**:
+> 实现者无从判断这三个方法是"可以不写"还是"必须自己从零写"——而这正是这一节存在的目的。
+> **教训与 ▲1 同形:判定一条文档断言,得先确认它归哪个标题管——
+> 文档的层级结构本身就是断言的一部分**(review-1 阻断-4 / M-4a)。
 
 **▲6 / ▲7**。单槽被描述成"覆盖",实际有四条分支(照片连拍是**拼接**);
 `AGENTS.md` 的两层守卫条款漏掉了第一层的可插拔策略机接口。
 
-**17 条 ◇**(代码有真机制、文档无载)里最该补的三条:
+**18 条 ◇**(代码有真机制、文档无载)里最该补的三条:
 媒体投递的严格模式开关及其三个环境变量在**全部文档里零命中**(这是安全决策);
 api_server 上并存**三种**不同的鉴权来源(直接影响端口暴露决策);
 通用 webhook 支持**五种**签名方言(这是"我的 SaaS 能不能直接对接"的能力清单)。

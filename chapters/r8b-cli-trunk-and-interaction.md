@@ -331,8 +331,8 @@ agent.personalities 键数 = 1
 
 | # | 改了什么 | 谁跟上了 | 谁没跟上 | 落后方的症状 |
 |---|---|---|---|---|
-| 1 | 工具可用性字段 `missing_vars` → `env_vars` | `hermes_cli/doctor.py:2548` | `cli.py:7565` | 提示面板**从不显示**,与"一切正常"无法区分 |
-| 2 | 人格键要改从 CLI 装载器读 | `hermes_cli/commands.py:2028`、`tui_gateway/server.py:5815` | `gateway/slash_commands.py:2502` | 消息网关 `/personality` **列不出内置人格** |
+| 1 | 工具可用性字段 `missing_vars` → `env_vars` | `hermes_cli/doctor.py:2548 @ 863e313` | `cli.py:7565 @ 863e313` | 提示面板**从不显示**,与"一切正常"无法区分 |
+| 2 | 人格键要改从 CLI 装载器读 | `hermes_cli/commands.py:2028 @ 863e313`、`tui_gateway/server.py:5815 @ 863e313` | `gateway/slash_commands.py:2502 @ 863e313` | 消息网关 `/personality` **列不出内置人格** |
 | 3 | (上一轮)QQBot 环境变量改名 | 配置系统里所有地方 | `hermes_cli/status.py` | `status` 显示反的 |
 
 **三次的形状完全一致**:改动是对的、跟上的那几处也是对的,
@@ -371,8 +371,8 @@ agent.personalities 键数 = 1
 于是用户在 `/help` 里看到 `/whoami`,敲下去得到 **"Unknown command"**。
 
 **注册表决定"用户看到什么",分发链决定"用户能做什么",而两者靠人对齐。**
-更值得记的是:仓库根 `AGENTS.md:385` 声称所有消费方都从注册表**自动派生**,
-而 `AGENTS.md:402` 又要求手写一条 `elif`——**同一份文档的两句话互相矛盾,
+更值得记的是:仓库根 `AGENTS.md:385 @ 863e313` 声称所有消费方都从注册表**自动派生**,
+而 `AGENTS.md:402 @ 863e313` 又要求手写一条 `elif`——**同一份文档的两句话互相矛盾,
 而 `/whoami` 就是这个矛盾的现价**。(以代码为准:必须手写。)
 
 **第五份的分歧最大,而且是双向的。** 两个 frozenset 都在枚举"hermes 的子命令名",
@@ -547,9 +547,9 @@ TUI 发现没有终端,**打印一句提示、以退出码 0 退出**。调度�
 ## 7. 地图与代码的出入(本簇定案)
 
 - **▲-R8B-01** 两份 TUI 判定对 `HERMES_TUI=1` 的语义分类相反(explicit vs ambient),**当前被三处独立防护完全补偿,不记缺陷**。详见 §4.5。
-- **◇-R8B-b** `config.yaml` 的读取函数应从上一轮的**五个**更正为**六个**;第六个是启动最早期的 `_config_default_interface_early`(`hermes_cli/main.py:280`)。**它是唯一一个有正当理由的重复**——此时若去用共享缓存,就要把配置子系统的 import 提前到最热的启动路径上。
-- **文档冲突**:`website/docs/user-guide/configuration.md:1646` 教用户设 `display.compact`,而该键的读取分支是死代码(§3.3)。**以代码为准。**
-- **注释与代码冲突**:`cli.py:7577` 的 `except` 注释自称只防 import 错误,实际吞掉整段函数体的一切异常(§4.1)。
+- **◇-R8B-b** `config.yaml` 的读取函数应从上一轮的**五个**更正为**六个**;第六个是启动最早期的 `_config_default_interface_early`(`hermes_cli/main.py:280 @ 863e313`)。**它是唯一一个有正当理由的重复**——此时若去用共享缓存,就要把配置子系统的 import 提前到最热的启动路径上。
+- **文档冲突**:`website/docs/user-guide/configuration.md:1646 @ 863e313` 教用户设 `display.compact`,而该键的读取分支是死代码(§3.3)。**以代码为准。**
+- **注释与代码冲突**:`cli.py:7577 @ 863e313` 的 `except` 注释自称只防 import 错误,实际吞掉整段函数体的一切异常(§4.1)。
 
 ---
 

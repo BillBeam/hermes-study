@@ -15,15 +15,17 @@
    **代码里没有这条链**——这是本章最需要你记住的一件事。
 2. YAML 那一侧做得相当好:**856 个键**有权威定义、有递归深合并、有 schema 版本迁移、
    有"解析失败退回上一次好的而不是退回默认值"的安全姿态。
-3. 但**同一份 `config.yaml` 有五个读取函数**,其中两个是完整装载器,
+3. 但**同一份 `config.yaml` 有六个读取函数**(本轮清点为五个,R8B 补上了启动最早期的
+   `_config_default_interface_early`,见 `chapters/r8b-cli-trunk-and-interaction.md` §7),其中两个是完整装载器,
    **各带一份默认值、合并语义还不同**(一个递归深合并,一个只做一层 `dict.update`)。
    这不是理论问题:`hermes config set agent.reasoning_effort high` ——
    一条完全正确的命令 —— 会被告知"不是已知配置键",并收到一个**会把配置弄坏的建议**(§3.2)。
 4. 环境变量那一侧没有统一规则,**每个消费点自己决定谁先谁后**,有的还先查环境变量再查配置
    ——正好和文档说的反过来。本章开篇那个 bug 就长在这块无人区里。
    两个系统之间的桥还是**双向**的:`config.yaml` 的顶层标量会反过来变成环境变量。
-5. 最值得抄走的一条不是某个机制,而是一个**对照实验**:856 个配置键里有
-   **105 个在全部文档面上一次都没出现过**,而 151 个环境变量**一个都不缺**。
+5. 最值得抄走的一条不是某个机制,而是一个**对照实验**:856 个配置键里**至少 105 个**
+   在全部文档面上一次都没出现过(叶子名口径,该口径只会低估这个数,见 §4①),
+   而 151 个环境变量**一个都不缺**。
    差别不在纪律,在**说明文字是不是数据结构里的必填字段**。
 
 ---
@@ -392,7 +394,7 @@ def _loopback_rewrite_host(camofox_cfg: Dict[str, Any]) -> str:
         )
 ```
 
-它在 `cli.py` 的那份内联默认值里有定义(`cli.py:479`),
+它在 `cli.py` 的那份内联默认值里有定义(`cli.py:479 @ 863e313`),
 **但不在 `DEFAULT_CONFIG["agent"]` 里**。而 `hermes config set` 的键名校验
 **只认 `DEFAULT_CONFIG`**。于是——本轮实跑,原样抄录输出:
 
@@ -473,8 +475,8 @@ docstring 把意图写得斩钉截铁:
 | 调用面 | 传进去的配置 | 实际超时 |
 |---|---|---|
 | 网关 | `load_config()` | **900** ✅ |
-| CLI(`cli.py:13195`) | `CLI_CONFIG` | **120** ❌ |
-| CLI 回调(`hermes_cli/callbacks.py:32`) | `CLI_CONFIG` | **120** ❌ |
+| CLI(`cli.py:13195 @ 863e313`) | `CLI_CONFIG` | **120** ❌ |
+| CLI 回调(`hermes_cli/callbacks.py:32 @ 863e313`) | `CLI_CONFIG` | **120** ❌ |
 
 **一个为"防止漂移"而生的单一真源函数,在两个面之间漂了 780 秒。**
 函数本身一行都没写错;击穿它的是那份多出来的默认值。
@@ -545,7 +547,7 @@ GUI 那条**修好了**,注释连 issue 号带理由都写上了:
             # in MoaConfigPayload (e.g. save_traces, trace_dir) survive a GUI
 ```
 
-CLI 那条仍是整键覆盖(`hermes_cli/moa_cmd.py:127`、`:147`),
+CLI 那条仍是整键覆盖(`hermes_cli/moa_cmd.py:127 @ 863e313`、`:147`),
 **而那个 bug 的回归测试 import 的正是 GUI 那一侧**:
 
 `tests/hermes_cli/test_moa_set_models_preserves_extra_keys.py:12 @ 863e313`
@@ -803,8 +805,8 @@ SUPPORT_FLOOR_VERSION = 12
 >    这样两条规则都不用破。
 
 **顺带一条同源的**:v31 那步的注释宣布 "The new default is OFF"
-(`hermes_cli/config_migrations.py:544`),而默认值至今仍是 `"auto"`
-(`hermes_cli/config_defaults.py:158`)。后果是**同一个版本上并存两拨行为相反的用户**:
+(`hermes_cli/config_migrations.py:544 @ 863e313`),而默认值至今仍是 `"auto"`
+(`hermes_cli/config_defaults.py:158 @ 863e313`)。后果是**同一个版本上并存两拨行为相反的用户**:
 升级上来的老装被一次性改写成 `false`,全新安装拿到 `"auto"`(在 CLI/TUI/桌面上是开)。
 **迁移注释里凡出现"新默认是 X"这类跨文件断言,就该有一条测试把
 `DEFAULT_CONFIG[该键] == X` 钉住**——否则这两处永远不会一起被改,
@@ -1131,8 +1133,8 @@ dashboard 对同一个操作会正确地回 404("请求或码未找到/已过期
 另一把没有跟上,而**没有任何东西会报错**。
 
 **而测试覆盖的形状,恰好与风险分布正交。** 共用的 store 层测得很密(29 个用例);
-两层壳合起来只有 **4 个**:CLI 壳 1 个(`tests/hermes_cli/test_pairing.py:8`,全文 43 行),
-GUI 壳 3 个(`tests/hermes_cli/test_dashboard_admin_endpoints.py:256/276/316`)。
+两层壳合起来只有 **4 个**:CLI 壳 1 个(`tests/hermes_cli/test_pairing.py:8 @ 863e313`,全文 43 行),
+GUI 壳 3 个(`tests/hermes_cli/test_dashboard_admin_endpoints.py:256 @ 863e313`,另两处在 `:276`、`:316`)。
 把这 4 个用例摊开看:
 
 | | CLI 壳 | GUI 壳 |
@@ -1168,7 +1170,7 @@ GUI 壳 3 个(`tests/hermes_cli/test_dashboard_admin_endpoints.py:256/276/316`)�
 
 **这个 `except: pass` 在普通安装下几乎无害**——正常情况写 `.env` 会成功。
 **要命的是 managed(企业统一管理)安装**:那条写入路径在 managed 下**根本不抛异常**,
-而是打印一句话就 return(`hermes_cli/config.py:3865-3867`)。
+而是打印一句话就 return(`hermes_cli/config.py:3865-3867 @ 863e313`)。
 **于是在 managed 部署里,撤销的 allowlist 那一半是稳定地、静默地不生效的**,
 而运维者看到的是一句干净的成功回执。**被撤销的人下一条消息照样被放行**,
 因为并集里的另一半还在。dashboard 的 `/api/pairing/revoke` 同病——它也只看那个布尔值。
@@ -1255,8 +1257,25 @@ MoA(Mixture of Agents,多模型协同)用的是策略二:**不改文件,读的�
 
 | | 数量 | 全站零提及 |
 |---|---|---|
-| 配置键(`DEFAULT_CONFIG`) | 856 | **105** |
+| 配置键(`DEFAULT_CONFIG`) | 856 | **105(下界)** |
 | 环境变量(`OPTIONAL_ENV_VARS`) | 151 | **0** |
+
+> **这个 105 的口径与误差方向,必须和数字一起给出。** 判"有没有被提及"用的是**叶子名口径**
+> ——拿键的最后一段(`show_cost`,而不是全路径 `display.show_cost`)去全部文档面检索。
+> 为什么不用全路径:文档写的是 YAML 块,根本不用点分写法,按全路径匹配得到 0.0% 覆盖率,
+> 显然不可用(所以本章 §4 末尾**放弃**报"文档覆盖率百分比",见下)。
+>
+> **叶子名口径的偏差方向是确定的:它会高估覆盖、因而低估零提及数。** 因为 `enabled`、`timeout`
+> 这类叶子名在文档里到处都是,一个键只要叶子名撞上任何一处无关文字就会被算作"被提及过"。
+> **所以 105 是下界,真实的零提及数只会更多,不会更少。** 结论方向因此是安全的:
+> 说"至少 105 个配置键从未在任何文档面上出现过"成立,说"恰好 105 个"则未经逐条复核
+> ——本轮没有对 856 个键各做一次多口径人工检索,这一条如实申报为未做
+> (review-1 存疑-1 / M-17,仲裁裁定:保留结论,补口径与误差方向声明)。
+>
+> **为什么同一个匹配器,算百分比时判为不可用、算下界时可用:** 百分比是**双边**估计,
+> 上下界都要可信;而"零提及数的下界"是**单边**估计,只需要知道偏差往哪边走。
+> 这不是双标,是同一个工具在两种用法下的可靠性本来就不同——**但这句话得写出来,
+> 不写就是让读者自己去发现两处结论用了同一个被自己否定过的工具。**
 
 差别不是有人更勤快。配置键的说明是**自由文本注释**,正式文档写在另一个目录的
 另一个文件里,两处各自演化;环境变量的说明是**定义字面量里的必填字段**
@@ -1281,7 +1300,7 @@ MoA(Mixture of Agents,多模型协同)用的是策略二:**不改文件,读的�
 |---|---|---|
 | 配置装载(默认值 + 合并) | 2(`load_config` / `load_cli_config`) | 同一个键两个值(§3.2) |
 | `loopback_host_alias` 的默认字面量 | 3 | 把上一条的现象**盖住了**,更难发现 |
-| 顶层标量 → 环境变量的桥 | 2(`gateway/run.py:2058` / `hermes_cli/send_cmd.py:311`) | 两处必须同步演化,没有任何机制保证 |
+| 顶层标量 → 环境变量的桥 | 2(`gateway/run.py:2058 @ 863e313` / `hermes_cli/send_cmd.py:311 @ 863e313`) | 两处必须同步演化,没有任何机制保证 |
 | 读凭据的优先级 | 2(方向相反,§5 ▲-3) | 调用方挑错一个就是线上 401 |
 | 写进用户文件的注释模板 | 2(活的 `_SECURITY_COMMENT`/`_FALLBACK_COMMENT`,死的 `_COMMENTED_SECTIONS`) | **两份已经不一样了**;而死的那份名字更像正主 |
 | "cua-driver 装好没有" | 2(安装判定裸 `shutil.which`,就绪判定走规范解析器) | 同一进程两个界面**当着用户面互相打脸**:一个说没装成,一个说 ready |
@@ -1427,9 +1446,9 @@ dashboard 的密钥页;`_EXTRA_ENV_KEYS`(108 条)装那些**运行时认识、�
 > 这从来不是本意,而且因为它只在"多个候选同时有信号"时才显形,测试极难覆盖。
 
 **⑪ 配置值的合法域包含 0 / "" / [] / False 时,不能用 `or` 做兜底。**
-`hermes_logging.py:313` 的 `backups = backup_count or cfg_backup or 3` 让
+`hermes_logging.py:313 @ 863e313` 的 `backups = backup_count or cfg_backup or 3` 让
 `logging.backup_count: 0`(不留备份)静默变 3。同仓库里有写对的:
-`gateway/platforms/base.py:742` 用 `"max_inbound_media_bytes" not in gw` 判存在,`0` 能生效。
+`gateway/platforms/base.py:742 @ 863e313` 用 `"max_inbound_media_bytes" not in gw` 判存在,`0` 能生效。
 **`or` 链把"没设过"和"设成了假值"混为一谈——而对配置来说,
 "显式关掉"恰恰是用户最需要能表达的意思。**
 
@@ -1466,7 +1485,7 @@ bedrock 的 `region` / `guardrail.*` 接了线,`discovery.*` 没有;
 
 **⑬ 一个函数如果接收了配置对象,就绝不能自己再 `load_config()`。**
 本轮实测的最后一个缺陷:`hermes tools` 主流程拿着一份 config,中途调用的
-`_configure_vision_backend` 却自己重新加载(`hermes_cli/tools_config.py:4356`)、
+`_configure_vision_backend` 却自己重新加载(`hermes_cli/tools_config.py:4356 @ 863e313`)、
 改完落盘;回到主流程后,主流程把**手里那份过期副本**又存了一次
 (`:5153-5154`)。跑一遍看结果——
 
@@ -1515,9 +1534,9 @@ VALID_BUSY_POLICIES: frozenset[str] = frozenset(
 
 | 形态 | 实例 | 它承诺了什么 | 谁来兑现 |
 |---|---|---|---|
-| **名字承诺了强制力** | `VALID_BUSY_POLICIES`(`hermes_cli/commands.py:93`) | "这是合法值集合" | **没有人**——字段是裸 `str`,唯一引用它的测试 import 了却零断言 |
-| **注释承诺了完整性** | `_VALID_CUSTOM_PROVIDER_FIELDS`(`hermes_cli/config.py:1884`) | "accurately describes the supported schema" | **没有人**——生产零引用,而且已漏掉 `extra_headers` / `discover_models` |
-| **docstring 承诺了唯一性** | `atomic_config_write`(`hermes_cli/config.py:3092-3093`) | "every config-update path should use" 的单一收口 | **没有人**——最主要的写入者 `save_config` 就绕过了它 |
+| **名字承诺了强制力** | `VALID_BUSY_POLICIES`(`hermes_cli/commands.py:93 @ 863e313`) | "这是合法值集合" | **没有人**——字段是裸 `str`,唯一引用它的测试 import 了却零断言 |
+| **注释承诺了完整性** | `_VALID_CUSTOM_PROVIDER_FIELDS`(`hermes_cli/config.py:1884 @ 863e313`) | "accurately describes the supported schema" | **没有人**——生产零引用,而且已漏掉 `extra_headers` / `discover_models` |
+| **docstring 承诺了唯一性** | `atomic_config_write`(`hermes_cli/config.py:3092-3093 @ 863e313`) | "every config-update path should use" 的单一收口 | **没有人**——最主要的写入者 `save_config` 就绕过了它 |
 
 第二条还多一层,值得单独看:**它是有测试的**,但测试只断言"某些键**在**集合里"
 ——于是**集合漏键这个唯一会出事的方向,测试永远测不到**。
@@ -1545,7 +1564,7 @@ VALID_BUSY_POLICIES: frozenset[str] = frozenset(
 
 **17 项里同步失败 15 项。** 而"HERMES_HOME 在哪"这一项最能说明问题的严重程度:
 正版解析器做了两件事——取值后 `.strip()` 再判真值、平台默认在 Windows 上走
-`%LOCALAPPDATA%\hermes`(`hermes_constants.py:71` / `:53-58`);
+`%LOCALAPPDATA%\hermes`(`hermes_constants.py:71 @ 863e313` / `:53-58`);
 而 `.env` 装载器自己重抄了一行,两件都没做:
 
 `hermes_cli/env_loader.py:477 @ 863e313`
@@ -1593,9 +1612,9 @@ Windows 上则是另一个后果:其余代码存取 `%LOCALAPPDATA%\hermes`,
 
 **⑲ 排障工具里的每一项,都要能回答"它为假时说明什么";答不上来的项应当删掉,
 而不是加一句"仅供参考"保留着。** 本簇最干净的反例:`hermes status --deep` 探
-`127.0.0.1:18789` 并把结果解释成"网关在不在跑"(`hermes_cli/status.py:683,685`),
+`127.0.0.1:18789` 并把结果解释成"网关在不在跑"(`hermes_cli/status.py:683 @ 863e313,685`),
 **而网关根本不听这个端口**——全仓 18789 只属于 google_meet 插件的 node 服务,
-网关自己的存活判定用的是 PID 文件(`gateway/status.py:1-5`)。
+网关自己的存活判定用的是 PID 文件(`gateway/status.py:1-5 @ 863e313`)。
 于是它**两个方向都会错**:网关在跑但没装那个插件 → 显示 "available",读成"没起来";
 网关没跑但装了插件 → 显示 "in use",读成"在跑"。代码留了一句
 `# This is informational, not necessarily bad`——**这句话恰恰是问题所在**:
@@ -1606,7 +1625,7 @@ Windows 上则是另一个后果:其余代码存取 `%LOCALAPPDATA%\hermes`,
 **⑳ `is None` 是 Python 里正确的三态写法,却是环境变量的错误写法——
 环境里没有 `None`,只有"不存在"和"空串",而 `.env` 里写 `KEY=` 正是大家取消一个变量的方式。**
 本簇实例:`TERMINAL_CONTAINER_PERSISTENT=` 会被判成"显式设成了假",
-而不是回落配置里的 `True` 默认值(`hermes_cli/status.py:445-448`)。
+而不是回落配置里的 `True` 默认值(`hermes_cli/status.py:445-448 @ 863e313`)。
 它与原则⑪恰好互为镜像:那条是**不该用 `or`**(会把显式 `0` 当没设),
 这条是**不该只判 `None`**(会把"用空串取消"当显式假)。
 **两条合起来才是完整判据:从环境里读三态值,必须显式区分"键不存在"、"键存在但为空"、
@@ -1686,8 +1705,8 @@ docstring 说改动写成 `tools.exclude`;代码写的是 `tools.include`,并且
 > 迁移会记得改数据,常常忘了改说明。
 
 **▲-6 FAQ 把配对讲成"先到先得",而代码要求操作员批准。** FAQ 两处写着
-"First user to message in DM claims exclusive access"(`website/docs/reference/faq.md:96,411`),
-而入站消息路径能做的只有生成一个待批的码(`gateway/run.py:14479`),
+"First user to message in DM claims exclusive access"(`website/docs/reference/faq.md:96 @ 863e313,411`),
+而入站消息路径能做的只有生成一个待批的码(`gateway/run.py:14479 @ 863e313`),
 全仓两个授予点都必须由操作员从已认证侧调用。**这条错的方向是让人低估暴露面**:
 运维者会以为"我先发过消息所以别人进不来",于是**不会去看待批队列**——
 而待批队列是这套机制唯一的可观测面。**文档写访问控制时,
@@ -1700,8 +1719,8 @@ docstring 说改动写成 `tools.exclude`;代码写的是 `tools.include`,并且
 
 **▲-8 `hermes status --all` 是个死开关,而文档、`--help`、测试三处都在说它有效。**
 文档写它是 "Show all details in a shareable redacted format"
-(`website/docs/reference/cli-commands.md:554`),而 `show_status` 全文只读 `deep`
-(`hermes_cli/status.py:117`)——`all` 在该文件里只出现在两句英文散文里。
+(`website/docs/reference/cli-commands.md:554 @ 863e313`),而 `show_status` 全文只读 `deep`
+(`hermes_cli/status.py:117 @ 863e313`)——`all` 在该文件里只出现在两句英文散文里。
 **要害不是"一个开关没接线",而是三条线索合起来制造了很强的"它有效"的错觉**:
 连测试都取名 `test_show_status_all_...` 并且真的传了 `all=True`,
 测试当然会过,因为被测代码根本不看这个参数。**这与原则⑭是同一件事的两个变体。**
@@ -1712,11 +1731,14 @@ status 的脱敏**只覆盖 API key**(这一侧做得很好,有测试守着),
 SSH 主机与用户名、项目绝对路径全是明文。**问题出在"敏感"被等同于"API key"。**
 
 **▲-9 两处注释对"版本下限闸门在哪"给出相反答案。**
-注册表那边说在 `run_migrations()` 里(`hermes_cli/config_migrations.py:653`),
-实现那边明说不在、并解释了为什么故意不放在那里(`hermes_cli/config.py:2180`)。
+注册表那边说在 `run_migrations()` 里(`hermes_cli/config_migrations.py:653 @ 863e313`),
+实现那边明说不在、并解释了为什么故意不放在那里(`hermes_cli/config.py:2180 @ 863e313`)。
 以代码为准。严重度低,但值得记:**注释也有"引用失效"问题,只是它引的是函数名。**
 
-**◇ 五个 `config.yaml` 读取函数的存在本身,全站零文档。**
+**◇ 这些 `config.yaml` 读取函数的存在本身,全站零文档。**
+*(本轮清点为**五个**;R8B 复核后更正为**六个**——第六个是启动最早期的
+`_config_default_interface_early`(`hermes_cli/main.py:280 @ 863e313`),它自己做一次最小 YAML 读取。
+就地注记而非改写,是为了保留"本轮看到的是五个"这个事实;结论不受影响,反而更强。)*
 2,386 行的配置文档与仓库根的 `AGENTS.md` 都没有任何提及;文档呈现的是一个单一、
 统一的配置系统。**§2 那条"顶层标量 → 环境变量"的桥③同样零文档**——
 而它恰恰是理解"为什么根层不校验未知键"的唯一钥匙。

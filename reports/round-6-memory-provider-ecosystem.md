@@ -111,3 +111,38 @@ Discord/Slack 多平台多用户复用一个 agent 核心、会话路由、不�
 
 无阻塞事项。真跑各云记忆后端需各自 API key(honcho/mem0/supermemory/retaindb/hindsight cloud/
 openviking 云端),纯代码学习与测试不依赖它;本轮 venv + `.[dev]` + hindsight-client 下测试 659 全绿。
+
+---
+
+## 勘误(R8-fix,review-1 处置,2026-08-08)
+
+本报告正文保持历史原样,以下为经复核成立的修正。修正卡:`claude/hermes-r8fix-review-1`。
+
+1. **【M-21】§ 累计已学的加数与它自己给的和差 3**。正文第 30 行写:
+
+   > 累计已学:R2(118)+ R3(35)+ R4(35)+ R5(31)+ R6(27)= **243 文件**,R1-inventoried 降至 8287。
+
+   `118+35+35+31+27 = 246`,不是 243。**错的是 `R3(35)` 这个加数**——同一份报告 `:37-40`
+   自己写了三个 mcp_oauth 文件"从 `R3-structure` 升为 `R6-deep-read`,R3-structure 归零",
+   这三个已计入 `R6(27)`。台账实测 `R3-deep-read` 残余确为 **32**:
+
+   ```verify
+   $ awk -F'\t' 'NR>1{c[$6]++} END{for(k in c) print c[k], k}' data/ledger.tsv | sort -rn
+   8122 R1-inventoried
+     72 R2-structure
+     ...
+     32 R3-deep-read
+   ```
+
+   按 `R3(32)` 算:`118+32+35+31+27 = 243` ✓,与 `8530−243 = 8287` 也自洽。
+   **所以和与 8287 都是对的,只有那个加数没跟着减。** 应读作 **R3(32)**。
+   (`R2(118)` 复核无误:`R2-structure 72 + R2-deep-read 46 = 118`。)
+
+   **值得记的是它有正例对照**:`reports/round-5-*.md:30` 做了同一件事——把 R4 从 39 减为 35,
+   因为 4 个文件被促升。**同一个动作,R5 记得减,R6 忘了。** 手工维护的累计式没有校验,
+   下一次仍会漏;R8-fix 因此把"`R1-inventoried` 剩余"定为每轮必报项(见下),
+   它是**可从台账直接算出**的一个数,不依赖谁记得减。
+
+2. **【M-25】本报告是最后一份报了全局进度的报告**。R2–R6 每轮都报,
+   **R7 起这条线索中断五轮**。R8-fix 已恢复该制度并写进 CLAUDE.md,
+   补报的历史链见 `reports/round-8-fix-review-1.md`。

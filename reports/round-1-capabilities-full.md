@@ -339,7 +339,7 @@
 
 - **解决**:上下文窗口/最大输出/定价/能力位要么来自 models.dev 社区目录,要么要向本地端点(Ollama/LM Studio/vLLM)实时探测,还要在 context_length_exceeded 报错里反推真实上限以做逐级降档。且不能因网络失败阻塞热路径。
 - **实现**:models_dev.py 三级取数(内存缓存→磁盘缓存任意年龄→仅在完全无缓存时联网,失败退避 5 分钟,后台守护线程刷新);model_metadata.py 的 fetch_endpoint_model_metadata 向端点 /models 拉,query_ollama_num_ctx / detect_local_server_type 探测本地服务;parse_context_limit_from_error() 用多个正则从 vLLM/各家报错文本抽 max_model_len,get_next_probe_tier 走 CONTEXT_PROBE_TIERS 逐级降档;端点 blackhole 缓存避免反复打死端点。
-- **证据**:`agent/models_dev.py:11` · `agent/model_metadata.py:1518`
+- **证据**:`agent/models_dev.py:12` · `agent/model_metadata.py:1518`
   ```
     1. In-memory cache (fresh, or stale served immediately while a single
        background daemon thread refreshes)
@@ -823,7 +823,7 @@
 
 - **解决**:工具输出可能撑爆上下文窗口:单个超大结果、或多个中等结果在同一 turn 内累加超预算;简单截断会永久丢失信息。
 - **实现**:第一层各工具自截断,上限由 tool_output_limits 从 config.yaml 的 tool_output 段读取(max_bytes/max_lines/max_line_length,默认 50K/2000/2000);第二层 maybe_persist_tool_result 在结果超过 registry.get_max_result_size(默认 100K,read_file 钉死为 inf 防 persist→read→persist 死循环)时经 env.execute() 把全文写进沙箱 /tmp/hermes-results/(stdin 管道绕过 Linux 128KB MAX_ARG_STRLEN),上下文中只留 <persisted-output> 预览+路径;第三层 enforce_turn_budget 在单 turn 聚合超 200K 时按大小从大到小继续落盘直到达标。
-- **证据**:`tools/tool_result_storage.py:172-178` · `tools/tool_result_storage.py:114-116` · `tools/budget_config.py:11-13`
+- **证据**:`tools/tool_result_storage.py:171-175` · `tools/tool_result_storage.py:114-116` · `tools/budget_config.py:11-13`
   ```
       if effective_threshold == float("inf"):
           return content
@@ -936,7 +936,7 @@
   实际:代码中云元数据 IP/主机名与整个 link-local 段(_ALWAYS_BLOCKED_IPS / _ALWAYS_BLOCKED_NETWORKS 含 169.254.0.0/16)在 allow_private_urls 开启时仍无条件封禁:is_safe_url 先查 _BLOCKED_HOSTNAMES(:437),再在逐 IP 循环中『Always block cloud metadata IPs and link-local, even with toggle on』(:487-493)后才应用开关。文档声称 link-local 与 cloud-metadata 也被放行与实现不符(放行的只有 RFC1918/loopback/CGNAT)。(证据:`tools/url_safety.py:488`)
 - 宣称:website/docs/user-guide/security.md:654 — 『DNS failures are treated as blocked (fail-closed)』
   实际:is_safe_url 对 DNS 失败有代理豁免:当 HTTPS_PROXY 等代理变量已配置且主机名不是字面 IP 时,getaddrinfo 失败会 return True 放行、把解析委托给代理(『proxy configured, allowing through for proxy-side resolution』),并非一律 fail-closed。(证据:`tools/url_safety.py:466-472`)
-- 宣称:website/docs/developer-guide/tools-runtime.md:96 — 『Check results are cached per-call — if multiple tools share the same check_fn, it only runs once』(并展示每次调用直接执行 check_fn 的简化代码)
+- 宣称:website/docs/developer-guide/tools-runtime.md:91 — 『Check results are cached per-call — if multiple tools share the same check_fn, it only runs once』(并展示每次调用直接执行 check_fn 的简化代码)
   实际:check_fn 结果实际有跨调用的 30 秒 TTL 缓存(_CHECK_FN_TTL_SECONDS=30.0)且按 multiplex profile 维度隔离,另有 60 秒 last-good 宽限窗口:上次成功 60s 内的失败被判定为 flake,返回缓存的 True 且不缓存失败,防止瞬时探测抖动让整个 toolset 从 schema 中消失。文档描述的仅是最内层 per-call 去重。(证据:`tools/registry.py:216-220`)
 
 ### 2.6 终端与执行环境(terminal backends、后台进程、serverless 持久化、浏览器/桌面自动化)
@@ -2546,3 +2546,37 @@ Hermes 的界面层围绕一个中心事实组织:tui_gateway 是唯一的 UI �
 2. **prompt cache 字节级稳定**是贯穿性设计约束(api_content 侧车、冻结记忆快照、缓存感知斜杠命令),AGENTS.md 也将其列为最高设计红线,代码与宣称一致。
 3. **单体巨文件 + 循环依赖 + 函数内延迟 import** 是演化路径的代价;学习时以机制为单位切片,而不是以文件为单位。
 
+
+---
+
+## 勘误(R8-fix,review-1 处置,2026-08-08)
+
+本附卷正文保持历史原样,以下为经复核成立的修正。修正卡:`claude/hermes-r8fix-review-1`。
+
+1. **【M-8】两处引用各差 1 行,而校验脚本一直在报另一个引用**。
+
+   | 位置 | 原引用 | 实际 | 围栏块首行 |
+   |---|---|---|---|
+   | `:342` 证据行第 1 个引用 | `agent/models_dev.py:11` | **`:12`** | `Data resolution order:` 在 `:12`,不在 `:11` |
+   | `:826` 证据行第 1 个引用 | `tools/tool_result_storage.py:172-178` | **`:171-175`** | `if effective_threshold == float("inf"):` 在 `:171`,块长 5 行 |
+
+   **值得记的不是这两个 1,是为什么它们一直没被修。** 这两行各带 2–3 个并列引用,
+   而 `verify_citations.py` 的多引用逻辑是"逐个试,谁匹配算谁,都不匹配则回落到最后一个"
+   ——**回落之后的报错只印那个回落对象**。于是维护者看到的是
+   "`tools/budget_config.py:11` 找不到",而那个引用根本没错,真正漂了的是同一行的第一个。
+   本附卷 185 个"带围栏块的引用行"里有 **180 行(97.3%)** 是多引用行
+   (`notes/` 只有 1.6%,`chapters/` 为 0),**误导性报错正好集中在最早、最少人回看的这一份**。
+   R8-fix 已给脚本的 MISMATCH 文本加上"本行 N 处引用,以下为回落对象,漂的可能是另一个"。
+   行号已就地改正(否则校验器无法通过),本条即是它的公开记录。
+
+2. **【M-16b】`tools-runtime.md:96` → `:91`**(正文第 939 行)。理由同
+   `reports/round-1-survey.md` 勘误第 1 条,四处副本已同改。
+
+3. **【M-15】本附卷无结论句,现正式定为豁免**。首行是"主卷:reports/round-1-survey.md"。
+   CLAUDE.md 的"报告第一句 ≤20 字结论"自 R8-fix 起明确**豁免纯数据附卷**——
+   它是主卷的数据附件,本身不承载结论。豁免在 `scripts/verify_report_headline.py`
+   里以显式名单实现,不靠脚本猜。
+
+4. **未处理项(如实申报)**:本附卷 170 条能力点里,review-1 只抽核了 2 条(即上面 M-8 那两处),
+   **其余 168 条的代码摘录未经第二方复核**;`data/capability-mining.json` 同样未复核。
+   这是本附卷当前最大的未验面。

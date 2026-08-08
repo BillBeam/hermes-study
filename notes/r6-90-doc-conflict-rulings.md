@@ -42,8 +42,9 @@ Hermes 侧有完整 dialectic 调用编排(多 pass `peer.chat`、冷/暖提示�
 
 配置文件只写一级(实为 profile → legacy → env 三级);环境变量表缺 7 个真实生效变量;配置表缺
 timeout/idle_timeout/prefetch_waits_for_retain 等 7 键。**plugin.yaml 声明 `hooks: [on_session_end]`
-但类未实现该方法**——且全仓无代码消费 plugin.yaml 的 hooks 键(加载器只读 description),惰性
-元数据与实现双重脱节。298s 事故的现防御证实为结构性(prefetch 零网络 + 单写者队列 + root 前置
+但类未实现该方法**(实测 hindsight 只有 `plugins/memory/hindsight/__init__.py:2040` 的
+`on_session_switch`)——**这一点成立,且五家声明 hooks 的插件里只有它一家不符**,详见下方
+"元规律"的 R8-fix 改写。298s 事故的现防御证实为结构性(prefetch 零网络 + 单写者队列 + root 前置
 检查 + 120s 单调用封顶 + drop 语义读后写栅栏)。
 
 ## 定案 6 ▲ supermemory:死配置
@@ -123,5 +124,49 @@ loopback 回调"预留即持有"端口 + 粘贴回退、manager 单例 + 盘监�
 
 **本轮元规律**:插件 README 的漂移方向 100% 是"文档落后代码";最易腐烂的是**表格类宣称**
 (优先级表、数值限制表、配置项表、工具清单)——重实现时凡表格要么从代码生成、要么用测试钉死。
-plugin.yaml 的 `hooks` 键全仓无消费者,声明性元数据与分发机制脱节是系统性风险(hindsight、
-byterover、openviking 三家的 hooks 声明各自与实现不符)。
+> **R8-fix 改判(review-1 阻断-5 + 建议-12 / M-4b + M-16f)。** 原文这里写的是
+> "plugin.yaml 的 `hooks` 键全仓无消费者,加载器只读 description,声明性元数据与分发机制脱节是
+> 系统性风险(hindsight、byterover、openviking 三家的 hooks 声明各自与实现不符)"。
+> **两个论据都不成立,但换掉后的结论比原来更硬。**
+
+**证伪一:"三家都与实现不符" → 实为 1/5。** 基线里声明 `hooks:` 的 memory 插件共 **5 家**,
+逐家实测(`grep -nE "^    def on_[a-z_]+" plugins/memory/<name>/__init__.py`):
+
+| provider | plugin.yaml 声明 | 实现 | 相符? |
+|---|---|---|---|
+| byterover | `on_pre_compress` | `plugins/memory/byterover/__init__.py:345` | ✅ |
+| openviking | `on_session_end` | `plugins/memory/openviking/__init__.py:4599` | ✅ |
+| holographic | `on_session_end` | `plugins/memory/holographic/__init__.py:235` | ✅ |
+| honcho | `on_session_end` | `plugins/memory/honcho/__init__.py:1386` | ✅ |
+| **hindsight** | `on_session_end` | 只有 `:2040 on_session_switch` | **❌** |
+
+被点名的 byterover 与 openviking **都实现了自己声明的钩子**,应从名单移除。
+把 1/5 写成"三家都不符",会让下一轮带着一个**放大三倍**的风险判断开工。
+
+**证伪二:"加载器只读 description" → 清单解析器一次读 8 个字段,其中就有一个钩子字段。**
+
+`hermes_cli/plugins.py:1664 @ 863e313`
+
+```python
+                provides_hooks=data.get("provides_hooks", []),
+```
+
+`hermes_cli/plugins.py:293 @ 863e313`
+
+```python
+    provides_hooks: List[str] = field(default_factory=list)
+```
+
+**于是真实的系统性风险变了,而且变得更值钱**:schema 里的钩子字段叫 **`provides_hooks`**,
+而五家插件写的都是 **`hooks:`**——一个**非 schema 键,被解析器静默丢弃**。
+
+```verify
+$ grep -rn "provides_hooks" plugins/ ; echo "exit=$?"
+exit=1                     # bundled 插件无一使用正确键名
+```
+
+**两种诊断给后续轮次的启示正好相反**:原诊断("声明性元数据无消费者")指向**分发机制缺失**,
+会让下一轮去找"该由谁来消费 hooks";真实情况("schema 有字段,但所有人都拼错了键名,
+且拼错不报错")指向**清单缺 schema 校验**,该做的是给 manifest 加未知键告警。
+**这才是本轮想要的那条"系统性风险":键名写错零反馈,于是五家全部写错,
+四家真写了的钩子实现白写了。**

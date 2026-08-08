@@ -596,7 +596,7 @@ Hermes 的界面层围绕一个中心事实组织:tui_gateway 是唯一的 UI �
 16. website/docs/user-guide/security.md:101 — hardline 模式表『kept in sync with tools/approval.py::UNRECOVERABLE_BLOCKLIST』 → **实际**:代码中不存在 UNRECOVERABLE_BLOCKLIST 符号(grep 全仓 0 命中)(`tools/approval.py:434`)
 17. website/docs/user-guide/security.md:665 — 开启 security.allow_private_urls 后『web tools, the browser, vision URL fetches, and gateway… → **实际**:代码中云元数据 IP/主机名与整个 link-local 段(_ALWAYS_BLOCKED_IPS / _ALWAYS_BLOCKED_NETWORKS 含 169.254.0.0/16)在 allow_private_urls 开启时仍无条件封禁:is_s…(`tools/url_safety.py:488`)
 18. website/docs/user-guide/security.md:654 — 『DNS failures are treated as blocked (fail-closed)』 → **实际**:is_safe_url 对 DNS 失败有代理豁免:当 HTTPS_PROXY 等代理变量已配置且主机名不是字面 IP 时,getaddrinfo 失败会 return True 放行、把解析委托给代理(『proxy configured, allowing …(`tools/url_safety.py:466-472`)
-19. website/docs/developer-guide/tools-runtime.md:96 — 『Check results are cached per-call — if multiple tools share the same check_fn,… → **实际**:check_fn 结果实际有跨调用的 30 秒 TTL 缓存(_CHECK_FN_TTL_SECONDS=30.0)且按 multiplex profile 维度隔离,另有 60 秒 last-good 宽限窗口:上次成功 60s 内的失败被判定为 flake…(`tools/registry.py:216-220`)
+19. website/docs/developer-guide/tools-runtime.md:91 — 『Check results are cached per-call — if multiple tools share the same check_fn,… → **实际**:check_fn 结果实际有跨调用的 30 秒 TTL 缓存(_CHECK_FN_TTL_SECONDS=30.0)且按 multiplex profile 维度隔离,另有 60 秒 last-good 宽限窗口:上次成功 60s 内的失败被判定为 flake…(`tools/registry.py:216-220`)
 20. website/docs/user-guide/features/tools.md:88:『One persistent container ... The container is stopped and removed on shutdown.』 → **实际**:默认 persist_across_processes=True 时 DockerEnvironment.cleanup() 对容器是刻意的 no-op:容器在 Hermes 进程退出后继续运行(容器内后台进程存活),只在下次 Hermes 启动时由 reap…(`tools/environments/docker.py:1961`)
 21. AGENTS.md:243 目录树注释:『tools/environments/ # Terminal backends (local, docker, ssh, modal, daytona, singularity)』只列 6 种 → **实际**:代码实际含 8 个环境类:除注释列出的 6 种外还有 vercel_sandbox.py(VercelSandboxEnvironment,TERMINAL_ENV=vercel_sandbox)和 managed_modal.py(ManagedModalE…(`tools/terminal_tool.py:1764`)
 22. 工具描述与 tools-reference 均称 terminal 输出会返回给模型,未提及任何截断恢复手段(README/website 无 full_output_path 记载) → **实际**:前台命令输出超过 tool_output.max_bytes 时按 40/60 头尾窗口截断,同时完整流被 tee 到 ~/.hermes/cache/terminal-output/out-*.log(5MB 上限),结果 JSON 附 output_tot…(`tools/environments/base.py:1220`)
@@ -707,3 +707,30 @@ R2 建议打法:
 4. 顺手核销本轮 ▲ 条目中属于 R2 范围的(grace-call 死代码、max_iterations 默认值漂移等),在笔记中定案。
 
 无阻塞事项。若希望在后续轮次真跑模型(观察循环真实行为、验证流式/中断路径),请按 1.5 节提供任一模型 provider 凭据;纯代码学习路线不依赖它。
+
+---
+
+## 勘误(R8-fix,review-1 处置,2026-08-08)
+
+本报告正文保持历史原样,以下为经复核成立的修正。修正卡:`claude/hermes-r8fix-review-1`。
+
+1. **【M-16b】`tools-runtime.md:96` → `:91`**(正文第 599 行,能力点 19 的"宣称"锚点)。
+   基线 `website/docs/developer-guide/tools-runtime.md:91 @ 863e313` 才是
+   "Check results are **cached per-call**…"那一行;`:96` 是空行,`:97` 已是下一节的
+   "Toolsets are named bundles of tools…"。**结论(实为 30s TTL + 60s 宽限)不受影响**,
+   漂的只是锚点。同一个错锚点被三份产出继承(本报告、`reports/round-1-capabilities-full.md:939`、
+   `notes/r3-90-doc-conflict-rulings.md:13,43`),四处已同改——这正是本项目反复讲的
+   "同一语义多份副本"形状,出现在了自己的产出上。行号已就地改正(否则引用校验器无法通过),
+   本条即是它的公开记录。
+
+2. **【M-15】本报告首句 23 字,超出"≤20 字"**。首句为
+   「重型多面 harness,核心可学,已全仓归层」(按 R8-fix 定稿的口径:剥去
+   `一句话结论:` 标签与 Markdown 强调,**中文标点计入**,数到第一个句号)。
+   R8-fix 把这条口径写进 CLAUDE.md 并做成脚本 `scripts/verify_report_headline.py`。
+   **本报告正文首句不改写**(历史记录),脚本里以"历史豁免"显式列出并指回本条;
+   该名单就此封闭,R8-fix 之后的报告一律按 ≤20 执行。
+   合规写法示例:「重型 harness,核心可学,全仓已归层」(18 字)。
+
+3. **【M-25】本报告未受影响,但相关制度已恢复**:"`R1-inventoried` 剩余文件数 / 行数"
+   自 R7 起停报,R8-fix 已恢复为每轮必报项并写进 CLAUDE.md。当前值见
+   `reports/round-8-fix-review-1.md`。

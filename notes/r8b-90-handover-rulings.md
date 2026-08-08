@@ -1,22 +1,182 @@
 # r8b-90 · R8A 移交项定案
 
 > 溯源约定:`路径:行号 @ 863e313` + 代码原文块。实跑环境见 `notes/r8b-02`。
-> 本轮认领 R8A 移交里标注 **R8B** 的 6 条:H-1 / H-2 / H-7 / H-13 / H-14 / H-16 / H-17
+> 本轮认领 R8A 移交里标注 **R8B** 的 **7** 条:H-1 / H-2 / H-7 / H-13 / H-14 / H-16 / H-17
 > (H-1 / H-2 已在 `notes/r8b-02` 单独结清,此处只记结论)。
+> *(R8-fix 修正,review-1 建议-23 / M-27:原写"6 条"却列了 7 个编号,下方结论表也是 7 行;
+> 按 R8A 移交表,标注含 R8B 的确实是这 7 条。这落在开篇的"本轮范围"声明上,
+> 下一轮据此对账会拿到一个错的分母。)*
 
-| 移交项 | R8A 标注轮次 | 本轮结论 |
-|---|---|---|
-| H-1 | R8B | **结清**,并升格出 ■-R8B-01(详见 `notes/r8b-02` §1) |
-| H-2 | R8B | **结清**,影响面穷举 = 4 子树 / 24 叶,14 个真出事(`notes/r8b-02` §2) |
-| H-7 | R8B / R8D | **结清,负结论**(见 §1) |
-| H-13 | R8B / R8C | **部分结清 + 明确移交 R8C**(见 §4) |
-| H-14 | R8B | **结清,给出判据**(见 §3) |
-| H-16 | R8B | **结清,负结论:是有意的,而且是本仓库做对的样本**(见 §2) |
-| H-17 | R8B / R8C | **确认存在,但后果比子代理报的窄**(见 §5) |
+| 移交项 | R8A 标注轮次 | 本轮结论 | R8-fix 复核 |
+|---|---|---|---|
+| H-1 | R8B | **结清**,并升格出 ■-R8B-01(详见 `notes/r8b-02` §1) | 维持 |
+| H-2 | R8B | **结清**,影响面穷举 = 4 子树 / 24 叶,14 个真出事(`notes/r8b-02` §2) | 维持 |
+| H-7 | R8B / R8D | ~~结清,负结论~~ → **重开:负结论不成立**(见 §1.0) | **改判**,派生 H-R8FIX-a |
+| H-13 | R8B / R8C | **部分结清 + 明确移交 R8C**(见 §4) | 维持 |
+| H-14 | R8B | ~~结清,给出判据~~ → **部分结案 + 派生移交**(见 §3) | **改述**,派生 H-R8B-b |
+| H-16 | R8B | **结清,负结论:是有意的,而且是本仓库做对的样本**(见 §2) | 维持 |
+| H-17 | R8B / R8C | **确认存在**;原"后果比子代理报的窄"的收窄**部分撤销**(见 §5) | **改判** |
 
 ---
 
-## 1. H-7:没有第三个"读原始配置后落盘"的调用方(负结论)
+## 1. H-7:**重开**——第三个"读原始配置后落盘"的调用方确实存在(原负结论作废)
+
+> ### ⚠ R8-fix 重开(review-1 附录 A-1 / M-19)
+>
+> **本节原来的结论是"没有被截断。H-7 关闭。"——这个负结论不成立,现予撤销。**
+> 存在这样的第三个调用方,它不是迁移流水线,而是 `hermes_cli/auth.py` 的
+> `_update_config_for_provider`。下面的 §1.0 是重开后的定案,原 §1 正文
+> (迁移流水线那条线)**全部保留且全部成立**——它只是**没有穷举完调用点**。
+>
+> **为什么这条最重、且必须重开**:正结论错了会被下一个读者撞见;**负结论错了会关闭调查**。
+> 本卷写下"H-7 关闭",按 CLAUDE.md 的移交制度,后续轮次不会再回来看这里。
+> 而这条负结论的成立与否**完全取决于"全仓调用点有没有数全"**——那是一次 grep 的完备性,
+> 没有任何机制校验。**本轮唯一真正的方法论教训在这里,不在结论本身。**
+
+### 1.0 定案 ■-R8B-08:坏一个缩进,`approvals.deny` 静默消失
+
+**失效链**(四步,每步都在基线取过证):
+
+**第一步**,`_update_config_for_provider` 调那道守卫,然后读原始配置:
+
+`hermes_cli/auth.py:7270 @ 863e313`
+
+```python
+def _update_config_for_provider(
+```
+
+`hermes_cli/auth.py:7293 @ 863e313`
+
+```python
+    require_readable_config_before_write(config_path)
+```
+
+`hermes_cli/auth.py:7295 @ 863e313`
+
+```python
+    config = read_raw_config()
+```
+
+**第二步**,那道守卫只查**可读**,不查**可解析**——它做的全部事情就是 `stat()` 加读一个字节:
+
+`hermes_cli/config.py:3066 @ 863e313`
+
+```python
+    """Refuse to replace an existing config.yaml that cannot be read."""
+```
+
+`hermes_cli/config.py:3081 @ 863e313`
+
+```python
+            f.read(1)
+```
+
+**第三步**,`read_raw_config()` 在**解析失败**时返回空字典:
+
+`hermes_cli/config.py:2962 @ 863e313`
+
+```python
+            _warn_config_parse_failure(config_path, e)
+```
+
+`hermes_cli/config.py:2963 @ 863e313`
+
+```python
+            return {}
+```
+
+**第四步**,从 `:7295` 到 `:7329` 之间**没有任何解析检查、也没有空判**,终点是整文件替换:
+
+`hermes_cli/auth.py:7327 @ 863e313`
+
+```python
+    config["model"] = model_cfg
+```
+
+`hermes_cli/auth.py:7329 @ 863e313`
+
+```python
+    atomic_yaml_write(config_path, config, sort_keys=False)
+```
+
+**后果**:用户把 `config.yaml` 改坏(哪怕只是一个缩进),再跑一次会走到这条路的命令
+(`hermes login` 一族),落盘文件就**只剩 `model:` 一段**,其余配置——**包括 `approvals.deny`**
+——静默消失。用户失去的是**安全配置**,而失去它的动作是"登录"。
+
+### 1.1 全部调用点复核:五个裸写点,四个各自把洞堵上了,只有一个没有
+
+R8A 移交时问的是"是否存在第三个直接 `read_raw_config()` 后落盘的调用方"。
+把问题扩成"**全仓有哪些绕过 `atomic_config_write` 直接对 config 路径落盘的点,各自怎么处理解析失败**",
+答案更硬:
+
+```verify
+$ grep -rn "atomic_yaml_write(config_path\|atomic_yaml_write(get_config_path" --include=*.py . | grep -v "^./tests/"
+./hermes_cli/auth.py:7329
+./hermes_cli/auth.py:7397
+./hermes_cli/config.py:3112          # ← 这是 atomic_config_write 自己的函数体,不算绕行
+./hermes_cli/config.py:4995
+./hermes_cli/config.py:5123
+./hermes_cli/credential_lifecycle.py:174
+```
+
+逐个读过之后:
+
+| 写入点 | 函数 | 怎么读的 | 解析失败时 | 判定 |
+|---|---|---|---|---|
+| `config.py:4995` | `set_config_value` | 内联 `fast_safe_load` + 自己的 try/except | 打印 YAML 错误后 `sys.exit(1)` | ✅ fail-closed |
+| `config.py:5123` | `unset_config_value` | 同上 | 同上 | ✅ fail-closed |
+| `auth.py:7397` | `_reset_config_provider` | `read_raw_config()` | `if not config: return config_path`(`:7389`) | ✅ 有空判 |
+| `credential_lifecycle.py:174` | 凭据清理 | 内联 `fast_safe_load` + try/except | `return []` | ✅ fail-closed |
+| **`auth.py:7329`** | **`_update_config_for_provider`** | **`read_raw_config()`** | **无任何检查** | ❌ **整文件截断** |
+
+**这张表才是这条定案的真正价值。** 仓库里有**四种**把这个洞堵上的写法,
+其中一种(`auth.py:7397` 的 `if not config: return`)**就在同一个文件、隔 68 行**。
+所以这不是"团队不知道要防",而是**同一语义的五份实现里有一份没跟上**——
+R8A / R8B 反复讲的那个形状,这次落在了**安全不变式**上。
+
+### 1.2 并案:这属于 R8A ▲-10 的绕行家族,而 ▲-10 的"目前无害"结论要收回一半
+
+R8A 的 ▲-10(`notes/r8a-90` §▲-10)已经指出:`atomic_config_write` 的 docstring 自称
+"The single chokepoint every config-update path should use instead of calling
+`utils.atomic_yaml_write` directly",而 `save_config` 绕过了它。
+**`auth.py:7329` 是同一家族的第三个成员**,应并案记录。
+
+但 ▲-10 当时的定性是"**当前两条路等价,所以这不是一个现在会出事的缺陷**;它的危害在时间维度上"。
+**这半句现在要收回**:绕行点不止两个,而第三个**并不等价**——它少了空判,现在就会出事。
+▲-10 那条判据("'唯一收口'这类制度性声明,必须由一条测试或一次 grep 断言来兑现")因此从
+"预防性建议"升为"**已经兑现了代价**的判据"。
+
+**还有一层比 ▲-10 更深的**:即便老老实实走 `atomic_config_write` 这个"唯一收口",
+它跑的也只是 `require_readable_config_before_write`——**同样只查可读、不查可解析**。
+它的 docstring 也只声称守 "an unreadable-but-present file",从没声称守坏 YAML:
+
+`hermes_cli/config.py:3099 @ 863e313`
+
+```python
+    Root cause this guards: ``read_raw_config()`` returns ``{}`` for BOTH an
+```
+
+所以正确的结论不是"该走收口而没走",而是:**这个收口本身就不覆盖解析失败那一支**,
+四个安全的写入点是各自**在收口之外**补的检查。**"把所有人赶进一个收口"这个方案,
+在收口能力不足时反而会制造虚假的安全感**——这是本条相对 ▲-10 的增量。
+
+### 1.3 与 r8a 那条安全叙事的正面冲突
+
+`chapters/r8a-configuration-surface.md` 用整节讲"解析失败退回上一次好的,而不是退回默认值",
+理由原文是"配置里有 `approvals.deny`……退回默认值等于**用户存了个错别字,防线就自己拆了**"。
+**那一节讲的是 `load_config`;而这条路走的是 `read_raw_config`,它返回 `{}`。**
+同一个安全不变式,在另一条读取路径上根本不成立。r8a 那节的机制描述没错,
+错的是**把它当成了全局不变式**——它只是 `load_config` 这一条路径上的不变式。
+
+### 1.4 移交
+
+**H-7 重开,并派生 H-R8FIX-a(见 §7)**:本轮只定案 `auth.py:7329` 一处并复核了五个裸写点;
+**没有**做的是"给 `require_readable_config_before_write` 补解析检查是否会破坏
+'全新安装 / 空文件'语义"这项设计判断,也没有跑运行时复现(本卡不改被测仓库、不建 venv)。
+
+---
+
+## 1.9 原 §1 正文(迁移流水线那条线,结论仍成立,仅作废其"H-7 关闭"的推论)
 
 **R8A 的问题**:`require_readable_config_before_write`(`hermes_cli/config.py:3065`)
 只检查文件**可读**不检查**可解析**;`set/unset_config_value` 各自补了解析检查,
@@ -54,7 +214,10 @@ after  sha1 = acd488cb7918c808514ffaf15eab2beaa903fcee   after  bytes = 137
 RESULT: 文件逐字节未改
 ```
 
-**没有被截断。H-7 关闭。**
+**迁移流水线这条路上没有被截断——这一点仍然成立。**
+*(R8-fix:原文此处写的是"H-7 关闭"。**该推论作废**:没被截断的是**迁移流水线**,
+而 H-7 问的是"有没有第三个调用方"。答案是有,见 §1.0。**只证伪了一个候选,
+不等于穷举了候选集**——这正是负结论最容易犯的错。)*
 
 **但"为什么没被截断"值得单独记一笔,因为它不是写路径上的守卫拦住的。**
 坏 YAML 下版本检查的返回是:
@@ -257,9 +420,50 @@ R8A 从 ■-11 得到的教训是"凡依赖'这个键没被设过'的判断,必�
 `:191` / `:228` 在 `:184` 的锁内;**`:615` / `:653` 与 `:251` 都在锁外**
 ——三条改写路径里**只有一条持锁**。
 
-**但"缓存被空 dict 覆盖"这个说法不成立,应予收窄。**
-`_APPLIED_HOMES` 是 `set`,`:251` 是 `.clear()` 而非赋值,全程没有"用空 dict 覆盖"的写法;
-且 CPython 下 `set.add` / `in` / `dict.clear` 都是 GIL 原子操作,**不会撕裂出损坏的容器**。
+**关于"缓存被空 dict 覆盖":原判整体收窄,现予部分撤销。**
+
+> ### ⚠ R8-fix 修正(review-1 附录 A-2 / M-20)
+>
+> 本节原来写的是:"`_APPLIED_HOMES` 是 `set`,`:251` 是 `.clear()` 而非赋值,
+> **全程没有'用空 dict 覆盖'的写法**"。**这个全称否定与基线矛盾,收窄失去了它声明的依据。**
+>
+> 原判只核了 `_APPLIED_HOMES` **一个容器**,而 R8A 说的是这条路径写的**那批全局字典**。
+> 无锁那条路径上就有一次**无守卫的整体赋值**:
+>
+> `hermes_cli/env_loader.py:664 @ 863e313`
+>
+> ```python
+>         values: dict[str, str] = {}
+> ```
+>
+> `hermes_cli/env_loader.py:669 @ 863e313`
+>
+> ```python
+>         _SECRET_SOURCE_VALUES_BY_HOME[home_key] = values
+> ```
+>
+> `values` 只收 `name in os.environ` 的项,**完全可以是空 dict**
+> (provenance 有项、但值都不在环境里)。而**加锁的孪生写法恰恰有守卫**:
+>
+> `hermes_cli/env_loader.py:236 @ 863e313`
+>
+> ```python
+>     if values:
+> ```
+>
+> **这道 `if values:` 的有无,正是本节自己确认的那个"锁不对称"的另一面**——
+> 不只是锁,连空值守卫也只加在了两条路里的一条上。
+>
+> **为什么这条要算错而不是算不精确**:收窄一条移交项等于**缩小后续轮次的排查面**,
+> 而这里收窄的理由是一个**可被一行代码推翻**的全称否定,被收掉的恰好是
+> "无锁路径会写空字典"——**H-17 原本要查的就是这件事**。
+> 教训与 §1 的负结论同源:**"全仓没有 X" 这类断言的成本,等于一次 grep 的完备性;
+> 写下它之前必须把搜索面写出来,否则它只是"我没看见"的另一种说法。**
+
+**收窄后仍然成立的部分**:`_APPLIED_HOMES` 这**一个**容器确实是 `set`、`:251` 确实是
+`.clear()` 而非赋值,这一处不涉及空 dict 覆盖;且 CPython 下 `set.add` / `in` / `dict.clear`
+都是 GIL 原子操作,**不会撕裂出损坏的容器**。
+**被撤销的是把这一处的结论推广成全称判断。**
 
 **真正成立的后果有两条:**
 
@@ -282,10 +486,14 @@ R8A 从 ■-11 得到的教训是"凡依赖'这个键没被设过'的判断,必�
 **整体不是原子的**。清到一半时另一线程完成 `:653` 的 `add`,可能留下
 "home 已标记为 applied、但 `_SECRET_SOURCES` 已被清空"的组合。
 
-**定案 ■-R8B-02(中置信)**:锁不对称属实,后果是**重复拉取 + 非原子重置**,
-**不是**容器损坏。**未在运行时复现**——需要一个能让两个线程同时首次触达同一 home 的
-真实场景(R8A 猜的网关热重载 + 首轮路由是合理候选,但本轮没有构造出来)。
+**定案 ■-R8B-02(中置信,R8-fix 修订后)**:锁不对称属实,成立的后果有**三**条——
+**(a) 重复拉取**、**(b) 非原子重置**、**(c) 无锁路径 `:669` 对
+`_SECRET_SOURCE_VALUES_BY_HOME[home_key]` 的无守卫整体赋值可写入空 dict,
+而加锁孪生 `:236` 有 `if values:` 守卫**。
+不成立的只有"容器被撕裂损坏"这一种读法。**未在运行时复现**——需要一个能让两个线程
+同时首次触达同一 home 的真实场景(R8A 猜的网关热重载 + 首轮路由是合理候选,本轮没有构造出来)。
 **按 R8A 立的规矩,报"代码确证、运行时未复现",不写成已复现。**
+**(c) 使 H-17 的原判在此成立,故本条对 R8C 的移交范围恢复到收窄前。**
 
 ---
 
@@ -404,4 +612,26 @@ gateway                                in DEFAULT_CONFIG: True
 |---|---|---|---|
 | H-R8B-a | R11 复盘 | `hermes_cli/config_defaults.py:2129`(顶层死键 `personalities`)+ `hermes_cli/config.py:4660` | 顶层 `personalities` 无任何读取点,而其注释("add your own entries here")把用户往错的层级引;`_OPEN_DICT_TOP_LEVEL_KEYS` 又为这个错层级免除了校验告警。该不该删属配置面收尾判断 |
 | H-R8B-b | R11 复盘 | `hermes_cli/status.py` R8A 定位的 8 处无保护调用点 | §3 已给"该不该罩"的判据,**逐处落实未做** |
-| H-R8B-c | R8C | 平台就绪判定的 8 份实现(表见 R8A `notes/r8a-90` §3.6) | 逐份对齐的清点未做,落点与 web 面重叠更大 |
+| H-R8B-c | R8C | 平台就绪判定("某平台是否配好了")的 8 份实现 —— `gateway/config.py`、`cron/scheduler.py`、`hermes_cli/gateway.py`、`hermes_cli/setup.py`、`hermes_cli/web_server.py`、`hermes_cli/dump.py`、`hermes_cli/tools_config.py`、`hermes_cli/status.py`;运行时真值那一份在 `cli.py:9789`(仓库根 `cli.py`)。原表见 R8A `notes/r8a-90` §3.6 | 逐份对齐的清点未做,落点与 web 面重叠更大 |
+| **H-R8FIX-a** | **R8C / R8D** | `hermes_cli/config.py:3065`(`require_readable_config_before_write` 只 `stat()` + `read(1)`)+ `hermes_cli/auth.py:7329` | H-7 重开后剩下的设计判断:**给该守卫补一道解析检查会不会破坏"全新安装 / 空文件"语义**?五个裸写点里四个各自在收口之外补了检查(见 §1.1),说明"补在收口里"可能才是对的落点,但没有验证过。**本卡未做运行时复现**(不改被测仓库、未建 venv) |
+
+> **R8-fix 修正(review-1 建议-22 / M-26)**:H-R8B-c 的"锚点"列原来**只有一句描述加一个
+> 指向另一份文档表格的指针,没有任何文件路径**——正是 CLAUDE.md 明令禁止的形态。
+> 更麻烦的是被指向的 `notes/r8a-90` §3.6 那 8 个位置**全是裸文件名、无行号**,
+> 而歧义比评审位报的还大——本卡实测四个名字在基线里都有多个候选:
+> `gateway.py` 2 个、`dump.py` 2 个、`status.py` 3 个、`setup.py` **4 个**
+> (评审位说 `setup.py` 两处、`dump.py` 仓库根不存在,方向对,数少了)。
+> **所以 R8C 拿到这条时仍需重新定位,移交项的目的落空。**
+> 上面已把 8 个位置全部展开为可解析路径,判定依据是"哪一份真的在读平台 env 表":
+>
+> ```verify
+> $ for f in hermes_cli/gateway.py hermes_cli/subcommands/gateway.py setup.py hermes_cli/setup.py \
+>            hermes_cli/dump.py hermes_cli/subcommands/dump.py hermes_cli/status.py gateway/status.py ; do
+>     printf "%s  %s\n" "$(grep -c TELEGRAM_BOT_TOKEN $f)" "$f" ; done
+> 1  hermes_cli/gateway.py          0  hermes_cli/subcommands/gateway.py
+> 0  setup.py                       5  hermes_cli/setup.py
+> 1  hermes_cli/dump.py             0  hermes_cli/subcommands/dump.py
+> 1  hermes_cli/status.py           0  gateway/status.py
+> ```
+> 同表的 H-R8B-a 是达标写法(给了 `config_defaults.py:2129` + `config.py:4660`),
+> **作者知道怎么写,只是这一条没写**——所以这是执行问题,不是标准不清。

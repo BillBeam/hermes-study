@@ -168,3 +168,27 @@ R7 移交给 R7C 的四项(authz 层级、pairing 本体、kanban steer、`scale
    这类偏移在纯子代理流程里没有第二道关。
 3. 若下一轮想让文档定案更省力,可优先寻找 R7C 范围内是否存在类似
    `test_contract_doc_conformance.py` 的"文档即测试",按有无此类测试**分流**审查强度。
+
+---
+
+## 勘误(R8-fix,review-1 处置,2026-08-08)
+
+本报告正文保持历史原样,以下为经复核成立的补记。修正卡:`claude/hermes-r8fix-review-1`。
+
+1. **【M-25】本报告漏报了全局进度,现补报。** R2–R6 每轮都报"`R1-inventoried` 剩余",
+   **R7 起中断五轮**(R7 / R7B / R7C / R8A / R8B 全文 grep `累计已学` 与 `R1-inventoried` 零命中),
+   只报本轮文件数与五层快照。**而五层快照几乎不动**——L3 / L4 / LT 连续五轮一字未改——
+   于是读者从报告里**读不出"还剩多少没开工"**。
+   CLAUDE.md 的最终目的第 3 条("全仓每个源文件都被明确交代,没有黑洞")的**唯一可观测指标
+   恰恰是台账的 `status` 列,不是分层列**。报了不变的那个数,停报了会变的那个数。
+
+   本轮(R7B)补报:**处理 37 个文件;`R1-inventoried` 由上一轮收口值降至 8234。**
+   该值按各轮 `status` 计数从 R6 自报的 8287 逐轮推出,并与台账当前实测收口一致:
+
+   ```verify
+   $ awk -F'\t' 'NR>1{c[$6]++} END{for(k in c) print c[k], k}' data/ledger.tsv | sort -rn | head -1
+   8122 R1-inventoried
+   # 8287 −16(R7) −37(R7B) −47(R7C) −15(R8A) −50(R8B) = 8122 ✓
+   ```
+
+   R8-fix 已把"`R1-inventoried` 剩余文件数与行数"恢复为**每轮报告必报项**并写进 CLAUDE.md。
