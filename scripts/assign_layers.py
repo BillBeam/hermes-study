@@ -276,14 +276,24 @@ RULES = [
     ("hermes_cli/pairing.py", "L1", "R8A"),            # 配对批准入口(门外那把钥匙)
     ("hermes_cli/subcommands/pairing.py", "L1", "R8A"),
 
-    # R8B:CLI 主干与子命令树
-    ("cli.py", "L2", "R8B"),
-    ("hermes_bootstrap.py", "L2", "R8B"),
-    ("hermes_cli/main.py", "L2", "R8B"),
-    ("hermes_cli/cli_commands_mixin.py", "L2", "R8B"),
-    ("hermes_cli/cli_billing_mixin.py", "L2", "R8B"),
-    ("hermes_cli/cli_agent_setup_mixin.py", "L2", "R8B"),
-    ("hermes_cli/subcommands/**", "L2", "R8B"),
+    # R8B:CLI 主干与子命令树(本轮执行)。全部由 L2 促升 L1,理由同 R8A:
+    # 轮次主题本体留在 L2,与「本轮达成 L1 完成标准」直接冲突。
+    ("cli.py", "L1", "R8B"),
+    ("hermes_bootstrap.py", "L1", "R8B"),
+    ("hermes_cli/main.py", "L1", "R8B"),
+    ("hermes_cli/cli_commands_mixin.py", "L1", "R8B"),
+    ("hermes_cli/cli_billing_mixin.py", "L1", "R8B"),
+    ("hermes_cli/cli_agent_setup_mixin.py", "L1", "R8B"),
+    # R8B 开轮增补 2 个文件(理由见 reports/round-8b-*.md §1):
+    # (a) _parser.py 就是 R8B 自己的范围描述里那句"argparse 子命令树"的本体
+    #     ——顶层 parser 与 chat 子 parser 都在它里面(hermes_cli/_parser.py:1-11)。
+    #     它当初落进 R8D 只是因为规则表没点名它、被 `hermes_cli/**` 兜底吃掉。
+    # (b) profiles.py 是 R8A 报告 §1 明确写了"留 R8B"的文件(多实例隔离,决定
+    #     读哪一份配置),而规则表同样漏了点名。`--profile/-p` 在 argparse 之前
+    #     就被 main._apply_profile_override 消费掉,与主干耦合极紧,必须同处理。
+    ("hermes_cli/_parser.py", "L1", "R8B"),
+    ("hermes_cli/profiles.py", "L1", "R8B"),
+    ("hermes_cli/subcommands/**", "L1", "R8B"),
 
     # R8C:dashboard 与 web 面
     ("hermes_cli/web_server.py", "L2", "R8C"),
