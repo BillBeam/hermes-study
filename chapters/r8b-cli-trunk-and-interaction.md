@@ -398,7 +398,43 @@ agent.personalities 键数 = 1
 > 于是第三条(`/whoami`)照样漏出来。
 > **只修实例不修判据,下一个实例一定还会来。**
 
-### 4.4 一个反例:靠"每处再防一次"撑住的不一致
+### 4.4 同一段代码搬了个家,含义就变了 —— 一个已发货的 bug
+
+前面两副面孔说的都是"两处内容不一致"。**最后这个实例更狠:两处内容完全一致,含义却不同。**
+
+`cli.py` 曾经是个上万行的巨文件,后来把一批斜杠命令处理器**逐字搬进** mixin 模块。
+搬运本身"一字未改",而**恰恰是一字未改让它坏了**:
+
+`hermes_cli/cli_agent_setup_mixin.py:520 @ 863e313`
+
+```python
+            # Store reference for atexit memory provider shutdown.
+            # NOTE: this MUST write to the ``cli`` module's global, not a
+            # local module global. ``_run_cleanup`` (in cli.py) reads
+            # ``cli._active_agent_ref`` to decide whether to fire the memory
+            # provider's ``on_session_end`` hook. When this code lived in
+            # cli.py a bare ``global _active_agent_ref`` worked; after the
+            # god-file extraction into this mixin a ``global`` here would bind
+            # *this module's* namespace, leaving ``cli._active_agent_ref`` None
+            # forever — so memory shutdown never ran on /exit (#49287).
+```
+
+**故事**:`global _active_agent_ref` 在 `cli.py` 里指的是 `cli` 模块的全局变量;
+同一行搬进 mixin 之后,它指的是 **mixin 模块**的全局变量。
+清理逻辑仍然去读 `cli._active_agent_ref`,**永远读到 `None`**,
+于是 `/exit` 时**记忆(memory)提供方的会话结束钩子从来没被触发过**。
+症状是"退出后记忆没存下来"——离病根(一个 `global` 关键字的作用域)隔着整个模块边界。
+
+修法是放弃 `global`,显式写目标模块:`import cli as _cli` 再 `_cli._active_agent_ref = self.agent`。
+
+> **可迁移的一条**:**`global` 声明的含义依赖"这段代码住在哪个模块"**,
+> 因此它是重构中**最不安全的一类语句**——移动它不会报错、不会告警,类型检查也看不出来,
+> 只会安静地开始写另一个变量。
+> 拆巨文件时,**先把所有 `global` 换成显式的模块限定写法,再动刀**。
+> 更一般地:**凡"含义取决于所在位置"的语法(`global`、相对 import、`__file__`、
+> `Path(__file__).parent`),在搬家式重构里都要先消灭掉。**
+
+### 4.5 一个反例:靠"每处再防一次"撑住的不一致
 
 不是所有不一致都会出事。主干里有**两份** TUI 判定,相距 2,100 行,
 对同一个环境变量 `HERMES_TUI=1` 的分类**恰好相反**:一份叫它 explicit(用户此刻明确要求),
@@ -510,7 +546,7 @@ TUI 发现没有终端,**打印一句提示、以退出码 0 退出**。调度�
 
 ## 7. 地图与代码的出入(本簇定案)
 
-- **▲-R8B-01** 两份 TUI 判定对 `HERMES_TUI=1` 的语义分类相反(explicit vs ambient),**当前被三处独立防护完全补偿,不记缺陷**。详见 §4.4。
+- **▲-R8B-01** 两份 TUI 判定对 `HERMES_TUI=1` 的语义分类相反(explicit vs ambient),**当前被三处独立防护完全补偿,不记缺陷**。详见 §4.5。
 - **◇-R8B-b** `config.yaml` 的读取函数应从上一轮的**五个**更正为**六个**;第六个是启动最早期的 `_config_default_interface_early`(`hermes_cli/main.py:280`)。**它是唯一一个有正当理由的重复**——此时若去用共享缓存,就要把配置子系统的 import 提前到最热的启动路径上。
 - **文档冲突**:`website/docs/user-guide/configuration.md:1646` 教用户设 `display.compact`,而该键的读取分支是死代码(§3.3)。**以代码为准。**
 - **注释与代码冲突**:`cli.py:7577` 的 `except` 注释自称只防 import 错误,实际吞掉整段函数体的一切异常(§4.1)。
