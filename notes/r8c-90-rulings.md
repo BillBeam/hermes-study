@@ -167,3 +167,125 @@ if _config_path.exists():
 | ■-R8C-03 | 同一个 `config.yaml`:读端点 403,写端点 200 —— 读不到却能改写 `approvals.deny` | 高(实测) | `notes/r8c-12-*` §6 |
 | ■-R8C-04 | 鉴权豁免前缀名单 10 条无边界检查,同一函数对另一张表却做了精确匹配 | 中(潜伏,当前零暴露) | 本卷 §3 |
 | ■-R8C-05 | `PUT /api/config` 无键名名单,`PUT /api/env` 有;且 config 顶层标量在 import 时进环境变量 | 高(主线独立复现) | 本卷 §2 |
+
+---
+
+## 5. 主线复核子代理条目(逐条,含改判)
+
+按本卷开头的口径,凡子代理给出 ■ 级断言,主线独立重跑或重读。**下面记录复核结论,含两处改判。**
+
+### 5.1 维持:登录页不认反代前缀(底稿 B ■-2)
+
+**复核方式**:重读源码。**结论成立。**
+
+服务端渲染的登录页把 URL 写成了根绝对路径:
+
+`hermes_cli/dashboard_auth/login_page.py:428 @ 863e313`
+
+```python
+      fetch('/auth/password-login', {
+```
+
+`hermes_cli/dashboard_auth/login_page.py:491 @ 863e313`
+
+```python
+                f'href="/auth/login?provider={html.escape(p.name, quote=True)}{next_qs}">'
+```
+
+而同一进程里 SPA 那条路**是认前缀的**:
+
+`hermes_cli/web_server.py:16070 @ 863e313`
+
+```python
+    def _serve_index(prefix: str = ""):
+```
+
+**维持底稿的定性**:把 dashboard 挂在路径前缀下(如 `/hermes/`)反代时,
+登录页发出的请求会打到 `/auth/…` 而不是 `/hermes/auth/…`。
+这是**可用性缺陷**,不是安全缺陷——**又是一处"同一件事两份实现,只有一份处理了前缀"**。
+
+### 5.2 有条件采信:前缀里的控制字符触发 500(底稿 B ■-3)
+
+底稿称 `normalise_prefix` 放行 `\x7f` 一类控制字符,进而让 `set_cookie` 抛 `CookieError`、
+未认证请求得到 500;并**自己申报**:该路径在 `httptools` 解析器下被 400 挡掉,
+只有 `h11` 解析器会穿透,而 `pyproject.toml` 依赖的是 `uvicorn[standard]`(带 httptools),
+**故默认配置下不可达**。
+
+**主线未独立重跑这一条**(需要切换 uvicorn 的解析器实现)。
+**按其自陈的边界采信**:记为潜伏项,默认部署下不成立。**如实标注"主线未复核"。**
+
+### 5.3 改判:配对库的 profile 语义 —— ▲ 撤销,◇ 加重
+
+底稿 C 对 `hermes_cli/web_server.py:12296` 那句 docstring 判了 ▲(文档与代码矛盾)。
+**主线撤销这个 ▲,同时把它的 ◇ 从一条差异加重到三条。**
+
+**先看那句话:**
+
+`hermes_cli/web_server.py:12296 @ 863e313`
+
+```python
+    ``PairingStore`` resolves the profile's home itself (``default`` maps back
+```
+
+**撤销 ▲ 的理由**:代码里 `profile == "default"` 确实解析到 `get_default_hermes_root()`,
+也就是全局库。**这句话字面为真。** 按 CLAUDE.md 的记号定义,▲ 是"文档所述与代码**矛盾**",
+而 R8-fix 增补 ◎ 时立的规矩是"**字面为真就不是 ▲**"——
+这句话的问题是**不完整**(它没说"不传 profile"和"传 default"不是一回事),不是错。
+**判 ▲ 会污染跨轮 ▲ 计数,那是衡量地图腐烂程度的指标。**
+
+**加重 ◇ 的理由**:主线读完两条分支,发现"不传 profile"与"传 `default`"**差三件事,不是一件**。
+
+入口:
+
+`hermes_cli/web_server.py:12304 @ 863e313`
+
+```python
+    if not requested or requested.lower() == "current":
+```
+
+`hermes_cli/web_server.py:12305 @ 863e313`
+
+```python
+        return PairingStore()
+```
+
+不传 profile 时走的是 `else` 分支,直接用一个**模块级常量**:
+
+`gateway/pairing.py:437 @ 863e313`
+
+```python
+            self._dir = PAIRING_DIR
+```
+
+`gateway/pairing.py:59 @ 863e313`
+
+```python
+PAIRING_DIR = get_hermes_dir("platforms/pairing", "pairing")
+```
+
+**三条差异:**
+
+1. **目录不同**:`default` 走 `get_default_hermes_root()`(根);不传 profile 走
+   `PAIRING_DIR`,而后者绑的是**当前 HERMES_HOME**。dashboard 跑在具名档位下时,
+   这是两个目录。(底稿 C 已实测 `SAME? False`,主线复核代码路径一致。)
+2. **解析时机不同**:`PAIRING_DIR` 在 `gateway/pairing.py:59` **模块级求值**,
+   即 import 时冻结;而具名分支是**每次构造时惰性解析**。
+   多档网关用 `set_hermes_home_override` 在运行期改 home——**改不动已经冻住的那个常量**。
+   **这一条两个底稿都没提。**
+3. **旧布局合并不同**:具名分支之后有一段"合并 old/new 布局,防止升级把批准名单劈成两半"
+   的处理(`gateway/pairing.py:439-442` 的注释自陈),**`else` 分支没有**。
+   于是老版本升上来的用户,走"不传 profile"这条路可能看不到旧的批准记录。
+   **这一条两个底稿也都没提。**
+
+**改判后的定案**:记 **◇-R8C-a**(代码有、文档无,中置信)——
+`PairingStore()` 与 `PairingStore(profile="default")` 在**目录、解析时机、旧布局合并**
+三个维度上都不等价,而调用方 `_pairing_store`(`hermes_cli/web_server.py:12303`)
+把"不传"和"传 current"合并成同一条路,**没有任何注释提示这三条差异**。
+
+### 5.4 采信并已并入 H-R8FIX-a:收口与手写守卫等价(底稿 I ◎-2)
+
+底稿 I 查出 `atomic_config_write`(`hermes_cli/config.py:3089`)跑的就是同一道
+`require_readable_config_before_write`,与 `hermes_cli/auth.py:7293` 手写的那对**能力等价**。
+**主线复核成立**(重读两处),并已把结论并进 `notes/r8c-11-hr8fixa-guard-parse-check.md` §3:
+**"把裸写点赶进收口"这个最直觉的修法修不掉 ■-R8B-12,必须动判据本身。**
+这是本轮**一条子代理发现直接改变了另一条移交项修法建议**的例子,记下来。

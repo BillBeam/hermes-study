@@ -8,10 +8,10 @@
 
 ## 0. 结论摘要(先给答案)
 
-1. **移交项里的一处定位是错的**:`cli.py:9789` **不是**运行时真值,它是 `/gateway` 斜杠命令的
-   打印函数,判据只有 `pconfig.enabled`,是全部 13 个判定点里**最弱**的一份。
-   真正的运行时真值是 `gateway/config.py:963` `get_connected_platforms()` →
-   `gateway/config.py:980` `_is_platform_connected()`。
+1. **移交项里的一处定位是错的**:仓库根 `cli.py` 里被点名的那一份**不是**运行时真值,
+   它是 `/gateway` 斜杠命令的打印函数,判据只有 `pconfig.enabled`,是全部 13 个判定点里**最弱**的一份。
+   真正的运行时真值是 `gateway/config.py` 的 `get_connected_platforms()` →
+   `_is_platform_connected()`。锚点与原文见 §2。
 2. **原问的答案:除 `status` 外,移交项点名的 8 份里还有 2 份漏了 `is_connected`
    ——`hermes_cli/dump.py`、`hermes_cli/tools_config.py`。**
    若把移交项额外点名的第 9 份 `cli.py` 一并计入,则是 **3 份**。
@@ -203,10 +203,10 @@ setup.py                               lines=74     TELEGRAM_BOT_TOKEN=0 is_conn
 **记住这一句:它自己调了 `discover_plugins()`。** §7 会看到 `hermes_cli/status.py` 恰恰没调,
 后果是灾难性的两面性。
 
-### 2.3 ▲ 移交项定位纠正:`cli.py:9789` 不是运行时真值
+### 2.3 ▲ 移交项定位纠正:仓库根 `cli.py` 那一份不是运行时真值
 
-`cli.py:9789` 落在 `_show_gateway_status()`(`/gateway` 斜杠命令的打印函数)里,
-就是 `config = load_gateway_config()` 那一行。它下面的判定是:
+移交项给的 `cli.py:9789` 落在 `_show_gateway_status()`(`/gateway` 斜杠命令的打印函数)里,
+正好是 `config = load_gateway_config()` 那一行。它下面的判定是:
 
 `cli.py:9794 @ 863e313`
 
@@ -237,9 +237,10 @@ $ grep -c 'TELEGRAM_BOT_TOKEN' cli.py     -> 2   (9795 与 9830,均在此函数�
 $ grep -c 'platform_registry' cli.py      -> 0
 ```
 
-**结论:移交项写的"运行时真值那一份在 `cli.py:9789`"应改为
-"运行时真值在 `gateway/config.py:963`/`:980`;`cli.py:9789` 是第 13 个、也是最弱的一个判定点"。**
-后文一律以 `gateway/config.py:980` 为对齐基准。
+**结论:移交项写的"运行时真值那一份在仓库根 `cli.py`"应改为
+"运行时真值在 `gateway/config.py` 的 `get_connected_platforms`/`_is_platform_connected`;
+仓库根 `cli.py` 那一份是第 13 个、也是最弱的一个判定点"。**
+后文一律以 §2.2 引的 `_is_platform_connected` 为对齐基准。
 
 ---
 
@@ -248,6 +249,7 @@ $ grep -c 'platform_registry' cli.py      -> 0
 移交项点名 8 个文件 + 运行时真值文件,共 9 个文件;其中 3 个文件各含 2 个判定点,
 故判定点共 **13 个**。「达到 `is_connected`」= 该判定**直接调** `entry.is_connected`,
 或**经由** `_is_platform_connected` / `get_connected_platforms` **间接调到**。
+下表每行的 `文件:行号` 是该判定点的入口锚点;每一处的**代码原文**在 §2、§4、§5、§7 逐个给出。
 
 | # | 文件:行号 | 函数 / 入口 | 判据用了什么 | 覆盖哪些平台 | 与 `gateway/config.py:980` 真值的差异 | 用户可见现象 | 判定 |
 |---|---|---|---|---|---|---|---|
@@ -356,7 +358,7 @@ $ grep -c 'platform_registry' cli.py      -> 0
 
 ## 5. 逐处差异:■ 缺陷 还是 有意
 
-### 5.1 `gateway/config.py:2575` 启用闸门 —— **有意**,且是全仓最好的注释
+### 5.1 `gateway/config.py` 插件启用闸门 —— **有意**,且是全仓最好的注释
 
 `gateway/config.py:2522 @ 863e313`
 
@@ -375,7 +377,7 @@ $ grep -c 'platform_registry' cli.py      -> 0
 
 依据充分:这段注释**逐字定义**了 `check_fn` 与 `is_connected` 的语义差,
 并**点名** `_platform_status` 是同一 bug class 的先例。
-**这就是判定 `status.py:504` 为 ■ 的直接依据——它是这个 bug class 的第三例,没被修。**
+**这就是判定 §7 那一份为 ■ 的直接依据——它是这个 bug class 的第三例,没被修。**
 
 `check_fn` 还有**副作用**,这一点是本条移交项的隐藏爆点:
 
@@ -397,11 +399,11 @@ $ grep -c 'platform_registry' cli.py      -> 0
                     continue
 ```
 
-**"unconditional sweep over every registered platform" —— 这正是 `hermes_cli/status.py:504`
+**"unconditional sweep over every registered platform" —— 这正是 §7.1 那段插件块
 现在还在做的事。** 桌面端 boot-loop(卡在 94%)的病根被从 `load_gateway_config()` 里摘掉了,
 但同一段代码形状在 `status.py` 里原封不动地留着。
 
-### 5.2 `hermes_cli/gateway.py:5431` —— **有意**,但有一处 ◎ 保守
+### 5.2 `hermes_cli/gateway.py` 的 `_platform_status` —— **有意**,但有一处 ◎ 保守
 
 `hermes_cli/gateway.py:5437 @ 863e313`
 
@@ -463,7 +465,7 @@ def _is_connected(config) -> bool:
     return bool(str(token).strip())
 ```
 
-### 5.3 `hermes_cli/web_server.py:8315` scoped 分支 —— **有意**,依据是代码里写着的
+### 5.3 `hermes_cli/web_server.py` 的 profile-scoped 分支 —— **有意**,依据是代码里写着的
 
 `hermes_cli/web_server.py:8315 @ 863e313`
 
@@ -510,7 +512,7 @@ def _is_connected(config) -> bool:
 
 `web_server.py` 是 8 份里**唯一**逐字复用真值函数的一份,应作为其余各份的改造范本。
 
-### 5.4 `cron/scheduler.py:1606` 投递路径 —— **有意**
+### 5.4 `cron/scheduler.py` 的实际投递路径 —— **有意**
 
 `cron/scheduler.py:1606 @ 863e313`
 
@@ -528,7 +530,7 @@ def _is_connected(config) -> bool:
 `delivery_errors`。**"列举用严判据、执行让它响亮地失败"是合理分工,判有意。**
 唯一瑕疵是错误文案 `not configured/enabled` 把两件事混说,但那是文案问题。
 
-### 5.5 `hermes_cli/dump.py:181` —— ■
+### 5.5 `hermes_cli/dump.py` 的 `_configured_platforms` —— ■
 
 `hermes_cli/dump.py:181 @ 863e313`
 
@@ -569,15 +571,25 @@ def _configured_platforms() -> list[str]:
    诊断工具撒谎,比没有诊断工具更坏——这是判 ■ 而非 ◎ 的理由。
 
 另外三处从属缺陷:
-- `matrix` 查的是 `MATRIX_HOMESERVER_URL`,而 `_platform_status` 查的是 `MATRIX_HOMESERVER`
-  (`hermes_cli/gateway.py:5490`),**两份对同一个平台用了不同的变量名**。
-- 单变量判定对多变量平台是错的:`weixin` 真值要求 `account_id` **且** token
-  (`gateway/config.py:984`),这里只查 `WEIXIN_ACCOUNT_ID`。
+- 单变量判定对多变量平台是错的:`weixin` 真值要求 `account_id` **且** token(§2.2 瀑布第一级),
+  这里只查 `WEIXIN_ACCOUNT_ID`。
+- `matrix` 查的是 `MATRIX_HOMESERVER_URL`,而已修的孪生查的是 `MATRIX_HOMESERVER`,
+  **两份对同一个平台用了不同的变量名**:
+
+`hermes_cli/gateway.py:5489 @ 863e313`
+
+```python
+    if platform.get("key") == "matrix":
+        homeserver = get_env_value("MATRIX_HOMESERVER")
+        password = get_env_value("MATRIX_PASSWORD")
+        if (val or password) and homeserver:
+```
+
 - 闭集,漏 `bluebubbles` / `yuanbao` / `whatsapp_cloud` / `webhook` / `api_server` /
   `msgraph_webhook` / `relay`,以及全部插件专有平台(irc / teams / ntfy / google_chat /
   line / photon / raft / simplex / buzz / a2a)。
 
-### 5.6 `hermes_cli/tools_config.py:2074` —— ■
+### 5.6 `hermes_cli/tools_config.py` 的 `_get_enabled_platforms` —— ■
 
 `hermes_cli/tools_config.py:2074 @ 863e313`
 
@@ -605,17 +617,29 @@ def _get_enabled_platforms() -> List[str]:
 
 1. 用户用 IRC(插件平台,配好了、gateway 里能用)。
 2. 跑 `hermes tools`,想给 IRC 单独收紧工具集。
-3. `_get_enabled_platforms()` 里根本没有 `irc` 分支,`_platform_toolset_summary` 因此
-   不给它建条目(`hermes_cli/tools_config.py:2098`)。
+3. `_get_enabled_platforms()` 里根本没有 `irc` 分支,`_platform_toolset_summary` 因此不给它建条目:
+
+`hermes_cli/tools_config.py:2097 @ 863e313`
+
+```python
+    if platforms is None:
+        platforms = _get_enabled_platforms()
+
+    summary: Dict[str, Set[str]] = {}
+    for pkey in platforms:
+        summary[pkey] = _get_platform_tools(config, pkey)
+    return summary
+```
+
 4. **用户在 UI 里看不到 IRC,无法为它配置逐平台工具集**;IRC 会话继续吃默认工具集。
 5. 现象是"功能对某些平台不存在",而非报错——用户只会以为自己不会用。
 
 同一失效对 signal / matrix / mattermost / email / sms / feishu / wecom / weixin /
 bluebubbles / yuanbao / dingtalk / homeassistant 以及全部插件平台成立(共 18 个,见 §6.1)。
 
-### 5.7 `cli.py:9794` —— ■(轻,但语义是错的)
+### 5.7 仓库根 `cli.py` 的 `_show_gateway_status` —— ■(轻,但语义是错的)
 
-判据只有 `pconfig.enabled`。**`enabled` 与 "configured" 不是一回事**——真值函数存在的全部理由
+判据只有 `pconfig.enabled`(原文见 §2.3)。**`enabled` 与 "configured" 不是一回事**——真值函数存在的全部理由
 就是这两者要分开。用户在 config.yaml 里写了 `platforms.discord.enabled: true` 但没给 token 时:
 
 - `/gateway` 打印 `✓ Discord      Enabled`
@@ -757,10 +781,20 @@ delivery platforms with NO home env var (can be named but never resolve a home t
 ```
 
 **失效链**:用户设了 `WHATSAPP_CLOUD_HOME_CHANNEL`(这个变量名存在、被 `_resolve_home_env_var`
-认识)→ 期望 cron 能投到 WhatsApp Cloud → `cron_delivery_targets()` 在
-`cron/scheduler.py:1127` 被 `_is_known_delivery_platform` 拦掉 → dashboard 下拉框里
-**没有这个选项**;`_resolve_single_delivery_target` 在 `cron/scheduler.py:1231` 同样返回 `None`
-→ **投递静默落空**(`deliver=whatsapp_cloud` 解析成 None,当作 local 处理)。
+认识)→ 期望 cron 能投到 WhatsApp Cloud → `cron_delivery_targets()` 的过滤(§4 已引那段的末两行
+`if not _is_known_delivery_platform(name): continue`)把它拦掉 → dashboard 下拉框里**没有这个选项**。显式指定 `deliver=whatsapp_cloud` 也一样:
+
+`cron/scheduler.py:1231 @ 863e313`
+
+```python
+    if not _is_known_delivery_platform(platform_name):
+        return None
+    chat_id = _get_home_target_chat_id(platform_name)
+    if not chat_id:
+        return None
+```
+
+→ 返回 `None`,**投递静默落空**(当作 local 处理)。
 修法是一行:把 `"whatsapp_cloud"` 加进 `_KNOWN_DELIVERY_PLATFORMS`。
 
 反向的 4 个(`homeassistant` / `webhook` / `wecom_callback` / `yuanbao`)是**合法投递名但无 home 变量**,
@@ -818,7 +852,18 @@ delivery platforms with NO home env var (can be named but never resolve a home t
 
 ### 7.2 (c) 的两面性:同一段代码,两个进程,两种表现
 
-实测 A —— `hermes status` 子命令(`hermes_cli/main.py:4576` 懒导入 `show_status`):
+实测 A —— `hermes status` 子命令。它对 `show_status` 是懒导入,别的什么都没导:
+
+`hermes_cli/main.py:4574 @ 863e313`
+
+```python
+def cmd_status(args):
+    """Show status of all components."""
+    from hermes_cli.status import show_status
+
+    show_status(args)
+```
+
 
 ```console
 $ python -c "import hermes_cli.main; import hermes_cli.status; <count plugin_entries>"
@@ -837,8 +882,32 @@ plugin_entries() after show_status ran: 0
 irc、teams、ntfy、google_chat、line、photon、raft、simplex、buzz、a2a……)在
 `hermes status` 里**根本不出现**,哪怕配好了、正在收发消息。
 
-实测 B —— CLI / agent 进程内的 `/status`(`hermes_cli/console_engine.py:1273`)。
-该进程导入 `model_tools`,而 `model_tools.py:231-232` 会跑 `discover_plugins()`:
+实测 B —— CLI / agent 进程内的 `/status`,走的是同一个 `show_status`:
+
+`hermes_cli/console_engine.py:1273 @ 863e313`
+
+```python
+def _status(_engine: HermesConsoleEngine, args: list[str]) -> str:
+    _expect_no_args(args, "status")
+    from types import SimpleNamespace
+
+    from hermes_cli.status import show_status
+
+    output = _capture_output(lambda: show_status(SimpleNamespace(all=False, deep=False)))
+    return _strip_console_status_footer(output)
+```
+
+差别只在于:这个进程导入了 `model_tools`,而 `model_tools` 在模块顶层就跑了发现:
+
+`model_tools.py:229 @ 863e313`
+
+```python
+# Plugin tool discovery (user/project/pip plugins)
+try:
+    from hermes_cli.plugins import discover_plugins
+    discover_plugins()
+```
+
 
 ```console
 $ python -c "import model_tools; <count>; then run show_status()"
@@ -930,7 +999,7 @@ plugins where status.py says configured but is_connected says NOT: 7
 
 **23 个插件平台全部注册了 `is_connected` 钩子**(上表 `is_connected()` 列无一为 `None`)——
 也就是说 `status.py` 每一次用 `check_fn` 都是在**覆盖一个现成的、更准确的信号**,
-从来不是 `gateway.py:5451` 注释里说的"没有钩子只好回落"的情形。
+从来不是 §5.2 那段注释里说的"没有钩子只好回落"的情形。
 
 `discord` / `telegram` / `slack` / `teams` 这 4 个之所以现在是 False,只因本容器**没装它们的 SDK**
 (§1.2)。把 SDK 标志置为可用后:
@@ -981,8 +1050,8 @@ B) Same PlatformEntry, same env (no credentials):
 
 ### 7.5 ■ 第二重:pip 副作用
 
-`status.py:508` 的 `entry.check_fn()` 无条件扫描,对 adapter 插件会**触发 pip 安装**
-(§5.1 的 `gateway/config.py:2625` 注释逐字描述了这个副作用与它造成的桌面端 boot-loop)。
+§7.1 那段插件块里的 `entry.check_fn()` 无条件扫描,对 adapter 插件会**触发 pip 安装**
+(§5.1 引的那段注释逐字描述了这个副作用与它造成的桌面端 boot-loop)。
 本轮所有探针都把 `tools.lazy_deps.ensure` 换成了 no-op,**故意没有让它真的装**——
 所以上表 `check_fn()` 那一列对 SDK 未装的平台读到 False。
 在真实用户机器上,`/status` 会为**每一个**未装 SDK 的平台尝试 pip 安装。
@@ -1016,10 +1085,55 @@ $ HERMES_PYTHON=/home/user/hermes-venv/bin/python bash scripts/run_tests.sh \
 
 | 测试 | 钉住了 | 没钉住 |
 |---|---|---|
-| `tests/gateway/test_startup_no_eager_platform_install.py` | `_apply_env_overrides` 必须先问 `is_connected` 再跑会装包的 `check_fn` | **只覆盖 `gateway/config.py` 一处**;`status.py:508` 的同形代码不在射程内 |
-| `tests/hermes_cli/test_setup_irc.py:82` | `_platform_status` 对插件平台的 configured 判定 | 只验 IRC 一个平台;不与其他 7 份对拍 |
-| `tests/gateway/test_platform_connected_checkers.py:14` | 每个内置平台要么有 checker 要么走通用 token 路径 | 只管 `gateway/config.py` 内部 |
-| `tests/cron/test_scheduler.py:1592` | `cron_delivery_targets` 用 `get_connected_platforms` 筛选 | 只喂 matrix/telegram 两个;不覆盖 `whatsapp_cloud` 缺口 |
+| `test_startup_no_eager_platform_install.py` | `_apply_env_overrides` 必须先问 `is_connected` 再跑会装包的 `check_fn` | **只覆盖 `gateway/config.py` 一处**;§7.1 的同形代码不在射程内 |
+| `test_setup_irc.py` | `_platform_status` 对插件平台的 configured 判定 | 只验 IRC 一个平台;不与其他 7 份对拍 |
+| `test_platform_connected_checkers.py` | 每个内置平台要么有 checker 要么走通用 token 路径 | 只管 `gateway/config.py` 内部 |
+| `test_scheduler.py::TestCronDeliveryTargets` | `cron_delivery_targets` 用 `get_connected_platforms` 筛选 | 只喂 matrix/telegram 两个;不覆盖 `whatsapp_cloud` 缺口 |
+
+三份钉住判定的测试逐字如下,可见射程之窄:
+
+`tests/hermes_cli/test_setup_irc.py:82 @ 863e313`
+
+```python
+    def test_irc_status_configured_when_env_set(self, monkeypatch):
+        """After the user sets IRC_SERVER and IRC_CHANNEL, status is 'configured'."""
+        import hermes_cli.gateway as gateway_mod
+
+        plat = _register_irc_platform()
+        try:
+            monkeypatch.setenv("IRC_SERVER", "irc.libera.chat")
+            monkeypatch.setenv("IRC_CHANNEL", "#hermes")
+            monkeypatch.setenv("IRC_NICKNAME", "hermes-bot")
+
+            status = gateway_mod._platform_status(plat)
+            assert status == "configured"
+```
+
+`tests/gateway/test_platform_connected_checkers.py:14 @ 863e313`
+
+```python
+def test_all_builtins_have_checker_or_generic_token_path():
+    """Every built-in Platform member must be reachable by either:
+
+    1. The generic ``config.token or config.api_key`` check, OR
+    2. A platform-specific entry in ``_PLATFORM_CONNECTED_CHECKERS``.
+```
+
+`tests/cron/test_scheduler.py:1592 @ 863e313`
+
+```python
+    def test_lists_configured_platforms_flagging_missing_home_channel(self, monkeypatch):
+        from cron.scheduler import cron_delivery_targets
+
+        self._patch_connected(monkeypatch, ["matrix", "telegram"])
+        monkeypatch.delenv("MATRIX_HOME_ROOM", raising=False)
+        monkeypatch.delenv("TELEGRAM_HOME_CHANNEL", raising=False)
+
+        targets = {t["id"]: t for t in cron_delivery_targets()}
+
+        assert set(targets) == {"matrix", "telegram"}
+```
+
 
 `tests/gateway/test_startup_no_eager_platform_install.py:1 @ 863e313`
 
@@ -1149,7 +1263,7 @@ Test* classes total=6572, docstring-only(empty)=14
 
 1. **"配没配好"必须是一个函数,不是一种写法。** 本仓库有 13 个判定点、9 套平台清单,
    根因是每个消费方都**自己写了一遍**,而不是调同一个函数。
-   `hermes_cli/web_server.py:8333` 直接调 `_is_platform_connected` 是唯一正确的范式。
+   §5.3 里 dashboard 非 scoped 分支直接调 `_is_platform_connected`,是唯一正确的范式。
 2. **区分"依赖装了吗"和"凭据配了吗",并且不要让前者能覆盖后者。**
    `check_fn` / `is_connected` 的分裂在本仓库造成了至少 3 次同类事故
    (`_platform_status` 修于 7849a3d73、`_apply_env_overrides` 修于 #31116、
@@ -1160,8 +1274,23 @@ Test* classes total=6572, docstring-only(empty)=14
    探针必须是纯读的;安装应是显式动作。
 4. **依赖隐式初始化顺序的代码会在不同进程里给出不同答案。**
    `status.py` 读注册表却不触发发现,于是同一段代码在 `hermes status` 里是死码、
-   在 CLI `/status` 里全错。**要读注册表,就自己负责把它填好**——
-   `gateway/config.py:1005` 和 `hermes_cli/web_server.py:8070` 都这么做了。
+   在 CLI `/status` 里全错。**要读注册表,就自己负责把它填好**——真值那一份(§2.2 末段的
+   插件回落块)和 dashboard 都这么做了,后者还把理由写在注释里:
+
+`hermes_cli/web_server.py:8065 @ 863e313`
+
+```python
+    try:
+        # Plugin discovery only runs as a side effect of importing
+        # model_tools; this server process doesn't do that, so trigger it
+        # explicitly (idempotent) or plugin_entries() is empty here and
+        # every plugin platform renders nameless.
+        from hermes_cli.plugins import discover_plugins
+
+        discover_plugins()
+        from gateway.platform_registry import platform_registry
+```
+
 5. **写下了标题的回归守卫,如果没有正文,比没有更坏。**
    `TestHomeTargetEnvVarRegistry` 让人以为该不变量被守着,而它守的那个缺口
    (`whatsapp_cloud`)现在就是破的。
@@ -1170,24 +1299,86 @@ Test* classes total=6572, docstring-only(empty)=14
 
 ## 11. 本段未覆盖 / 存疑(锚点文件 + 行号 + 一句话现象)
 
-1. **`hermes_cli/gateway.py:5446` 合成 `PlatformConfig(enabled=True)` 的真实影响面未量化。**
-   现象:`_platform_status` 用空壳 cfg 问 `is_connected`,对"只写 config.yaml token、
-   不设环境变量"的平台可能低报为 not configured;我核了 telegram / ntfy / teams 三个
+1. **`hermes_cli/gateway.py` 用合成 `PlatformConfig(enabled=True)` 探测,真实影响面未量化。**
+   现象:§5.2 引的那段里 `synthetic = PlatformConfig(enabled=True)` 是个空壳,对"只写 config.yaml
+   token、不设环境变量"的平台可能低报为 not configured;我核了 telegram / ntfy / teams 三个
    `is_connected` 都做了 env 双读所以不受影响,**其余 20 个插件未逐个核**。
-2. **`hermes_cli/status.py:495` 的 QQBot back-compat 分支是死代码。**
-   现象:`if not home_channel and home_var == "QQBOT_HOME_CHANNEL"` —— 但同文件
-   `:483` 给 QQBot 配的 `home_var` 是 `"QQ_HOME_CHANNEL"`,永远不等于 `"QQBOT_HOME_CHANNEL"`,
-   该分支恒不成立。与 `cron/scheduler.py:287` 的 `_LEGACY_HOME_TARGET_ENV_VARS` 方向相反
-   (那边以 QQBOT_ 为主、QQ_ 为 legacy)。未展开判定是 ■ 还是无害。
-3. **`gateway/config.py:849` `Platform.WEBHOOK` 的 checker 是 `lambda cfg: True`。**
-   现象:webhook 平台**永远**算 connected,只要 `enabled`。未核这是否会让
-   `get_connected_platforms()` 在用户没配 webhook 时也把它列进"已连接平台"从而进入
-   系统提示词(与 `gateway/session.py:3465` 的消费有关)。
-4. **`hermes_cli/web_server.py:3277` `"configured": len(gateway_platforms)`。**
-   现象:`/api/status` 的健康摘要把"平台条目数"当成"已配置数"上报,
-   与本段 13 个判定点用的语义都不同;未核该数字的实际来源与用户可见面。
-5. **`cron/scheduler.py:4087` `delivery_outcome = "not_configured"`。**
-   现象:cron 执行记录里有一个 `not_configured` 结局码,未核它与 §5.4 那条
-   `enabled`-only 判定的对应关系,也未核它是否会把"配好但发送失败"误记为"没配"。
+
+2. **`hermes_cli/status.py` 的 QQBot back-compat 分支是死代码。**
+   现象:分支条件要求 `home_var == "QQBOT_HOME_CHANNEL"`,但同文件 §7.1 引的写死表里给 QQBot 配的
+   `home_var` 是 `"QQ_HOME_CHANNEL"`,两者永不相等,该分支恒不成立。
+
+`hermes_cli/status.py:494 @ 863e313`
+
+```python
+        # Back-compat: QQBot home channel was renamed from QQ_HOME_CHANNEL to QQBOT_HOME_CHANNEL
+        if not home_channel and home_var == "QQBOT_HOME_CHANNEL":
+            home_channel = os.getenv("QQ_HOME_CHANNEL", "")
+```
+
+   方向还与 cron 那边相反(cron 以 `QQBOT_` 为主、`QQ_` 为 legacy):
+
+`cron/scheduler.py:283 @ 863e313`
+
+```python
+# Legacy env var names kept for back-compat.  Each entry is the current
+# primary env var → the previous name.  _get_home_target_chat_id falls
+# back to the legacy name if the primary is unset, so users who set the
+# old name before the rename keep working until they migrate.
+_LEGACY_HOME_TARGET_ENV_VARS = {
+    "QQBOT_HOME_CHANNEL": "QQ_HOME_CHANNEL",
+}
+```
+
+   未展开判定是 ■ 还是无害(取决于 QQBot 用户实际设的是哪个名字)。
+
+3. **`Platform.WEBHOOK` 的 connected-checker 恒为 True。**
+   现象:webhook 平台只要 `enabled` 就永远算 connected,凭据一概不看。
+
+`gateway/config.py:849 @ 863e313`
+
+```python
+    Platform.WEBHOOK: lambda cfg: True,
+```
+
+   未核这是否会让 `get_connected_platforms()` 把未配置的 webhook 也列进"已连接平台",
+   进而进入系统提示词——该结果被 `gateway/session.py` 消费:
+
+`gateway/session.py:3465 @ 863e313`
+
+```python
+    connected = config.get_connected_platforms()
+```
+
+4. **`/api/status` 把"平台条目数"当成"已配置数"上报。**
+   现象:健康摘要里的 `"configured"` 取的是 `len(gateway_platforms)`,与本段 13 个判定点用的
+   语义都不同;未核该字段的实际来源与用户可见面。
+
+`hermes_cli/web_server.py:3275 @ 863e313`
+
+```python
+        components["platforms"] = {
+            "status": "ok" if platforms_ok else "degraded",
+            "configured": len(gateway_platforms),
+            "connected": sum(
+                1 for state in platform_states if state in {"connected", "running", "ok"}
+            ),
+        }
+```
+
+5. **cron 执行记录里有一个 `not_configured` 结局码,与 §5.4 的 `enabled`-only 判定关系未核。**
+   现象:它的触发条件是 `unresolved_origin`(解析不出投递目标),而不是"平台没配好",
+   未核它是否会把"配好但发送失败"或"平台名不在 `_KNOWN_DELIVERY_PLATFORMS`"(§6.2)误记为"没配"。
+
+`cron/scheduler.py:4085 @ 863e313`
+
+```python
+            delivery_outcome = "failed"
+        elif should_deliver and unresolved_origin:
+            delivery_outcome = "not_configured"
+        elif should_deliver and normalized_deliver != "local":
+```
+
 6. **未覆盖 TS/前端侧。** 现象:`web/` 与 `tests-js/` 下可能另有一份平台就绪判定
-   (dashboard 前端很可能自己也判一次 state),本段搜索面只含 `*.py`。
+   (dashboard 前端很可能自己也判一次 state),本段搜索面(§9.1)只含 `*.py`,
+   未对 `web/` 做任何 grep,这是一条**明确的未搜索面**,不是负结论。
