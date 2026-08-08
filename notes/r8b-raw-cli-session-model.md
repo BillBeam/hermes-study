@@ -167,6 +167,8 @@ WORKER-THREAD(带活 event loop, 外部应答) result='once' restored=True state
 
 #### 实现与失败姿态
 
+`cli.py:7299-7316 @ 863e313`
+
 ```
         recorded = (session_meta or {}).get("cwd")
         if not recorded:
@@ -209,8 +211,6 @@ WORKER-THREAD(带活 event loop, 外部应答) result='once' restored=True state
         else:
             self._console_print(f"[dim]{_escape(msg)}[/dim]")
 ```
-`cli.py:7318-7335 @ 863e313`
-
 **失败姿态结论(回答前提 3)**:记录的目录不存在 → 打印一行 dim 提示、**留在当前目录**、
 **不抛异常**。`os.chdir` 本身失败(权限、竞态删除)同样降级为提示。这两条都符合注释承诺
 (`cli.py:7294-7298 @ 863e313` 的 docstring:"A missing directory degrades to a single dim warning rather than a crash — repos get moved and deleted")。**前提 3 的这一半是真的。**
@@ -248,6 +248,8 @@ import 期由 config bridge 写入的值。对 local backend 这恰好等于 `os
 
 `run_agent.py:649-658 @ 863e313`
 
+`run_agent.py:649-660 @ 863e313`
+
 ```
             self._session_db.create_session(
                 session_id=self.session_id,
@@ -262,12 +264,12 @@ import 期由 config bridge 写入的值。对 local backend 这恰好等于 `os
             )
             self._session_db_created = True
 ```
-`run_agent.py:649-660 @ 863e313`
-
 写入端**已经**做了 backend 守卫:非 local 后端不记录 cwd。读取端 `_restore_session_cwd`
 **没有**对称守卫 —— 这是缺陷 #6 的根。
 
 #### `/new` 创建的会话没有 cwd
+
+`cli.py:8248-8262 @ 863e313`
 
 ```
             if self._session_db:
@@ -286,8 +288,6 @@ import 期由 config bridge 写入的值。对 local backend 这恰好等于 `os
                 except Exception:
                     pass
 ```
-`cli.py:8248-8262 @ 863e313`
-
 这里 `create_session(...)` **不传 `cwd`**,并且紧接着把 `_session_db_created` 置 `True`。
 而 agent 侧唯一会补 `cwd` 的入口 `run_agent.py:_ensure_db_session` 的第一件事是:
 
@@ -314,6 +314,8 @@ import 期由 config bridge 写入的值。对 local backend 这恰好等于 `os
 
 #### 代码
 
+`cli.py:7559-7577 @ 863e313`
+
 ```
         try:
             from model_tools import check_tool_availability
@@ -335,9 +337,9 @@ import 期由 config bridge 写入的值。对 local backend 这恰好等于 `os
         except Exception:
             pass  # Don't crash on import errors
 ```
-`cli.py:7559-7577 @ 863e313`
-
 数据源返回的 dict 里根本没有 `missing_vars` 这个 key:
+
+`tools/registry.py:900-907 @ 863e313`
 
 ```
                 available.append(ts)
@@ -349,8 +351,6 @@ import 期由 config bridge 写入的值。对 local backend 这恰好等于 `os
                 })
         return available, unavailable
 ```
-`tools/registry.py:900-907 @ 863e313`
-
 `model_tools.check_tool_availability` 只是转发:
 
 > `    return registry.check_tool_availability(quiet=quiet)`
@@ -365,6 +365,8 @@ import 期由 config bridge 写入的值。对 local backend 这恰好等于 `os
 
 对照组:doctor 走的是同一个 API,但**防御性地兼容两种 key**:
 
+`hermes_cli/doctor.py:2547-2554 @ 863e313`
+
 ```
         
         for item in unavailable:
@@ -375,8 +377,6 @@ import 期由 config bridge 写入的值。对 local backend 这恰好等于 `os
             else:
                 check_warn(item["name"], "(system dependency not met)")
 ```
-`hermes_cli/doctor.py:2546-2553 @ 863e313`
-
 说明 `missing_vars` 是某个历史版本的 key,`registry` 重构后改成了 `env_vars`,
 doctor 跟上了,`cli.py` 没跟上。
 
@@ -392,6 +392,8 @@ doctor 跟上了,`cli.py` 没跟上。
 
 #### 前提是假的:它不读任何 loader
 
+`cli.py:7831-7842 @ 863e313`
+
 ```
         # Get terminal config from environment (which was set from cli-config.yaml)
         terminal_env = os.getenv("TERMINAL_ENV", "local")
@@ -406,7 +408,7 @@ doctor 跟上了,`cli.py` 没跟上。
             config_path = project_config_path
         config_status = "(loaded)" if config_path.exists() else "(not found)"
 ```
-`cli.py:7867-7878 @ 863e313`
+`cli.py:7867-7885 @ 863e313`
 
 ```
         print("  -- Terminal --")
@@ -429,8 +431,6 @@ doctor 跟上了,`cli.py` 没跟上。
         print(f"  Config File: {config_path} {config_status}")
         print()
 ```
-`cli.py:7867-7885 @ 863e313`
-
 **没有 `CLI_CONFIG`,没有 `load_config()`,没有读任何 YAML。** 数据只有两个来源:
 
 - **活属性**:`self.model` / `self.base_url` / `self.api_key` / `self.max_turns` /
@@ -456,6 +456,8 @@ doctor 跟上了,`cli.py` 没跟上。
 
 真 loader:
 
+`cli.py:426-438 @ 863e313`
+
 ```
     # Check user config first ({HERMES_HOME}/config.yaml)
     user_config_path = _hermes_home / 'config.yaml'
@@ -471,8 +473,6 @@ doctor 跟上了,`cli.py` 没跟上。
     else:
         config_path = project_config_path
 ```
-`cli.py:426-438 @ 863e313`
-
 `show_config`(7836-7841)是这段的**逐字副本减去 `ignore_user_config` 这一项**。
 `hermes chat --ignore-user-config` 会设 `HERMES_IGNORE_USER_CONFIG=1`
 (`hermes_cli/main.py:2675 @ 863e313`),此时进程**实际上完全没读**用户 config.yaml,
@@ -480,12 +480,14 @@ doctor 跟上了,`cli.py` 没跟上。
 
 #### (b) `_hermes_home` 是 import 期常量,与写入端不同源
 
+`cli.py:229 @ 863e313`
+
 ```
 _hermes_home = get_hermes_home()
 ```
-`cli.py:229 @ 863e313`
-
 而同一进程里持久化模型选择的 `save_config_value` 用的是**实时** `get_hermes_home()`:
+
+`cli.py:4126-4129 @ 863e313`
 
 ```
     # setting silently vanished every restart on any install whose
@@ -493,8 +495,6 @@ _hermes_home = get_hermes_home()
     config_path = get_hermes_home() / 'config.yaml'
     
 ```
-`cli.py:4126-4129 @ 863e313`
-
 `get_hermes_home()` 会读一个 ContextVar 覆写(`hermes_constants.py:45-50 @ 863e313`
 的 `get_hermes_home_override`),`save_config_value` 的注释明说这样做是
 「so profile switches and test isolation land right」(`cli.py:4117 @ 863e313`)。
@@ -510,14 +510,14 @@ _hermes_home = get_hermes_home()
 **根本没有 `timeout` 这个 key**。所以默认安装下 `TERMINAL_TIMEOUT` 是未设的,
 `show_config` 显示 `Timeout: 60s`。terminal tool 的真实默认是 **180**:
 
+`tools/terminal_tool.py:1545-1548 @ 863e313`
+
 ```
         "host_cwd": host_cwd,
         "docker_mount_cwd_to_workspace": mount_docker_cwd,
         "timeout": _parse_env_var("TERMINAL_TIMEOUT", "180"),
         "lifetime_seconds": _parse_env_var("TERMINAL_LIFETIME_SECONDS", "300"),
 ```
-`tools/terminal_tool.py:1545-1548 @ 863e313`
-
 → **缺陷 #4**。(同一份 60 的陈旧副本还出现在
 `tools/terminal_tool.py:3356 @ 863e313` 的调试打印里。)
 
@@ -535,13 +535,13 @@ _hermes_home = get_hermes_home()
 `show_config` / `show_tools` / `show_toolsets` / `_show_gateway_status` 全部用裸 `print()`。
 只有 `_cprint` 会记录输出历史:
 
+`cli.py:3084-3087 @ 863e313`
+
 ```
     the line above it, and redraws the prompt cleanly.
     """
     _record_output_history(text)
 ```
-`cli.py:3084-3087 @ 863e313`
-
 而输出历史正是 Ctrl+L / `/redraw`(`cli.py:4855 @ 863e313`)和终端宽度变化
 (`cli.py:4983 @ 863e313`)时用来重绘屏幕的:两处都调用 `_replay_output_history()`。
 后果:按一次 Ctrl+L 或调整窗口宽度,`/config`、`/tools`、`/toolsets` 的输出**消失**,
@@ -558,6 +558,8 @@ _hermes_home = get_hermes_home()
 `3` 会被当成聊天内容发给模型(这就是 `#34584`)。
 
 #### 代码
+
+`cli.py:8338-8360 @ 863e313`
 
 ```
         pending = self._pending_resume_sessions
@@ -584,8 +586,6 @@ _hermes_home = get_hermes_home()
         self._handle_resume_command(f"/resume {index}")
         return True
 ```
-`cli.py:8338-8360 @ 863e313`
-
 设计上有三个值得学的点:
 
 1. **一次性(one-shot)且提前解除武装**:8343 行在做任何判断**之前**就把状态清空。
@@ -599,6 +599,8 @@ _hermes_home = get_hermes_home()
 
 armed 时保存的是一份**快照**:
 
+`hermes_cli/cli_commands_mixin.py:971-979 @ 863e313`
+
 ```
             if self._show_recent_sessions(reason="resume"):
                 # Arm a one-shot pending-resume selection so the user can type
@@ -610,10 +612,10 @@ armed 时保存的是一份**快照**:
                 self._pending_resume_sessions = self._list_recent_sessions(limit=10)
                 return
 ```
-`hermes_cli/cli_commands_mixin.py:971-979 @ 863e313`
-
 但 8359 行把控制权交给 `_handle_resume_command(f"/resume {index}")` 之后,
 后者**重新查询**一次:
+
+`hermes_cli/cli_commands_mixin.py:992-1001 @ 863e313`
 
 ```
         # Resolve numbered selection, title, or ID
@@ -627,8 +629,6 @@ armed 时保存的是一份**快照**:
             selected = sessions[index - 1]
             target_id = selected["id"]
 ```
-`hermes_cli/cli_commands_mixin.py:992-1001 @ 863e313`
-
 即:**范围检查做了两次,分别对着两份可能不同的列表**;真正决定恢复哪个会话的是
 **第二份**。缓解因素是默认排序不是「最近活跃」:
 
@@ -638,12 +638,12 @@ armed 时保存的是一份**快照**:
 无搜索词时 `order_by_last_active=False`,`list_sessions_rich` 按
 「original conversation start time」排 —— 见其 docstring:
 
+`hermes_state.py:5830-5831 @ 863e313`
+
 ```
         Pass ``order_by_last_active=True`` to sort by most-recent activity
         instead of original conversation start time. For compression chains,
 ```
-`hermes_state.py:5830-5831 @ 863e313`
-
 `started_at` 不变,所以**已有行的相对顺序稳定**;只有在 arm→选 之间**新建**一个 cli 会话
 (并发的 gateway / kanban worker / 另一个终端)才会整体前移一格,让 `3` 指向另一个会话。
 → **缺陷 #9(置信度中低,但确实存在)**。
@@ -664,6 +664,8 @@ Windows 上更糟:早期代码在 `win32` 直接跳过模态退回 `input()`,而
 **所以现在的设计契约是:模态的建立/拆除必须回到 app 的 event loop 上,答案通过队列跨线程回传。**
 
 #### 线程判定与三条退路
+
+`cli.py:8709-8731 @ 863e313`
 
 ```
         if not getattr(self, "_app", None):
@@ -689,9 +691,9 @@ Windows 上更糟:早期代码在 `win32` 直接跳过模态退回 `input()`,而
         if not in_main_thread and app_loop is None:
             return _stdin_fallback()
 ```
-`cli.py:8709-8731 @ 863e313`
-
 #### 核心:`_run_on_app_loop` 与轮询循环
+
+`cli.py:8752-8791 @ 863e313`
 
 ```
         def _run_on_app_loop(fn) -> bool:
@@ -735,8 +737,6 @@ Windows 上更糟:早期代码在 `win32` 直接跳过模态退回 `input()`,而
                 _run_on_app_loop(_teardown_modal)
         return None
 ```
-`cli.py:8752-8791 @ 863e313`
-
 **这里有一个致命的隐含前提:调用者不在主线程上。**
 当 `in_main_thread is True` 时,`_run_on_app_loop` 退化成同步 `fn()`,然后
 `while True: response_queue.get(timeout=1)` 就在**主线程**上阻塞。而主线程正是
@@ -750,6 +750,8 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
 
 每 5 秒的 `self._invalidate()` 不是无用代码 —— 状态栏确实渲染倒计时:
 
+`cli.py:16583-16588 @ 863e313`
+
 ```
             if cli_ref._slash_confirm_state:
                 remaining = max(0, int(cli_ref._slash_confirm_deadline - time.monotonic()))
@@ -758,13 +760,13 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
                     ('class:clarify-countdown', f'  ({remaining}s)'),
                 ]
 ```
-`cli.py:16583-16588 @ 863e313`
-
 但在主线程自锁的情况下这个 invalidate 也无法生效(循环没让出)。
 
 哪条路径会以主线程调用它?见 §2.7。→ **缺陷 #2**。
 
 #### 次要:提交与超时之间的窄竞态
+
+`cli.py:8793-8800 @ 863e313`
 
 ```
     def _submit_slash_confirm_response(self, value: str | None) -> None:
@@ -776,8 +778,6 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
         self._slash_confirm_deadline = 0
         self._invalidate()
 ```
-`cli.py:8793-8800 @ 863e313`
-
 提交端先 `put`、再把 `_slash_confirm_deadline` 清零。消费端在 `except queue.Empty:` 之后
 才去读 `self._slash_confirm_deadline`。若 `get(timeout=1)` 刚好超时、提交在这两句之间发生,
 消费端读到 `deadline == 0` → `remaining <= 0` → `break`。此时 `finally` 里
@@ -795,6 +795,8 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
 `/model opus --once`:这一回合用贵模型,下一回合自动切回来。
 
 #### 快照内容
+
+`cli.py:8981-8996 @ 863e313`
 
 ```
     def _snapshot_model_runtime(self) -> dict:
@@ -814,9 +816,9 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
             ) if agent is not None else None,
         }
 ```
-`cli.py:8981-8996 @ 863e313`
-
 拍摄时机在**变更之前**,正确:
+
+`cli.py:9458-9466 @ 863e313`
 
 ```
         if not self._confirm_expensive_model_switch(result):
@@ -829,9 +831,9 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
         old_model = self.model
         _one_turn_restore_snapshot = self._snapshot_model_runtime() if one_turn else None
 ```
-`cli.py:9458-9466 @ 863e313`
-
 暂存与消费:
+
+`cli.py:9528-9531 @ 863e313`
 
 ```
         if one_turn:
@@ -839,13 +841,13 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
         else:
             self._pending_one_turn_model_restore = None
 ```
-`cli.py:9528-9531 @ 863e313`
-
 `cli.py:14040-14043 @ 863e313` 在发起 `run_conversation` 前把它取出并清空,
 `cli.py:14072-14074 @ 863e313` 在 `finally:` 里 `self._restore_model_runtime_snapshot(...)` ——
 放 `finally` 是对的:turn 抛异常也要还原,否则用户永久留在贵模型上。
 
 #### 复原实现
+
+`cli.py:8998-9041 @ 863e313`
 
 ```
     def _restore_model_runtime_snapshot(self, snapshot: dict | None) -> None:
@@ -892,8 +894,6 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
             except Exception as exc:
                 logger.warning("CLI one-turn model restore failed: %s", exc)
 ```
-`cli.py:8998-9041 @ 863e313`
-
 **手法值得记录**:它复用了 fallback 机制的「回到主 runtime」通道 —— 把旧
 `_primary_runtime` 塞回去,然后**伪造** `_fallback_activated = True`
 (否则 `restore_primary_runtime` 第一句就 `if not agent._fallback_activated: ... return False`,
@@ -903,6 +903,8 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
 #### 漏了什么(回答前提 2)
 
 **(i) `agent._fallback_chain` / `_fallback_model` —— 会被 `switch_model` 永久裁剪,快照里没有。**
+
+`agent/agent_runtime_helpers.py:2764-2773 @ 863e313`
 
 ```
     old_norm = (old_provider or "").strip().lower()
@@ -916,9 +918,9 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
     agent._fallback_chain = fallback_chain
     agent._fallback_model = fallback_chain[0] if fallback_chain else None
 ```
-`agent/agent_runtime_helpers.py:2764-2773 @ 863e313`
-
 `restore_primary_runtime` 只重置 `_fallback_activated` / `_fallback_index` / 退避计数:
+
+`agent/agent_runtime_helpers.py:1709-1712 @ 863e313`
 
 ```
         # ── Reset fallback chain for the new turn ──
@@ -926,8 +928,6 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
         agent._fallback_index = 0
         agent._rate_limit_backoff_count = 0  # reset exponential backoff counter
 ```
-`agent/agent_runtime_helpers.py:1709-1712 @ 863e313`
-
 注意注释写的是「Reset fallback **chain**」,但代码只动了三个标量,**没有重建 `_fallback_chain` 列表**。
 所以 `/model <另一个 provider> --once` 之后:模型切回来了,但本会话的 fallback 链
 被永久剥掉了旧、新两个 provider 的条目 —— 后续任何一次真实故障,可回退的目标变少甚至归零。
@@ -936,6 +936,8 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
 **(ii) `reasoning_config` —— 首次 `--once` 切换时快照里根本没有这个 key。**
 
 `switch_model` 会按新模型重解析:
+
+`agent/agent_runtime_helpers.py:2696-2712 @ 863e313`
 
 ```
     # ── Re-resolve reasoning_config from per-model override ──
@@ -956,9 +958,9 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
     except Exception as _reasoning_err:
         logger.debug("switch_model: could not re-resolve reasoning_config: %s", _reasoning_err)
 ```
-`agent/agent_runtime_helpers.py:2696-2712 @ 863e313`
-
 而复原端只在快照里**有**该 key 时才还原:
+
+`agent/agent_runtime_helpers.py:1702-1707 @ 863e313`
 
 ```
         # ── Restore reasoning_config if it was saved ──
@@ -968,10 +970,10 @@ prompt_toolkit 事件循环所在的线程(`app.run()` 在 `cli.py:17804 @ 863e3
         if saved_reasoning is not None:
             agent.reasoning_config = dict(saved_reasoning)
 ```
-`agent/agent_runtime_helpers.py:1702-1707 @ 863e313`
-
 关键:**`_primary_runtime` 有两个构造点,只有其中一个带 `reasoning_config`。**
 agent 初始化那份不带:
+
+`agent/agent_init.py:2777-2796 @ 863e313`
 
 ```
     agent._primary_runtime = {
@@ -995,15 +997,13 @@ agent 初始化那份不带:
         "compressor_threshold_tokens": _cc.threshold_tokens,
     }
 ```
-`agent/agent_init.py:2777-2796 @ 863e313`
-
 `switch_model` 那份带:
+
+`agent/agent_runtime_helpers.py:2737 @ 863e313`
 
 ```
         "reasoning_config": dict(agent.reasoning_config) if getattr(agent, "reasoning_config", None) else None,
 ```
-`agent/agent_runtime_helpers.py:2737 @ 863e313`
-
 于是:**进程启动后第一条 `/model B --once`**,快照来自 agent_init 版本(无 key),
 `switch_model` 把 `agent.reasoning_config` 改成 B 的配置,复原时 `rt.get("reasoning_config")`
 返回 `None` → 保留当前值 → **模型 A 之后一直用着 B 的 reasoning 配置**。
@@ -1037,6 +1037,8 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 
 #### 它做什么
 
+`cli.py:9626-9636 @ 863e313`
+
 ```
     def _should_handle_model_command_inline(self, text: str, has_images: bool = False) -> bool:
         """Return True when /model should be handled immediately on the UI thread."""
@@ -1050,9 +1052,9 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
         except Exception:
             return False
 ```
-`cli.py:9626-9636 @ 863e313`
-
 调用点在 prompt_toolkit 的**按键绑定**里:
+
+`cli.py:15386-15393 @ 863e313`
 
 ```
             if text or has_images:
@@ -1064,8 +1066,6 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
                         if event.app.is_running:
                             event.app.exit()
 ```
-`cli.py:15386-15393 @ 863e313`
-
 `process_command` 在 `cli.py:10039-10040 @ 863e313` 把 `model` 分派到 `_handle_model_switch`。
 
 #### 与两个兄弟判定的关键差异
@@ -1087,6 +1087,8 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 (上块:`cli.py:9458-9460 @ 863e313`)
 
 `cli.py:8931-8935 @ 863e313`
+
+`cli.py:8931-8961 @ 863e313`
 
 ```
     def _confirm_expensive_model_switch(self, result) -> bool:
@@ -1121,8 +1123,6 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
         choice = self._normalize_slash_confirm_choice(raw, choices)
         return choice == "once"
 ```
-`cli.py:8931-8961 @ 863e313`
-
 链路:按键绑定(主线程)→ `process_command` → `_handle_model_switch` →
 `_confirm_expensive_model_switch` → `_prompt_text_input_modal`(§2.5 证明主线程会自锁)。
 触发条件是 `expensive_model_warning` 返回非 `None`,即已知定价超过
@@ -1131,6 +1131,8 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 `hermes_cli/model_cost_guard.py:101-108 @ 863e313`)。
 
 **反证:同一个确认函数在 picker 路径上被显式丢到后台线程。**
+
+`cli.py:9293-9306 @ 863e313`
 
 ```
                 # Capture before close — picker state is cleared on close.
@@ -1148,8 +1150,6 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
                     )
                 return
 ```
-`cli.py:9293-9306 @ 863e313`
-
 `if getattr(self, "_app", None): threading.Thread(...)` 就是「app 活着时**不能**在这条线程上确认」
 的自证。直连路径(9458)缺同样的处理。→ **缺陷 #2**。
 
@@ -1160,15 +1160,18 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 而 `run_conversation` 正在另一线程里用这个 agent。`switch_model` 会重建 client、清
 `_transport_cache`、改 `agent.model` / `api_mode` / caching 标志、失效 system prompt:
 
+`agent/agent_runtime_helpers.py:2714-2715 @ 863e313`
+
 ```
     # ── Invalidate cached system prompt so it rebuilds next turn ──
     agent._cached_system_prompt = None
 ```
-`agent/agent_runtime_helpers.py:2714-2715 @ 863e313`
 本段代码没有任何针对「turn 进行中」的锁或延后。→ **缺陷 #15(置信度中,需跨段确认
 `run_conversation` 是否另有保护)**。
 
 #### 顺带:`new_session` 的「重置到 config 默认」读的是陈旧快照
+
+`cli.py:8168-8183 @ 863e313`
 
 ```
         # /new is a full conversation boundary: session-scoped runtime
@@ -1188,8 +1191,6 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
         )
         if _config_model and _config_model != getattr(self, "model", None):
 ```
-`cli.py:8168-8183 @ 863e313`
-
 注释说「Re-derive … **from config.yaml**」,代码读的是 `CLI_CONFIG` —— 一个在
 `cli.py:792 @ 863e313`(`CLI_CONFIG = load_cli_config()`)于 import 期计算、
 **全文件再无任何重新赋值**的模块级快照(全仓 `CLI_CONFIG` 引用见 §0 检索,只有一处赋值)。
@@ -1511,11 +1512,11 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 
 **D1 — `show_config` 的注释说 terminal 配置来自 `cli-config.yaml`**
 
+`cli.py:7831 @ 863e313`
+
 ```
         # Get terminal config from environment (which was set from cli-config.yaml)
 ```
-`cli.py:7831 @ 863e313`
-
 实际:实测仓库根**不存在** `cli-config.yaml`;`load_cli_config()` 的实际来源是
 `{HERMES_HOME}/config.yaml`(`cli.py:427/435-436 @ 863e313`),且当用户 config 不存在时
 使用的是内置 defaults(`cli.py:441+ @ 863e313`),而不是任何文件。
@@ -1523,15 +1524,17 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 
 **D2 — `new_session` 的注释说「Re-derive … from config.yaml」**
 
+`cli.py:8170 @ 863e313`
+
 ```
         # forward.  Re-derive model/provider and service tier from config.yaml
 ```
-`cli.py:8170 @ 863e313`
-
 实际读的是 import 期快照 `CLI_CONFIG`(`cli.py:8174/8177 @ 863e313`),不是 config.yaml。
 **定案:注释与代码不符,行为按 §3 #16 描述。**
 
 **D3 — `_cli_visible_print` 的 docstring 说裸 `print()` 会「render nothing」**
+
+`cli.py:3213-3216 @ 863e313`
 
 ```
     Bare ``print()`` output is swallowed by ``patch_stdout`` while an
@@ -1539,21 +1542,21 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
     would render nothing. Route through ``_cprint`` (prompt_toolkit-native)
     in that case, and fall back to ``print`` otherwise.
 ```
-`cli.py:3213-3216 @ 863e313`
-
 同文件另一处的说法更精确 —— 被吞的是 **ANSI 转义**,不是纯文本:
+
+`cli.py:3073-3075 @ 863e313`
 
 ```
     Raw ANSI escapes written via print() are swallowed by patch_stdout's
     StdoutProxy.  Routing through print_formatted_text(ANSI(...)) lets
     prompt_toolkit parse the escapes and render real colors.
 ```
-`cli.py:3073-3075 @ 863e313`
-
 两条注释互相冲突。**定案:未在本轮实测中判定,标记为待验证**;
 但无论哪条为真,#7(不进重放缓冲)都成立。
 
 **D4 — `save_config_value` 的 docstring 与函数体自相矛盾**
+
+`cli.py:4100-4106 @ 863e313`
 
 ```
 def save_config_value(key_path: str, value: any) -> bool:
@@ -1564,26 +1567,24 @@ def save_config_value(key_path: str, value: any) -> bool:
     1. ~/.hermes/config.yaml (user config - preferred, used if it exists)
     2. ./cli-config.yaml (project config - fallback)
 ```
-`cli.py:4100-4106 @ 863e313`
-
 函数体明确**拒绝**第 2 条:
+
+`cli.py:4128 @ 863e313`
 
 ```
     config_path = get_hermes_home() / 'config.yaml'
 ```
-`cli.py:4128 @ 863e313`
-
 而且 4116-4127 的注释详细解释了为什么**不能**退回 `cli-config.yaml`
 (wake-word 设置每次重启消失的历史 bug)。**定案:docstring 是修复前的残留,以代码为准。**
 这也是 `/model --global` 与 `/config` 走不同 home 解析(#3b)的根源。
 
 **D5 — `_restore_session_cwd` docstring 声称「Idempotent and safe to call from every resume path」**
 
+`cli.py:7287 @ 863e313`
+
 ```
         Idempotent and safe to call from every resume path. When the stored
 ```
-`cli.py:7287 @ 863e313`
-
 幂等性成立(第二次调用会命中 7307 的早退)。但「every resume path」这个前提在 `/new` 创建
 的会话上不成立 —— 那些会话根本没有 `cwd` 可恢复(#5)。**定案:docstring 描述的是本函数的
 契约,问题在写入端;记录为需要一并修的对偶缺口。**

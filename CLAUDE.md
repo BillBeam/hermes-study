@@ -189,6 +189,20 @@ R8A 同一套 170 个测试文件先后报出 **3,183** 与 **3,190** 两个数,
 必然失败。被测代码 `DEFAULT_HOST = None`(`gateway/platforms/webhook.py:129 @ 863e313`)的语义是
 "按解析出的每个地址族各建一个套接字",只解析出 IPv4 时只建 IPv4 **是正确行为**。
 
+**R8B 补充:容器还有另外两条环境性质,合计已知会让 5 个用例必然失败(全部非代码缺陷)。**
+每条都已逐个查到机制,勿再重复排查:
+
+| 用例 | 根因 | 机制(已核) |
+|---|---|---|
+| `tests/hermes_cli/test_browser_connect_dual_stack.py::TestFindFreeDebugPort::test_skips_occupied_successor` | **无 IPv6** | `find_free_debug_port` 要求端口在 `127.0.0.1` **与** `::1` **两族都可绑**;无 IPv6 时每个候选都失败,函数走它自己文档化的兜底 `return preferred + 1`,于是"跳过被占端口"这个断言必然不成立 |
+| `tests/hermes_cli/test_migrate_xai.py::TestUnreadableExistingConfig::test_apply_refuses_to_overwrite_unreadable_config` | **以 root 运行**(`id -u` = 0) | root 无视 `chmod 000`,读得到,于是不抛 `PermissionError` |
+| `tests/hermes_cli/test_gateway_service.py`(systemd 单元生成) | **以 root 运行** | 被测代码自己拒绝:`Refusing to install the gateway system service as root; pass --run-as-user root to override` |
+| `tests/hermes_cli/test_approvals_suggest.py::test_normalize_folds_home_prefix` | **以 root 运行**(`HOME=/root`) | `_home_prefix_fold_regex`(`tools/approval.py:1072 @ 863e313`)对"根下不足两段"的路径**故意返回 `None`**,防止畸形 HOME 改写无关前缀;`/root` 只有一段,于是不折叠 |
+| `tests/hermes_cli/test_xai_provider_labels.py` | **无 models.dev 目录**(离线) | `get_label` 命中不了覆盖表就回落 models.dev 目录取 `pdef.name`;本容器目录条目数实测 **0**、无本地缓存文件,于是返回原始 id `'xai'` 而非 `'xAI'` |
+
+**报测试通过数时一并记 venv 包数**(R8A 立):`pip list` 去掉两行表头后的条目数。
+R8B 实测 **87 个包**(`[dev]` extra + `aiohttp 3.14.1` + `brotlicffi 1.2.0.1`)。
+
 模型凭据不需要,也不得自行配置。
 
 ## 学习方案索引

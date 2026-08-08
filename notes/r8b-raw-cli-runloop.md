@@ -55,7 +55,9 @@
 
 ### 0.3 运行环境与实际跑过的测试
 
-按 CLAUDE.md 重建的 venv 可用;`prompt_toolkit` 实际版本 **3.0.52**(与 `pyproject.toml:57` 的 `prompt_toolkit==3.0.52` 一致)。跑通:
+按 CLAUDE.md 重建的 venv 可用;`prompt_toolkit` 实际版本 **3.0.52**(与 `pyproject.toml:57` 的 `prompt_toolkit==3.0.52` 一致)。
+
+实跑记录(非源码引用,故不参与行号校验):
 
 ```
 HERMES_PYTHON=/home/user/hermes-venv/bin/python bash scripts/run_tests.sh \
@@ -515,7 +517,7 @@ threading.Thread  9
 
 #### 路径 A:终端里敲 Ctrl-C(raw mode,不产生 SIGINT)
 
-`app.run()` 期间 pt 把 tty 置于 raw mode(`with self.input.raw_mode()`,`prompt_toolkit/application/application.py:734 @ 863e313` 附近),raw mode 关掉 `ISIG`,所以 **Ctrl-C 不会变成 SIGINT**,只是字节 `0x03`,被 pt 解析为 `Keys.ControlC`,进入本文件绑定的处理器:
+`app.run()` 期间 pt 把 tty 置于 raw mode(`with self.input.raw_mode()`,`prompt_toolkit/application/application.py 第 734 行 @ prompt_toolkit 3.0.52` 附近),raw mode 关掉 `ISIG`,所以 **Ctrl-C 不会变成 SIGINT**,只是字节 `0x03`,被 pt 解析为 `Keys.ControlC`,进入本文件绑定的处理器:
 
 `cli.py:15915-15925 @ 863e313`
 
@@ -622,9 +624,9 @@ threading.Thread  9
 
 #### 路径 B:真正的 OS SIGINT(`kill -INT`、进程组信号)—— **被静默吞掉**
 
-`app.run()` 默认 `handle_sigint=True`(`prompt_toolkit/application/application.py:624 @ 863e313` 的 `run_async` 默认值),于是 pt 在事件循环上注册了 SIGINT 处理器:
+`app.run()` 默认 `handle_sigint=True`(`prompt_toolkit/application/application.py 第 624 行 @ prompt_toolkit 3.0.52` 的 `run_async` 默认值),于是 pt 在事件循环上注册了 SIGINT 处理器:
 
-`prompt_toolkit/application/application.py:807-818 @ 863e313`
+`prompt_toolkit/application/application.py 第 807-818 行 @ prompt_toolkit 3.0.52`
 
 ```python
         @contextmanager
@@ -643,7 +645,7 @@ threading.Thread  9
 
 `send_sigint` 把 `Keys.SIGINT`(即 `"<sigint>"`)喂进按键处理器。而 `cli.py` **从未绑定 `Keys.SIGINT`**(39 处 `kb.add` 里没有它),于是落到 pt 的默认绑定 —— 一个空函数:
 
-`prompt_toolkit/key_binding/bindings/basic.py:135-146 @ 863e313`
+`prompt_toolkit/key_binding/bindings/basic.py 第 135-146 行 @ prompt_toolkit 3.0.52`
 
 ```python
     @handle("<sigint>")
@@ -679,7 +681,7 @@ threading.Thread  9
 
 注意这段**在 `if query or image:` 之前**(18320),所以**交互模式也会装**。但 `app.run()` 期间被 pt 的 `add_signal_handler` 顶掉了 —— asyncio 的 `add_signal_handler` 会把 Python 层处理器换成自己的 no-op C 函数。pt 用 `_restore_sigint_from_ctypes` 在退出时把它还回来:
 
-`prompt_toolkit/application/application.py:1620-1630 @ 863e313`
+`prompt_toolkit/application/application.py 第 1620-1630 行 @ prompt_toolkit 3.0.52`
 
 ```python
     sigint = signal.getsignal(signal.SIGINT)
@@ -1230,7 +1232,7 @@ cli.py:17789-17796 equivalent -> SKIPPED (RuntimeError: no running event loop)
 
 而且即使装上了也没用:`app.run()` 内部 `set_exception_handler=True` 默认开启,pt 会把自己的处理器覆盖上去,退出时再还原:
 
-`prompt_toolkit/application/application.py:826-834 @ 863e313`
+`prompt_toolkit/application/application.py 第 826-834 行 @ prompt_toolkit 3.0.52`
 
 ```python
         @contextmanager
@@ -1246,7 +1248,7 @@ cli.py:17789-17796 equivalent -> SKIPPED (RuntimeError: no running event loop)
 
 pt 的处理器长这样 —— 正好就是所有相关注释想避免的那个"Press ENTER to continue":
 
-`prompt_toolkit/application/application.py:1018-1026 @ 863e313`
+`prompt_toolkit/application/application.py 第 1018-1026 行 @ prompt_toolkit 3.0.52`
 
 ```python
         async def in_term() -> None:
@@ -1402,7 +1404,7 @@ Windows 单独装一个吞掉 SIGINT 的空处理器:
                 _signal.signal(_signal.SIGINT, _sigint_absorb)
 ```
 
-Windows 需要这个补丁的直接原因在 pt 里:pt 在 Windows 上根本不注册 SIGINT 处理器(`prompt_toolkit/application/application.py:653-658 @ 863e313` 强制 `handle_sigint = False`),所以 Python 默认处理器会真的抛 KeyboardInterrupt。POSIX 上被 pt 接管,变成路径 B 的静默吞。
+Windows 需要这个补丁的直接原因在 pt 里:pt 在 Windows 上根本不注册 SIGINT 处理器(`prompt_toolkit/application/application.py 第 653-658 行 @ prompt_toolkit 3.0.52` 强制 `handle_sigint = False`),所以 Python 默认处理器会真的抛 KeyboardInterrupt。POSIX 上被 pt 接管,变成路径 B 的静默吞。
 
 #### 退出看门狗:三层
 
@@ -1910,7 +1912,7 @@ if __name__ == "__main__":
 
 **现象** 交互式 CLI 里,任何进入 asyncio 异常处理器的错误(httpx `__del__` 的 "Event loop is closed"、broken stdin 的 "0 is not registered"、中断时 broken stdout 的 `EIO`)都会被 prompt_toolkit 的 `_handle_exception` 接住,打印 `Unhandled exception in event loop` + 完整 traceback,然后把终端停在 `Press ENTER to continue...`。
 
-**锚点** `cli.py:17735-17744`(处理器定义)、`cli.py:17789-17798`(安装点)、`prompt_toolkit/application/application.py:826-834`(pt 覆盖)、`prompt_toolkit/application/application.py:1018-1026`(pt 的行为)。
+**锚点** `cli.py:17735-17744`(处理器定义)、`cli.py:17789-17798`(安装点)、`prompt_toolkit/application/application.py 第 826-834 行 @ prompt_toolkit 3.0.52`(pt 覆盖)、`prompt_toolkit/application/application.py 第 1018-1026 行 @ prompt_toolkit 3.0.52`(pt 的行为)。
 
 ```python
                 try:
@@ -2109,7 +2111,7 @@ session_id 确实是同一个(持久化行归属正确),但**模型的上下文�
 
 **为什么可疑** 按键处理器里的异常会一路冒到 pt 的 `process_keys`,后者**重置解析器、清空输入队列、然后重抛**:
 
-`prompt_toolkit/key_binding/key_processor.py:272-279 @ 863e313`
+`prompt_toolkit/key_binding/key_processor.py 第 272-279 行 @ prompt_toolkit 3.0.52`
 
 ```python
             try:
@@ -2167,7 +2169,7 @@ def _apply_safe_mode(args) -> None:
 
 ### 缺陷 9:`interrupt_debug.log` 在 UI 线程上同步写、无上限、无开关(置信度:**高**,严重度低)
 
-**锚点** `cli.py:15505-15511`(UI 线程)、`cli.py:14166`(另一处)。
+**锚点** `cli.py:15505-15511`(UI 线程)、`cli.py:15504`(另一处)。
 
 ```python
                             self._interrupt_queue.put(payload)
@@ -2182,7 +2184,7 @@ def _apply_safe_mode(args) -> None:
 
 **为什么可疑** 三点:
 1. 这是**同步文件 I/O,跑在 prompt_toolkit 事件循环线程上**。同一文件在 16206-16208 明确写着 "This handler runs in prompt_toolkit's event-loop thread. Any blocking call here (locks, sd.wait, disk I/O) freezes the entire UI." —— 自己定的规矩自己破了。
-2. **无轮转、无大小上限、无配置开关**。全仓只有 `cli.py:14166` 和 `cli.py:15506` 两处写入,没有任何清理。
+2. **无轮转、无大小上限、无配置开关**。全仓只有 `cli.py:15504` 和 `cli.py:15506` 两处写入,没有任何清理。
 3. 它**不是**调试遗留:`hermes_cli/tips.py:305` 把它当功能宣传。
 
 **触发条件** `busy_input_mode == "interrupt"` 且 `agent.redirect` 未接受时的每一次回车。
@@ -2267,7 +2269,7 @@ def _apply_safe_mode(args) -> None:
             # installs its own handler there and it works as expected.
 ```
 
-**代码** pt 确实装了处理器,但它把 SIGINT 转成 `Keys.SIGINT` 按键,而 `cli.py` 的 39 处 `kb.add` **从不绑定 `Keys.SIGINT`**,落到 pt 的默认空实现(`prompt_toolkit/key_binding/bindings/basic.py:135-146`)。
+**代码** pt 确实装了处理器,但它把 SIGINT 转成 `Keys.SIGINT` 按键,而 `cli.py` 的 39 处 `kb.add` **从不绑定 `Keys.SIGINT`**,落到 pt 的默认空实现(`prompt_toolkit/key_binding/bindings/basic.py 第 135-146 行 @ prompt_toolkit 3.0.52`)。
 
 **定案** 注释成立的**只有键盘 Ctrl-C** —— 而键盘 Ctrl-C 在 raw mode 下压根不产生 SIGINT,走的是 `c-c` 绑定,与 pt 的 SIGINT 处理器无关。对**真正的 OS SIGINT**(`kill -INT`、进程组信号),行为是**静默丢弃**。注释把"Ctrl-C 能用"错误归因给了 SIGINT 处理器。
 

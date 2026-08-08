@@ -356,6 +356,7 @@ agent.personalities 键数 = 1
 | profile 名正则(6 份,§1) | 彼此 | 无(注释写 "Mirrors") |
 | 斜杠命令**注册表**(`hermes_cli/commands.py`) | `process_command` 里的 **if/elif 分发链** | 无 |
 | `cli.py` 的默认值字面量 | `DEFAULT_CONFIG`(§3) | 无 |
+| `profiles._HERMES_SUBCOMMANDS`(25 项) | `main._BUILTIN_SUBCOMMANDS`(68 项) | 无 |
 
 **第三份已经付出了代价。** `/whoami` 在注册表里登记为对 CLI 可见:
 
@@ -373,6 +374,22 @@ agent.personalities 键数 = 1
 更值得记的是:仓库根 `AGENTS.md:385` 声称所有消费方都从注册表**自动派生**,
 而 `AGENTS.md:402` 又要求手写一条 `elif`——**同一份文档的两句话互相矛盾,
 而 `/whoami` 就是这个矛盾的现价**。(以代码为准:必须手写。)
+
+**第五份的分歧最大,而且是双向的。** 两个 frozenset 都在枚举"hermes 的子命令名",
+一个 25 项、一个 68 项。实跑求差:
+
+```
+② 有而 ① 没有(顶层命令名可被当 profile 名/alias): 44
+例: ['approvals', 'auth', 'backup', 'bundles', 'checkpoints', 'claw', 'completion',
+     'computer-use', 'console', 'curator', 'dashboard', 'debug', 'desktop', 'egress']
+
+① 有而 ② 没有: ['honcho']
+```
+
+**两边互相都有对方没有的条目,合计 45 项不一致。**
+而 `_HERMES_SUBCOMMANDS` 的用途是**阻止用户把 profile 名或 alias 起成命令名**
+(`hermes_cli/profiles.py:254 @ 863e313` 的注释:"cannot be used as profile names/aliases")。
+**于是 `dashboard`、`auth`、`backup` 这 44 个真实命令,今天都可以被拿来当 profile 别名。**
 
 > **判据**:凡"一份声明表 + 一条手写分发链"的结构,**必须有一个测试断言两边等价**
 > (遍历注册表,逐条确认分发链认识它)。

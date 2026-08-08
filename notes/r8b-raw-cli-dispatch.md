@@ -194,7 +194,7 @@ def resolve_command(name: str) -> CommandDef | None:
 ```
 
    注意 `_COMMAND_LOOKUP` 的值是 `CommandDef`,而 `CommandDef` 的字段里**没有任何 callable**(`hermes_cli/commands.py:46:89`)。它是**声明**,不是**分发表**。`process_command` 只从中取 `.name`。
-3. **`canonical` 拿到之后,是 85 个分支判定的线性比较**(首条是 `if`,其余 84 条是 `elif canonical == "xxx":`,覆盖 86 个命令名——`quit`/`exit` 共用一个 `in {...}` 分支)。第一条在 `cli.py:9863`,最后一条与 `else` 在 `cli.py:10353-10355 @ 863e313`
+3. **`canonical` 拿到之后,是 85 个分支判定的线性比较**(首条是 `if`,其余 84 条是 `elif canonical == "xxx":`,覆盖 86 个命令名——`quit`/`exit` 共用一个 `in {...}` 分支)。第一条在 `cli.py:9863`,最后一条与 `else` 在 `cli.py:10351-10353 @ 863e313`
 
 ```python
         elif canonical == "busy":
@@ -1051,7 +1051,7 @@ CLI 侧只提供默认预算:`cli.py:10574-10583 @ 863e313`
 DEFAULT_MAX_TURNS = 20
 ```
 
-`hermes_cli/goals.py:71 @ 863e313`
+`hermes_cli/goals.py:64 @ 863e313`
 
 ```python
 # After this many consecutive judge *parse* failures (empty output / non-JSON),
@@ -1596,7 +1596,7 @@ DEFAULT_MAX_CONSECUTIVE_TRANSPORT_FAILURES = 5
 
 ### 2.15 段内其余机制(简录)
 
-**心跳看门狗**:`cli.py:10609-10649 @ 863e313`
+**心跳看门狗**:`cli.py:10619-10659 @ 863e313`
 
 ```python
         if getattr(self, "_heartbeat_watchdog_started", False):
