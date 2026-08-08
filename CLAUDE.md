@@ -73,8 +73,11 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
 - **报告格式**:报告 commit 进本仓库 `reports/`;会话最后一条消息给出报告全文。
   **首句结论口径(R8-fix 定,脚本可查)**:第一句 **≤20 字**,数法为——取首行散文
   (非标题、非引用、非表格行),**剥去 `一句话结论:` 之类的标签与 Markdown 强调符**,
-  **中文标点计入**(读者要读它),数到第一个句号/问号/叹号为止。
+  **句内标点计入**(读者要读它),**句末那个句号不计**(它是分隔符不是内容)。
   **纯数据附卷豁免结论句**(如 `round-1-capabilities-full.md`,它是主卷的数据附件)。
+  *句末标点计不计不是细节:R7C / R8A / R8B 三份首句在"不计"下正好 20、在"计"下 21。
+  选"不计",因为一个连必打的句号都要收费的 20 字上限,实际是 19 字上限,
+  而规则没这么说。写在这里是为了让这个选择可见、可被有意推翻,而不是被人意外发现。*
 
   ```bash
   python3 scripts/verify_report_headline.py reports/*.md
@@ -90,7 +93,10 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   R7 起这条线索中断了五轮,期间实际仍有 8,122 个文件从未开工。*
 
   ```bash
-  awk -F'\t' 'NR>1 && $6=="R1-inventoried"{n++; l+=$3} END{print n" 文件 / "l" 行"}' data/ledger.tsv
+  # 注意 sub(/\r$/,""):data/ledger.tsv 是 CRLF 行尾,不剥 CR 的话 $6 永远匹配不上,
+  # 这条命令会安静地打出 0 —— 正是上面"shell 命令即证据"那条规矩要防的形状。
+  awk -F'\t' 'NR>1{sub(/\r$/,"",$6); if($6=="R1-inventoried"){n++; l+=$3}} \
+      END{printf "%d 文件 / %d 行\n", n, l}' data/ledger.tsv
   ```
 - **移交项格式(R8A 起)**:凡向后续轮移交的未决项,**必须附「锚点文件 + 一句话现象」**
   ——写清在哪个文件(最好带行号)、看到的具体现象是什么,而不只是一个标题。

@@ -10,8 +10,17 @@ now fixed and mechanical:
   * A leading label such as `一句话结论:` / `结论:` is **not** counted.
   * Markdown emphasis (`**`, `*`, `` ` ``) is stripped; everything else counts,
     **including Chinese punctuation** — a comma is a character the reader reads.
-  * The sentence ends at the first `。`/`!`/`?`/`.` or end of line.
+  * The sentence ends at the first `。`/`!`/`?`/`.` or end of line, and that
+    **terminal mark is not counted** — it is a delimiter, not content. Internal
+    punctuation IS counted, because a comma is something the reader reads.
   * Length = number of characters after the above stripping.
+
+This last bullet is not a detail: it decides three real cases. round-7c / 8a / 8b
+all land at exactly 20 under this caliber and at 21 if the closing `。` counts.
+Excluding it is the deliberate call — a 20-character limit that also charges for
+the mandatory full stop is really a 19-character limit, which is not what the rule
+says. Stated here so the choice stays visible and can be reversed on purpose
+rather than discovered by surprise.
 
 Pure-data appendices are exempt: they carry no conclusion of their own, they are
 the main volume's data attachment. Exemption is by explicit list, not by guessing.
