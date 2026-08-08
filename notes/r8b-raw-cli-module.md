@@ -9,13 +9,30 @@
 
 ## 0. 自验记录
 
-- **锚点总数**:本稿共 **97** 个 `路径:行号 @ 863e313` 锚点。
-- **重新核验数量**:**全部 97 个**逐行 `sed -n 'Np'` 复核(分 6 批 dump 比对),超出要求的 15 个下限。
-- **核验中发现并修正的漂移**:**2 处**。
-  1. 起初把 `_prune_stale_worktrees` 的 "aggressive tier" 文档句记为 `cli.py:2220`,实际空行;
-     复核后修正为 `cli.py:2222`。
-  2. 起初把 rich 系列导入记为「`load_cli_config` 之后紧邻」,复核发现 `load_cli_config` 与
-     rich 导入之间还夹着 830–891 的 `_AsyncHttpxDelNeuter` 元路径钩子,已在 §2.1 补正。
+- **锚点总数**:本稿共 **328** 处 `路径:行号 @ 863e313` 锚点引用,去重后 **297** 个唯一锚点,
+  分布在 13 个文件(`cli.py` 为主,另含 `agent/usage_pricing.py`、`hermes_cli/*`、`tools/*`、
+  `hermes_constants.py`、`tests/cli/*`)。
+- **重新核验方式与数量**:**全部 328 处逐一机器复核**,远超要求的 15 个下限。做法是写脚本
+  把每个锚点后紧跟的代码块**首行**与被引文件该行号的**实际内容**做逐字符比对
+  (`first.rstrip() == src.rstrip()`)。最终结果:**319 处严格匹配、0 处不匹配、0 处越界、
+  0 个「只在正文提及却没有对应原文块」的孤儿锚点**(剩余 9 处为同一锚点在同一行内的重复引用,
+  由同一个代码块覆盖)。此外分 6 批用 `sed -n 'Np'` 做了人工抽样比对。
+- **核验中发现并修正的漂移:共 11 处**。
+  1. `_prune_stale_worktrees` 的 "aggressive tier" 文档句起初记为 `cli.py:2220`(实际是空行),
+     修正为 `cli.py:2222`。
+  2. rich 系列导入起初记为「紧跟 `load_cli_config`」,复核发现二者之间还夹着 830–891 的
+     `_AsyncHttpxDelNeuter` 元路径钩子,已在 §2.1 补正。
+  3–9. 七处**锚点指向 `def`/`class` 行、引文却取自其 docstring 或函数体内部**的不精确引用,
+     全部改为指向被引片段的真实行号:`3492→3500`(括号粘贴补丁承诺句)、
+     `243→246`(`Handles every case`)、`243→266` 与新增 `287`(推理标签 vs 工具标签两条正则)、
+     `2794→2797`(`.reset()` 承诺句)、`3874→3879`(`Drop-in replacement`)、
+     `3354→3361`(§5-1 引用的 slash-command 注释)。
+  10. §2.5.3 原本用一个代码块同时代表 `17649` 与 `18263` 两个调用点,但两处缩进不同
+      (12 空格 vs 8 空格),已拆成两个各自逐字准确的块。
+  11. §2.1 原本用一行同时列 `2780` 与 `2786` 再跟两个块,归属含糊,已拆成两条各带自己的块。
+- **补齐**:核验脚本还揪出 7 个「正文里引了行号、但没给原文块」的锚点
+  (`169 / 915 / 2370 / 2857 / 4128 / 5227 / 18114`),已全部补上代码块;
+  §2.2 里原本用一行罗列 4 个 shim 锚点,已拆开并补全 `925 / 950 / 959` 的原文。
 - **额外实证**:worktree 数据丢失路径(§3-1)不是静态推断,而是在容器里用真实 git 复现过
   (无 remote 仓库 → `git for-each-ref refs/remotes` 返回 rc=0 且空输出 → 判定「无未推送提交」→
   `git worktree remove --force` + `git branch -D` 把 agent 的提交从工作区与分支上一并抹掉)。
@@ -124,11 +141,13 @@ _hermes_home = get_hermes_home()
 CLI_CONFIG = load_cli_config()
 ```
 
-- `cli.py:2780 @ 863e313` 与 `cli.py:2786 @ 863e313` —— 皮肤取色钩子安装 + 明暗模式探测预热(后者会向 TTY 发 OSC 11 查询):
+- 皮肤取色钩子安装,`cli.py:2780 @ 863e313`:
 
 ```python
 _install_skin_light_mode_hook()
 ```
+
+- 明暗模式探测预热(会向 TTY 发 OSC 11 查询),`cli.py:2786 @ 863e313`:
 
 ```python
 try:
@@ -201,8 +220,46 @@ def AIAgent(*args, **kwargs):
     return _AIAgent(*args, **kwargs)
 ```
 
-`cli.py:915 @ 863e313`、`cli.py:925 @ 863e313`、`cli.py:950 @ 863e313`、`cli.py:959 @ 863e313` 等
-十余个函数是同一模板。设计意图写在紧挨着的注释里:
+`cli.py:915 @ 863e313`
+
+```python
+def get_toolset_for_tool(*args, **kwargs):
+    from model_tools import get_toolset_for_tool as _get_toolset_for_tool
+
+    return _get_toolset_for_tool(*args, **kwargs)
+```
+
+`cli.py:925 @ 863e313`
+
+```python
+def get_all_toolsets(*args, **kwargs):
+    from toolsets import get_all_toolsets as _get_all_toolsets
+
+    return _get_all_toolsets(*args, **kwargs)
+```
+
+`cli.py:950 @ 863e313`
+
+```python
+def get_job(*args, **kwargs):
+    from cron import get_job as _get_job
+
+    return _get_job(*args, **kwargs)
+```
+
+`cli.py:959 @ 863e313`
+
+```python
+def _cleanup_all_terminals(*args, **kwargs):
+    from tools.terminal_tool import cleanup_all_environments
+
+    return cleanup_all_environments(*args, **kwargs)
+```
+
+以及 `get_toolset_info:931`、`validate_toolset:937`、`set_sudo_password_callback:965`、
+`set_approval_callback:971`、`set_secret_capture_callback:977`、`_cleanup_all_browsers:983`、
+`build_skill_invocation_message:4040`、`build_preloaded_skills_prompt:4046`、
+`build_bundle_invocation_message:4061` —— 共十余个函数是同一模板。设计意图写在紧挨着的注释里:
 
 `cli.py:209 @ 863e313`
 
@@ -258,7 +315,20 @@ def format_duration_compact(seconds: float) -> str:
     return f"{days:.1f}d"
 ```
 
-`format_token_count_compact` 同理(`cli.py:169 @ 863e313` vs `agent/usage_pricing.py:1412 @ 863e313`)。
+`format_token_count_compact` 同理 —— `cli.py:169 @ 863e313`
+
+```python
+def format_token_count_compact(*args, **kwargs):
+    value = int(args[0] if args else kwargs.get("value", 0))
+```
+
+对应的权威实现在 `agent/usage_pricing.py:1412 @ 863e313`
+
+```python
+def format_token_count_compact(value: int) -> str:
+    abs_value = abs(int(value))
+```
+
 
 **为什么这是有意义的发现**:这两个函数在**状态栏热路径**上被调用——每次状态栏快照都会调一次
 (`cli.py:5248 @ 863e313`):
@@ -723,10 +793,16 @@ docstring 里还明确否掉了一个看似更简单的方案:
     _signal_watchdog_armed = True
 ```
 
-两处调用点:`cli.py:17649 @ 863e313`(交互模式信号处理器)与 `cli.py:18263 @ 863e313`(`-q` 单查询模式)。
+两处调用点 —— 交互模式的信号处理器,`cli.py:17649 @ 863e313`
 
 ```python
             _arm_exit_watchdog_on_shutdown_signal()
+```
+
+以及 `-q` 单查询模式的信号处理器,`cli.py:18263 @ 863e313`
+
+```python
+        _arm_exit_watchdog_on_shutdown_signal()
 ```
 
 #### 2.5.4 `_run_cleanup`:清理顺序本身就是设计
@@ -2736,3 +2812,1865 @@ def _collect_query_images(query: str | None, image_arg: str | None = None) -> tu
 **两种输入两种严格度**:拖放是「猜测式」的,猜错就当普通文本;`--image` 是「声明式」的,
 错了必须报错。这个区分很对。
 
+
+---
+
+### 2.11 prompt_toolkit 补丁族 —— 四个终端协议层的坑
+
+这一簇的共同主题:**终端不是一个可靠的字节管道**。它会丢标记、会延迟回复、会用不同编码表达
+同一个按键。四个补丁各治一种。
+
+#### 2.11.1 括号粘贴超时:输入永久冻结的修法
+
+`cli.py:3492 @ 863e313`
+
+```python
+def _apply_bracketed_paste_timeout_patch() -> None:
+    """Patch prompt_toolkit to recover from torn bracketed-paste sequences.
+
+    prompt_toolkit's ``Vt100Parser.feed()`` buffers all input while waiting
+    for the ESC[201~ end mark.  If a terminal drops that end mark (terminal
+    race, torn write, SSH glitch, macOS sleep/wake), input appears frozen
+    forever — the only recovery used to be killing the tab.
+
+    This patch wraps ``Vt100Parser.feed`` so that bracketed-paste mode
+    flushes buffered content as a normal ``BracketedPaste`` event after
+    ``_BP_TIMEOUT_S`` seconds without an end marker, then resumes normal
+    parsing.  See upstream issue #16263.
+
+    The patch is idempotent — repeated calls are no-ops via the
+    ``_hermes_bp_timeout_patched`` sentinel on the module.
+    """
+```
+
+**术语锚定**:*bracketed paste*(括号粘贴)是终端的一个模式——粘贴内容被 `ESC[200~` 和 `ESC[201~`
+包住,程序据此区分「用户敲的」和「用户粘的」。
+
+**事故复述**:用户粘一段代码 → 终端发 `ESC[200~` 开头 → macOS 睡眠唤醒 / SSH 抖动,
+结尾的 `ESC[201~` **丢了** → prompt_toolkit 一直缓冲、等那个结束标记 → 输入区**永远不再响应**,
+用户只能杀掉终端标签。
+
+修法:超时后当作正常粘贴冲出去。
+
+`cli.py:3516 @ 863e313`
+
+```python
+        _BP_TIMEOUT_S = 2.0  # max time to wait for ESC[201~ before flushing
+```
+
+`cli.py:3537 @ 863e313`
+
+```python
+                else:
+                    bp_start = getattr(self_parser, "_hermes_bp_start", None)
+                    now = time.monotonic()
+                    if bp_start is None:
+                        self_parser._hermes_bp_start = now
+                    elif now - bp_start > _BP_TIMEOUT_S:
+                        paste_content = self_parser._paste_buffer
+                        self_parser._in_bracketed_paste = False
+                        self_parser._paste_buffer = ""
+                        self_parser._hermes_bp_start = None
+                        if paste_content:
+                            self_parser.feed_key_callback(
+                                _PtKeyPress(_PtKeys.BracketedPaste, paste_content)
+                            )
+                            logger.warning(
+                                "Bracketed-paste timeout (%.1fs) — flushed %d bytes "
+                                "without end mark. Terminal may have dropped ESC[201~ "
+                                "(see #16263).",
+                                now - bp_start,
+                                len(paste_content),
+                            )
+```
+
+**关键实现细节**:计时状态挂在 parser 实例上、用 `_hermes_` 前缀命名(`_hermes_bp_start`),
+避免与上游属性撞名。这是**给别人的对象加字段时的基本礼貌**。
+
+正常模式那一支是把上游逻辑**内联重写**,而不是回调原函数,并写明了理由:
+
+`cli.py:3558 @ 863e313`
+
+```python
+            else:
+                # Normal mode — re-inline prompt_toolkit's normal feed path.
+                # Calling the original feed here would double-buffer after the
+                # bracketed-paste entry transition.
+                for i, c in enumerate(data):
+                    if self_parser._in_bracketed_paste:
+                        _patched_vt100_feed(self_parser, data[i:])
+                        break
+                    self_parser._input_parser.send(c)
+```
+
+**这是本补丁最大的维护风险**(§3-8):它是一次**硬分叉**,把上游的 `feed()` 复制了一份。
+上游任何对 `feed()` 的改动,在打了这个补丁的进程里都不会生效,而且没有版本门控。
+
+安装点在交互循环启动处:`cli.py:17347 @ 863e313`
+
+```python
+        _apply_bracketed_paste_timeout_patch()
+```
+
+配套测试用 AST 抽取的方式**只加载这个函数**而不 import cli,理由写在测试里:
+
+`tests/cli/test_bracketed_paste_timeout.py:21 @ 863e313`
+
+```python
+def _load_production_patch_helper():
+    """Load cli._apply_bracketed_paste_timeout_patch without importing cli.
+
+    Importing cli.py pulls optional runtime deps that aren't required for this
+    parser-level regression.  AST-loading the exact helper keeps the test tied
+    to production code while avoiding unrelated import side effects.  If the
+    production helper is removed, this test fails.
+    """
+```
+
+**这是个值得记的测试技巧**:被测函数在一个「导入代价极高」的模块里,用 `ast.get_source_segment`
+把函数源码抠出来 `exec` 到一个受控命名空间。既保持了对生产代码的绑定(函数删了测试就挂),
+又不付导入代价。代价是函数不能依赖模块里的其他符号(这里只注入了 `time` 和 `logger`)。
+
+#### 2.11.2 CPR 抑制:另一个「终端回复变成输入」的坑
+
+**术语锚定**:*CPR*(Cursor Position Report)/ DSR —— prompt_toolkit 发 `ESC[6n` 问终端
+「光标现在在第几行?」,终端回 `ESC[<行>;<列>R`。
+
+`cli.py:3575 @ 863e313`
+
+```python
+# Cursor Position Report (CPR / DSR) response, format ``ESC[<row>;<col>R``.
+# prompt_toolkit's _on_resize() + renderer send ``ESC[6n`` queries to the
+# terminal; under resize storms or tab switches the terminal's reply can
+# race past the input parser and end up in the input buffer as literal
+# text (see issue #14692). Also matches the visible-form ``^[[<row>;<col>R``
+# that appears when the ESC byte was stripped by a prior filter.
+_DSR_CPR_ESC_RE = re.compile(r"\x1b\[\d+;\d+R")
+```
+
+**修法是双保险**:输出侧根本不发查询 + 输入侧清洗残留。
+
+输出侧,`cli.py:3692 @ 863e313`:
+
+```python
+def _build_cpr_disabled_output(stdout):
+    """Build a Vt100_Output that never sends Cursor Position Report queries.
+
+    prompt_toolkit's renderer sends ``ESC[6n`` (Device Status Report) to learn
+    the cursor row before painting in non-fullscreen mode; the terminal replies
+    ``ESC[<row>;<col>R``. When that reply is delayed it races into the display
+    as raw ``^[[39;1R`` and can stall the renderer's pending-CPR future
+    (#13870; also local POSIX under heavy subagent load).
+
+    Constructing the output with ``enable_cpr=False`` marks CPR
+    ``NOT_SUPPORTED`` so ``ESC[6n`` is never sent. prompt_toolkit then uses its
+    heuristic available-height fallback. Input-side
+    ``_strip_leaked_terminal_responses`` remains belt-and-suspenders.
+
+    Note: ``Vt100_Output.from_pty()`` does NOT expose ``enable_cpr`` in
+    prompt_toolkit 3.x, so we reproduce its ``get_size`` setup and call the
+    constructor directly. Returns ``None`` on any failure so the caller falls back
+    to prompt_toolkit's default output (CPR enabled, but input-side scrubbing
+    still protects against leaks).
+    """
+```
+
+**「上游工厂方法不暴露我要的参数,于是手工复现工厂方法的构造过程」**——这是绕过 API 缺口的
+常见手法,风险是复现的那段(`get_size` 设置)会随上游漂移。
+
+`cli.py:3717 @ 863e313`
+
+```python
+        def _get_term_size():
+            rows = columns = None
+            try:
+                rows, columns = _get_size(stdout.fileno())
+            except (OSError, _io.UnsupportedOperation, AttributeError, ValueError):
+                pass
+            return Size(rows=rows or 24, columns=columns or 80)
+
+        return Vt100_Output(stdout, _get_term_size, enable_cpr=False)
+```
+
+策略函数把「什么时候抑制」写成了显式规则:
+
+`cli.py:3670 @ 863e313`
+
+```python
+def _terminal_may_leak_cpr() -> bool:
+    """Whether classic CLI should suppress prompt_toolkit CPR (ESC[6n) queries.
+
+    Delayed CPR replies (``ESC[<row>;<col>R`` / visible ``^[[<row>;<col>R``)
+    leak into the status line and can freeze input when the reply is slow
+    (#13870 on SSH/slow PTYs). The same race hits local POSIX TTYs under
+    heavy subagent / status-line load — see ``tests/cli/test_cpr_local_leak.py``.
+
+    Policy:
+    - ``PROMPT_TOOLKIT_NO_CPR=1`` → always suppress
+    - native Windows (``win32``) → keep prompt_toolkit's default for now
+      (no native-Windows Application coverage yet); still honor NO_CPR
+    - all other platforms → suppress (CPR is only a layout hint; heuristic
+      height is enough). SSH env is no longer required to trigger this.
+    """
+```
+
+**「CPR 只是布局提示,启发式高度就够」**是这个决定的核心论证:牺牲一点布局精度换掉整类竞态。
+注意最后一句 "SSH env is no longer required" —— 这条规则**放宽过一次**,说明本地也复现了。
+
+Windows 保留默认的理由是**没有覆盖**,而不是「Windows 没问题」——这个诚实的措辞值得学。
+
+输入侧清洗:
+
+`cli.py:3742 @ 863e313`
+
+```python
+def _strip_leaked_terminal_responses_with_meta(text: str) -> tuple[str, bool]:
+    """Strip leaked terminal control-response sequences from user input.
+
+    Covers Cursor Position Report (CPR / DSR) responses — ``ESC[<row>;<col>R``
+    and the visible ``^[[<row>;<col>R`` form. These are replies the terminal
+    sends back to queries prompt_toolkit makes during ``_on_resize`` /
+    ``_request_absolute_cursor_position``. When the input parser drops one
+    (resize storms, multiplexer focus changes, slow PTYs) the response
+    lands in the input buffer as literal text and corrupts what the user
+    typed.
+
+    Also strips leaked SGR mouse-report fragments (``ESC[<...M/m`` and
+    degraded visible forms). Returns ``(cleaned_text, had_mouse_reports)``
+    so callers can trigger an in-place terminal mode recovery when needed.
+    """
+```
+
+它先用**廉价的子串检查**短路,避免对每次按键都跑三条正则:
+
+`cli.py:3760 @ 863e313`
+
+```python
+    has_esc = "\x1b[" in text
+    has_visible = "^[" in text
+    has_bare_mouse = "<" in text and ";" in text and ("M" in text or "m" in text)
+    if not (has_esc or has_visible or has_bare_mouse):
+        return text, False
+```
+
+「裸鼠标片段」那条正则故意放宽,并写明了取舍:
+
+`cli.py:3585 @ 863e313`
+
+```python
+# Some terminals/filters can drop ESC and literal "^[[", leaving only
+# "<btn;col;rowM" fragments in the buffer. Keep this broad on purpose:
+# these fragments are extremely unlikely to be intentional user input, and
+# stripping them is better than sending corrupted prompts.
+_SGR_MOUSE_BARE_RE = re.compile(r"<\d+;\d+;\d+[Mm]")
+```
+
+返回值带 `had_mouse_reports` 标志,是为了让调用方能**当场重置终端模式**——发现鼠标报告泄漏,
+说明鼠标追踪不该开着。
+
+#### 2.11.3 Ctrl+Enter:同一个字节,两种含义
+
+`cli.py:3605 @ 863e313`
+
+```python
+def _preserve_ctrl_enter_newline() -> bool:
+    """Detect environments where Ctrl+Enter must produce a newline, not submit.
+
+    Windows Terminal, WSL, SSH sessions, Ghostty, and some modern terminals
+    deliver Ctrl+Enter/Ctrl+J as bare LF (c-j). On those terminals c-j must
+    NOT be bound to submit;
+    binding it to submit makes Ctrl+Enter (intended as 'newline like Alt+Enter')
+    submit instead. Local POSIX TTYs that deliver Enter as LF (docker exec,
+    some thin PTYs without SSH) still need c-j bound to submit, so we keep
+    that binding for those.
+
+    See issue #22379.
+    """
+```
+
+**冲突讲清楚**:字节 `LF`(c-j)在**瘦 PTY**(`docker exec`、某些 SSH 变体)上是**回车键**本身;
+在 Windows Terminal / WSL / Ghostty 上却是 **Ctrl+Enter** 这个另一个键。两边都绑 submit,
+后一类用户按 Ctrl+Enter 想换行结果消息发出去了;两边都不绑,前一类用户的回车键**完全失灵**。
+没有正确答案,只能按环境分流。
+
+检测清单:
+
+`cli.py:3618 @ 863e313`
+
+```python
+    if sys.platform == "win32":
+        return True
+    if any(os.environ.get(v) for v in ("SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY")):
+        return True
+    if os.environ.get("WT_SESSION"):
+        return True
+    if os.environ.get("GHOSTTY_RESOURCES_DIR") or os.environ.get("GHOSTTY_BIN_DIR"):
+        return True
+    if os.environ.get("TERM", "").lower() == "xterm-ghostty":
+        return True
+    if os.environ.get("TERM_PROGRAM", "").lower() == "ghostty":
+        return True
+    if "microsoft" in os.environ.get("WSL_DISTRO_NAME", "").lower():
+        return True
+```
+
+WSL 检测有第二重兜底,理由很实际:
+
+`cli.py:3632 @ 863e313`
+
+```python
+    # WSL detection — env vars can be scrubbed under sudo, also peek /proc.
+    for p in ("/proc/version", "/proc/sys/kernel/osrelease"):
+        try:
+            with open(p, "r", encoding="utf-8", errors="ignore") as f:
+                if "microsoft" in f.read().lower():
+                    return True
+        except OSError:
+            continue
+```
+
+**「环境变量在 sudo 下会被清洗」**是个很容易漏掉的实际约束,所以补一条读 `/proc` 的路径。
+
+绑定函数本身很短:
+
+`cli.py:3643 @ 863e313`
+
+```python
+def _bind_prompt_submit_keys(kb, handler) -> None:
+    """Bind terminal Enter forms to the submit handler.
+```
+
+`cli.py:3657 @ 863e313`
+
+```python
+    kb.add("enter")(handler)
+    if sys.platform != "win32" and not _preserve_ctrl_enter_newline():
+        kb.add("c-j")(handler)
+```
+
+#### 2.11.4 输入区高度估算:为什么不能用假宽度
+
+`cli.py:3791 @ 863e313`
+
+```python
+def _estimate_tui_input_height(
+    lines: list[str] | tuple[str, ...],
+    prompt_text: str,
+    terminal_columns: int,
+    *,
+    max_height: int = 8,
+) -> int:
+    """Estimate classic prompt_toolkit input rows using live terminal cells.
+
+    The TextArea prompt is injected with prompt_toolkit's BeforeInput
+    processor, which means it consumes cells only on logical line 0. After a
+    narrow resize, that first row can leave only one input cell beside an icon
+    prompt such as ``⚔ ``, while continuation rows use the full terminal width.
+    Never substitute a fake wide fallback here: under- or over-allocating the
+    TextArea height leaves stale prompt/input cells visible at the bottom of the
+    terminal.
+    """
+```
+
+**核心洞察**:提示符(`⚔ `)只占**逻辑第 0 行**的格子;换行后的续行用满整宽。
+如果按「每行都减去提示符宽度」算,窄终端下会高估行数。
+
+`cli.py:3821 @ 863e313`
+
+```python
+    visual_lines = 0
+    for index, line in enumerate(lines or [""]):
+        # prompt_toolkit's TextArea injects ``prompt`` via BeforeInput, which
+        # applies only to logical line 0. Wrapped continuation rows, and later
+        # logical lines, use the full terminal width. Count the display cells
+        # after that same transformation rather than subtracting the prompt from
+        # every wrapped row.
+        line_width = get_cwidth(line or "")
+        display_width = line_width + (prompt_width if index == 0 else 0)
+        if display_width <= 0:
+            visual_lines += 1
+        else:
+            visual_lines += max(1, -(-display_width // columns))
+```
+
+用 `get_cwidth` 而非 `len()` —— CJK 字符占两格,emoji 占两格,按字符数算必错:
+
+`cli.py:3808 @ 863e313`
+
+```python
+    try:
+        from prompt_toolkit.utils import get_cwidth
+    except Exception:
+        get_cwidth = lambda value: len(value or "")  # type: ignore[assignment]
+```
+
+`-(-a // b)` 是**向上取整的整数写法**(避免浮点)。
+
+---
+
+### 2.12 `ChatConsole`、markdown 渲染与 banner
+
+#### 2.12.1 `ChatConsole`:把 Rich 塞进 prompt_toolkit
+
+`cli.py:3874 @ 863e313`
+
+```python
+class ChatConsole:
+    """Rich Console adapter for prompt_toolkit's patch_stdout context.
+
+    Captures Rich's rendered ANSI output and routes it through _cprint
+    so colors and markup render correctly inside the interactive chat loop.
+    Drop-in replacement for Rich Console — just pass this to any function
+    that expects a console.print() interface.
+    """
+```
+
+**问题**:Rich 直接写 stdout,而交互循环里 stdout 被 `patch_stdout` 代理,ANSI 转义被吞。
+**解法**:让 Rich 写进一个内存 `StringIO`,把渲染好的 ANSI 抠出来,逐行喂给 `_cprint`。
+
+`cli.py:3883 @ 863e313`
+
+```python
+    def __init__(self):
+        from io import StringIO
+        self._buffer = StringIO()
+        self._inner = Console(
+            file=self._buffer,
+            force_terminal=True,
+            color_system="truecolor",
+            highlight=False,
+        )
+```
+
+`force_terminal=True` 是必须的——写进 StringIO 时 Rich 会认为「不是终端」而放弃着色。
+
+`cli.py:3893 @ 863e313`
+
+```python
+    def print(self, *args, **kwargs):
+        self._buffer.seek(0)
+        self._buffer.truncate()
+        # Read terminal width at render time so panels adapt to current size
+        self._inner.width = shutil.get_terminal_size((80, 24)).columns
+        self._inner.print(*args, **kwargs)
+        output = self._buffer.getvalue()
+        # Strip OSC escape sequences (e.g. OSC-8 hyperlinks) before
+        # routing through prompt_toolkit's ANSI parser, which only
+        # handles CSI/SGR and passes OSC payload through as literal text.
+        output = _OSC_ESCAPE_RE.sub("", output)
+        for line in output.rstrip("\n").split("\n"):
+            _cprint(line)
+```
+
+**每次 print 都重读终端宽度**,所以 resize 后的 Panel 尺寸是对的。
+
+OSC 剥离的必要性:
+
+`cli.py:3868 @ 863e313`
+
+```python
+# Strip OSC escape sequences (e.g. OSC-8 hyperlinks) that prompt_toolkit's
+# ANSI parser can't handle — it strips \x1b but passes the payload through
+# as literal text, garbling the TUI output.
+_OSC_ESCAPE_RE = re.compile(r"\x1b\][\s\S]*?(?:\x07|\x1b\\)")
+```
+
+**术语锚定**:*OSC-8* 是终端超链接的转义序列(`ESC ] 8 ; ; <url> ESC \`)。prompt_toolkit
+的 ANSI 解析器只认 CSI/SGR,遇到 OSC 会把 `\x1b` 吃掉、把 URL **当正文打出来**。
+
+`status()` 是个 no-op 上下文管理器,理由写得很坦白:
+
+`cli.py:3907 @ 863e313`
+
+```python
+    @contextmanager
+    def status(self, *_args, **_kwargs):
+        """Provide a no-op Rich-compatible status context.
+
+        Some slash command helpers use ``console.status(...)`` when running in
+        the standalone CLI. Interactive chat routes those helpers through
+        ``ChatConsole()``, which historically only implemented ``print()``.
+        Returning a silent context manager keeps slash commands compatible
+        without duplicating the higher-level busy indicator already shown by
+        ``HermesCLI._busy_command()``.
+        """
+        yield self
+```
+
+**「兼容而非重复」**:交互模式已经有自己的忙碌指示器,再套一个 Rich spinner 会双重转圈。
+
+#### 2.12.2 最终助手内容的三种渲染模式
+
+`cli.py:2946 @ 863e313`
+
+```python
+def _render_final_assistant_content(text: str, mode: str = "render"):
+    """Render final assistant content as markdown, stripped text, or raw text."""
+    from rich.markdown import Markdown
+```
+
+`strip` 模式里,**剥离与重对齐的先后顺序**是关键:
+
+`cli.py:2962 @ 863e313`
+
+```python
+    normalized_mode = str(mode or "render").strip().lower()
+    if normalized_mode == "strip":
+        # Strip first — inline markdown inside cells (`code`, **bold**, ~~strike~~)
+        # changes cell display width — then re-align so the column padding
+        # reflects the final visible text, not the marker-decorated source.
+        return _RichText(
+            realign_markdown_tables(_strip_markdown_syntax(text), panel_width)
+        )
+```
+
+`render` 模式反过来,理由也写清楚了:
+
+`cli.py:2973 @ 863e313`
+
+```python
+    # `render` mode: Rich's Markdown renderer handles CJK width via wcwidth
+    # internally, so a pre-pass through realign_markdown_tables would just
+    # rewrite already-correct padding.  But on the way in we still want to
+    # normalise model-emitted under-padded tables so that mid-render fallbacks
+    # (narrow panels, etc.) at least see consistent input.
+```
+
+`_strip_markdown_syntax` 里有一处**为 cron 表达式让路**的特判,很能说明这类文本处理的现实:
+
+`cli.py:2875 @ 863e313`
+
+```python
+def _strip_markdown_syntax(text: str) -> str:
+    """Best-effort markdown marker removal for plain-text display."""
+    plain = _rich_text_from_ansi(text or "").plain
+    # Avoid stripping cron-style expressions like "* * * * *" as if they were
+    # Markdown horizontal rules. CommonMark treats three or more "*" as an HR,
+    # but in Hermes output it's common to display cron schedules verbatim.
+    #
+    # Keep the behavior for "-" / "_" HR markers, and only strip "*" HR lines
+    # when there are exactly 3 asterisks (with optional whitespace).
+    plain = re.sub(r"^\s{0,3}(?:[-_]\s*){3,}$", "", plain, flags=re.MULTILINE)
+    plain = re.sub(r"^\s{0,3}(?:\*\s*){3}\s*$", "", plain, flags=re.MULTILINE)
+```
+
+以及斜体剥离的同类特判:
+
+`cli.py:2896 @ 863e313`
+
+```python
+    # Only strip `*emphasis*` markers when the inner text is non-whitespace.
+    # This avoids corrupting cron expressions like "* * * * *".
+    plain = re.sub(r"\*([^\s*][^*]*?[^\s*])\*", r"\1", plain)
+```
+
+**这是「通用规范 vs 领域现实」的冲突**:CommonMark 说 3 个以上 `*` 是水平线;但 Hermes 是个
+会打印 cron 表达式的工具,`* * * * *` 必须原样。解法是把通用规则收窄到「恰好 3 个」。
+
+Windows 路径保护是同一类冲突:
+
+`cli.py:2910 @ 863e313`
+
+```python
+def _preserve_windows_dot_segments_for_markdown(text: str) -> str:
+    r"""Keep Windows path separators before hidden directories in Markdown.
+
+    CommonMark treats ``\.`` as an escaped literal dot, so Rich Markdown would
+    render ``D:\repo\.ai`` as ``D:\repo.ai``.  Doubling only that separator
+    inside Windows path-looking tokens preserves the path without changing
+    ordinary markdown escapes like ``1\. not a list``.
+    """
+```
+
+**修法的精确性值得注意**:不是全局转义,而是**只在「看起来像 Windows 路径」的 token 内**加倍
+反斜杠——所以 `1\. not a list` 这种正常的 markdown 转义不受影响。
+
+#### 2.12.3 流式宽度与紧凑 banner
+
+`cli.py:2927 @ 863e313`
+
+```python
+def _terminal_width_for_streaming() -> int:
+    """Display cells available inside the streamed response box.
+
+    The streaming path prefixes every line with ``_STREAM_PAD`` (now
+    empty — flush-left so copy/paste stays clean) inside an open
+    response panel.  The realigner uses this number as its budget when
+    deciding whether to keep a horizontal table or fall back to
+    vertical key-value rendering.  We subtract a small safety margin
+    so terminal-resize races don't push a borderline table into
+    mid-cell soft-wrap.
+    """
+```
+
+`_STREAM_PAD` 被清空的理由记在常量旁,是个真实的用户投诉:
+
+`cli.py:2514 @ 863e313`
+
+```python
+_STREAM_PAD = ""  # No indent for streamed response text — leading whitespace pollutes
+# terminal copy/paste (every selected line carried 4 spaces).  Matches the
+# response Panel's flush-left padding.
+```
+
+**「缩进好看,但复制出来每行带 4 个空格」**——终端 UI 的缩进和可复制性是直接冲突的,这里选了后者。
+
+banner 有三档:全宽 logo、盒装紧凑版、超窄单行版。
+
+`cli.py:3947 @ 863e313`
+
+```python
+def _build_compact_banner() -> str:
+    """Build a compact banner that fits the current terminal width."""
+```
+
+`cli.py:3976 @ 863e313`
+
+```python
+    w = min(shutil.get_terminal_size().columns - 2, 88)
+    if w < 30:
+        return f"\n[{title_color}]{tiny_line}[/] [dim {dim_color}]- Nous Research[/]\n"
+```
+
+`cli.py:3968 @ 863e313` 有一条**为冷启动开的快车道**:
+
+```python
+    if os.environ.get("HERMES_FAST_STARTUP_BANNER") == "1":
+        from hermes_cli import __release_date__ as _release_date
+        from hermes_cli import __version__ as _version
+
+        version_line = f"Hermes Agent v{_version} ({_release_date})"
+    else:
+        version_line = format_banner_version_label()
+```
+
+`format_banner_version_label()` 大概会去查 git 描述/更新状态(有 I/O);快车道直接读包常量。
+
+---
+
+### 2.13 斜杠命令与 skill 命令
+
+#### 2.13.1 「命令还是路径」的判定
+
+`cli.py:4001 @ 863e313`
+
+```python
+def _looks_like_slash_command(text: str) -> bool:
+    """Return True if *text* looks like a slash command, not a file path.
+
+    Slash commands are ``/help``, ``/model gpt-4``, ``/q``, etc.
+    File paths like ``/Users/ironin/file.md:45-46 can you fix this?``
+    also start with ``/`` but contain additional ``/`` characters in
+    the first whitespace-delimited word.  This helper distinguishes
+    the two so that pasted paths are sent to the agent instead of
+    triggering "Unknown command".
+    """
+    if not text or not text.startswith("/"):
+        return False
+    first_word = text.split()[0]
+    # After stripping the leading /, a command name has no slashes.
+    # A path like /Users/foo/bar.md always does.
+    return "/" not in first_word[1:]
+```
+
+**判据是纯语法的**(第一个词里还有没有 `/`),与 `_detect_file_drop` 的**纯语义判据**
+(文件真的存在吗)互补:前者便宜、后者准确。`/Users/x/file.md:45-46 can you fix this?`
+这个例子说明为什么需要前者——那个文件因为带了 `:45-46` 后缀根本不存在,语义判据会失败,
+但语法判据能正确地说「这不是命令」。
+
+#### 2.13.2 skill 命令的记忆化与插件命令名
+
+`cli.py:4036 @ 863e313`
+
+```python
+def get_skill_commands() -> dict:
+    return _ensure_skill_commands()
+```
+
+`cli.py:4067 @ 863e313` 的插件命令名查询是 fail-open 的(拿不到就返回空集,不阻断分发):
+
+```python
+def _get_plugin_cmd_handler_names() -> set:
+    """Return plugin command names (without slash prefix) for dispatch matching."""
+    try:
+        from hermes_cli.plugins import get_plugin_commands
+        return set(get_plugin_commands().keys())
+    except Exception:
+        return set()
+```
+
+#### 2.13.3 `--skills` 参数归一化
+
+`cli.py:4076 @ 863e313`
+
+```python
+def _parse_skills_argument(skills: str | list[str] | tuple[str, ...] | None) -> list[str]:
+    """Normalize a CLI skills flag into a deduplicated list of skill identifiers."""
+```
+
+它同时接受三种形态,因为命令行框架(Fire)对重复 flag 的处理不确定:
+
+`cli.py:4081 @ 863e313`
+
+```python
+    if isinstance(skills, str):
+        raw_values = [skills]
+    elif isinstance(skills, (list, tuple)):
+        raw_values = [str(item) for item in skills if item is not None]
+    else:
+        raw_values = [str(skills)]
+```
+
+去重**保序**(用 set 判重 + list 收集),因为 skill 的加载顺序可能影响提示词拼装:
+
+`cli.py:4088 @ 863e313`
+
+```python
+    parsed: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_values:
+        for part in raw.split(","):
+            normalized = part.strip()
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            parsed.append(normalized)
+    return parsed
+```
+
+---
+
+### 2.14 `save_config_value` —— 一个 bug 修完留下的完整现场
+
+`cli.py:4100 @ 863e313`
+
+```python
+def save_config_value(key_path: str, value: any) -> bool:
+```
+
+函数体开头这段注释,是本文件里信息密度最高的一段:
+
+`cli.py:4115 @ 863e313`
+
+```python
+    # Runtime persistence ALWAYS targets the user's HERMES_HOME config.yaml,
+    # creating it if needed. Resolve HERMES_HOME live (not the import-time
+    # _hermes_home constant) so profile switches and test isolation land right.
+    #
+    # We deliberately do NOT fall back to the repo's project cli-config.yaml:
+    # that file is a shipped default/template, and most config readers
+    # (load_config → get_hermes_home()/config.yaml, including
+    # load_wake_word_config) never read it. Writing a user setting there means
+    # the reader never sees it. This was the "wake-word ear reverts to disabled
+    # after restart" bug — the toggle's persist wrote to cli-config.yaml (which
+    # exists in the checkout) while startup read HERMES_HOME/config.yaml, so the
+    # setting silently vanished every restart on any install whose
+    # HERMES_HOME/config.yaml didn't exist yet.
+    config_path = get_hermes_home() / 'config.yaml'
+```
+
+**事故复述**:用户在 TUI 里打开唤醒词监听 → 开关的持久化逻辑按「读配置的查找顺序」写回,
+于是写进了 checkout 里存在的 `cli-config.yaml` → 但**启动时的读取方**只看
+`HERMES_HOME/config.yaml` → 重启后设置**每次都消失**。而且只在
+「`HERMES_HOME/config.yaml` 还不存在」的安装上复现,所以极难被开发者注意到。
+
+**修法给出了一条通用原则**:*写路径与读路径必须锚在同一个位置,而不是「按同一套查找顺序各自决议」*。
+查找顺序对读是对的(多来源合并),对写是错的(必须有唯一目标)。
+
+三个后续动作:
+
+`cli.py:4132 @ 863e313` —— 目录可能不存在(首次使用):
+
+```python
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+```
+
+`cli.py:4134 @ 863e313` —— 原子 + 保留注释的 YAML 往返更新:
+
+```python
+        # Save back atomically while preserving comments, ordering, quotes, and
+        # readable Unicode in user-edited config.yaml.
+        from utils import atomic_roundtrip_yaml_update
+        atomic_roundtrip_yaml_update(config_path, key_path, value)
+```
+
+**「保留注释」这一条不是洁癖**:config.yaml 是用户手写手维护的文件,一次程序化写入把用户的
+注释全清掉,等于毁了他的文档。
+
+`cli.py:4139 @ 863e313` —— 权限收紧到 0600,因为配置里有 API key:
+
+```python
+        # Enforce owner-only permissions on config files (contain API keys)
+        try:
+            os.chmod(config_path, 0o600)
+        except (OSError, NotImplementedError):
+            pass
+```
+
+`cli.py:4145 @ 863e313` —— 模型变更时的 cron 漂移告警:
+
+```python
+        # Model/provider changes made through /model and the TUI use this
+        # persistence path rather than ``hermes config set``. Surface the same
+        # fail-closed cron drift warning for every operator-facing model switch.
+        from hermes_cli.config import (
+            warn_unpinned_cron_jobs_after_model_config_change,
+        )
+
+        warn_unpinned_cron_jobs_after_model_config_change(key_path, value)
+```
+
+**这条很有意思**:同一个语义动作(换模型)有两个入口——`hermes config set` 和 `/model` / TUI。
+告警逻辑挂在**共同的持久化底座**上,而不是两个入口各挂一份,保证不会漏。
+
+外部消费者有两处:`gateway/slash_commands.py:5218` 与 `gateway/run.py:20529`,都是
+函数内 `from cli import save_config_value` 的懒导入。
+
+#### 2.14.1 `_normalize_moa_model`:一个字符串前缀撬动整条路由
+
+`cli.py:4167 @ 863e313`
+
+```python
+def _normalize_moa_model(model: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+    """Map a ``moa:<preset>`` model string to ``(provider, preset)``.
+
+    Returns ``("moa", "<preset>")`` when *model* selects the MoA virtual
+    provider, otherwise ``(None, model)`` unchanged. This gives non-interactive
+    ``hermes chat -Q -m moa:<preset>`` the same routing the interactive
+    ``/moa`` command and the model picker already use: ``resolve_runtime_provider``
+    handles ``requested_provider == "moa"`` and ``agent_init`` builds the
+    MoAClient off ``provider == "moa"``. Without this the raw ``moa:<preset>``
+    string is sent to the real provider and rejected with a 401/400 "model not
+    supported" (#56828).
+    """
+```
+
+**术语锚定**:*MoA*(Mixture of Agents)是一个「虚拟 provider」——它不对应真实 API 端点,
+而是在内部把请求扇出给多个模型再聚合。
+
+**事故复述**:交互模式的 `/moa` 和模型选择器都会把 `moa:<preset>` 拆成 provider+preset;
+但**非交互的 `-m moa:<preset>`** 这条路径漏了这一步 → 原样把 `moa:xxx` 当模型名发给真实
+provider → 401/400 "model not supported"。修法就是在非交互路径上补同一次归一化。
+
+`cli.py:4179 @ 863e313`
+
+```python
+    if isinstance(model, str):
+        stripped = model.strip()
+        if stripped.lower().startswith("moa:"):
+            preset = stripped.split(":", 1)[1].strip()
+            if preset:
+                return "moa", preset
+    return None, model
+```
+
+调用点:`cli.py:4377 @ 863e313`
+
+```python
+        _moa_provider_override, self.model = _normalize_moa_model(self.model)
+```
+
+#### 2.14.2 `_VoiceInputMessage`:用类型区分来源
+
+`cli.py:4188 @ 863e313`
+
+```python
+class _VoiceInputMessage:
+    """Sentinel wrapper for voice-transcribed messages in ``_pending_input``.
+
+    Distinguishes STT output from manually typed text while voice mode is
+    active, so the concise-voice-response prefix is applied only to messages
+    that actually came from the microphone (#65827).
+    """
+
+    __slots__ = ("text",)
+
+    def __init__(self, text: str):
+        self.text = text
+
+    def __str__(self) -> str:
+        return self.text
+```
+
+**术语锚定**:*STT*(Speech-To-Text)= 语音转文字。
+
+**问题**:语音模式开着时,回答要「简短」(适合朗读)。但用户可能在语音模式下**用键盘**打一条长问题,
+这时不该强制简短。`_pending_input` 是个混合队列,两种来源都往里塞字符串,**类型上无法区分**。
+解法:给语音来的那条包一层薄壳,`__str__` 透明,但 `isinstance` 能认出来。
+
+`__slots__` 是为了让这个包装几乎零开销。
+
+---
+
+## 3. 可疑缺陷清单
+
+### 3-1. 无 remote 的仓库里,`hermes -w` 退出时会删掉 agent 的全部提交
+
+**现象**:在一个没有任何 remote(或没有任何 remote-tracking ref)的 git 仓库里跑 `hermes -w`,
+agent 在 worktree 里正常提交了工作;CLI 退出时 `_cleanup_worktree` 判定「没有未推送提交」,
+执行 `git worktree remove --force` + `git branch -D`,**提交从工作区和分支上一并消失**
+(只剩 reflog / dangling object,`git gc` 后彻底不可达)。
+
+**锚点**:`cli.py:1806 @ 863e313`
+
+```python
+        if remote_refs.returncode != 0:
+            return True
+        if not remote_refs.stdout.strip():
+            return False
+```
+
+`cli.py:2077 @ 863e313`
+
+```python
+    has_unpushed = _worktree_has_unpushed_commits(wt_path, timeout=10)
+
+    if has_unpushed:
+```
+
+`cli.py:2107 @ 863e313`
+
+```python
+        subprocess.run(
+            ["git", "branch", "-D", branch],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, cwd=repo_root,
+        )
+```
+
+**为什么可疑**:`_worktree_is_dirty` 的 docstring 明确写了 "Fails SAFE ... so callers do not delete a
+worktree whose state they cannot determine"(`cli.py:1822 @ 863e313`),
+`_worktree_commits_all_merged_upstream` 也写了 "Fails SAFE toward False (preserve)"
+(`cli.py:1900 @ 863e313`)。唯独 `_worktree_has_unpushed_commits` 在「无法与远端比较」这个
+**同样不可判定**的情形下选择了 `return False`(不保留)——与整簇的失败方向**相反**。
+docstring 把它说成 "there is no usable remote baseline to compare against, so treat it as having no
+'unpushed' commits",但「没有基线可比」的正确失败方向应该和其他两个函数一致:偏向保留。
+而且 `_cleanup_worktree` **不看脏**(注释明说未提交改动不算保留理由),所以这条路径下
+提交和未提交内容一起没。
+
+**触发条件**:(a) 仓库无 remote,或有 remote 但从未 fetch 过(`refs/remotes` 为空);
+(b) 用 `-w` / `--worktree` / `worktree: true`;(c) agent 在 worktree 里做了提交;(d) 正常退出。
+本地初始化的项目、离线环境、`git init` 的原型仓库都命中。
+
+**实证**:已在本容器用真实 git 复现——`git for-each-ref --format='%(refname)' refs/remotes`
+返回 rc=0 且空输出,而 `git log --oneline HEAD --not --remotes` 同时列出 2 个提交;
+随后 `git worktree remove --force` + `git branch -D` 后 `IMPORTANT.txt` 在工作区中已不可见,
+分支已删除。
+
+**置信度**:**高**(逻辑与实证双确认)。
+
+---
+
+### 3-2. 一次 `/clear` 或 `/reload-mcp` 的确认提示,会把 worktree 隔离静默解除
+
+**现象**:`hermes -w` 会话里,用户第一次使用带确认门的破坏性斜杠命令(如清空会话、重载 MCP)时,
+门控代码会重新调用 `load_cli_config()`;而该函数在 local 后端下**无条件把 `TERMINAL_CWD` 覆写成
+`os.getcwd()`**。由于 worktree 设置**只改环境变量、不改进程 cwd**,`TERMINAL_CWD` 就此回到用户的
+主 checkout —— 此后所有文件工具、终端工具、代码执行工具都在**用户的真实工作区**里操作,
+而横幅和分支名仍显示 worktree,用户毫无察觉。
+
+**锚点**:`cli.py:18125 @ 863e313`(设置侧,只设环境变量)
+
+```python
+            wt_info = _setup_worktree(sync_base=_sync_base)
+            if wt_info:
+                _active_worktree = wt_info
+                os.environ["TERMINAL_CWD"] = wt_info["path"]
+```
+
+`cli.py:11704 @ 863e313`(运行期重新加载配置的第一处)
+
+```python
+            cfg = load_cli_config()
+```
+
+`cli.py:11764 @ 863e313`(第二处)
+
+```python
+            cfg = load_cli_config()
+```
+
+`cli.py:653 @ 863e313`(跳过段内,覆写来源)
+
+```python
+    if effective_backend == "local":
+        terminal_config["cwd"] = os.getcwd()
+```
+
+`cli.py:700 @ 863e313`(跳过段内,写回环境;只有 gateway 进程被豁免)
+
+```python
+    _is_gateway = os.environ.get("_HERMES_GATEWAY") == "1"
+```
+
+**为什么可疑**:`load_cli_config()` 被设计成一个**导入期一次性**的函数(它有大量写环境变量的副作用),
+`cli.py:792 @ 863e313` 的 `CLI_CONFIG = load_cli_config()` 就是唯一的预期调用。但 11704 / 11764
+把它当成了「读一下配置」的纯函数复用。豁免逻辑只考虑了 gateway 进程(`_HERMES_GATEWAY`),
+**没有考虑 worktree 会话**。
+
+**触发条件**:`hermes -w` 交互会话 + 触发 `approvals.destructive_slash_confirm` 或
+`approvals.mcp_reload_confirm` 门控的斜杠命令 + local 终端后端(默认)。
+
+**置信度**:**中高**。代码路径是确定的;未直接运行验证的是「这两处确认门在默认配置下是否必然被触及」
+(需要真实交互会话)。
+
+---
+
+### 3-3. `_SkinAwareAnsi.reset()` 从未被调用 —— `/skin` 切换后强调色不变
+
+**现象**:文档承诺 `/skin` 切换后调 `.reset()` 重新解析颜色,但全仓没有任何调用点。
+`_ACCENT` 在第一次被格式化进字符串时缓存结果,此后整个会话不再变化。
+
+**锚点**:`cli.py:2794 @ 863e313`
+
+```python
+class _SkinAwareAnsi:
+    """Lazy ANSI escape that resolves from the skin engine on first use.
+
+    Acts as a string in f-strings and concatenation.  Call ``.reset()`` to
+    force re-resolution after a ``/skin`` switch.
+    """
+```
+
+`cli.py:2825 @ 863e313`
+
+```python
+    def reset(self) -> None:
+        """Clear cache so the next access re-reads the skin."""
+        self._cached = None
+```
+
+`cli.py:2830 @ 863e313`
+
+```python
+_ACCENT = _SkinAwareAnsi("response_border", "#FFD700", bold=True)
+```
+
+**为什么可疑**:全仓 grep `_SkinAwareAnsi` 与 `_ACCENT`,只找到定义(2794 / 2830)与 20 余处
+`f"{_ACCENT}..."` 的读取,**没有一处 `.reset()`**。而同一皮肤键在别处是**实时**读的 —— `cli.py:2857 @ 863e313`
+
+```python
+def _accent_hex() -> str:
+    """Return the active skin accent color for legacy CLI output lines."""
+    try:
+        from hermes_cli.skin_engine import get_active_skin
+        return get_active_skin().get_color("ui_accent", "#FFBF00")
+    except Exception:
+        return "#FFBF00"
+```
+
+所以 `/skin` 之后会出现**同一屏里两种强调色**:实时读的那部分变了,`_ACCENT` 画的边框没变。
+
+**触发条件**:会话中执行 `/skin <另一个皮肤>`,且新旧皮肤的 `response_border` 不同。
+
+**置信度**:**高**(纯静态可判定)。影响仅为观感。
+
+---
+
+### 3-4. `_hermes_home` 用导入期快照,与 `save_config_value` 的显式反例自相矛盾
+
+**现象**:`prefill` 文件解析、历史文件路径等用的是**导入时**快照的 HERMES_HOME;
+profile 切换或测试隔离后,这些路径仍指向旧 home。
+
+**锚点**:`cli.py:229 @ 863e313`
+
+```python
+_hermes_home = get_hermes_home()
+```
+
+`cli.py:351 @ 863e313`
+
+```python
+        path = _hermes_home / path
+```
+
+`cli.py:4625 @ 863e313`
+
+```python
+        self._history_file = _hermes_home / ".hermes_history"
+```
+
+同一文件里的**反例**——`save_config_value` 明确不这么做,并写明了理由:
+
+`cli.py:4115 @ 863e313`
+
+```python
+    # Runtime persistence ALWAYS targets the user's HERMES_HOME config.yaml,
+    # creating it if needed. Resolve HERMES_HOME live (not the import-time
+    # _hermes_home constant) so profile switches and test isolation land right.
+```
+
+**为什么可疑**:`get_hermes_home()` 的解析顺序是「context-local override → `HERMES_HOME` 环境变量
+→ 平台默认」,前两项**都可以在导入之后变化**:
+
+`hermes_constants.py:114 @ 863e313`
+
+```python
+def get_hermes_home() -> Path:
+    """Return the Hermes home directory (default: platform-native path).
+
+    Resolution order: context-local override (see
+    :func:`set_hermes_home_override`) → ``HERMES_HOME`` env var → the
+    platform-native default.  This is the single source of truth — all other
+    copies should import this.
+```
+
+**触发条件**:profile 切换(context-local override 被设置)、或测试里 monkeypatch `HERMES_HOME`
+之后再走 prefill / 历史文件路径。
+
+**置信度**:**中**。行为差异是确定的;是否构成用户可见 bug 取决于 profile 切换的实际时序
+(若切换发生在 `import cli` 之前则无碍)。
+
+---
+
+### 3-5. 括号粘贴超时只在「下一个字节到达时」才生效
+
+**现象**:docstring 说超时 2 秒后冲刷缓冲区,但检查逻辑写在 `feed()` 内部。如果终端在丢掉
+`ESC[201~` 之后**完全不再发送任何数据**(用户不动键盘),`feed()` 永远不会被再次调用,
+超时检查永远不执行,输入依旧冻结。
+
+**锚点**:`cli.py:3500 @ 863e313`(承诺)
+
+```python
+    This patch wraps ``Vt100Parser.feed`` so that bracketed-paste mode
+    flushes buffered content as a normal ``BracketedPaste`` event after
+    ``_BP_TIMEOUT_S`` seconds without an end marker, then resumes normal
+    parsing.  See upstream issue #16263.
+```
+
+`cli.py:3518 @ 863e313`(实现:一切都在 `feed` 里)
+
+```python
+        def _patched_vt100_feed(self_parser, data: str) -> None:
+            if self_parser._in_bracketed_paste:
+                self_parser._paste_buffer += data
+```
+
+`cli.py:3537 @ 863e313`(超时判定的位置)
+
+```python
+                else:
+                    bp_start = getattr(self_parser, "_hermes_bp_start", None)
+                    now = time.monotonic()
+                    if bp_start is None:
+                        self_parser._hermes_bp_start = now
+                    elif now - bp_start > _BP_TIMEOUT_S:
+```
+
+**为什么可疑**:没有任何定时器/后台线程驱动这个超时;它是**纯反应式**的。实际影响被减轻的原因是:
+用户看到输入冻结后自然会敲键盘,那一次按键就触发 `feed()` 并冲刷。但严格地说,承诺是
+「2 秒后自动恢复」,实现是「2 秒后 + 下一次输入才恢复」。
+
+**触发条件**:粘贴的结束标记丢失,且此后无任何终端输入(含焦点事件、鼠标报告)。
+
+**置信度**:**高**(实现结构可直接判定)。实际影响:**低**。
+
+---
+
+### 3-6. `_prune_stale_worktrees` 的「激进档」(hard tier)完全没有行为
+
+**现象**:docstring 宣称 72h+ 是「激进档」,但计算出来的 `force` 标志在整条流水线上
+**只被写进一条 debug 日志**,不影响任何判定。三档(soft / hard)的保全逻辑完全相同。
+
+**锚点**:`cli.py:2222 @ 863e313`(承诺)
+
+```
+      72h+ is the aggressive tier (still never deletes real work).
+```
+
+`cli.py:2294 @ 863e313`(计算)
+
+```python
+        hard_cutoff = now - (tier_hours * 3 * 3600)
+```
+
+`cli.py:2303 @ 863e313`(带入元组)
+
+```python
+        candidates.append((entry, mtime, mtime <= hard_cutoff))
+```
+
+`cli.py:2417 @ 863e313`(唯一消费点)
+
+```python
+            logger.debug("Pruned stale worktree: %s (force=%s)", entry.name, force)
+```
+
+**为什么可疑**:`force` 被穿过 `_classify` 的返回元组、穿过 Phase 3 的解包,纯粹为了一条 debug 日志。
+
+`cli.py:2370 @ 863e313`
+
+```python
+    for entry, mtime, force, verdict, lock_state in verdicts:
+```
+这不是「档位存在但保守」,而是
+**档位根本不存在**——`hermes-*` 树在 24h 和 240h 时收到完全相同的处理。要么是激进档的实现
+被回退了但文档和数据流留着,要么是从未实现。
+
+配套测试进一步佐证这是一处**文档/意图与实现脱节**:
+
+`tests/cli/test_worktree.py:548 @ 863e313`
+
+```python
+    def test_force_prunes_very_old_worktree(self, git_repo):
+        """Worktrees older than 72h should be force-pruned regardless."""
+```
+
+`tests/cli/test_worktree.py:555 @ 863e313`
+
+```python
+        # Make an unpushed commit (would normally protect it)
+```
+
+该测试**根本没有调用 `_prune_stale_worktrees`**,它自己手工跑 git 命令然后断言目录不在了
+(`tests/cli/test_worktree.py:572 @ 863e313`):
+
+```python
+        # Actually remove it (simulates _prune_stale_worktrees force path)
+```
+
+也就是说这条测试断言的是 git 本身能删目录,对生产逻辑零覆盖。
+
+**触发条件**:不适用(是恒定的实现缺口,不是条件触发)。生产行为(永不删未推送工作)比文档描述
+**更安全**,因此不构成数据风险,但文档会误导运维:用户以为「放着 3 天自动清」,实际永远不清。
+
+**置信度**:**高**。
+
+---
+
+### 3-7. worktree 相关的 git 子进程,只有一处做了非交互隔离
+
+**现象**:`_resolve_worktree_base` 内部的 `_git` 封装带了 `stdin=subprocess.DEVNULL` 和
+`noninteractive_git_env()`;但本簇其余 **10 余处** `subprocess.run(["git", ...])` 都没有,
+它们继承 CLI 的 stdin(在交互模式下就是被 prompt_toolkit 置于 cbreak/raw 的 tty)。
+
+**锚点**:有隔离的那处,`cli.py:1514 @ 863e313`
+
+```python
+    def _git(args, timeout: float = 20):
+        return subprocess.run(
+            ["git", *args],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, cwd=repo_root,
+            stdin=subprocess.DEVNULL,
+            env=noninteractive_git_env(),
+        )
+```
+
+没有隔离的例子,`cli.py:1449 @ 863e313`
+
+```python
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5,
+        )
+```
+
+`cli.py:1832 @ 863e313`
+
+```python
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, cwd=worktree_path,
+        )
+```
+
+`cli.py:1968 @ 863e313`
+
+```python
+        ahead = subprocess.run(
+            ["git", "rev-list", "--count", f"{base}..HEAD"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, cwd=worktree_path,
+        )
+```
+
+**为什么可疑**:`_git_repo_root()`(1449)还额外**没有 `cwd=`**,它依赖进程 cwd —— 与
+「worktree 不改进程 cwd」这条设计叠加时语义微妙(它拿到的永远是用户主 checkout 的根,
+这恰好是想要的,但是靠巧合而非声明)。更实质的是:这些命令若因任何原因需要输入
+(凭据助手、GPG 签名口令、`core.askPass`),会**与 prompt_toolkit 抢同一个 tty**。
+`git status` / `rev-list` 正常不会,但 `git worktree remove` 触发 hook、或用户配了
+`core.hooksPath` 里的交互脚本时就会。
+
+**触发条件**:仓库配置了会读 stdin 的 git hook / 凭据助手;或在 `git cherry`/`fetch` 之外的命令上
+触发认证。
+
+**置信度**:**中低**(是一致性缺陷,实际触发窄)。
+
+---
+
+### 3-8. 括号粘贴补丁是对上游 `Vt100Parser.feed` 的硬分叉,无版本门控
+
+**现象**:补丁把上游 `feed()` 的正常模式路径**整段内联复制**了一份并整体替换方法,
+但没有任何 prompt_toolkit 版本检查。上游若修改 `feed()`(例如新增 `\r`→`\n` 归一、
+或改变缓冲语义),在打了补丁的进程里**静默失效**。
+
+**锚点**:`cli.py:3558 @ 863e313`
+
+```python
+            else:
+                # Normal mode — re-inline prompt_toolkit's normal feed path.
+                # Calling the original feed here would double-buffer after the
+                # bracketed-paste entry transition.
+                for i, c in enumerate(data):
+                    if self_parser._in_bracketed_paste:
+                        _patched_vt100_feed(self_parser, data[i:])
+                        break
+                    self_parser._input_parser.send(c)
+```
+
+`cli.py:3568 @ 863e313`
+
+```python
+        _vt100_mod.Vt100Parser.feed = _patched_vt100_feed
+        _vt100_mod._hermes_bp_timeout_patched = True
+```
+
+**为什么可疑**:补丁访问了 4 个上游私有属性(`_in_bracketed_paste`、`_paste_buffer`、
+`_input_parser`、`feed_key_callback`),且完全替换公有方法。哨兵只防重复安装,不防版本漂移。
+唯一的兜底是整段 `try/except`(`cli.py:3571 @ 863e313`):
+
+```python
+    except Exception as exc:  # noqa: BLE001 — defensive: never break startup
+        logger.debug("Bracketed-paste timeout patch skipped: %s", exc)
+```
+
+——但那只覆盖**安装时**抛异常的情形(如属性不存在导致的 ImportError);若上游只是**语义**变了,
+安装照样成功,行为静默回退到旧版。
+
+**触发条件**:升级 prompt_toolkit 到修改了 `Vt100Parser.feed` 的版本。
+
+**置信度**:**中**(风险确定,是否已发生取决于依赖版本;本容器未装 prompt_toolkit,无法比对)。
+
+---
+
+### 3-9. skill / bundle 命令缓存无失效钩子
+
+**现象**:`_skill_commands` / `_skill_bundles` 一旦填充就是进程生命周期缓存,全仓无任何重置点。
+会话中途安装的新 skill 不会出现在斜杠命令与补全里,直到重启。
+
+**锚点**:`cli.py:4023 @ 863e313`
+
+```python
+_skill_commands = None
+_skill_bundles = None
+```
+
+`cli.py:4027 @ 863e313`
+
+```python
+def _ensure_skill_commands() -> dict:
+    global _skill_commands
+    if _skill_commands is None:
+        from agent.skill_commands import scan_skill_commands
+
+        _skill_commands = scan_skill_commands()
+    return _skill_commands
+```
+
+`cli.py:4052 @ 863e313`
+
+```python
+def get_skill_bundles() -> dict:
+    global _skill_bundles
+    if _skill_bundles is None:
+        from agent.skill_bundles import get_skill_bundles as _impl
+
+        _skill_bundles = _impl()
+    return _skill_bundles
+```
+
+**为什么可疑**:全仓引用只有定义处与 `cli.py:7714`、`cli.py:10358–10359` 三个读取点,
+**没有 `= None` 的重置**。而 hermes 明确支持会话内安装 skill(`/skills` 有安装子命令,
+经 `handle_skills_slash` 分发,`hermes_cli/cli_commands_mixin.py:1860 @ 863e313`):
+
+```python
+        handle_skills_slash(cmd, ChatConsole())
+```
+
+**触发条件**:会话内安装/卸载 skill 后期望立即使用其斜杠命令。
+
+**置信度**:**中高**(缓存无失效点是静态可判定;是否真的有会话内安装路径已由上面的分发点佐证)。
+
+---
+
+### 3-10. 带属性的推理标签不会被剥离
+
+**现象**:`<thinking budget="high">…</thinking>` 这类带属性的推理块**不匹配**剥离正则,
+思维链会原样打给用户;而同一函数里的工具调用标签**有**属性容忍。
+
+**锚点**:`cli.py:266 @ 863e313`(推理标签,只匹配裸标签)
+
+```python
+        # Closed pair — case-insensitive so <THINK>…</THINK> is handled too.
+        cleaned = re.sub(
+            rf"<{tag}>.*?</{tag}>\s*",
+            "",
+            cleaned,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+```
+
+同函数内的工具标签,`cli.py:287 @ 863e313`(有 `\b[^>]*>`):
+
+```python
+    # Tool-call XML blocks (openclaw/openclaw#67318).
+    for tc_tag in ("tool_call", "tool_calls", "tool_result",
+                   "function_call", "function_calls"):
+        cleaned = re.sub(
+            rf"<{tc_tag}\b[^>]*>.*?</{tc_tag}>\s*",
+            "",
+            cleaned,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+```
+
+**为什么可疑**:同一个函数内对两类标签采用了不同的宽容度,且没有注释解释这个不对称。
+考虑到 docstring 自称 "Handles every case"(`cli.py:243 @ 863e313`),这更像遗漏而非取舍。
+另需注意:第二条正则 `rf"<{tag}>.*$"`(未闭合开标签)同样只匹配裸标签,
+所以带属性的**未闭合**推理块也漏。
+
+**触发条件**:provider 或模型输出带属性的推理标签。
+
+**置信度**:**中**(行为确定;是否有模型实际这么输出未验证)。
+
+---
+
+### 3-11. `save_config_value` 的类型标注用了内置函数 `any`
+
+**现象**:参数标注写成 `value: any`(内置的 `any()` 函数),而非 `typing.Any`。
+
+**锚点**:`cli.py:4100 @ 863e313`
+
+```python
+def save_config_value(key_path: str, value: any) -> bool:
+```
+
+对比同文件里正确的用法,`cli.py:315 @ 863e313`:
+
+```python
+def _assistant_content_as_text(content: Any) -> str:
+```
+
+**为什么可疑**:`Any` 在第 46 行已经导入(`from typing import List, Dict, Any, Optional`),
+所以不是「懒得导入」。运行期无害(标注不求值),但任何静态类型检查器会报错或给出无意义的类型。
+
+**触发条件**:跑 mypy / pyright。
+
+**置信度**:**高**。影响:极低。
+
+---
+
+### 3-12. `_ACCENT` 的非粗体回退色在浅色终端上不可读
+
+**现象**:`_hex_to_ansi` 解析失败时,非粗体分支回退到硬编码的 `#B8860B`;
+而 `#B8860B` 恰恰是**重映射表里被判定为浅色终端下不可读**的颜色之一。回退路径绕过了重映射。
+
+**锚点**:`cli.py:2529 @ 863e313`
+
+```python
+    try:
+        r = int(hex_color[1:3], 16)
+        g = int(hex_color[3:5], 16)
+        b = int(hex_color[5:7], 16)
+        prefix = "1;" if bold else ""
+        return f"\033[{prefix}38;2;{r};{g};{b}m"
+    except (ValueError, IndexError):
+        return _ACCENT_ANSI_DEFAULT if bold else "\033[38;2;184;134;11m"
+```
+
+(`184;134;11` = `#B8860B`。)重映射表里它的浅色替代是:
+
+`cli.py:2725 @ 863e313`
+
+```python
+    "#B8860B": "#5C4500",   # dark goldenrod -> deeper brown (more contrast)
+```
+
+**为什么可疑**:第 2528 行开头已经做过 `hex_color = _maybe_remap_for_light_mode(hex_color)`,
+但异常分支返回的是**未经重映射的硬编码 ANSI**。粗体分支同理
+(`_ACCENT_ANSI_DEFAULT` 是 `#FFD700`,表里映射到 `#9A6B00`)。
+
+**触发条件**:皮肤配置里出现畸形的颜色值(如 `"gold"` 而非 `"#FFD700"`)+ 浅色终端。
+
+**置信度**:**中**。影响:观感。
+
+---
+
+### 3-13. `_run_cleanup` 与 `_cleanup_worktree` 共用同一个 30 秒看门狗预算
+
+**现象**:atexit 是 LIFO。交互模式下 `_cleanup_worktree` 注册在前(`cli.py:18129`)、
+`_run_cleanup` 注册在后(`cli.py:17607`),因此**先跑 `_run_cleanup`,后跑 `_cleanup_worktree`**。
+但看门狗是在 `_run_cleanup` 开头武装的,`_cleanup_worktree` 的 git 调用(超时 10+15+10 = 最多 35 秒)
+落在同一个 30 秒预算里,可能被 `os._exit(0)` 打断在 `git worktree remove` 中途。
+
+**锚点**:`cli.py:18129 @ 863e313`
+
+```python
+                atexit.register(_cleanup_worktree, wt_info)
+```
+
+`cli.py:17607 @ 863e313`
+
+```python
+        atexit.register(_run_cleanup)
+```
+
+`cli.py:1183 @ 863e313`
+
+```python
+    _arm_exit_watchdog()
+```
+
+`cli.py:1119 @ 863e313`
+
+```python
+        os._exit(0)
+```
+
+**为什么可疑**:看门狗的时限(默认 30s)是按 `_run_cleanup` 自身的工作量定的,
+但它实际覆盖的是 `_run_cleanup` **加上后续所有 atexit 回调**。半途被杀的 `git worktree remove`
+会留下一个 git 元数据与磁盘状态不一致的 worktree(下次启动需要 `git worktree prune` 才能恢复)。
+
+**触发条件**:清理阶段慢(网络文件系统、远端终端 VM 拆除慢、MCP 关闭慢)+ 大 worktree。
+
+**置信度**:**中低**(时序推理确定,但需要多重慢因素叠加)。
+
+---
+
+### 3-14. `_arm_exit_watchdog` 恒以退出码 0 结束进程
+
+**现象**:看门狗触发时无条件 `os._exit(0)`,把一个本该以非零码退出的进程(例如
+`hermes -q` 因 API 错误退出)改写成「成功」。
+
+**锚点**:`cli.py:1098 @ 863e313`
+
+```python
+    def _watchdog():
+        time.sleep(timeout_s)
+```
+
+`cli.py:1119 @ 863e313`
+
+```python
+        os._exit(0)
+```
+
+**为什么可疑**:CI / 脚本会用 `hermes -q` 的退出码判断成败。一次清理卡顿导致看门狗触发,
+失败的运行会被上报为成功。docstring 只说 "forcing process exit"(`cli.py:1064 @ 863e313`),
+没有讨论退出码语义。
+
+**触发条件**:非交互调用(`-q`)+ 清理阶段超过 `HERMES_EXIT_WATCHDOG_S`(默认 30s)+
+本应非零退出。
+
+**置信度**:**中**(行为确定;是否有人依赖退出码未验证)。
+
+---
+
+### 3-15. `_detect_file_drop` 对长斜杠命令做 O(空格数) 次 stat
+
+**现象**:任何以 `/` 开头且含空格的输入(即绝大多数斜杠命令)在无法直接解析为路径时,
+会对每一个空格位做一次 `Path.resolve()` + `os.stat()`。
+
+**锚点**:`cli.py:3429 @ 863e313`
+
+```python
+    if drop_path is None and " " in stripped and stripped[0] not in {"'", '"'}:
+        space_positions = [idx for idx, ch in enumerate(stripped) if ch == " "]
+        for pos in reversed(space_positions):
+            candidate = stripped[:pos].rstrip()
+            resolved = _resolve_attachment_path(candidate)
+```
+
+代码自身的注释已经承认了这条路径的存在(`cli.py:3361 @ 863e313`):
+
+```python
+    # slash-command path. Without this guard the OSError propagates up to
+```
+
+**为什么可疑**:`/goal <200 词散文>` 会产生约 200 次文件系统调用(每次还含 `resolve()` 的
+符号链接解析)。在网络文件系统或慢盘上,一次粘贴长命令会有可感知的停顿。
+缺少的是「先判 `_looks_like_slash_command` 再进拖放检测」的短路——而那个判定函数
+(`cli.py:4001 @ 863e313`)就在同一文件里、极其廉价。
+
+**触发条件**:粘贴长参数的斜杠命令;工作目录在网络挂载上时放大。
+
+**置信度**:**中**(路径确定;是否被上游调用点提前短路需要读 `HermesCLI` 内部的分发顺序,
+超出本段范围 —— 见 §5)。
+
+---
+
+## 4. 与文档/注释的出入
+
+### 4-1. `save_config_value` 的 docstring 与函数体直接互相否定
+
+**docstring 说**(`cli.py:4104 @ 863e313`):
+
+```python
+    Respects the same lookup order as load_cli_config():
+    1. ~/.hermes/config.yaml (user config - preferred, used if it exists)
+    2. ./cli-config.yaml (project config - fallback)
+```
+
+**函数体说**(`cli.py:4119 @ 863e313`):
+
+```python
+    # We deliberately do NOT fall back to the repo's project cli-config.yaml:
+    # that file is a shipped default/template, and most config readers
+```
+
+**定案:以代码为准**。第 2 条 fallback 不存在,写入永远只落在 `get_hermes_home()/config.yaml`。
+
+`cli.py:4128 @ 863e313`
+
+```python
+    config_path = get_hermes_home() / 'config.yaml'
+```
+docstring 是修 bug 前的遗留描述——**而它描述的正是那个 bug 本身**
+(§2.14 里的唤醒词丢设置事故)。这是本段里最具误导性的一处:照 docstring 理解会得出
+「写 cli-config.yaml 也行」的错误结论。
+
+---
+
+### 4-2. `_prune_stale_worktrees` 的「激进档」在代码里不存在
+
+**docstring 说**(`cli.py:2222 @ 863e313`):
+
+```
+      72h+ is the aggressive tier (still never deletes real work).
+```
+
+**代码说**:`force` 只进 debug 日志(`cli.py:2417 @ 863e313`)。
+
+**定案:以代码为准**——只有一档判定逻辑。见 §3-6。
+
+---
+
+### 4-3. `_SkinAwareAnsi` 的 "Call `.reset()` after a `/skin` switch" 是空承诺
+
+**docstring 说**(`cli.py:2797 @ 863e313`):
+
+```python
+    Acts as a string in f-strings and concatenation.  Call ``.reset()`` to
+    force re-resolution after a ``/skin`` switch.
+```
+
+**代码说**:全仓无调用点。**定案:以代码为准**——`/skin` 之后 `_ACCENT` 不变。见 §3-3。
+
+---
+
+### 4-4. `_strip_reasoning_tags` 自称 "Handles every case",实际漏带属性标签
+
+**docstring 说**(`cli.py:246 @ 863e313`):
+
+```python
+    Handles every case:
+      * Closed pairs ``<tag>…</tag>`` (case-insensitive, multi-line).
+```
+
+注意它自己就把范围限定成了 `<tag>…</tag>`,和 "every case" 的措辞冲突。
+**定案:以代码为准**——覆盖的是「三种残缺形态」,不是「所有标签写法」。见 §3-10。
+
+---
+
+### 4-5. `ChatConsole` 自称 "Drop-in replacement for Rich Console"
+
+**docstring 说**(`cli.py:3879 @ 863e313`):
+
+```python
+    Drop-in replacement for Rich Console — just pass this to any function
+    that expects a console.print() interface.
+```
+
+**代码说**:只实现了 `print`(`cli.py:3893`)和 `status`(`cli.py:3907`)。
+`console.rule()` / `console.log()` / `console.width` / `console.input()` 全部会 `AttributeError`。
+
+**定案:以代码为准**,但注意 docstring 后半句 "any function that expects a `console.print()`
+interface" 已经自我限定了范围——真正过头的是 "Drop-in replacement" 这个前缀。
+当前唯一的外部消费者 `hermes_cli/skills_hub.py` 确实只用 `console.print`(全仓 grep 确认),
+所以没有实际故障。
+
+---
+
+### 4-6. `tests/cli/test_worktree.py` 是生产逻辑的**副本**,不是对它的测试
+
+**测试文件说**(`tests/cli/test_worktree.py:99 @ 863e313`):
+
+```python
+# Lightweight reimplementations for testing (avoid importing cli.py)
+```
+
+**后果**:`_setup_worktree`、`_has_unpushed_commits`、`_cleanup_worktree` 在测试里各有一份
+**简化的重写版**(`tests/cli/test_worktree.py:117 / 142 / 165 @ 863e313`),生产代码的改动
+**不会被这些用例发现**。例如测试版 `_setup_worktree` 固定从 `HEAD` 建树
+(`tests/cli/test_worktree.py:129 @ 863e313`):
+
+```python
+        ["git", "worktree", "add", str(wt_path), "-b", branch_name, "HEAD"],
+```
+
+——完全没有 `_resolve_worktree_base` 那套 remote-tip 逻辑;`.gitignore` 写入、
+`.worktreeinclude` 拷贝、`git worktree lock` 也都不在测试版里(尽管另有用例
+`test_adds_to_gitignore` / `test_copies_included_files` 用自己的实现覆盖了同名行为)。
+
+**定案:这不是文档冲突,而是「行为规格参照」的可信度问题**——按本项目 LT 层的定位
+(「测试=行为规格参照」),这一批用例只能作为**意图**的参照,不能作为**实现**的验证。
+§3-6 里那条 `test_force_prunes_very_old_worktree` 就是这个隐患的具体后果:
+它的名字和 docstring 描述了一个**生产代码并不具备**的行为,而且永远不会失败。
+
+---
+
+### 4-7. 模块顶部 docstring 的用法示例不完整(轻微)
+
+`cli.py:2 @ 863e313`
+
+```python
+"""
+Hermes Agent CLI - Interactive Terminal Interface
+
+A beautiful command-line interface for the Hermes Agent, inspired by Claude Code.
+Features ASCII art branding, interactive REPL, toolset selection, and rich formatting.
+
+Usage:
+    python cli.py                          # Start interactive mode with all tools
+    python cli.py --toolsets web,terminal  # Start with specific toolsets
+    python cli.py --skills hermes-agent-dev,github-auth
+    python cli.py --list-tools             # List available tools and exit
+"""
+```
+
+模块 docstring 没提 `-w` / `--worktree`,但 `main()` 自己的 docstring 提了
+(`cli.py:18083 @ 863e313`):
+
+```python
+        python cli.py -w                         # Start in isolated git worktree
+```
+
+**定案:以 `main()` 的为准**,它与实际的参数解析一致 —— `cli.py:18114 @ 863e313`
+
+```python
+        use_worktree = worktree or w or CLI_CONFIG.get("worktree", False)
+```
+
+模块 docstring 陈旧。
+
+---
+
+## 5. 移交
+
+### 5-1. `_detect_file_drop` 与斜杠命令分发的**先后顺序**未确定
+
+§3-15 那条性能问题的严重程度,取决于 `HermesCLI` 的输入分发是先判斜杠命令还是先判文件拖放。
+`cli.py:3361 @ 863e313` 的注释暗示是**先拖放后斜杠**:
+
+```python
+    # slash-command path. Without this guard the OSError propagates up to
+    # the process_loop catch-all in _interactive_loop and the user input
+    # is silently lost (the warning ends up in agent.log but the user sees
+    # nothing — the prompt just hangs).
+```
+
+但确认需要读 `_interactive_loop` / `process_loop` 的实际分发顺序,那在 4204 行之后,超出本段范围。
+**移交给覆盖 `HermesCLI` 的后续段**。
+
+### 5-2. prompt_toolkit 版本与补丁的实际兼容性未验证
+
+本容器无 prompt_toolkit(`ModuleNotFoundError`),无法比对 §3-8 里 `Vt100Parser.feed` 的
+上游实现与 cli.py 内联版本的差异,也无法确认 `pyproject.toml` 钉的版本范围里是否已经出现语义漂移。
+**需要在装好 dev extra 的环境里执行**:
+`tests/cli/test_bracketed_paste_timeout.py` + 比对
+`inspect.getsource(prompt_toolkit.input.vt100_parser.Vt100Parser.feed)`。
+
+### 5-3. `_worktree_lock_is_live` 的 pid 复用风险量级未评估
+
+`cli.py:2047 @ 863e313`
+
+```python
+                from gateway.status import _pid_exists
+                return "live" if _pid_exists(pid) else "dead"
+```
+
+只检查 pid 存在,不检查**那个 pid 是不是 hermes**。Linux 上 pid 会回绕复用,一个崩溃会话留下的
+锁,pid 被别的进程占用后会被永久判为 "live",worktree 永不回收(方向是保守的,所以不是数据风险,
+但是磁盘泄漏)。要判定量级需要看 `gateway/status._pid_exists` 是否有额外校验(如 cmdline 匹配)。
+**移交给覆盖 `gateway/status.py` 的段**。
+
+### 5-4. `_reverse_alias_for_display` 的缓存在会话内改别名后是否需要失效
+
+`cli.py:127 @ 863e313`
+
+```python
+_REVERSE_ALIAS_CACHE: dict[str, str] | None = None
+```
+
+docstring 断言「配置在会话开始时读一次,无需失效」(`cli.py:123 @ 863e313`):
+
+```python
+# Cached reverse map of config.yaml ``model_aliases:`` so the TUI can show
+# friendly names instead of full Palantir RIDs / long catalog IDs. Built
+# lazily on first call; cache is process-lifetime (config is read once at
+# session start, so further invalidation is unnecessary).
+```
+
+但 `save_config_value`(`cli.py:4100`)明确支持**运行期**写 config.yaml。若存在写
+`model.aliases` 的斜杠命令,这条断言就不成立(状态栏会一直显示旧别名)。
+需要枚举 `save_config_value` 的所有 `key_path` 实参才能定论,而那些调用点大多在
+`hermes_cli/cli_commands_mixin.py` 与 4204 行之后。**移交**。
+
+另注意一个**未定的次要问题**:两条别名来源写入同一张反查表,但 key 空间不同——
+`model_aliases:` 存的是 `entry["model"]` 原样,而 `model.aliases:` 存的是**剥掉 provider 前缀**后的部分
+(`cli.py:160 @ 863e313`):
+
+```python
+                            m = v.split("/", 1)[1] if "/" in v else v
+```
+
+因此用完整的 `provider/model` 串查表时,只有前者能命中。是否会造成实际的显示不一致,
+取决于状态栏传入的 `model_name` 形态,未定。
+
+`cli.py:5227 @ 863e313`
+
+```python
+        model_name = (getattr(agent, "model", None) or self.model or "unknown")
+```
+
+
+### 5-5. `_cprint` 依赖 prompt_toolkit 私有属性 `app._is_running`
+
+`cli.py:3103 @ 863e313`
+
+```python
+    if app is None or not getattr(app, "_is_running", False):
+```
+
+`getattr(..., False)` 的默认值意味着:若上游改名,**判定会静默退化为「没有 app 在跑」**,
+所有跨线程打印回到直接 `_pt_print`,§2.9.3 修的那个竞态复发,且没有任何告警。
+同 5-2,需要装好 prompt_toolkit 后确认属性名在钉住的版本里存在。
+
+### 5-6. 未验证:`.worktreeinclude` 的目录 symlink 与 `git worktree remove --force` 的交互
+
+`cli.py:1740 @ 863e313`
+
+```python
+                            os.symlink(str(src_resolved), str(dst))
+```
+
+worktree 里存在指向**主 checkout 内目录**的 symlink,而清理时执行
+`git worktree remove --force`(`cli.py:2098 @ 863e313`)。git 的递归删除是否会跟随 symlink
+删掉主 checkout 里的内容,取决于 git 的 `remove_dir_recursively` 实现(按 git 源码应使用
+`lstat` 并直接 unlink symlink 本身,不跟随)。**未在本轮实测**;若要排除,应构造一个
+`.worktreeinclude` 含目录条目的仓库跑一次完整的建树-清理循环。风险若成立则等级为「高」,
+故列入移交而非缺陷清单。
+
+### 5-7. `_run_cleanup` 的 `_cleanup_done` 检查-置位非原子
+
+`cli.py:1175 @ 863e313`
+
+```python
+    global _cleanup_done
+    if _cleanup_done:
+        return
+    _cleanup_done = True
+```
+
+信号处理器、atexit、`_finalize_single_query` 三条路径都会调它。CPython 的 GIL 使得
+「读 → 比较 → 写」之间仍可能被切换(字节码边界),理论上两个线程可同时通过。
+实际影响:整套清理再跑一遍(各步都有独立 try,大多幂等)。是否值得改成 `threading.Lock`
+需要看是否真有并发调用序列 —— **移交给覆盖信号处理器实现(17610 之后)的段**。

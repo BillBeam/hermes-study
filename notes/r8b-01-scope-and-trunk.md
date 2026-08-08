@@ -596,5 +596,30 @@ def _worktree_has_unpushed_commits(worktree_path: str, timeout: int = 10) -> boo
 > `is_safe_to_destroy()`,再读一遍每个 `return` —— 哪些是真的"我验证过安全",
 > 哪些其实是"我没法验证"?** 后者返回 `True` 就是数据丢失的种子。
 
-**未实跑复现**(需要构造一个无 remote 的仓库并真跑 `hermes -w` 的完整清理路径),
-按 R8A 立的规矩标注为**代码确证、运行时未复现**。
+**已实跑复现(主线,端到端,用的是生产函数本体)。** 构造真实 git 仓库 + worktree,
+在 worktree 里做 2 个提交,然后:
+
+```
+_worktree_has_unpushed_commits(worktree) = False
+  ^ False 意味着清理路径认定「提交都已推送,可以强删」
+=== 执行清理路径的两条命令(与 cli.py:2098/2107 相同)===
+Deleted branch hermes-sess (was b2c833d).
+=== 事后 ===
+IMPORTANT.txt 还在吗: NO — 内容已消失
+分支还在吗: NO — 分支已删
+提交还可达吗(reflog 之外): 0
+```
+
+判据本身的实测(在 worktree 内):
+
+```
+for-each-ref refs/remotes -> rc=0 (输出为空即命中 return False)
+git log HEAD --not --remotes 提交数: 3
+```
+
+**函数报「没有未推送的提交」,而 `git log` 同时数出 3 个。**
+
+**触发面比"纯本地仓库"更宽(此条由子代理 `notes/r8b-raw-cli-module.md` §3-1 指出,主线采纳)**:
+判据看的是 `refs/remotes` 是否为空,所以**"有 remote 但从未 fetch 过"同样命中**
+——`git clone` 之后的仓库有 remote-tracking ref,但 `git init` + `git remote add`
+而尚未 fetch 的仓库没有。**离线环境、刚建的原型仓、CI 里浅克隆的某些形态都可能落进来。**
