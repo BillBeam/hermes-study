@@ -84,7 +84,10 @@ prompt_builder.py:2062);子目录版本靠 subdirectory_hints 会话中按导航
 
 ### 定案 C3 证伪 prompt-assembly.md 技能索引在 stable 层
 
-`prompt-assembly.md:31,39` 把 skills prompt 列在 stable 层。代码:技能是运行时可变的,索引刻意放
+`website/docs/developer-guide/prompt-assembly.md:31,38 @ 863e313` 把 skills prompt 列在 stable 层
+*(R8-fix 修正锚点:原写 `:31,39`;`:31` 对,但 `:39` 是"memory/profile snapshots are part of the
+**volatile** tier"那一条,并非被质疑对象——被质疑的"skills are part of the **stable** tier"在 `:38`。
+实质断言不变,见 M-16a)*。代码:技能是运行时可变的,索引刻意放
 **volatile 层之首**(system_prompt.py:503-513 长注释:放 stable 会让一次技能变更把整个缓存前缀
 从索引处炸掉)。同页示例的分钟级时间戳也证伪:实际 date-only "Conversation started:"
 (system_prompt.py:537-543,PR #20451)。另 `:42` 漏 `load_soul_identity` 这条腿(cron 模式

@@ -6,7 +6,9 @@
 
 ## 0. 汇总
 
-**24 条:▲ 7 条(含 R7 移交 1 条定案)、◇ 17 条。**
+**24 条:▲ 6 条(含 R7 移交 1 条定案)、◇ 18 条。**
+*(R8-fix 修正:原记 ▲ 7 / ◇ 17。B-4 经 review-1 阻断-4 复核后由 ▲ 降为 ◇——
+文档没有说过原判归给它的那句话,矛盾不存在。总数 24 不变,见本文件 B-4 节的改判说明。)*
 其中 1 条(B-13)是**本学习项目上一轮报告**的简化,非仓库文档问题,单列并更正。
 
 ## 1. R7 移交项定案
@@ -65,7 +67,7 @@ R7 移交项**结案**。
 > 2. **Base adapter** checks active session guard:
 >    - If `/approve`, `/deny`, `/stop` → bypass guard (dispatched inline)
 
-**代码**:两类命令走**不同**路径(`gateway/platforms/base.py:5605-5619 @ 863e313`):
+**代码**:两类命令走**不同**路径(`gateway/platforms/base.py:5611-5625 @ 863e313`):
 
 ```python
                 # /stop, /new, /reset must cancel the in-flight adapter task
@@ -86,12 +88,14 @@ they don't cancel the running task"(`gateway/platforms/base.py:5627-5630 @ 863e3
 
 ### ▲ B-3 —— `ADDING_A_PLATFORM.md` 指向的参考实现文件不存在
 
-**文档**(`gateway/platforms/ADDING_A_PLATFORM.md:135 @ 863e313`):
+**文档**(`gateway/platforms/ADDING_A_PLATFORM.md:125 @ 863e313`):
 
 > See `gateway/platforms/telegram.py`, `discord.py`, and `whatsapp_cloud.py` for
 > reference implementations.
 
-同文件 `:66-70`:
+同文件 `gateway/platforms/ADDING_A_PLATFORM.md:58-61 @ 863e313`
+*(R8-fix 修正锚点:原写 `:66-70`,那五行讲的是"mixin 必须排在基类前",与本条无关;
+"WhatsApp does this" 这段实际在 `:58-61`,所属段落起于 `:55`。)*:
 
 > WhatsApp does this: `gateway/platforms/whatsapp.py` (Baileys bridge) and
 > `gateway/platforms/whatsapp_cloud.py` (Meta Cloud API) both inherit from
@@ -131,22 +135,52 @@ telegram / discord 迁至 `plugins/platforms/*/adapter.py`;Baileys 版 WhatsApp 
 > `plugins/platforms/*/adapter.py`。扫描集更大,但恰好漏掉了唯一相关的那个目录 ——
 > 自检手法发现不了自己这条 ▲,这一判断成立。
 
-### ▲ B-4 —— "Optional methods (have default stubs in base)" 覆盖了三个基类没有的方法
+### ◇ B-4 —— 相邻两节讲的是两套降级机制,而文档从不说破哪五个方法没有基类桩
 
-**文档**(`gateway/platforms/ADDING_A_PLATFORM.md:105`、`:115-122` @ 863e313):
-标题 "### Optional methods (**have default stubs in base**)",随后的 Interactive UX
-表格列入 `send_exec_approval` / `send_model_picker` / `send_choice_picker`,并称
-"They all degrade gracefully to plain text when not overridden"。
+> **R8-fix 改判(review-1 阻断-4 / M-4a):原定 ▲,现降为 ◇,锚点由 `:105` 改为 `:103` / `:113`。**
+> 原判说文档"把三个基类没有的方法列在『有基类默认桩』的标题下"。**这一点不成立**:
+> 那个标题下只有五个媒体方法,而它们在基类里都有实现;三个交互方法在**紧随其后的另一个标题**下。
+> ▲ 的定义是"文档所述与代码矛盾",这里文档没这么说,矛盾不存在,故撤 ▲。
+> 下面是重新取证后的定案。原判的**代码侧全部成立**,错的是把两个小节当成了一个。
 
-**代码**:
+**文档 · 第一节**(`gateway/platforms/ADDING_A_PLATFORM.md:103 @ 863e313`):
 
+> ### Optional methods (have default stubs in base)
+
+该标题辖下只有 `:105-111` 的**五个媒体方法**表格(`send_document` / `send_voice` /
+`send_video` / `send_animation` / `send_image_file`)。**这五个在基类里确实都有实现**,
+所以该标题对它自己的表格是**准确的**:
+
+`gateway/platforms/base.py:3991 @ 863e313`
+
+```python
+    async def send_animation(
 ```
-$ grep -n "def send_exec_approval\|def send_model_picker\|def send_choice_picker" gateway/platforms/base.py
-(无输出)
+
+(另四个同形:`:4062` `send_voice`、`:4205` `send_video`、`:4232` `send_document`、
+`:4305` `send_image_file`。)
+
+**文档 · 第二节**(`gateway/platforms/ADDING_A_PLATFORM.md:113 @ 863e313`):
+
+> ### Interactive UX (recommended if your platform supports tappable buttons)
+
+这是**另一个标题**,辖下是 `:117-123` 的五个交互方法表格,唯一的行为承诺在 `:115`:
+
+`gateway/platforms/ADDING_A_PLATFORM.md:115 @ 863e313`
+
+> If your platform supports interactive button/menu messages, implement these for a more polished agent experience. They all degrade gracefully to plain text when not overridden:
+
+**代码**:这一节的五个方法里,**两个有基类桩、三个没有**,而文档对这个分界只字未提。
+
+```verify
+$ grep -nE "def (send_clarify|send_slash_confirm)" gateway/platforms/base.py
+3745:    async def send_slash_confirm(
+3780:    async def send_clarify(
+$ grep -nE "def (send_exec_approval|send_model_picker|send_choice_picker)" gateway/platforms/base.py ; echo "exit=$?"
+exit=1                     # 零命中
 ```
 
-基类只有 `send_slash_confirm`(`gateway/platforms/base.py:3745 @ 863e313`)与
-`send_clarify`(`:3780`)。优雅降级**真实存在**,但实现在调用点的**类型探测**:
+优雅降级**真实存在**(所以 `:115` 那句话为真),但那三个的降级实现在调用点的**类型探测**:
 
 ```python
             and getattr(type(adapter), "send_choice_picker", None) is not None
@@ -156,12 +190,21 @@ $ grep -n "def send_exec_approval\|def send_model_picker\|def send_choice_picker
 `gateway/slash_commands.py:1779 @ 863e313`;`send_exec_approval` 于
 `gateway/run.py:5181 @ 863e313`)
 
-**定案**:表格把两种不同机制(基类桩 vs 调用点探测)混在一个"有默认桩"的标题下。
-后果具体:照文档写适配器的人会以为可以 `super().send_exec_approval(...)`,得到 `AttributeError`。
+**定案(◇,文档缺口而非文档矛盾)**:同一份文档用**相邻两节**表达了**两套不同**的降级机制
+——`:103` 那节是"基类有桩",`:113` 那节是"调用点类型探测"——但从不说破后者是另一套,
+更不说破该节五个方法里**只有两个**(`send_clarify` / `send_slash_confirm`)有基类桩。
+实现者无法从文档得知 `send_exec_approval` / `send_model_picker` / `send_choice_picker`
+没有可 `super()` 的默认实现;他不会撞见 `AttributeError`(因为没人叫他去调 `super()`),
+但他**也无从判断这三个方法是"可以不写"还是"必须自己从零写"**——而这正是这一节存在的目的。
+
+**为什么原判会指错**:两个小节在文档里只隔一张五行表格,而它们的**标题措辞刚好互补**
+(一个说"有默认桩",一个说"不覆盖就降级")。读到第二节的承诺时,很容易把它挂回第一节的标题。
+**教训与阻断-1 同形**:判定一条文档断言时,**要先确认它归哪个标题管**——
+文档的层级结构本身就是断言的一部分,而这一层从来没有被任何脚本校验过(见 M-16a)。
 
 ### ▲ B-5 —— `whatsapp_cloud.py` 自己的模块 docstring 指向不存在的兄弟文件
 
-**文档**(`gateway/platforms/whatsapp_cloud.py:14-19 @ 863e313`,**代码文件自身的 docstring**):
+**文档**(`gateway/platforms/whatsapp_cloud.py:7-12 @ 863e313`,**代码文件自身的 docstring**):
 
 ```
 - ``whatsapp.py``      — unofficial Baileys bridge, personal accounts, no
@@ -261,9 +304,14 @@ $ grep -rln "HERMES_MEDIA_" website/ docs/ *.md
 - **◇ B-15**:入站媒体上限 `gateway.max_inbound_media_bytes`(默认 128 MiB,`0` 关闭,
   `gateway/platforms/base.py:709-723 @ 863e313`)全部文档零命中:
 
-```
-$ grep -rln "max_inbound_media_bytes" website/ docs/ *.md
-(无输出)
+```verify
+$ grep -rln "max_inbound_media_bytes" website/ docs/ *.md ; echo "exit=$?"
+exit=1                     # 零命中;该键只出现在 .py 里
+$ grep -rln "max_inbound_media_bytes" --include=*.py .
+./gateway/platforms/base.py
+./hermes_cli/config_defaults.py
+./tests/gateway/test_platform_base.py
+./plugins/platforms/discord/adapter.py
 ```
 
 ### 3.4 api_server(`r7b-40`)
@@ -314,7 +362,7 @@ $ grep -rln "max_inbound_media_bytes" website/ docs/ *.md
 ### B-25(项目内更正,不计入 ▲/◇)
 
 R7 报告 §8 与本轮任务简报称 api_server 的会话绑定头是 `X-Hermes-Session-Id`。
-代码里是**两个正交的头**(`gateway/platforms/api_server.py:2049-2057 @ 863e313`):
+代码里是**两个正交的头**(`gateway/platforms/api_server.py:2051-2059 @ 863e313`):
 
 ```python
         The session key is a stable per-channel identifier that scopes

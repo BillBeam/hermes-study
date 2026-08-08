@@ -14,14 +14,80 @@
 只有孤儿回收器(exited 且 FinishedAt 早于 600s)或 `force_remove`/`persist=False` 才真删。这是
 issue #20561 的契约(docker.py:1953-1957)。见 r4-02 §1。
 
-**判定:证伪(默认态)。** ":88 关机即删" 只有在 `container_persistent=False` 时成立;默认是关机**不**删。
+**判定:证伪(默认态)。** ":88 关机即删" 默认不成立;默认是关机**不**删。
+要让它成立,得设 **`terminal.docker_persist_across_processes: false`**(或走 `force_remove=True`)。
 
-**加重情节——文档自相矛盾**:同一段的下一句 `tools.md:90` 就说:
-> the `container_persistent` flag that controls whether `/workspace` and `/root` survive across Hermes restarts.
+> **R8-fix 改判(review-1 阻断-6 / M-4c)**:原文此处写的是 ":88 只有在 `container_persistent=False`
+> 时成立",并把该 flag 等同于代码里的 `persist_across_processes`。**这个等式不成立,是两个键。**
+> 原判的**主结论(默认跨进程持久、关机不删)完全正确**,错的是"在什么条件下文档才对"——
+> 而这恰恰是读者会照着去操作的那一句。改判如下。
 
-:88 断言"关机即删",:90 又说有个 flag 让它跨重启存活——**同一页自打脸**。真相是:该 flag(代码里的
-`persist_across_processes`)默认为 True,所以默认行为是 :90 描述的"存活",而非 :88 的"删除"。以代码为准:
-**默认跨进程持久,关机不删**。
+**两个键,两个属性,两件事。** 它们在 `terminal_tool.py` 里就分道扬镳:
+
+`tools/terminal_tool.py:1628 @ 863e313`
+
+```python
+    persistent = cc.get("container_persistent", True)
+```
+
+`tools/terminal_tool.py:1649 @ 863e313`
+
+```python
+            persistent_filesystem=persistent, task_id=task_id,
+```
+
+`tools/terminal_tool.py:1658 @ 863e313`
+
+```python
+            persist_across_processes=cc.get("docker_persist_across_processes", True),
+```
+
+`tools/environments/docker.py:877 @ 863e313`
+
+```python
+        self._persistent = persistent_filesystem
+```
+
+**"关机要不要 stop + rm"这个决定只看后者**,清理路径的三态分支写得很直白:
+
+`tools/environments/docker.py:1958 @ 863e313`
+
+```python
+        if force_remove:
+```
+
+`tools/environments/docker.py:1961 @ 863e313`
+
+```python
+        elif self._persist_across_processes:
+```
+
+——命中这一支就 `self._container_id = None; return`,容器原样留着。
+而 `self._persistent` 在整个清理路径里**只**决定要不要删 bind-mount 目录,还被 `should_remove` 前置:
+
+`tools/environments/docker.py:2011 @ 863e313`
+
+```python
+        if should_remove and not self._persistent:
+```
+
+**所以把 `container_persistent` 设成 false 的后果是:容器照样在跑,只是 `/workspace` 与 `/root`
+两个 bind-mount 目录被删了——比不动更糟。** 一个想要"退出即清理"的运维者按原判去操作会正好踩中这个。
+
+**"同一页自打脸"这个定性也要撤。** `tools.md:88` 与 `:90` 讲的是**两个不同的开关**,
+`:90` 对它自己那个开关(`container_persistent` 管 `/workspace` 与 `/root`)的描述是**准确的**。
+而仓库自己的文档把这个区别说得很清楚,是本条原判把它们并了:
+
+`website/docs/user-guide/configuration.md:315 @ 863e313`
+
+> | `TERMINAL_CONTAINER_PERSISTENT` | `container_persistent` | `true` / `false` — controls the bind-mount workspace dirs, distinct from `docker_persist_across_processes` |
+
+"distinct from" 是文档原话。同页 `:276` 更直说 `docker_persist_across_processes: false`
+才是 "Every `cleanup()` does `stop` + `rm -f`"。
+
+**改判后的真实缺口(降格为 ◇)**:`tools.md:88` **从不提** `docker_persist_across_processes`,
+而它链接过去的 `configuration.md` 把这件事写对了——**这是"该页信息不全 + 未指向正确的键",
+不是"自打脸"**。以代码为准的主结论不变:**默认跨进程持久,关机不删**。
 
 ## 定案 2 ◇ README:29 "serverless persistence"——数字证实、名单不全、触发时机修正
 
@@ -96,12 +162,42 @@ issue #20561 的契约(docker.py:1953-1957)。见 r4-02 §1。
 
 **文档**:`tools-reference.md:106`:"Background desktop control via cua-driver … macOS, Windows, and Linux."
 
-**代码**:三平台以 frozenset 硬编码,三处一致(permissions.py:34-35 `_RUNTIME_PLATFORMS =
-frozenset({"darwin","win32","linux"})`;tool.py:1330;cua_backend.py:2050-2053);后端唯一具体实现是
-`CuaDriverBackend`,走 MCP over stdio 调 cua-driver 二进制(cua_backend.py:1-11)。**证实**。
+**代码**:三平台硬编码,三处一致——
+`tools/computer_use/permissions.py:35 @ 863e313`
 
-细微补白:Linux 是最新加入的 runtime(X11 今天可用、Wayland 经 XWayland),docstring 有记
-(cua_backend.py:29-33),文档未展开该 nuance,但不构成冲突。
+```python
+_RUNTIME_PLATFORMS = frozenset({"darwin", "win32", "linux"})
+```
+
+`tools/computer_use/tool.py:1333 @ 863e313`
+
+```python
+    if sys.platform not in ("darwin", "win32", "linux"):
+```
+
+`tools/computer_use/cua_backend.py:2058 @ 863e313`
+
+```python
+        if sys.platform not in ("darwin", "win32", "linux"):
+```
+
+后端唯一具体实现是 `CuaDriverBackend`,走 MCP over stdio 调 cua-driver 二进制
+(`tools/computer_use/cua_backend.py:1-11 @ 863e313`)。**证实**。
+
+细微补白:Linux 是最新加入的 runtime(X11 今天可用、Wayland 经 XWayland),docstring 有记——
+`tools/computer_use/cua_backend.py:13 @ 863e313`
+
+```
+Linux is the most recent runtime (X11 today, Wayland via XWayland; pure-
+```
+
+文档未展开该 nuance,但不构成冲突。
+
+> **R8-fix 修正锚点(review-1 建议-15 / M-16a)**:本条原来三个锚点都是**裸文件名 + 漂移行号**
+> ——`tool.py:1330` 落在 docstring 里(真实判定在 `:1333`)、`cua_backend.py:2050-2053` 是
+> **另一个方法**的 `finally:` 拆卸段(真实判定在 `:2058`)、`cua_backend.py:29-33` 是讲
+> macOS 私有 SPI 的段落(Linux nuance 实际在 `:13-14`)。**三条实质断言全部成立**,漂的只是锚点。
+> 这正是 M-16a 要治的那类失败:**一个照锚点去复核的读者会落在无关文字上,然后合理地怀疑整条定案。**
 
 ## 定案 7 补白 terminal_tool 描述低估持久化范围
 
@@ -117,8 +213,22 @@ frozenset({"darwin","win32","linux"})`;tool.py:1330;cua_backend.py:2050-2053);�
 ## 定案 8 补白 iron-proxy egress 强制仅 Docker 后端(安全覆盖缺口)
 
 **代码实测**(r4-20 §4):iron-proxy 出口凭据注入只接线在 **Docker** 后端
-(`_egress_proxy_args_for_docker`,docker.py:393-531);对本簇 7 个远端/其他后端文件 grep
-`iron|egress|HTTPS_PROXY` **零命中**;egress 内部文档(egress-internals.md)的模块清单也只列 docker.py。
+(`tools/environments/docker.py:393-531 @ 863e313` 的 `_egress_proxy_args_for_docker`);
+对本簇其余后端文件**零命中**;egress 内部文档(egress-internals.md)的模块清单也只列 docker.py。
+
+```verify
+$ grep -rnE "iron[-_]proxy|IRON_|\begress\b|HTTPS_PROXY" tools/environments/*.py | grep -v docker.py ; echo "exit=$?"
+exit=1                     # 零命中
+```
+
+> **R8-fix 修正(review-1 建议-16 / M-16d)**:原文写的自检命令是
+> 对这些文件 grep **`iron|egress|HTTPS_PROXY`**「零命中」。**这条命令重跑不出零命中**——
+> `iron` 是 `env`**`iron`**`ment` 的子串,于是每一个后端文件都命中(daytona 5、ssh 4、
+> singularity 6、modal 5、managed_modal 4、vercel_sandbox 7),全部来自 "Environment" 一词。
+> **结论本身仍然成立**(换成上面的词界写法复核,确为零命中),错的只是那条命令。
+> 但 CLAUDE.md 的证据标准是"使读报告本身即完成验证",**一条重跑给出相反结果的命令比不写更糟**:
+> 读者要么以为结论错了,要么以为自己环境不对。故立此规矩:
+> **凡把 shell 命令写进证据,必须是重跑能复现该结论的那一条**;自检命令统一用 ```verify 围栏标注。
 
 **判定:补白 + 安全提示。** 远端后端(SSH/Modal/Daytona/Vercel)与 Singularity 的出口流量**不经**
 iron-proxy 强制。egress 强制与执行后端是**正交**维度,需各后端单独接线;"选了远端后端"不等于"有出口管控"。

@@ -10,7 +10,7 @@
 | 1 | security.md:101 hardline 与 `UNRECOVERABLE_BLOCKLIST` 同步(R1 §2.16-16) | **证伪(符号)+ 证实(机制)** | §B.1 |
 | 2 | security.md:665 allow_private_urls 全放行(R1 §2.16-17) | **证实(文档过度声称)** | r3-10 §8.2 |
 | 3 | security.md:654 DNS 失败 fail-closed(R1 §2.16-18) | **证实(需按代理条件修正)** | r3-10 §8.3 |
-| 4 | tools-runtime.md:96 check_fn "cached per-call"(R1 §2.16-19) | **证实(实为 30s TTL + 60s 宽限)** | §B.2 |
+| 4 | tools-runtime.md:91 check_fn "cached per-call"(R1 §2.16-19) | **证实(实为 30s TTL + 60s 宽限)** | §B.2 |
 | 5 | ◇ Schema 多后端清洗层 + property-key 往返(R1 2.5-3) | **证实(仅 Gemini-adapter 侧一句模糊提及)** | r3-20 定案 a |
 | 6 | ◇ 三层工具输出限长与结果持久化(R1 2.5-5) | **修正(第一层已文档化;二三层未见)** | r3-20 定案 b |
 | 7 | ◇ Tool Search 渐进披露(R1 2.5-10) | **证伪(有专门详尽的 tool-search.md)** | r3-20 定案 c |
@@ -27,11 +27,20 @@
 
 `UNRECOVERABLE_BLOCKLIST` 这个符号 **全仓代码 0 命中**,只出现在 `website/docs/user-guide/security.md`
 (及其中文镜像)。真实符号是 `HARDLINE_PATTERNS`(`tools/approval.py:434`)+ `detect_hardline_command`
-(`tools/approval.py:520`)。亲测:
+(`tools/approval.py:520`)。亲测(在基线仓库根重跑,`verify` 围栏 = 自检命令,非源码摘录):
+
+```verify
+$ grep -rn UNRECOVERABLE_BLOCKLIST tools/ agent/ model_tools.py ; echo "exit=$?"
+exit=1                     # 零命中
+
+$ grep -rln UNRECOVERABLE_BLOCKLIST .
+./website/docs/user-guide/security.md
+./website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-guide/security.md
 ```
-grep UNRECOVERABLE_BLOCKLIST tools/ agent/ model_tools.py  → 空
-grep UNRECOVERABLE_BLOCKLIST website/docs/  → security.md 命中
-```
+
+*(R8-fix 修正:原写法 `grep UNRECOVERABLE_BLOCKLIST tools/ agent/ model_tools.py` 缺 `-r`,
+对目录参数不会递归,重跑给出的是 "是个目录" 而不是"零命中";第二条只搜 `website/docs/`,
+看不到 zh-Hans 镜像那一份。结论两条都不变,改的是**命令能否重跑复现**——同 M-16d。)*
 **但机制描述正确**:它确是"yolo 之下的地板、在审批层看到命令之前触发、无覆盖标志"——层级顺序
 `approval.py:3761`(hardline)早于 `:3789`(yolo),测试 `test_hardline_blocklist.py` 逐条钉死不可绕过性
 (见 r3-95)。故:**符号名证伪(应改 `HARDLINE_PATTERNS`),机制证实**。这条同时回答 R1 的"分层命令审批
@@ -40,7 +49,7 @@ bypass"的边界顺序文档未讲透。
 
 ### B.2 check_fn "cached per-call" — 证实为 30s TTL + 60s 宽限
 
-tools-runtime.md:96 称 check_fn 结果 "cached per-call"。实际是跨调用的 **30 秒 TTL 缓存**
+`website/docs/developer-guide/tools-runtime.md:91 @ 863e313` 称 check_fn 结果 "cached per-call"。实际是跨调用的 **30 秒 TTL 缓存**
 (`tools/registry.py:216` `_CHECK_FN_TTL_SECONDS = 30.0`)+ **60 秒瞬断宽限**
 (`:220` `_CHECK_FN_FAILURE_GRACE_SECONDS = 60.0`,一次探测在上次成功 60s 内失败则返回 last-good True),
 且按 multiplex profile 维度隔离(`:246 check_fn_cache_scope`)。这条 R2 报告已收录为 §2.16-19,本轮在

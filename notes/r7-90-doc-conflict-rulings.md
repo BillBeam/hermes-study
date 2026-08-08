@@ -47,14 +47,19 @@
   行为规格:test_steer_command / test_internal_event_never_interrupts_busy_session /
   test_compression_interrupt_demotion_56391(本轮全部跑通)。
 
-### A3. 能力点 99:"20+ external messaging platforms" 口径偏小 —— ▲ 证伪(方向正确)
+### A3. 能力点 99:"20+ external messaging platforms" 口径偏小 —— ◎ 保守表述(原记 ▲,R8-fix 改判)
 
 - **文档**:`gateway-internals.md:9 @ 863e313`:"connects Hermes to 20+ external messaging
   platforms"。
 - **代码**:`Platform` 枚举 24 个显式成员(gateway/config.py:280-303,含 local/api_server/
   webhook 等非聊天面)+ `_missing_` 动态成员只认 bundled 插件目录扫描与运行时注册
   (config.py:305-368),R1 清点 plugins/platforms/ 22 个插件平台;逻辑平台合计 30+。
-- **裁决**:证伪(实际能力大于文档口径;"20+"字面不算错但显著低估)。R1 判断维持。
+- **裁决(R8-fix 改判,review-1 建议-13 / M-16e)**:**不计 ▲,新增记号 ◎「保守表述」。**
+  ▲ 在本项目里的定义是"文档所述与代码矛盾"。这里 **24 ≥ 20,"20+" 字面为真**,矛盾不存在——
+  原裁决自己也写了"'20+'字面不算错",却仍判为"证伪"并计入 ▲。
+  正确表述:**文档成立但显著保守**(枚举 24 个显式成员 + `plugins/platforms/` 22 个目录)。
+  **为什么值得单列**:▲ 条数是贯穿 R2–R8B 用来衡量"地图腐烂程度"的跨轮指标,
+  把一个"保守但为真"的表述计进去,会让这个指标不可比。R7 因此把"四处硬伤"改为**三处**。
 
 ### A4. 能力点 106:DM 配对方向写反 —— ▲ 证伪(开发者文档)
 

@@ -25,8 +25,11 @@ to the wrong thread.
 ```
 
 ### 实现
-- 17 个 `ContextVar`,默认值是哨兵 `_UNSET`(区分"从未设过"与"显式清空"):
-  `session_context.py:46,74-128`。`get_session_env(name)` 的解析顺序:ContextVar 已设(哪怕
+- **18** 个 `ContextVar`,默认值是哨兵 `_UNSET`(区分"从未设过"与"显式清空"):
+  `gateway/session_context.py:46,74-128 @ 863e313`。
+  *(R8-fix 修正:原写 17,实测 `grep -c "ContextVar(" gateway/session_context.py` = **18**
+  ——`:74-82` 十个、`:90`、`:94`、`:96`、`:102`、`:122`、`:126-128` 三个。**引用范围一直是对的,
+  只有数错了**,且该错数原样传进了成品章 `chapters/r7-*.md:145`。见 review-1 建议-6 / M-10。)*`get_session_env(name)` 的解析顺序:ContextVar 已设(哪怕
   空串)→ 直接返回、**不回落**;`_UNSET` → 回落 `os.environ`(CLI/cron/测试兼容)→ default
   (`session_context.py:363-386`)。
 - **三态生命周期**是精髓:

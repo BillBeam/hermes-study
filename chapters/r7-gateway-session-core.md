@@ -15,7 +15,7 @@
 2. **隔离靠一把确定性"会话键"(session key)**:从消息来源(平台/聊天/线程/发信人)拍出
    一个稳定字符串,如 `agent:main:telegram:dm:12345`。同键 = 同一场对话(共享历史),
    异键 = 完全隔离。DM 按人隔离、群默认按"群 × 人"隔离、线程默认全员共享——三条规则
-   全部集中在一个 130 行的函数里(`gateway/session.py:1058`)。
+   全部集中在一个 130 行的函数里(`gateway/session.py:1058 @ 863e313`)。
 3. **并发安全靠三层互相配合的机制**:任务局部的 contextvars 会话上下文(治"我是谁"被并发
    覆盖)、按会话键分层的状态容器 SessionState(治 19 个裸 dict 的清理漂移)、按**最终
    会话 id** 加锁的回合租约 turn lease(治两个路由键写同一份转写的交错)。
@@ -33,8 +33,19 @@
 你在 Telegram 给机器人发了一句"帮我看看服务器磁盘"。这条消息要经历什么?
 
 1. **Telegram 适配器**把原始 update 归一化成 `MessageEvent`(带来源:平台、chat、发信人、
-   线程)。适配器层先查"这场对话是不是正有回合在跑"——在跑就把消息扣在适配器的
-   pending 槽里,不往下送(这是双层守卫的第一层,属平台接入面,下一轮细讲)。
+   线程)。适配器层先查"这场对话是不是正有回合在跑"——**在跑就先交给网关装进来的
+   "忙时策略机";策略机说"我处理了"就到此为止,它不接手,消息才落进适配器自己的 pending 槽**
+   (这是双层守卫的第一层,属平台接入面,下一轮细讲)。
+
+   `gateway/platforms/base.py:5711 @ 863e313`
+
+   ```python
+               if self._busy_session_handler is not None:
+   ```
+
+   这个 handler 由 `GatewayRunner` 在装配适配器时塞进来(`gateway/run.py:11096 @ 863e313`、`:12468`、
+   `:13410` 三处),**所以"忙时怎么办"的决策权在网关层,不在适配器层**——这一点很关键,
+   下面 §3.4 讲的四选一(interrupt / queue / steer / redirect)全都发生在网关侧。
 2. **`GatewayRunner._handle_message`**(`gateway/run.py:14328 @ 863e313`,1,400 行的总入口)
    接手:鉴权(陌生人 DM 会自动收到一个配对码,让机器人主人在 CLI 批准)、斜杠命令分流、
    然后按来源拍出会话键。
@@ -115,25 +126,25 @@ flowchart TB
             return ":".join(str(part) for part in dm_parts)
 ```
 
-三条隔离规则(`gateway/session.py:1058-1094` docstring 与实现一致):
+三条隔离规则(`gateway/session.py:1058-1094 @ 863e313` docstring 与实现一致):
 - **DM 按人/私聊隔离**;万一适配器没给 chat_id,回落到发信人 id——否则所有无 chat_id 的
   DM 会塌缩进一个共享会话,"一个缓存 agent 服务多个人的对话——跨用户历史泄漏"
-  (session.py:1119-1121 注释原文的直译)。
+  (gateway/session.py:1119-1121 @ 863e313 注释原文的直译)。
 - **群默认"群 × 人"隔离**(`group_sessions_per_user=True`):同一个群里你和同事各有各的
   上下文,互不觉察。
 - **线程默认全员共享**(`thread_sessions_per_user=False`):Telegram 话题、Discord thread、
-  Slack thread 是"大家看得见的同一场讨论",共享才符合直觉(session.py:1087-1091)。
+  Slack thread 是"大家看得见的同一场讨论",共享才符合直觉(gateway/session.py:1087-1091 @ 863e313)。
 
 三个精心处理的边角,都是真实平台的坑:
 - **WhatsApp 身份规范化**:桥接层会在 JID/LID 两种别名间翻转,不规范化就会"同一个人
-  两个隔离会话"(session.py:1105-1106、1138-1142)。
+  两个隔离会话"(gateway/session.py:1105-1106 @ 863e313、1138-1142)。
 - **Discord 预期线程**(prospective thread):在频道里发起、平台自动开线程回复的模式下,
   发起消息还没有 thread_id;适配器提前告知"回复将进哪个线程",键直接按那个未来线程拍,
   并把 chat_type 槽归一为 "thread",让发起消息与后续线程消息**字节相同**——"频道发起、
-  线程继续"落在同一场会话(session.py:1144-1159)。
+  线程继续"落在同一场会话(gateway/session.py:1144-1159 @ 863e313)。
 - **多档案命名空间**:键首段 `agent:main` 的 "main" 不是分支名,是命名空间槽。多 profile
   多路复用(一进程多人格)把它换成 `agent:<profile>`,位置布局不变——旧会话字节兼容,
-  两个 profile 服务同一个群也不会撞键(session.py:1038-1055)。
+  两个 profile 服务同一个群也不会撞键(gateway/session.py:1038-1055 @ 863e313)。
 
 **取舍**:纯函数键的代价是"改规则 = 换键 = 旧会话找不回",所以规则极端保守,新增判别
 维度都走"追加段"而不是改老段;收益是零状态、零协调,任何进程任何时刻拍出的键都一致。
@@ -142,12 +153,12 @@ flowchart TB
 
 **场景重演**(§1 的串线事故):并发下,进程全局变量装不下"每条消息各自的身份"。
 
-**身份**:`gateway/session_context.py` 用 17 个 `ContextVar`(Python 的任务局部变量,
+**身份**:`gateway/session_context.py` 用 18 个 `ContextVar`(Python 的任务局部变量,
 asyncio 每个任务一份)承载会话身份,并配了一套三态协议:值 / 显式清空(`""`)/
 从未设置(哨兵 `_UNSET`,此时才回落 `os.environ` 兼容 CLI 与 cron)。最反直觉也最重要的
 一条:**消息处理器入口要先"重置"再"绑定"**——asyncio 的 `create_task` 会快照父任务的
 上下文,消息 B 的任务可能生在"消息 A 已绑定"的上下文里,不重置就有一个以 A 的身份
-起子进程的窗口(session_context.py:324-336,配套测试 test_session_context_inheritance)。
+起子进程的窗口(gateway/session_context.py:324-336 @ 863e313,配套测试 test_session_context_inheritance)。
 
 **东西**:`gateway/session_state.py` 把 GatewayRunner 曾经的 ~19 个裸 dict 按**清理时机**
 收进一个三层容器:
@@ -160,26 +171,26 @@ asyncio 每个任务一份)承载会话身份,并配了一套三态协议:值 / 
 
 为什么按清理时机而不是按语义分?因为三类真实事故(#48031、#58403、#10702、#35809)
 全是"清理清单漏了新加的 dict"——把清单变成 dataclass 的 `clear()`,"加字段忘清理"
-从 code review 项变成不可能(session_state.py:3-19)。
+从 code review 项变成不可能(gateway/session_state.py:3-19 @ 863e313)。
 
 ### 3.3 回合租约与 run generation —— 写序与迟到者
 
 **事故重讲**(#64934,§1 的绞碎事故):守卫按路由键,转写按会话 id,`/resume` 让两键指一
 id,守卫集体失明。**修法**:在"会话解析已定案、历史尚未装载"的唯一位置,按**最终
-session_id** 加一把 asyncio 锁(`gateway/run.py:16584-16589`);同键消息本来就被守卫扣住,
+session_id** 加一把 asyncio 锁(`gateway/run.py:16584-16589 @ 863e313`);同键消息本来就被守卫扣住,
 所以这把锁在别名路由之外永远无争用。三条安全性质值得抄:
 
 1. **身份检查释放**:token 记录 (路由键, 代数),只有"当前持有者本人"能释放——异常
-   回退路径上的过期 token 永远放不掉新回合的锁(turn_lease.py:274-302)。
+   回退路径上的过期 token 永远放不掉新回合的锁(gateway/turn_lease.py:274-302 @ 863e313)。
 2. **超时 fail-open**:等锁超过阈值(与回合看门狗同钟,默认 1800s)就**降级不串行化**
-   继续跑,响亮记 ERROR——楔死会话比转写交错更糟(turn_lease.py:190-208)。
+   继续跑,响亮记 ERROR——楔死会话比转写交错更糟(gateway/turn_lease.py:190-208 @ 863e313)。
 3. **压缩中途换 id 就"同锁挂双键"**:上下文压缩会在回合中把会话 id 轮换成子 id;
-   `rebind` 把同一把锁对象再登记到新 id 下,而不是搬锁状态(turn_lease.py:215-272)。
+   `rebind` 把同一把锁对象再登记到新 id 下,而不是搬锁状态(gateway/turn_lease.py:215-272 @ 863e313)。
 
 **迟到者**由 run generation 治:每个回合领一个单调递增代数,/stop /new 把代数翻新,
-旧回合迟到的落盘/清理副作用先验代、代不对就丢弃(run.py:23014-23047,#28686 教训:
+旧回合迟到的落盘/清理副作用先验代、代不对就丢弃(gateway/run.py:23014-23047 @ 863e313,#28686 教训:
 计数器**永不重置**)。超时收割进程也走同一闸门——发现新回合已认领会话就放弃收割,
-绝不误杀新回合的进程(run.py:2848-2873)。
+绝不误杀新回合的进程(gateway/run.py:2848-2873 @ 863e313)。
 
 ### 3.4 忙时策略 —— interrupt / queue / steer / redirect 与自动降级
 
@@ -218,7 +229,7 @@ test_compression_interrupt_demotion_56391 等,本轮全部跑通。
   LongToolHint / GatewayNotice。冻结 dataclass、零行为零 IO,只描述**发生了什么**。
   历史动机写在模块头:过去 agent 用一把松散回调直接驱动投递,"工具进度气泡和流式草稿
   在 Telegram 上互相赛跑",工具格式化逻辑长在 agent 侧而只有网关知道平台能渲染什么
-  (stream_events.py:1-17)。
+  (gateway/stream_events.py:1-17 @ 863e313)。
 - **`stream_dispatch.py`(132 行)**:同步路由器。文本事件进 consumer;工具事件交
   **适配器**格式化——适配器可返回 None 把事件"吃掉"(平台渲染不了工具 chrome);
   "new" 模式按工具名去重。呈现层异常绝不穿透进 agent 工作线程(dispatch:88-93)。
@@ -233,7 +244,16 @@ test_compression_interrupt_demotion_56391 等,本轮全部跑通。
 
 ### 3.6 看护面 —— 单一进度钟上的四条线
 
-**原则先行**:判定"卡没卡"的钟只有一个——agent 自己维护的活动时间戳
+**场景**:你让 agent 编译一个大项目,它回了句"开始了",然后**十分钟没动静**。
+你不知道该等还是该敲 `/stop`。而网关面临的是同一个问题的更难版本:它必须**自动**判断
+这十分钟是"正在干活"还是"死了",判错任何一边都很糟——把干活判成死,会打断一次成功的编译;
+把死判成干活,会让这条会话永远挂着,占着租约、占着内存、还挡住用户的下一条消息。
+
+难点在于**"没动静"不等于"没进展"**:一个跑十分钟的 `make` 命令,从消息层面看和死锁一模一样。
+所以第一个设计决定是**换一口钟**——不看"回合开始多久了",也不看"上一条消息多久前到的",
+只看 agent 自己报的活动时间戳。
+
+**原则**:判定"卡没卡"的钟只有一个——agent 自己维护的活动时间戳
 (`get_activity_summary()`,#72039 契约)。回合开始时间、消息到达时间都**不是**进度
 (长工具正常跑会被误判)。四条线共用这口钟、各管一事:
 
@@ -246,11 +266,11 @@ test_compression_interrupt_demotion_56391 等,本轮全部跑通。
 
 三个值得抄的细节:
 - stall 策略是**纯函数**(session_stall.py 全文 121 行),观测缺失(None)**不算恢复**
-  ——"Do not treat observation gaps as recovery"(session_stall.py:57);
+  ——"Do not treat observation gaps as recovery"(gateway/session_stall.py:57 @ 863e313);
 - 看门狗特意是线程:它的假设敌之一就是事件循环被饿死,守护不能与被守护者同生死
-  (run.py:2963 docstring 原文);
+  (gateway/run.py:2963 @ 863e313 docstring 原文);
 - 过期 finalize 连续失败 3 次后"标记完成、少清一点",可用性优先于完美清理
-  (run.py:12028-12037)。
+  (gateway/run.py:12028-12037 @ 863e313)。
 
 **一个反转作结**:表里第四条线(内存监控)是本轮最意外的发现——模块从 cline 移植、
 注释详尽、测试齐全,但**全仓没有任何生产调用点**,连它 docstring 声称的
@@ -271,30 +291,48 @@ test_compression_interrupt_demotion_56391 等,本轮全部跑通。
 - **无状态的 API server**:走 handle_message 会用派生键跑出一个**平行的、没人看的会话**
   (键永远对不上真实回合用的裸 `X-Hermes-Session-Id`);所以改为**自 POST** 到进程内
   API server 的 `/v1/chat/completions`,带裸会话 id 头——与真实回合同一入口,续的是
-  真会话(wake.py:10-20;这段 docstring 本身就是一页架构课)。
+  真会话(gateway/wake.py:10-20 @ 863e313;这段 docstring 本身就是一页架构课)。
   `API_SERVER_KEY` 缺失是硬错误:未认证的 API server 会 403 掉会话续写,与其让唤醒
-  落进没人看的新会话,不如响亮失败(wake.py:104-121)。429(并发帽)退避重试,
+  落进没人看的新会话,不如响亮失败(gateway/wake.py:104-121 @ 863e313)。429(并发帽)退避重试,
   **一切失败上抛**——调用方持有游标,只有它能决定重投;静默丢 = 用户永远等不到通知。
 
 **共同原则:回注必须走真实入口,不造第三条特权通道。**
 
 ### 3.8 每会话 agent 缓存 —— 复用与逐出
 
+**场景**:你连发两条消息,中间隔五秒。第一条让网关从零装配了一个 agent——建 LLM 客户端、
+拼工具 schema、连 memory provider、握手若干个 MCP 服务器,几百毫秒到几秒不等。
+**第二条消息没有理由再付一次这个钱。** 但"缓存住"立刻带来三个新问题:
+一台网关同时服务几百个 chat,缓存会吃光内存;用户中途 `/model` 换了模型,缓存里那个还是旧的;
+会话过期被清理了,缓存里那个 agent 却还攥着 MCP 连接不放。
+**下面三条治理线,一条对一个问题。**
+
 构建一个 `AIAgent`(LLM 客户端、工具 schema、memory provider、MCP 连接)很贵,网关按
 会话键缓存它。三条治理线防止缓存吃光内存:LRU 上限 128 + 空闲 TTL 1 小时
-(run.py:69-88 常量区)+ 会话过期联动逐出(§3.6)。复用判据是**配置签名**
-(`_agent_config_signature`,run.py:22608):会话的模型/工具/人格覆盖变了,签名变,
+(gateway/run.py:69-88 @ 863e313 常量区)+ 会话过期联动逐出(§3.6)。复用判据是**配置签名**
+(`_agent_config_signature`,gateway/run.py:22608 @ 863e313):会话的模型/工具/人格覆盖变了,签名变,
 旧 agent 弃用重建——"缓存的 agent 必须等价于按当前配置新建的 agent"。逐出前先提交
-记忆(memory commit before soft evict,run.py:23473),学到的东西不随缓存蒸发。
+记忆(memory commit before soft evict,gateway/run.py:23473 @ 863e313),学到的东西不随缓存蒸发。
 
 ### 3.9 多 profile 多路复用 —— 一进程多人格
 
+**场景**:你想在同一台机器上跑两个机器人——一个"工作助手"(接公司 Slack、只开只读工具、
+记忆库单独一份),一个"家用助手"(接家里的 Telegram、能开灯、能下单)。
+最省事的做法是起两个进程,但那意味着两份内存、两套凭据管理、两个要看的日志。
+hermes 的做法是**一个进程装多个 profile**。
+
+这件事听起来只是"多开几个配置",真正难的是三处**会打架的共享资源**:
+两个 profile 会不会串会话(同一个人在两边说话,历史会混吗)?
+会不会抢同一个 bot token(两个 profile 都配了同一个 Telegram 机器人,谁收消息)?
+会不会抢同一个端口(两个 profile 都要开 webhook 监听 8080)?
+**下面这一段的每个机制,都是在回答这三问之一。**
+
 单实例可以同时跑多个 profile(各自的模型、工具、记忆、人格):键命名空间隔离(§3.1)、
 per-profile 适配器组、凭据独占声明(两个 profile 抢同一个 bot token 会在启动时被拒)、
-路由规则按 specificity 匹配(thread > channel > guild,`gateway/profile_routing.py:63-102`;
+路由规则按 specificity 匹配(thread > channel > guild,`gateway/profile_routing.py:63-102 @ 863e313`;
 Discord 线程还会沿 parent_chat_id 链匹配到频道路由)。端口绑定平台(webhook/api_server 等)
 只允许默认 profile 持有,次级 profile 经 `/p/<profile>/` URL 前缀复用同一监听——两 profile
-抢端口在启动时就 fail-fast(config.py:376-394 + run.py:13293-13300)。
+抢端口在启动时就 fail-fast(gateway/config.py:376-394 @ 863e313 + gateway/run.py:13293-13300 @ 863e313)。
 
 ## 4. 可迁移的设计原则
 
@@ -318,21 +356,58 @@ Discord 线程还会沿 parent_chat_id 链匹配到频道路由)。端口绑定�
 
 ## 5. 地图与代码的出入(本簇定案摘要)
 
-开发者文档 `gateway-internals.md` 是本簇最过时的一张地图,四处硬伤全部证伪
-(详见 notes/r7-90):示例会话键的 `private` 槽**从不存在**(代码恒拍 `dm`,
-session.py:1103,1108),multiplex 命名空间未记载;忙时守卫"其余一律 interrupt()"停留在
-steer/redirect/自动降级引入前;DM 配对方向**写反**(不存在 /pair 命令,真实流程是陌生人
-自动收码、owner 在 CLI 批准,run.py:14493-14500);"20+ 平台"显著低估(枚举 24 显式成员 +
-22 插件平台)。scale-to-zero 的网关侧(HERMES_SCALE_TO_ZERO、idle 判定、watcher)整套
-**代码有、文档无**。代码内注释同样会说谎:`_TELEGRAM_NOISY_STATUS_RE` 实际全平台生效;
-profile_routing docstring 的 specificity 数字与自己的示例对不上;start() 的
-"返回 False 表示失败"早已退化(全路径返回 True,真信号在 exit-reason 属性上)。
-最重的一级是"接线级"落差:memory_monitor 整个模块无生产调用点(§3.6);另有两个
-bug 候选只记录不修——goal 的 gate-failed 续跑模板逃逸前缀识别(识别谓词与模板集合
-脱耦的反例),原生 Discord 语义改名把接收方不认识的 kwargs 传过去、TypeError 被
-debug 级 except 吞掉(能力探测靠异常 + 宽捕获的反例)。规律与前几轮一致并加深:
+开发者文档 `gateway-internals.md` 是本簇最过时的一张地图。全部定案见 `notes/r7-90`,
+这里按**失效方式**分四类——因为这四类要用四种不同的办法去防。
+
+### 5.1 文档写错了(▲ 三处)
+
+| 出错的地方 | 文档怎么说 | 代码实际怎么做 |
+|---|---|---|
+| 示例会话键的 chat_type 槽 | `agent:main:telegram:**private**:123456789` | `private` 这个值**从不存在**,DM 恒拍字面 `dm`(`gateway/session.py:1103 @ 863e313,1108`);multiplex 的 `agent:<profile>` 命名空间也全文未提 |
+| 忙时守卫 | "其余一律 `interrupt()`" | 停留在 steer / redirect / 自动降级引入**之前**的版本(见 §3.4) |
+| DM 配对方向 | 用户敲 `/pair` 去申请 | **方向写反**:不存在 `/pair` 命令;真实流程是陌生人发消息后**自动收到**一个配对码,owner 在 CLI 批准(`gateway/run.py:14493-14500 @ 863e313`) |
+
+> **◎ 第四处不算 ▲,原判错了。** 本章早先写的是"四处硬伤全部证伪",第四处是
+> "'20+ 平台'显著低估(枚举 24 显式成员 + 22 插件平台)"。**括号里的数全对,但文档那句话是真的**
+> ——`website/docs/developer-guide/gateway-internals.md:9 @ 863e313` 写的是 "20+ external messaging platforms",而 24 ≥ 20。
+> ▲ 的定义是"文档所述与代码矛盾",这里没有矛盾,只有**保守**。
+> 现另立记号 **◎ 保守表述**收容这一类,并把"四处"改为**三处**。
+> **为什么较真**:▲ 条数是贯穿 R2–R8B、用来衡量"这张地图烂到什么程度"的跨轮指标,
+> 掺进一条"保守但为真"就不可比了(review-1 建议-13 / M-16e)。
+
+### 5.2 文档整块没写(◇)
+
+scale-to-zero 的**网关侧**——`HERMES_SCALE_TO_ZERO` 开关、idle 判定、watcher ——
+整套**代码有、文档无**。这一簇里最大的一块"地图空白"。
+
+### 5.3 代码内注释也会说谎(源码级漂移)
+
+这一类比文档过时更阴险:读代码的人默认注释和它旁边的代码是同步的。
+
+- `_TELEGRAM_NOISY_STATUS_RE` —— 名字和注释都说是 Telegram 专用,**实际全平台生效**;
+- `gateway/profile_routing.py` 的 docstring —— specificity 数字与**它自己下面那个示例**对不上;
+- `start()` 的 "返回 False 表示失败" —— **早已退化**,全路径都返回 True,
+  真信号搬到了 exit-reason 属性上,而注释没跟着搬。
+
+### 5.4 最重的一级:接线级落差
+
+**"模块存在 + 测试绿"不等于"已接线"。** 本簇最有价值的发现是 `gateway/memory_monitor.py`
+**整个模块没有任何生产调用点**(见 §3.6 表格最后一行)——它被完整地移植了进来、有测试、
+却从未被谁调用过。一个只读文档或只读模块清单的人,会把它算进"这套系统有内存监控"。
+
+另有**两个 bug 候选,本轮只记录不修**(锚点留给后续轮):
+
+1. **goal 的 gate-failed 续跑模板** —— 逃逸前缀识别与模板集合**脱耦**:
+   判断"要不要加前缀"的谓词,和实际会用到的模板集合是两份各自维护的东西,
+   加了新模板不会自动被谓词认识。
+2. **原生 Discord 语义改名** —— 把接收方不认识的 kwargs 传了过去,抛出的 `TypeError`
+   被一个 debug 级的 `except` 吞掉。这是"**能力探测靠抛异常 + 宽捕获**"这种写法的典型反例:
+   探测失败与真 bug 长得一模一样。
+
+### 5.5 本簇的元规律
+
 **机制方向大体对,分支图谱与精确值系统性滞后;用户文档常比开发者文档新;
-"模块存在 + 测试绿"不等于"已接线"**。
+"模块存在 + 测试绿"不等于"已接线"。**
 
 ## 6. 延伸(完整精读路径)
 
