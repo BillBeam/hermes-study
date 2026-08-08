@@ -20,8 +20,8 @@
    这个"绑哪儿决定用哪把锁"的设计是本章最值得抄走的一条。
 4. **本轮找到的问题几乎全长一个样:同一件事有两份实现,只有一份带守卫。**
    两套文件 API 只有一套限根;同一个文件读端点拦、写端点不拦;
-   两张豁免名单一张精确匹配一张前缀匹配;两个配置写入口一个有名单一个没有。
-   **不是"没想到",是"想到了一半"。**
+   两张豁免名单一张精确匹配一张前缀匹配;两个配置写入口一个有名单一个没有;
+   两条 OAuth 实现只有一份验 state。**不是"没想到",是"想到了一半"。**
 5. **可迁移的一句话**:守卫要挂在**收口**上,不要挂在**调用点**上;
    而如果你的收口有两个,那你其实没有收口。
 
@@ -42,7 +42,7 @@ POST /api/pairing/approve
 {"platform": "telegram", "request_id": "…"}
 ```
 
-**这是整个系统里最敏感的一次点击**:批准之后,那个 Telegram 账号就能驱使这个 agent
+**这是整个系统里最敏感的一次点击之一**:批准之后,那个 Telegram 账号就能驱使这个 agent
 读文件、跑命令。所以一个自然的问题是:**这条路由怎么保证只有你能调?**
 
 打开代码,你会看到令人不安的东西:
@@ -182,7 +182,7 @@ non-loopback binds, but no auth providers are registered."
 
 ### 3.4 本章的主题:同一件事有两份实现,只有一份带守卫
 
-本轮在这个面上找到的问题,**几乎全长一个样**。挑三个讲。
+本轮在这个面上找到的问题,**几乎全长一个样**。挑五个讲,由轻到重。
 
 #### (a) 两套文件 API,一套限根,一套不限
 
@@ -309,6 +309,59 @@ PUT /api/config {"config": {"LD_PRELOAD": "…"}}       → 200  ← 落进 conf
 于是它**不参与凭据轮换**,而且 `GET /api/config` 会**明文回显**它
 (改环境变量那条路是脱敏的)。
 
+#### (e) 两条 OAuth 实现,只有一份验 state —— 本章最重的一条
+
+**先给术语**:登录第三方服务(比如让 agent 用你的 Anthropic 账号)走的是 **OAuth 授权码流程**:
+你在服务商页面点同意,拿到一个**授权码**,客户端拿它去换 token。
+**PKCE**(带证明密钥的授权码交换)给这个流程加了一道绑定:客户端先自己生成一个随机串
+`code_verifier`,**只把它的哈希**发给服务商;换 token 时必须出示原串。
+**它存在的唯一目的,就是让授权码单独泄露也换不出 token。**
+另有一个 `state` 参数,作用完全不同——防 CSRF:客户端生成随机 state,回调带回来时比对一致才继续。
+
+**dashboard 这一侧把这两个东西合成了一个:**
+
+`hermes_cli/web_server.py:10220 @ 863e313`
+
+```python
+    sess["state"] = verifier  # Anthropic round-trips verifier as state
+```
+
+而 `state` 恰恰是**要进授权 URL、由服务商页面显示给用户复制**的那一半。
+提交时回调带回的 state 也**只透传、从不比对**(全文件搜 `state_from_callback` 只有两处:
+赋值和透传)。
+
+**同一个仓库的 CLI 走同一个服务商、同一条流程,做法完全不同:**
+
+`agent/anthropic_adapter.py:1508 @ 863e313`
+
+```python
+    oauth_state = secrets.token_urlsafe(32)
+```
+
+`agent/anthropic_adapter.py:1563 @ 863e313`
+
+```python
+    # Validate state to prevent CSRF (RFC 6749 §10.12)
+```
+
+**这条对照是决定性的**:CLI 那条路在生产里能用,**所以服务商并不要求 `state == verifier`**。
+
+**后果**:用户从服务商页面复制的是一串 `code#state`。既然 `state` 就是 `verifier`,
+**这一串里同时装着授权码和验证串**——而 PKCE 的全部意义就是让这两半分开走。
+
+```text
+正常 PKCE:  授权码经用户 → 客户端;verifier 只在客户端内存里,从不外出
+            ⇒ 偷到授权码的人换不出 token
+本处实现:  code#state 一起显示、经剪贴板,可能进截图 / 聊天记录 / 支持工单
+            ⇒ 拿到这一串的人,在任意机器上都能换出 token
+```
+
+**而且两个缺陷互相取消了对方的兜底**:没有 state 比对本身(缺 CSRF 纵深防御)
+本该由 PKCE 的绑定兜住,而第一条恰好把那个绑定拿掉了。
+
+*(本章唯一一条没有实测到底的结论:没有真跑一次换 token——项目边界不配置任何付费凭据。
+"这串在别的机器上确实能换出 token"是从协议语义推出的。)*
+
 ### 3.5 一个 17,732 行的文件正在往外拆
 
 **先看场景**:你接手这个文件,想加一条路由。放哪?
@@ -359,6 +412,8 @@ PUT /api/config {"config": {"LD_PRELOAD": "…"}}       → 200  ← 落进 conf
 | ■ | `hermes_cli/web_server.py:2453`、`:2573` | 同一个 `config.yaml`:读端点 403、写端点 200;可清空 `approvals.deny` |
 | ■ | `hermes_cli/dashboard_auth/middleware.py:84` | 豁免前缀 10 条无边界检查;**当前零暴露**(123 条路由全查过),但同一函数对另一张表做了精确匹配 |
 | ■ | `hermes_cli/web_server.py` config 写入路径 | `PUT /api/config` 无键名名单而 `PUT /api/env` 有;config 顶层标量在 import 时进环境变量 |
+| ■ | `hermes_cli/web_server.py:10220`、`:10265` | dashboard 的 PKCE 把 `code_verifier` 当 `state`,回调 state 只透传不比对;同仓 CLI(`agent/anthropic_adapter.py:1508`/`:1563`)用独立随机 state 并严格比对 —— PKCE 退化为裸授权码流程 |
+| ■ | `cron/scheduler.py:280` vs `:255` | 内建平台 `whatsapp_cloud` 有专属 home 频道变量却不在投递名单里,永远进不了 cron 投递;本该守住它的回归测试类是空的,且承诺的不变量还是反方向的 |
 
 ---
 
@@ -368,4 +423,6 @@ PUT /api/config {"config": {"LD_PRELOAD": "…"}}       → 200  ← 落进 conf
 - dashboard 登录鉴权子系统(13 个文件):`notes/r8c-raw-dashboard-auth.md`
 - 配置端点、schema 自动生成、H-10 / H-11:`notes/r8c-raw-config-endpoints.md`
 - 两套文件 API 的对比与实测:`notes/r8c-12-managed-files-vs-fs.md`
-- 本轮定案与主线复核:`notes/r8c-90-rulings.md`
+- 本轮定案与主线复核(含对前轮一条定案的定性改判):`notes/r8c-90-rulings.md`
+- H-17 的三条后果与实测复现:`notes/r8c-10-h17-env-loader-race.md`
+- 「核心测密、壳测稀」是不是仓库级模式:`notes/r8c-13-core-vs-shell-test-density.md`

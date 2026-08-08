@@ -113,6 +113,17 @@ def _profile_cli_args(profile: Optional[str]) -> List[str]:
 再改回来。改模块全局这件事**不能跨 `await`**——另一个并发请求会在它的 `finally` 里把本请求的
 目录还原掉,于是有了第二个"只动 contextvar"的版本。
 
+`hermes_cli/web_server.py:13574 @ 863e313`
+```python
+def _profile_scope(profile: Optional[str]):
+    """Scope config + skill-directory resolution to ``profile`` for one request.
+
+    Two seams must be redirected for skills/toolsets endpoints:
+
+    1. ``load_config``/``save_config`` resolve ``get_hermes_home()`` at call
+       time — the context-local override from ``set_hermes_home_override``
+```
+
 `hermes_cli/web_server.py:13633 @ 863e313`
 ```python
 def _config_profile_scope(profile: Optional[str]):
@@ -251,12 +262,27 @@ async def update_config(body: ConfigUpdate, profile: Optional[str] = None):
 
 ### 2.2 顺带的两条观察
 
-- `MCPServerCreate.bearer_token: Optional[SecretStr]`(`web_models.py:390` 段内)是全文件**唯一**用
-  `SecretStr` 的字段——即"别把它打进日志/repr"。其余 API key 字段(`ModelAssignment.api_key`、
-  `CredentialPoolAdd.api_key`、`CustomEndpointUpdate.api_key`、`EnvVarUpdate.api_key`)都是裸 `str`。
+- `MCPServerCreate.bearer_token` 是全文件**唯一**用 `SecretStr` 的字段——即"别把它打进日志/repr"。
+  其余 API key 字段(`ModelAssignment.api_key`、`CredentialPoolAdd.api_key`、
+  `CustomEndpointUpdate.api_key`、`EnvVarUpdate.api_key`)都是裸 `str`。
   ◇ 代码有、文档无:这条不对称没有任何地方解释。
-- `_MoaReferenceControls._validate_reference_timeout`(`web_models.py:167` 段内)是全文件**唯一**的
-  `field_validator`,专门挡 JSON 布尔和非有限值——说明"多写校验"在这套 schema 里是例外不是惯例。
+
+  `hermes_cli/web_models.py:399 @ 863e313`
+  ```python
+      # One-time provisioning input; persisted only to the profile's .env.
+      bearer_token: Optional[SecretStr] = None
+  ```
+
+- `_MoaReferenceControls._validate_reference_timeout` 是全文件**唯一**的 `field_validator`,
+  专门挡 JSON 布尔和非有限值——说明"多写校验"在这套 schema 里是例外不是惯例。
+
+  `hermes_cli/web_models.py:166 @ 863e313`
+  ```python
+      @field_validator("reference_timeout", mode="before")
+      @classmethod
+      def _validate_reference_timeout(cls, value: Any) -> Optional[float]:
+          """Reject JSON booleans/non-finite values before float coercion."""
+  ```
 
 ---
 
@@ -293,6 +319,45 @@ def _safe_plugin_api_relpath(api_field: Any, *, dashboard_dir: Path) -> Optional
     The web server later imports this file as a Python module via
     ``importlib.util.spec_from_file_location`` (arbitrary code
     execution by design — that's how plugins extend the backend).
+```
+
+发现阶段还会顺手把 manifest 的 `tab` 块归一成"这个插件在侧边栏占哪个位置",
+其中 `override` 允许插件**替换一个内置 tab 的路径**(后端只校验它是字符串且以 `/` 开头,
+真正的消费在前端):
+
+`hermes_cli/web_server.py:16648 @ 863e313`
+```python
+                raw_tab = data.get("tab", {}) if isinstance(data.get("tab"), dict) else {}
+                tab_info = {
+                    "path": raw_tab.get("path", f"/{name}"),
+                    "position": raw_tab.get("position", "end"),
+                }
+```
+
+发现结果按进程缓存,只有"缓存里某个目录已经不在了"才会自动重扫——所以**新装的插件在
+`GET /api/dashboard/plugins/rescan` 之前不会出现**,而**被删掉的插件会自动消失**:
+
+`hermes_cli/web_server.py:16707 @ 863e313`
+```python
+def _get_dashboard_plugins(force_rescan: bool = False) -> list:
+    global _dashboard_plugins_cache
+    if _dashboard_plugins_cache is None or force_rescan:
+        _dashboard_plugins_cache = _discover_dashboard_plugins()
+    elif _dashboard_plugins_cache:
+        if any(not Path(p["_dir"]).is_dir() for p in _dashboard_plugins_cache):
+            _dashboard_plugins_cache = _discover_dashboard_plugins()
+    return _dashboard_plugins_cache
+```
+
+第 3 步那两道门(project 一律拒、user 必须在 `plugins.enabled`)在同一个循环里:
+
+`hermes_cli/web_server.py:17231 @ 863e313`
+```python
+    for plugin in _get_dashboard_plugins():
+        api_file_name = plugin.get("_api_file")
+        if not api_file_name:
+            continue
+        plugin_name = plugin.get("name", "")
 ```
 
 挂载点本身:
@@ -426,10 +491,20 @@ UI 上还显示成 kanban。#46435 / GHSA-mcfc-hp25-cjv7 补的正是"未启用�
 而这里的洞恰恰是"启用记录按**攻击者可声明的字符串**匹配"。
 **判定:■(名字空间混淆导致同意门错配),定级中——需要本地文件写入前提,不可远程触发。**
 
-顺带一条同源的可用性问题:agent 插件的规范 key 可能是 `observability/nemo_relay` 这样的嵌套形式
-(`_resolve_plugin_key`,`hermes_cli/plugins_cmd.py:781`),而 dashboard 门比对的是
-`dashboard/manifest.json` 里那个**另写的** `name`。两者不一致时,用户 `hermes plugins enable` 了
-也白搭——dashboard 侧静默不加载,只在 `_log.debug` 留一行。
+顺带一条同源的可用性问题:agent 插件的规范 key 可能是 `observability/nemo_relay` 这样的嵌套形式,
+而 dashboard 门比对的是 `dashboard/manifest.json` 里那个**另写的** `name`。两者不一致时,
+用户 `hermes plugins enable` 了也白搭——dashboard 侧静默不加载,只在 `_log.debug` 留一行。
+
+`hermes_cli/plugins_cmd.py:781 @ 863e313`
+```python
+def _resolve_plugin_key(name: str) -> Optional[str]:
+    """Resolve a user-supplied plugin identifier to its canonical registry key.
+
+    Accepts either the bare manifest name (``nemo_relay``), the directory
+    name, or the full path-derived key (``observability/nemo_relay``) and
+    returns the canonical key the loader gates on (``manifest.key`` or, for a
+    flat plugin, the bare name). Returns ``None`` when no plugin matches.
+```
 
 ### 3.5 静态资源与"谁能不带凭据读到什么"
 
@@ -459,8 +534,14 @@ async def serve_plugin_asset(plugin_name: str, file_path: str):
 
 而白名单文件自己给出的准入标准是"任何 curl 这个域名的人看到都无所谓"。
 插件名+版本是典型的指纹面(能推出装了哪些第三方后端扩展、版本多少)。
-**判定:◎ 文档成立但保守**——`_strip_dashboard_manifest` 已经把 `_dir`/`_api_file` 这些内部路径剥掉了,
+**判定:◎ 文档成立但保守**——内部字段(`_dir`/`_api_file`)在出站前会被按下划线前缀剥掉,
 泄露面确实是"只读、无密钥";但把它和 `/api/status` 并列为"外部探活可见"仍属偏宽,值得在成品章点一句。
+
+`hermes_cli/web_server.py:16764 @ 863e313`
+```python
+def _strip_dashboard_manifest(p: Dict[str, Any]) -> Dict[str, Any]:
+    return {k: v for k, v in p.items() if not k.startswith("_")}
+```
 
 ---
 
@@ -516,9 +597,18 @@ def should_require_auth(host: str, allow_public: bool = False) -> bool:
 ```
 
 `auth_required` 为真时的下游后果(逐条):
-- `auth_middleware` **直接放行**,把判定权交给 cookie 门(`web_server.py:657` 段内);
+- `auth_middleware` **直接放行**,把判定权交给 cookie 门;
 - `mount_spa` **不再注入** `__HERMES_SESSION_TOKEN__`,改注入 `__HERMES_AUTH_REQUIRED__`;
 - uvicorn 打开 `proxy_headers`(见 §4.5)。
+
+`hermes_cli/web_server.py:658 @ 863e313`
+```python
+    # When the OAuth gate is active, cookie-based auth (gated_auth_middleware
+    # above) is authoritative.  The legacy _SESSION_TOKEN path is loopback-only
+    # and is skipped here so the gate's session attachment isn't overridden.
+    if getattr(request.app.state, "auth_required", False):
+        return await call_next(request)
+```
 
 ### 4.3 `--insecure` 现在还起不起作用?——**不起作用,只剩一条警告**
 
@@ -755,8 +845,15 @@ TRUSTED_REPOS = {
 **签名:本地不验。** 上面注释提到的 `skill.oms.sig` 是 **NVIDIA 上游同步流水线**的性质描述,
 不是本地校验步骤。搜索面:`tools/skills_hub.py`、`tools/skills_guard.py`、`hermes_cli/skills_hub.py`
 三个文件里 grep `signature|\.sig\b|verify_sig|gpg|minisign|cosign`,命中的全部是**注释**
-(`skills_hub.py:573`、`skills_guard.py:48/50`)和一条**扫描规则名** `"gpg_dir_access"`(`skills_guard.py:130`),
-**没有任何一处执行签名校验**。◎ 记为负结论,搜索面如上。
+和一条**扫描规则名** `gpg_dir_access`——它是"检测技能是否读 GPG 钥匙串"的规则,
+和"校验技能自己的签名"完全无关。**没有任何一处执行签名校验**。◎ 记为负结论,搜索面如上。
+
+`tools/skills_guard.py:129 @ 863e313`
+```python
+    (r'\$HOME/\.gnupg|\~/\.gnupg',
+     "gpg_dir_access", "high", "exfiltration",
+     "references user GPG keyring"),
+```
 
 ### 5.3 装之前校验什么:一次静态扫描 + 一张策略表
 
@@ -851,6 +948,19 @@ _ACTION_LOG_FILES: Dict[str, str] = {
 - **主干**(失败就 400/500):`profiles_mod.create_profile(...)` 建目录;非 clone 时
   `seed_profile_skills` 播种内置技能;`create_wrapper_script` 在 `~/.local/bin/<name>` 建别名脚本
   (先 `check_alias_collision`)。
+
+  `hermes_cli/web_routers/profiles.py:389 @ 863e313`
+  ```python
+          if not clone:
+              profiles_mod.seed_profile_skills(path, quiet=True)
+
+          # Match the CLI's profile-create flow: named profiles should get a
+          # wrapper in ~/.local/bin when the alias is safe to create.
+          collision = profiles_mod.check_alias_collision(body.name)
+          if not collision:
+              profiles_mod.create_wrapper_script(body.name)
+  ```
+
 - **支线**(全部 best-effort,失败只记日志):写主模型、写 MCP servers、按 keep 列表禁用未选技能、
   为每个 `hub_skills` spawn 一个 `hermes -p <name> skills install <id> --yes`。
 
@@ -1001,8 +1111,17 @@ async def toggle_toolset(name: str, body: ToolsetToggle, profile: Optional[str] 
 ### 7.2 会不会绕过 approvals?——**toolset 开关不会;但 skill 写入是"明写的绕过",终端后端切换是"隐含的绕过"**
 
 **(a) toolset 开关不绕。** approvals 是**执行期**的闸门,和"这个工具在不在 schema 里"正交:
-`terminal` 被启用,agent 调用它时照样进 `check_all_command_guards`。这一点从
-`tools/terminal_tool.py:2613` 的调用点可见——门在 `env.execute` 之前,与 toolset 无关。
+`terminal` 被启用,agent 调用它时照样进 `check_all_command_guards`——门在 `env.execute` 之前,
+与 toolset 无关。
+
+`tools/terminal_tool.py:2612 @ 863e313`
+```python
+        if not force:
+            approval = _check_all_guards(
+                command, env_type,
+                has_host_access=_docker_has_host_access(config),
+            )
+```
 
 **(b) skill 写入是文档化的绕过。** 端点自己写明了:
 
@@ -1219,8 +1338,8 @@ cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python \
    锚点:`hermes_cli/web_server.py:14046`(`_merge_aux_into_by_model`)。
    现象:辅助模型用量是**单独一张表**再 merge 进 by-model 汇总的,合并规则是否会双计未核。
 
-5. **插件 `tab.override` 能替换内置路由,只看到 manifest 侧,未追前端。**
-   锚点:`hermes_cli/web_server.py:16648`(`override_path = raw_tab.get("override")`,只校验以 `/` 开头)。
+5. **插件 `tab.override` 能替换内置 tab,只看到 manifest 侧,未追前端。**
+   锚点:`hermes_cli/web_server.py:16653`(`override_path = raw_tab.get("override")`,只校验以 `/` 开头)。
    现象:manifest 可以声明覆盖某个内置 tab 路径,后端只检查它是字符串且以 `/` 开头就放行;
    前端 `registerSlot` / 路由表如何消费未查(web/ 目录不在本段)。
 
