@@ -289,7 +289,116 @@ R8A 从 ■-11 得到的教训是"凡依赖'这个键没被设过'的判断,必�
 
 ---
 
-## 6. 本轮新开的移交
+## 6. H-18 结转:约 50 条未复核候选里,属 R8B 的部分
+
+**任务书要求**:R8A 的 H-18 记录了约 50 条未逐条复核的候选缺陷(附 11 个文件锚点),
+**其中落入 R8B 范围者,本轮一并复核定案或明确移交**。
+
+**做法(可复现)**:对 R8A 的 13 份 `notes/r8a-raw-*.md`,先定位各自"可疑缺陷清单"小节的起始行,
+**只在该行之后的区域**里抽锚点,再按 R8B 文件集过滤。逐份计数:
+
+| 底稿 | 清单区 R8B 锚点行 | 清单区总锚点行 |
+|---|---|---|
+| r8a-raw-migrations-env-secrets.md | 20 | 212 |
+| r8a-raw-pairing-key.md | 7 | 33 |
+| r8a-raw-mcp-moa-config.md | 3 | 109 |
+| r8a-raw-commands.md | 2 | 117 |
+| r8a-raw-config-a.md | 2 | 22 |
+| r8a-raw-config-c.md | 1 | 9 |
+| r8a-raw-defaults-b.md | 1 | 18 |
+| 其余 6 份 | 0 | 108 |
+
+去重后,**落在 R8B 文件集的锚点共 9 个**(排除 `subcommands/config.py`
+与 `subcommands/pairing.py` —— R8A 已精读并认领):
+
+```
+cli.py:53   cli.py:4449   cli.py:4546   cli.py:10333
+hermes_cli/main.py:3300   hermes_cli/main.py:11159   hermes_cli/main.py:11601
+hermes_cli/main.py:12590  hermes_cli/subcommands/mcp.py:52   hermes_bootstrap.py:55
+```
+
+**第一条结论(结构性,值得记)**:**H-18 的残余绝大多数不在 R8B 范围内。**
+那 11 份底稿写的是**配置面**,锚点自然压倒性地落在 `config*.py` / `env_loader.py` /
+`status.py` 等 R8A 文件上;R8B 文件只是被**顺带引用**(多数是"某配置键的消费者是 CLI"这类
+关系性提及,不是对 CLI 代码本身的缺陷主张)。**逐条看下来,9 个锚点里只有 1 条是
+真正针对 R8B 范围可判定的缺陷主张。**
+
+### 6.1 唯一一条可判定的:D4,已复核确认
+
+`notes/r8a-raw-defaults-b.md` 的 **D4** 主张:存在**被代码读取却不在 `DEFAULT_CONFIG` 里**
+的键,点名 `model_catalog.excluded_providers`(两处读)与 `gateway.proxy_url`,
+后果是"`hermes config check` 不提示、dashboard 无字段"。
+
+**主线复核:属实。** AST 展开 `DEFAULT_CONFIG` 求交:
+
+```
+model_catalog.excluded_providers       in DEFAULT_CONFIG: False
+gateway.proxy_url                      in DEFAULT_CONFIG: False
+model_catalog                          in DEFAULT_CONFIG: True
+gateway                                in DEFAULT_CONFIG: True
+```
+
+读取点确实存在,且其中一处正在 R8B 范围内:
+
+`hermes_cli/main.py:3300 @ 863e313`
+
+```python
+    # Honor ``model_catalog.excluded_providers`` so the CLI ``hermes model``
+```
+
+`hermes_cli/main.py:3307 @ 863e313`
+
+```python
+        for p in (config.get("model_catalog", {}) or {}).get("excluded_providers") or []
+```
+
+**而本轮能补上 R8A 没说的那一半:为什么它不报警。**
+`model_catalog` 正在**开放字典白名单**里:
+
+`hermes_cli/config.py:4661 @ 863e313`
+
+```python
+    "model_catalog",
+```
+
+该常量(`_OPEN_DICT_TOP_LEVEL_KEYS`,`hermes_cli/config.py:4654 @ 863e313`)的语义是
+"这些顶层键之下接受任意用户自定义子键,schema 不深查"。
+于是 `model_catalog.excluded_providers` **既不在 schema 里、也永远不会被校验器质疑**。
+
+**这与 §1(H-1)里 `personalities` 那条是同一个机制**:
+`_OPEN_DICT_TOP_LEVEL_KEYS` 让一整片子树免除校验,
+**代价是这片子树里"真被读的键"与"打错的键"从校验器看完全一样**。
+`personalities` 那条是用户写错层级不报警,这条是仓库自己的键不进 schema 也不报警——
+**同一个豁免,一次坑用户,一次坑维护者。**
+
+**定案:D4 属实,归 ◇(文档/schema 缺口)而非 ■**,与 R8A ◇-1 同族,
+清单已在 `data/r8a-config-keys.tsv`,**逐条判断"该不该文档化"仍属 H-6(R11 复盘)**,
+本轮不重复认领。
+
+### 6.2 其余 8 个锚点:逐条判定为"非 R8B 缺陷主张"
+
+逐条读过后归类:`cli.py:53` / `cli.py:4546` / `cli.py:10333` / `subcommands/mcp.py:52`
+是**关系性引用**("这个配置键的消费者是 CLI 的某一行"),不含对 CLI 代码的缺陷主张;
+`cli.py:4449` 与 `hermes_bootstrap.py:55` 是**引用被论证对象的上下文**;
+`main.py:11159` / `:11601` / `:12590` 出现在配对流程的调用链叙述里,
+其缺陷主张的落点是 `pairing.py` / `authz_mixin.py`(R8A / R8C 面),不是 `main.py` 本身。
+
+### 6.3 如实交代边界
+
+**本轮只复核了"锚点落在 R8B 文件集"的那 9 条,没有复核 H-18 的全部约 50 条。**
+这是任务书划的范围(落入 R8B 范围者),但必须写清楚:
+**H-18 的主体(配置面残余)仍然未复核,继续挂在 R11 复盘名下**,
+锚点与行号沿用 R8A 报告 §10 与 `notes/r8a-90` §5 的原始记录,本轮未做任何删改。
+
+**一条方法学观察**:H-18 这类"我知道我没做完"的移交,**最大的价值不是清单本身,
+而是它让下一轮能用一次机械过滤(定位清单区 → 抽锚点 → 按文件集过滤)就判定
+"这块欠账与我这轮有没有关系"**——本轮做这件事的成本是几分钟,
+而如果 R8A 当初只写"还有一些没查",这几分钟会变成"要么全读一遍、要么假装不存在"。
+**移交项带锚点的制度,在这一轮第一次收到了利息。**
+
+---
+
+## 7. 本轮新开的移交
 
 | 编号 | 建议轮次 | 锚点 | 一句话现象 |
 |---|---|---|---|

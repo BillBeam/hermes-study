@@ -25,20 +25,30 @@
 
 ### 0.2 锚点复核
 
-本稿写完后，用脚本把正文里出现的每一个 `路径:行号 @ 863e313` 抽出来，逐条回读源文件，
-把该行原文打出来与稿中代码块首行比对。
+本稿写完后跑了**两轮**机器复核（脚本见 §5.3，均在 scratchpad，不入任何仓库）：
+
+**第一轮 · 锚点存在性**：把正文里每一个 `` `路径:行号 @ 863e313` `` 抽出来，回读源文件的该行。
 
 - 锚点出现次数 **195**，去重后 `(文件, 行号)` 对 **180** 条；
-- 首轮复核发现 **9 条漂移**（全部是"引用块从注释/docstring 中段开始，但锚点写了该结构的起始行"
-  这一类偏移 1–7 行），已逐条修正；
-- 修正后重跑，**180 条全部命中，0 条漂移**。
+- 发现 **9 条行号漂移**——全部是同一类错误：引用块从某段注释/docstring 的**中间**开始，
+  但锚点写成了该结构的**起始行**，偏移 1–7 行。已逐条修正。
 
 漂移清单（原 → 正）：`cli.py:4952→4953`、`cli.py:4777→4776`、`cli.py:5386→5387`、
 `cli.py:6862→6863`、`cli.py:4794→4797`（第二处引用）、`cli.py:7091→7092`、
 `run_agent.py:3938→3939`（两处）、`agent/credits_tracker.py:203→210`；
 另删掉一条写错的 `cli.py:6276`（本应是 `cli.py:4277`）。
 
-复核脚本与最终输出见 §5.3。
+**第二轮 · 引用块逐行原文比对**：不只对首行，而是把每个代码块的**每一行**与
+`源文件[锚点行 + 偏移]` 做 `rstrip()` 后全等比较。
+
+- 覆盖 **161 个代码块**；
+- 又抓出 **3 处**第一轮抓不到的问题：`cli.py:6168` 缩进被写成 4 空格（原文 8 空格）；
+  `cli.py:4797` 与 `cli.py:5334` 两处引用**在行中间截断**（把源码一行只抄了半行）。已全部按原文补全。
+
+**最终状态：180 条锚点全部命中，161 个代码块逐行与源文件全等，0 条残留偏差。**
+累计修正 **12 处**（9 行号 + 1 缩进 + 2 截断）。
+
+完整脚本、输出与锚点清单见 §5.3。
 
 ### 0.3 未能实测的部分
 
@@ -2410,7 +2420,10 @@ agent 正在跑，用户用外部编辑器提交。
         Do NOT use this for user-blocking modal prompts (approval / clarify /
         sudo). Those are rare, one-shot, user-blocking events that must paint
         immediately; route them through ``self._app.invalidate()`` directly, the
-        same way the modal key-binding handlers already use.
+        same way the modal key-binding handlers already do. Sending a modal's
+        entry paint through this throttle lets an unrelated background repaint
+        within the 250ms window — or an in-flight resize — silently drop it, so
+        the prompt never renders and times out unseen (#41098).
 ```
 
 pet 帧推进是教科书式的"high-frequency background update"，属于**应该**走 `_invalidate` 的一类，
@@ -2727,6 +2740,8 @@ resize 与 app 退出竞争）。
 
 ### #12 `model_short` 用 `len()` 截断，与本段自建的显示宽度体系相悖
 
+**现象**：模型名（或其配置别名）含 CJK 等宽字符时，状态栏整条降级成无样式纯文本。
+
 **锚点** `cli.py:5241 @ 863e313`
 
 ```python
@@ -2760,6 +2775,8 @@ resize 与 app 退出竞争）。
 
 ### #13 `🗜️` 带变体选择符，违反本段自己定的"不用变体选择符"约定
 
+**现象**：压缩计数段出现后，状态栏在部分终端上比预期宽 1 格（或被提前裁掉一个字段）。
+
 **锚点**（约定）`cli.py:5180 @ 863e313`
 
 ```python
@@ -2789,6 +2806,8 @@ resize 与 app 退出竞争）。
 
 ### #14 `_tui_input_rule_height` 在渲染回调里 `raise`
 
+**现象**：（当前不可触发）若有人新增第三种 rule position，整个 TUI 重绘会被这条 `raise` 打断。
+
 **锚点** `cli.py:5474 @ 863e313`
 
 ```python
@@ -2813,11 +2832,16 @@ resize 与 app 退出竞争）。
 `_get_status_bar_fragments` 整体 try/except、`_render_stash_panel` 的调用点 17141 有 except），
 唯独这里选择 raise。**风格不一致，且这一处的"防御"防的是开发者错误，代价却由用户承担。**
 
+**触发条件**：只有新增第三种 position 字面量才可能触发；当前两个调用点（17073 / 17078）
+都传合法值，因此实际不可达。
+
 **置信度**：**低**（当前不可触发），仅记为设计一致性问题。
 
 ---
 
 ### #15 `_open_external_editor` 失败时留下未消费的 `_skip_paste_collapse=True`
+
+**现象**：外部编辑器启动失败后，紧接着的第一次大段粘贴不会被折叠成 `[Pasted text #N …]` 占位符。
 
 **锚点** `cli.py:7017 @ 863e313`
 
@@ -2846,6 +2870,8 @@ resize 与 app 退出竞争）。
 
 ### #16 `_claim_active_session` 每次成功都注册一个新的 atexit 回调
 
+**现象**：进程退出时 `_release_active_session` 被调用多次（第二次起是幂等空操作）。
+
 **锚点** `cli.py:4776 @ 863e313`
 
 ```python
@@ -2869,6 +2895,9 @@ resize 与 app 退出竞争）。
 `_release_active_session` 会把它置回 None（`cli.py:4792`），
 之后再 claim 就会注册第二个 atexit 回调。回调本身幂等（`lease is None` 时直接 return），
 所以不会出错，只是 atexit 表里堆积。
+
+**触发条件**：同一进程内先 release 再 claim（当前 CLI 主流程不会这样用，
+但任何未来的"换会话不换进程"路径都会命中）。
 
 **置信度**：**低**（无功能影响）。
 
@@ -2990,7 +3019,8 @@ erase + reset。
 ```python
         # Standing /goal state (Ralph loop). GoalManager is cached on self and
         # keeps its state in memory, so this is a cheap attribute read — no DB
-        # hit per repaint.
+        # hit per repaint. Only an *active* goal earns a segment; paused/done
+        # goals stay out of the bar (matching the desktop's active-first row).
 ```
 
 这句话对**稳态**成立，但 `_get_goal_manager` 在 `session_id` 变化时会重建，
@@ -3061,15 +3091,19 @@ erase + reset。
 
 ### 5.3 复核脚本与结果
 
-复核脚本 `verify_anchors.py`（写在 scratchpad，**不入基线仓库、也不写进 hermes-agent**）：
-用正则从本稿抽出每一个 `` `路径:行号 @ 863e313` ``，回读 `/home/user/hermes-agent` 下对应文件的
-该行原文并打印，供逐条与稿中代码块首行比对。
+两个脚本都写在 scratchpad，**不入基线仓库、也不写进 hermes-agent**。
+
+**脚本一 `verify_anchors.py`（存在性）**：正则抽锚点 → 回读源文件该行 → 打印，供人工比对。
 
 ```python
 pat = re.compile(r"`([A-Za-z0-9_./-]+\.(?:py|md)):(\d+) @ 863e313`")
 ```
 
-最终一轮输出（首轮的 9 条漂移已按 §0.2 清单修正）：
+**脚本二 `fullblock_check.py`（原文全等）**：对每个"锚点行 + 紧随的 ``` 代码块"，
+把块内第 *n* 行与 `源文件[锚点行 - 1 + n]` 做 `rstrip()` 全等比较，任一行不等即报 MISMATCH。
+这一步才是真正保证"读者不打开源码也能验证"的那道关——它抓出了脚本一看不见的缩进错误和行中截断。
+
+最终两轮输出（§0.2 列的 12 处偏差已全部修正）：
 
 ```
 $ python3 verify_anchors.py /home/user/hermes-study/notes/r8b-raw-cli-init-render.md
@@ -3078,6 +3112,9 @@ unique (file,line):  180
 ...
 ---
 all anchors resolve to an existing line
+
+$ python3 fullblock_check.py
+blocks checked: 161, blocks with any mismatch: 0
 ```
 
 180 条唯一锚点按文件分布：

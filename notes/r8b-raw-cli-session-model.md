@@ -1222,8 +1222,13 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 
 **#1b — `tools_str` 计算后从未使用**
 
+- **现象**:即使 #1 被修好,警告行也只会显示 toolset 名 + 环境变量名,**不会**显示
+  「哪些工具受影响」——尽管代码算好了这个字符串。
 - **锚点**:`cli.py:7570-7573 @ 863e313` 构造 `tools_str`,`cli.py:7574 @ 863e313`
   的输出串里没有它。
+- **为什么可疑**:三行计算 + 一个 f-string 分支,结果被丢弃。要么是重构时漏改的输出串,
+  要么是有意删除时留下的残骸;无论哪种,都说明这段代码从未被真正运行观察过(与 #1 互为佐证)。
+- **触发条件**:恒定成立(静态)。
 - **置信度**:高(纯静态可判)。
 
 ---
@@ -1261,9 +1266,15 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 
 **#3b — profile 切换后 `/config` 报旧 HERMES_HOME**
 
+- **现象**:切到另一个 profile 后,`/model x --global` 写进新 profile 的 config.yaml,
+  而 `/config` 的 `Config File:` 仍指向启动时那个 home。用户按 `/config` 给的路径去编辑,
+  改的是一个不再生效的文件。
 - **锚点**:`cli.py:229 @ 863e313`(import 期 `_hermes_home`)与
   `cli.py:4128 @ 863e313`(`save_config_value` 用实时 `get_hermes_home()`);
   覆写机制 `hermes_constants.py:45-50 @ 863e313`。
+- **为什么可疑**:读写两端对「home 在哪」用了**不同解析时机** —— 一个 import 期冻结、
+  一个每次调用实时解析。`save_config_value` 的注释(`cli.py:4117 @ 863e313`)明确说选实时是
+  为了 profile 切换,这等于承认 import 期常量在这个场景下是错的;而 `show_config` 用的正是它。
 - **触发条件**:运行期存在 HERMES_HOME 覆写(profile 切换)。
 - **置信度**:中高(机制确凿;是否有 CLI 路径在同进程内切 profile 需跨段确认)。
 
@@ -1313,10 +1324,15 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 
 **#6b — 「已在该目录」早退不同步 `TERMINAL_CWD`**
 
+- **现象**:若进程 cwd 恰好等于会话记录的 cwd,而 `TERMINAL_CWD` 指向别处,
+  恢复后终端工具仍在别处 —— 且不会有任何提示(该分支连日志都不打)。
 - **锚点**:`cli.py:7307-7308 @ 863e313`。
 - **为什么可疑**:该分支只比对**进程 cwd**,不检查 `TERMINAL_CWD`。local 后端下
   config bridge 已把两者对齐(`cli.py:653-655 @ 863e313` + `cli.py:707 @ 863e313`),
   所以当前无害;但这是一条依赖外部不变量的隐式契约,任何让二者脱钩的改动都会打破它。
+- **触发条件**:进程 cwd == 会话记录的 cwd,且 `TERMINAL_CWD` 指向第三个位置
+  (需要 config bridge 的 local 分支被绕过 —— 例如 `_HERMES_GATEWAY=1`
+  导致 `cli.py:704-705 @ 863e313` 跳过导出,或后端非 local)。
 - **置信度**:低(当前无害的设计脆弱点)。
 
 ---
@@ -1362,6 +1378,7 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 
 **#9 — 裸 `/resume` 的编号在两份独立查询的列表上解析(TOCTOU)**
 
+- **现象**:裸 `/resume` 列表里第 3 行是会话 A;敲 `3` 之后恢复的却是会话 B。
 - **锚点**:arm 时 `hermes_cli/cli_commands_mixin.py:978 @ 863e313`;
   校验 `cli.py:8354 @ 863e313`(对 armed 快照);
   真正解析 `hermes_cli/cli_commands_mixin.py:993-1001 @ 863e313`(重新查询)。
@@ -1378,6 +1395,12 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 
 **#10 — 模态提交与超时之间的窄竞态会同时吞掉答案和用户草稿**
 
+- **现象**:在贵模型确认框上按下选择,却看到「Model switch cancelled」,
+  同时模态弹出前正在输入的草稿也没了。
+- **为什么可疑**:提交端与消费端对**两个**共享变量(`response_queue` 与
+  `_slash_confirm_deadline`)的读写没有任何同步;消费端还把
+  「`_slash_confirm_state is not None`」当作「需要 teardown」的判据 ——
+  而提交端恰恰会先把它置 `None`,于是 teardown(含草稿还原)被条件性跳过。
 - **锚点**:`cli.py:8797-8799 @ 863e313`(先 `put` 后清 deadline)与
   `cli.py:8780-8783 @ 863e313`(超时后才读 deadline);
   `cli.py:8788-8790 @ 863e313` 的 `finally` 因 `state is None` 跳过 teardown,
@@ -1394,6 +1417,10 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 - **锚点**:裁剪 `agent/agent_runtime_helpers.py:2764-2773 @ 863e313`;
   快照不含 `_fallback_chain`:`cli.py:8984-8995 @ 863e313`;
   `restore_primary_runtime` 只重置 index/flag:`agent/agent_runtime_helpers.py:1709-1712 @ 863e313`。
+- **为什么可疑**:`--once` 的语义是「这一回合之后一切照旧」,但它借用的恢复通道
+  (`restore_primary_runtime`)原本只为 fallback 服务 —— fallback 从不裁剪 chain,
+  所以那条通道**没有理由**去重建它。复用通道时没人核对「`switch_model` 到底写了哪些字段」,
+  裁剪就成了 `--once` 的永久副作用。而且这个损坏**完全不可见**:只有下一次真实故障才暴露。
 - **触发条件**:`--once` 且新旧 provider 不同(`old_norm != new_norm`)且配置了 fallback 链。
 - **置信度**:**高**(静态链路完整)。
 
@@ -1408,6 +1435,9 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
   (`agent/agent_init.py:2777-2796 @ 863e313`),switch_model 版**有**
   (`agent/agent_runtime_helpers.py:2737 @ 863e313`)。
   CLI 侧 `self.reasoning_config` 也不在 `cli.py:8984-8992 @ 863e313` 的键列表里。
+- **为什么可疑**:还原逻辑用 `is not None` 做「快照里有没有这个字段」的判据,并注释成
+  「older sessions」的兼容分支 —— 但缺这个字段的不是老会话,而是**同一版本里另一个构造点**
+  (agent_init)。两处构造同一个 dict、字段集不同,是典型的「结构体没有单一定义」问题。
 - **触发条件**:进程启动后**第一条** `--once` 切换(此时 `_primary_runtime` 还是 agent_init
   那份);且新旧模型的 `reasoning_effort` 覆写不同。
 - **置信度**:**中高**。
@@ -1416,6 +1446,8 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 
 **#13 — 一回合还原时强行 `_rate_limited_until = 0`,抹掉真实限流冷却**
 
+- **现象**:`--once` 那一回合撞上限流后,下一回合不但没有等冷却,反而立刻再次打向同一个
+  被限流的 provider。
 - **锚点**:`cli.py:9022-9024 @ 863e313`;被绕过的门
   `agent/agent_runtime_helpers.py:1471-1472 @ 863e313`。
 - **为什么可疑**:该赋值的目的只是绕过冷却门以完成一次**用户显式请求**的还原,
@@ -1427,6 +1459,9 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 
 **#14 — `copy.deepcopy(_primary_runtime)` 隐式依赖「callable api_key 一定是普通函数」**
 
+- **现象(潜在)**:若 api_key 是可调用**实例**,`/model x --once` 会在快照阶段抛异常,
+  且该异常没有任何本地保护 —— 在 inline 路径上会直接冒到 prompt_toolkit 的按键处理器里。
+- **触发条件**:某 provider 的 token provider 由闭包函数改为可调用对象(当前不存在)。
 - **锚点**:`cli.py:8993-8995 @ 863e313`;`_primary_runtime["api_key"]` 来源
   `agent/agent_init.py:2783 @ 863e313`;callable api_key 是受支持形态
   (`agent/azure_identity_adapter.py:440-446 @ 863e313`,`cli.py:7846-7848 @ 863e313`)。
@@ -1438,6 +1473,8 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 
 **#15 — `/model` 在 agent 运行中也走 UI 线程,直接对活 agent 做 in-place swap**
 
+- **现象(潜在)**:agent 正在流式输出时敲 `/model x`,当前这一轮可能中途换 client /
+  换 model 名 / 丢 system prompt 缓存,产生半新半旧的一轮对话。
 - **锚点**:`cli.py:9626-9636 @ 863e313`(无 `_agent_running` 守卫)对比
   `cli.py:9652 @ 863e313` / `cli.py:9683 @ 863e313`(steer / background 都有);
   施加点 `cli.py:9495-9503 @ 863e313`。
@@ -1455,6 +1492,9 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
 - **锚点**:`cli.py:8177-8182 @ 863e313`(读 `CLI_CONFIG`);
   `CLI_CONFIG = load_cli_config()` 仅在 `cli.py:792 @ 863e313` 赋值一次、全文件无重新赋值;
   写入端 `cli.py:9574-9575 @ 863e313` → `save_config_value` → `cli.py:4128 @ 863e313` 只写磁盘。
+- **为什么可疑**:`CLI_CONFIG` 是 import 期快照且全文件只赋值一次,而同一文件里的
+  `save_config_value` 只写磁盘、不回写内存 —— 「持久化」与「重新读取」用了两条不相交的路径。
+  注释还明说要「from config.yaml」重新推导(见 D2),说明作者的意图正是读磁盘。
 - **触发条件**:同一进程内先 `--global` 切换、再 `/new`。
 - **置信度**:**高**。
 
