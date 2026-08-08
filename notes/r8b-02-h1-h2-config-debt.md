@@ -178,7 +178,7 @@ TUI 网关甚至还写了一条**诊断**去提示这个失败形态:
 
 合并代码是**对顶层键**做一层 `update`:
 
-`cli.py:597 @ 863e313`
+`cli.py:598 @ 863e313`
 
 ```python
                     if isinstance(defaults[key], dict) and isinstance(file_config[key], dict):
@@ -224,7 +224,7 @@ TUI 网关甚至还写了一条**诊断**去提示这个失败形态:
 
 (`.get()` 无默认 → `None` → `bool(None)` = `False`,与 `cli.py:465` 的默认值 `False` 一致)
 
-`tools/browser_camofox.py:249 @ 863e313`
+`tools/browser_camofox.py:250 @ 863e313`
 
 ```python
     return (
@@ -248,7 +248,7 @@ browser.camofox  合并后 = {'rewrite_loopback_urls': True}  (loopback_host_ali
 **(b) `auxiliary.vision` / `auxiliary.web_extract`(各 4 叶) —— 救回来了。**
 这 8 个叶子在 `cli.py` 内部的唯一消费点是环境变量桥,四个读取点**全部带 `""` 兜底**:
 
-`cli.py:757 @ 863e313`
+`cli.py:759 @ 863e313`
 
 ```python
         prov = str(task_cfg.get("provider", "")).strip()
@@ -259,7 +259,7 @@ browser.camofox  合并后 = {'rewrite_loopback_urls': True}  (loopback_host_ali
 
 丢掉的唯一非空默认值是 `provider: "auto"`,而桥接判据把 `"auto"` 与 `""` **归为同一路**:
 
-`cli.py:761 @ 863e313`
+`cli.py:763 @ 863e313`
 
 ```python
         if prov and prov != "auto":

@@ -34,7 +34,7 @@
 
 而 `_persist_migration` 是不带 `merge_existing` 的直写:
 
-`hermes_cli/config.py:2166 @ 863e313`
+`hermes_cli/config.py:2147 @ 863e313`
 
 ```python
     save_config(config)
@@ -355,7 +355,7 @@ gateway                                in DEFAULT_CONFIG: True
 **而本轮能补上 R8A 没说的那一半:为什么它不报警。**
 `model_catalog` 正在**开放字典白名单**里:
 
-`hermes_cli/config.py:4661 @ 863e313`
+`hermes_cli/config.py:4662 @ 863e313`
 
 ```python
     "model_catalog",

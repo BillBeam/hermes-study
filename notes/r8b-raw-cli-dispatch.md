@@ -18,8 +18,24 @@
 ### 0.2 锚点复核
 
 - 全文锚点采用两种形式:`path:行号` 与 `path:起-止`。
-- 复核方式:本底稿由模板 + 抽取脚本生成,**每一个代码块都是脚本按锚点行号从源文件直接读出的原文**;生成后再跑一遍反向校验,把文档里出现的每个锚点重新读一次源文件,核对该行/该区间内容与文档内代码块逐字符相等。
-- 复核结果:**共校验 158 处锚点,drift 0 处**(见 §0.4 的脚本输出摘要)。之所以是 0,是因为写作流程本身杜绝了手抄行号;这与"事后抽查 15 个"相比是更强的保证,故未再另做人工抽样。
+- **复核方式(比"抽查 15 个"更强,故用它替代抽样)**:本底稿由"模板 + 抽取脚本"生成。所有 59 个代码块都是脚本按锚点行号从源文件**直接读出的原文**(未手抄、未重排缩进);生成后脚本再做两件事:
+  1. **正文锚点全扫描**:用正则把文档里出现的每一个 `path:行号[-行号]` 抠出来,逐个回源文件核对区间存在且内容包含该处论断依赖的关键字符串(共 173 条内容断言,覆盖率要求"未覆盖锚点 = 0")。
+  2. **代码块回读比对**:对每个已展开的代码块,重新从磁盘读一次同一区间,要求逐字符相等。
+- 复核结果(脚本输出):
+
+```
+distinct anchors in doc      : 161
+anchor occurrences in doc    : 195
+snippet blocks expanded      : 59
+content assertions run       : 173
+uncovered anchors            : 0
+problems                     : 0
+```
+
+- 即:**161 个不同锚点全部复核,drift 0 处,内容断言 0 处不符**。
+- 额外结构性断言(防止后续误抄):脚本硬性校验 `process_command`(9835-10533)内 return 语句的行号集合恰为
+  `[9873, 9874, 9898, 10020, 10033, 10068, 10081, 10159, 10321, 10401, 10480, 10525, 10533]`,
+  且其中裸 `return`(无返回值)的集合恰为 `[10068]` —— 这两条正是 §3.1 缺陷论断的地基。
 
 ### 0.3 运行式验证(不是读代码猜的)
 
@@ -797,6 +813,8 @@ def _looks_like_slash_command(text: str) -> bool:
 ```
 
 `cli.py:9676-9678` 是本段最有价值的一句自白:**`CommandDef.busy_policy` 是给 gateway 用的,classic CLI 从来没读过它**。CLI 侧只硬编码了三个内联命令:`/model`(`_should_handle_model_command_inline`,`cli.py:9626-9636`)、`/steer`、`/background`。
+
+注意三个谓词的**不对称**:`/steer`(`cli.py:9652-9653`)和 `/background`(`cli.py:9683-9684`)都有 `if not getattr(self, "_agent_running", False): return False` 这道闸——只在 agent 忙时才内联;`/model` 的谓词**没有这道闸**(`cli.py:9626-9636` 通篇不看 `_agent_running`),所以它**任何时候**都在 UI 线程上就地执行。而注册表给 `/model` 的声明是 `busy_policy="reject"`(见 §3.13)。
 
 用注册表统计:CLI 可见命令中声明 `busy_policy="dispatch"` 的有 **18 个** —— `background, agents, queue, steer, goal, heartbeat, subgoal, status, egress, context, profile, verbose, footer, yolo, kanban, help, update, version`;声明 `interrupt_then_dispatch` 的有 2 个(`new`, `stop`)。其中只有 `background` / `steer` 在 CLI 侧真正内联。其余 16 个在 agent 运行时打出来,都会排队到轮次结束——**`/status`、`/context`、`/yolo` 这类纯查询/纯开关在忙时完全无响应**,这与它们的声明相反。
 
@@ -1800,6 +1818,14 @@ DEFAULT_MAX_CONSECUTIVE_TRANSPORT_FAILURES = 5
 - **为什么可疑**:"最短"这个排序键与用户心智(通常是"最常用"或"字典序第一")无关,且别名往往比规范名短,于是**别名系统性地赢过规范名**。副作用命令(`/reload` 会真的重载 `.env`)也在这个静默展开的射程内。
 - **触发条件**:输入任一命令名的真前缀。
 - **置信度**:**中**(行为是被测试锁定的设计,`tests/cli/test_cli_prefix_matching.py`;但"最短即最优"的假设本身可疑)。
+
+### 3.13 `/model` 在 CLI 里可以在 agent 跑动中就地执行,而注册表声明的是 `reject`
+
+- **现象**:agent 正在流式输出时敲 `/model`,CLI 立刻在 UI 线程上就地执行它(可能打开模型选择器、改写 `self.model` / `self.provider` / `self.agent`);gateway 上同一条命令按声明会被中途拒绝。
+- **锚点**:`cli.py:9626-9636`(谓词里**没有** `_agent_running` 判定,与 `cli.py:9652-9653`、`cli.py:9683-9684` 形成对照)、`cli.py:15389-15402`(命中即内联执行)、`hermes_cli/commands.py:59-75`(`busy_policy` 语义:`reject` = 忙时拒绝)。注册表给 `/model` 的声明是 `busy_policy="reject", busy_handler="model"`。
+- **为什么可疑**:此时 `process_loop` 线程正阻塞在 `self.agent.run_conversation(...)` 中并持有旧 agent 引用,而 UI 线程可以同时改写 `self.agent`。gateway 侧把这种情况显式定义为必须拒绝;CLI 侧不但不拒绝,`/model` 还是三个内联命令里**唯一没有忙碌闸门**的一个。同一条命令在两个界面上的中途策略相反。
+- **触发条件**:长轮次中敲 `/model`。
+- **置信度**:**中**(策略不一致确定;是否真的踩到数据竞争取决于 `_handle_model_switch` 的实现,该函数在 `CLICommandsMixin` 内、不在本段配额,未读)。
 
 ---
 

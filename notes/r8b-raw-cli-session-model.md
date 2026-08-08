@@ -187,7 +187,7 @@ WORKER-THREAD(带活 event loop, 外部应答) result='once' restored=True state
                 self._console_print(f"[dim]{_escape(msg)}[/dim]")
             return
 ```
-`cli.py:7299-7316 @ 863e313`
+`cli.py:7318-7335 @ 863e313`
 
 ```
         try:
@@ -244,7 +244,9 @@ import 期由 config bridge 写入的值。对 local backend 这恰好等于 `os
         # cwd was unlinked out from under us — nothing meaningful to record.
         return None
 ```
-`run_agent.py:81-90 @ 863e313`
+(上块:`run_agent.py:81-90 @ 863e313`)
+
+`run_agent.py:649-658 @ 863e313`
 
 ```
             self._session_db.create_session(
@@ -404,7 +406,7 @@ doctor 跟上了,`cli.py` 没跟上。
             config_path = project_config_path
         config_status = "(loaded)" if config_path.exists() else "(not found)"
 ```
-`cli.py:7831-7842 @ 863e313`
+`cli.py:7867-7878 @ 863e313`
 
 ```
         print("  -- Terminal --")
@@ -1082,7 +1084,9 @@ deepcopy 会去克隆整个 credential 对象图(可能含锁/socket → `TypeEr
             _cprint("  Model switch cancelled.")
             return
 ```
-`cli.py:9458-9460 @ 863e313`
+(上块:`cli.py:9458-9460 @ 863e313`)
+
+`cli.py:8931-8935 @ 863e313`
 
 ```
     def _confirm_expensive_model_switch(self, result) -> bool:

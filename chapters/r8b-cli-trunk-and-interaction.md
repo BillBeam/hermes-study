@@ -46,7 +46,7 @@ def _apply_profile_override() -> None:
 扫描器必须知道 `-m` 后面那个 `gpt-5` 是 `-m` 的值、不是要找的东西。
 于是主干里有一份**手抄的名单**:
 
-`hermes_cli/main.py:571 @ 863e313`
+`hermes_cli/main.py:572 @ 863e313`
 
 ```python
     value_flags = {
@@ -66,7 +66,7 @@ def _apply_profile_override() -> None:
 同样的位置还处理了两个很真实的边角。其一,`hermes mcp add --args <子命令>` 之后的参数
 属于被托管的子进程,里面的 `--profile` 不是给 Hermes 的:
 
-`hermes_cli/main.py:524 @ 863e313`
+`hermes_cli/main.py:525 @ 863e313`
 
 ```python
         """True once argv reaches `hermes mcp add ... --args <command argv>`.
@@ -79,7 +79,7 @@ def _apply_profile_override() -> None:
 
 其二,pytest 的 `-p no:xdist`。如果不管,`no:xdist` 会被当成 profile 名:
 
-`hermes_cli/main.py:613 @ 863e313`
+`hermes_cli/main.py:611 @ 863e313`
 
 ```python
     # 1b. Reject values that can't be valid profile names (e.g. pytest's
@@ -293,7 +293,7 @@ agent.personalities 键数 = 1
 
 而数据的生产方给出的字段名是 `env_vars`:
 
-`tools/registry.py:903 @ 863e313`
+`tools/registry.py:904 @ 863e313`
 
 ```python
                     "env_vars": ts_entries[0].requires_env if ts_entries else [],
@@ -302,7 +302,7 @@ agent.personalities 键数 = 1
 **字段被改过名,消费方没跟上。** 于是 `u["missing_vars"]` 抛 `KeyError`。
 按理说这会炸得很响——但它被吞了:
 
-`cli.py:7577 @ 863e313`
+`cli.py:7576 @ 863e313`
 
 ```python
         except Exception:
@@ -351,7 +351,7 @@ agent.personalities 键数 = 1
 对同一个环境变量 `HERMES_TUI=1` 的分类**恰好相反**:一份叫它 explicit(用户此刻明确要求),
 一份叫它 ambient(环境里的残留偏好)。后者的注释还讲了一次真实事故:
 
-`hermes_cli/main.py:2498 @ 863e313`
+`hermes_cli/main.py:2499 @ 863e313`
 
 ```python
     The TTY gate (3) is load-bearing: ambient TUI preferences (env var or
@@ -402,7 +402,7 @@ TUI 发现没有终端,**打印一句提示、以退出码 0 退出**。调度�
 
 同一处思路还有一条判据很漂亮——自愈被打断的安装时,它用一个**故意不精确**的匹配:
 
-`hermes_cli/main.py:11216 @ 863e313`
+`hermes_cli/main.py:11215 @ 863e313`
 
 ```python
     # The substring match is deliberately loose: argv isn't parsed yet at this
@@ -420,7 +420,7 @@ TUI 发现没有终端,**打印一句提示、以退出码 0 退出**。调度�
 主干的参数解析会**条件性地解析两次**(为绕开旧版 Python 的一个子命令路由问题),
 第一次解析时把 stderr 换成内存缓冲吞掉。这个补丁自己又打了个补丁:
 
-`hermes_cli/main.py:12509 @ 863e313`
+`hermes_cli/main.py:12507 @ 863e313`
 
 ```python
             # Help/version flags (exit code 0) already printed output —

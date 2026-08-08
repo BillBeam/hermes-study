@@ -87,7 +87,7 @@ hermes(console script)
 
 ### 3.1 `hermes_bootstrap` 必须是第一个 import,而且必须能失败
 
-`hermes_cli/main.py:45 @ 863e313`
+`hermes_cli/main.py:46 @ 863e313`
 
 ```python
 # IMPORTANT: hermes_bootstrap must be the very first import — it sets up
@@ -119,7 +119,7 @@ hermes(console script)
 同样的思路在 `main()` 里还有两处兜底:清理上次 update 留下的隔离文件、
 以及自愈被打断的 venv 安装。后者的判据写得很坦白:
 
-`hermes_cli/main.py:11216 @ 863e313`
+`hermes_cli/main.py:11215 @ 863e313`
 
 ```python
     # The substring match is deliberately loose: argv isn't parsed yet at this
@@ -169,7 +169,7 @@ _suppress_mouse_residue_early()
 
 而复用共享缓存的那个桥在**第 709 行之后**才 import `hermes_cli.config`:
 
-`hermes_cli/main.py:709 @ 863e313`
+`hermes_cli/main.py:710 @ 863e313`
 
 ```python
     # Reuse read_raw_config()'s (mtime, size)-keyed cache instead of a bespoke
@@ -191,7 +191,7 @@ _suppress_mouse_residue_early()
 
 `_suppress_mouse_residue_early` 要在**任何其它 import 之前**关掉终端的鼠标上报:
 
-`hermes_cli/main.py:364 @ 863e313`
+`hermes_cli/main.py:341 @ 863e313`
 
 ```python
 # Mouse-tracking residue suppression — runs BEFORE every other import on the
@@ -223,7 +223,7 @@ def _apply_profile_override() -> None:
 代价是要**手工重写一小段 argparse**,而这段手工扫描必须知道所有"带值的 flag",
 否则会把 flag 的值误当成 profile 名:
 
-`hermes_cli/main.py:571 @ 863e313`
+`hermes_cli/main.py:572 @ 863e313`
 
 ```python
     value_flags = {
@@ -245,7 +245,7 @@ def _apply_profile_override() -> None:
 
 **(a) 命令 argv 透传区不扫描**:
 
-`hermes_cli/main.py:524 @ 863e313`
+`hermes_cli/main.py:525 @ 863e313`
 
 ```python
         """True once argv reaches `hermes mcp add ... --args <command argv>`.
@@ -258,7 +258,7 @@ def _apply_profile_override() -> None:
 
 **(b) 非法 profile 名直接放弃**,理由举了一个真实场景(pytest 的 `-p no:xdist`):
 
-`hermes_cli/main.py:613 @ 863e313`
+`hermes_cli/main.py:611 @ 863e313`
 
 ```python
     # 1b. Reject values that can't be valid profile names (e.g. pytest's
@@ -314,7 +314,7 @@ def _apply_profile_override() -> None:
 做法是:argv 里出现任何已注册子命令名 ⇒ 先把 `subparsers.required = True` 强制路由,
 **并把 stderr 换成一个 StringIO 吞掉**,失败再退回默认行为:
 
-`hermes_cli/main.py:12501 @ 863e313`
+`hermes_cli/main.py:12498 @ 863e313`
 
 ```python
     if _has_cmd_token:
@@ -330,7 +330,7 @@ def _apply_profile_override() -> None:
 
 **里面有一处补丁的补丁,溯源到具体 issue**:
 
-`hermes_cli/main.py:12509 @ 863e313`
+`hermes_cli/main.py:12507 @ 863e313`
 
 ```python
             # Help/version flags (exit code 0) already printed output —
@@ -348,7 +348,7 @@ def _apply_profile_override() -> None:
 
 ### 5.1 退出码沿着 handler 往上传
 
-`hermes_cli/main.py:12591 @ 863e313`
+`hermes_cli/main.py:12590 @ 863e313`
 
 ```python
     if hasattr(args, "func"):
@@ -368,7 +368,7 @@ def _apply_profile_override() -> None:
 `_wants_tui_early`(:311)与 `_resolve_use_tui`(:2485)都在回答同一个问题
 "这次要不要开 TUI",相距 2,100 行。**两者对 `HERMES_TUI=1` 的分类相反。**
 
-`hermes_cli/main.py:311 @ 863e313`
+`hermes_cli/main.py:314 @ 863e313`
 
 ```python
     Precedence: explicit ``--cli`` wins (forces classic REPL), then
@@ -377,7 +377,7 @@ def _apply_profile_override() -> None:
 
 代码里环境变量确实**排在 TTY 闸门之前**:
 
-`hermes_cli/main.py:339 @ 863e313`
+`hermes_cli/main.py:329 @ 863e313`
 
 ```python
     if "--cli" in argv:
@@ -391,7 +391,7 @@ def _apply_profile_override() -> None:
 
 而 `_resolve_use_tui` 把同一个环境变量归为 **ambient(环境残留)**,排在 TTY 闸门**之后**:
 
-`hermes_cli/main.py:2498 @ 863e313`
+`hermes_cli/main.py:2499 @ 863e313`
 
 ```python
     The TTY gate (3) is load-bearing: ambient TUI preferences (env var or
