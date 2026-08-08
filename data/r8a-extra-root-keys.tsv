@@ -1,0 +1,24 @@
+root_key	def_at	py_sites	py_sites_sample	docs
+always_log_local	hermes_cli/config.py:1872	8	gateway/config.py:1065; gateway/config.py:1201; gateway/config.py:1389	
+custom_providers	hermes_cli/config.py:1855	103	acp_adapter/server.py:772; acp_adapter/server.py:94; agent/agent_init.py:2147	website/docs
+fallback_model	hermes_cli/config.py:1856	19	agent/agent_init.py:525; cli.py:6340; gateway/platforms/api_server.py:2835	AGENTS.md,website/docs
+filter_silence_narration	hermes_cli/config.py:1873	12	gateway/config.py:1066; gateway/config.py:1203; gateway/config.py:1401	
+group_sessions_per_user	hermes_cli/config.py:1868	34	gateway/config.py:1069; gateway/config.py:1133; gateway/config.py:1337	website/docs,docs/
+image_gen	hermes_cli/config.py:1860	130	agent/image_gen_registry.py:27; agent/image_gen_registry.py:97; agent/pet/generate/__init__.py:11	AGENTS.md,CONTRIBUTING,website/docs
+known_builtin_toolsets	hermes_cli/config.py:1866	5	hermes_cli/config.py:1866; hermes_cli/tools_config.py:2200; hermes_cli/tools_config.py:2582	
+known_plugin_toolsets	hermes_cli/config.py:1865	6	hermes_cli/config.py:1865; hermes_cli/tools_config.py:2421; hermes_cli/tools_config.py:2571	
+mcp_servers	hermes_cli/config.py:1857	74	acp_adapter/server.py:1438; acp_adapter/server.py:1460; acp_adapter/server.py:1508	website/docs,docs/
+multiplex_profiles	hermes_cli/config.py:1874	56	agent/secret_scope.py:33; gateway/config.py:1072; gateway/config.py:1135	website/docs,docs/
+platform_toolsets	hermes_cli/config.py:1864	18	agent/agent_init.py:2583; hermes_cli/config.py:1864; hermes_cli/config.py:2262	website/docs
+platforms	hermes_cli/config.py:1876	669	agent/image_routing.py:97; agent/insights.py:1014; agent/insights.py:1018	.env.example,AGENTS.md,README,CONTRIBUTING,website/docs,docs/
+plugins	hermes_cli/config.py:1862	252	agent/agent_init.py:2407; agent/agent_runtime_helpers.py:2841; agent/auxiliary_client.py:7521	AGENTS.md,README,CONTRIBUTING,website/docs,docs/
+profile_routes	hermes_cli/config.py:1875	13	gateway/config.py:1078; gateway/config.py:1080; gateway/config.py:1190	website/docs,docs/
+require_mention	hermes_cli/config.py:1877	68	gateway/config.py:1551; gateway/config.py:1552; gateway/config.py:1686	website/docs,docs/
+reset_triggers	hermes_cli/config.py:1871	10	gateway/config.py:1061; gateway/config.py:1197; gateway/config.py:1384	
+session_reset	hermes_cli/config.py:1867	29	gateway/config.py:1306; gateway/config.py:1307; gateway/config.py:1308	README,website/docs,docs/
+signal	hermes_cli/config.py:1879	95	agent/bedrock_adapter.py:892; agent/conversation_compression.py:3214; agent/curator.py:1173	AGENTS.md,README,CONTRIBUTING,website/docs,docs/
+smart_model_routing	hermes_cli/config.py:1863	2	hermes_cli/config.py:1863; hermes_cli/setup.py:3312	AGENTS.md
+stt_echo_transcripts	hermes_cli/config.py:1870	9	gateway/config.py:1068; gateway/config.py:1125; gateway/config.py:1330	
+thread_sessions_per_user	hermes_cli/config.py:1869	35	gateway/config.py:1070; gateway/config.py:1134; gateway/config.py:1342	website/docs,docs/
+unauthorized_dm_behavior	hermes_cli/config.py:1878	27	gateway/authz_mixin.py:814; gateway/authz_mixin.py:820; gateway/authz_mixin.py:827	website/docs
+video_gen	hermes_cli/config.py:1861	71	agent/video_gen_registry.py:31; agent/video_gen_registry.py:90; hermes_cli/config.py:1861	website/docs

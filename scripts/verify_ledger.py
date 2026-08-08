@@ -2,10 +2,21 @@
 """Verify the coverage ledger against the baseline checkout.
 
 Checks:
- 1. Every git-tracked file in the baseline appears in the ledger exactly once.
- 2. No extra files in the ledger.
- 3. Ledger line counts match a fresh recount (same rule as inventory.py).
- 4. Sum of per-layer lines == total text lines of the whole repo.
+ 1. The checkout is at the baseline commit AND the working tree is pristine.
+ 2. Every git-tracked file in the baseline appears in the ledger exactly once.
+ 3. No extra files in the ledger.
+ 4. Ledger line counts match a fresh recount (same rule as inventory.py).
+ 5. Sum of per-layer lines == total text lines of the whole repo.
+
+Check 1's second half was added in R8A after a real incident: a subagent ran an
+npm operation inside the baseline checkout, which rewrote package-lock.json
+(npm re-resolved dependencies and stamped `"peer": true` onto ~30 entries). The
+line-count check caught it only incidentally, and only because that file happens
+to be in the ledger — a modification to any file whose line count did not change
+would have passed silently and quietly invalidated every `path:line` citation
+made afterwards. The baseline is the fixed point this whole project cites
+against, so "is it still pristine?" deserves to be asserted directly rather than
+inferred. Restore with `git -C <repo> checkout -- .` and re-run.
 
 Usage: python3 scripts/verify_ledger.py /path/to/hermes-agent data/ledger.tsv
 Exit 0 = ledger is total and consistent.
@@ -26,6 +37,18 @@ def main(repo: str, ledger_path: str) -> None:
                           capture_output=True, check=True).stdout.decode().strip()
     if head != BASELINE_SHA:
         sys.exit(f"FAIL: checkout at {head}, expected baseline {BASELINE_SHA}")
+
+    # The baseline must be byte-for-byte pristine: every `path:line @ 863e313`
+    # citation in this repo is only meaningful against an unmodified tree.
+    dirty = subprocess.run(["git", "-C", repo, "status", "--porcelain"],
+                           capture_output=True, check=True).stdout.decode().strip()
+    if dirty:
+        sys.exit(
+            "FAIL: baseline checkout is NOT pristine — citations cannot be trusted.\n"
+            + "\n".join(f"  {ln}" for ln in dirty.splitlines()[:20])
+            + f"\n\nRestore with: git -C {repo} checkout -- . && "
+              f"git -C {repo} clean -fd"
+        )
 
     tracked = set(subprocess.run(["git", "-C", repo, "ls-files", "-z"],
                                  capture_output=True, check=True)

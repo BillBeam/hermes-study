@@ -39,10 +39,27 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   各层行数加总 = 全仓总行数 2,608,452;用 `scripts/verify_ledger.py` 校验并在报告里报数。
   每轮结束把该轮覆盖文件的 `status` 列更新为可翻译成"已学到什么程度"的状态
   (如 `R2-deep-read`、`R3-structure`)。
-- **证据格式**:凡对 hermes-agent 行为的断言,紧跟 `路径:行号 @ 863e313` 与代码原文块,
-  使读报告本身即完成验证。
+- **证据格式(R8A 起为脚本可校验的定稿关卡,与台账校验并列)**:凡对 hermes-agent
+  行为的断言,紧跟 `路径:行号 @ 863e313` 与代码原文块,使读报告本身即完成验证。
+  **每轮 commit 前必须对本轮全部 `notes/` 与 `chapters/` 全量运行**
+
+  ```bash
+  python3 scripts/verify_citations.py /home/user/hermes-agent notes/rN-*.md chapters/rN-*.md
+  ```
+
+  **跑到退出码 0、输出 `OK: every code-block-backed citation matches the baseline` 才算过关**,
+  并在报告里报数(citations / OK / UNCHECKED)。带代码块的引用逐字比对基线,不匹配即失败;
+  只写散文不带代码块的引用记 UNCHECKED,不算失败。`--fix` 只用于**无歧义**的行号漂移,
+  用后**必须**不带 `--fix` 再跑一遍确认。
+  *升格理由(R7C 实测):该脚本在 R7C 的 2,531 条引用里抓出约 60 处行号漂移、3 处非原文引用、
+  5 处缺路径引用,其中 3 处出自主线本人——人工约定这一层已被证明兜不住。*
 - **报告格式**:第一句 ≤20 字结论;报告 commit 进本仓库 `reports/`;
   会话最后一条消息给出报告全文。
+- **移交项格式(R8A 起)**:凡向后续轮移交的未决项,**必须附「锚点文件 + 一句话现象」**
+  ——写清在哪个文件(最好带行号)、看到的具体现象是什么,而不只是一个标题。
+  *理由(R7C 实测):R7 有一条移交项因只留标题被下一轮判错了定位,另一条被判宽了范围;
+  R7B 更有一条只在"下一轮建议"里出现过标题、从未取证,却被当成已取证结论传了下去。
+  没有锚点的移交项,下一轮要么重做、要么误传。*
 - **文档-代码冲突**:README / 仓库根 AGENTS.md / website/docs 是作者自绘地图,
   与代码冲突时以代码为准,每处冲突记录进当轮报告(这本身是学习产出)。
 
@@ -91,6 +108,13 @@ provider 生态与 Python 异步生态**的工程师。验收判定 = 该读者�
 ## 边界
 
 - hermes-agent 仓库**只读**:不修改任何文件,绝不向其远端推送。
+  **R8A 起由脚本强制**:`scripts/verify_ledger.py` 第一项检查除了核对 HEAD,
+  还要求 `git status --porcelain` **为空**——基线不干净时直接 FAIL 并给出恢复命令。
+  *理由(R8A 实测)*:本轮有子代理在基线里跑了 npm 相关操作,重写了 `package-lock.json`
+  (npm 重解析依赖,给约 30 个条目盖了 `"peer": true`)。它**恰好**被行数复核撞见;
+  若被改的文件行数不变,就会静默通过,而此后所有 `路径:行号 @ 863e313` 引用**全部失去意义**。
+  基线是整个项目的引用基准,"它还干净吗"必须**直接断言**,不能靠间接推断。
+  恢复:`git -C /home/user/hermes-agent checkout -- . && git -C /home/user/hermes-agent clean -fd`。
 - 本仓库分支策略:每轮工作在 `claude/hermes-agent-round-<N>-*` 分支推进并 push;
   轮次完成后可合入 main。任何新会话仅凭远端即可恢复全部产出与进度。
 - 不配置任何付费凭据;真实跑通所需的配置项列在报告里等待提供,不自行猜测或伪造。
@@ -106,9 +130,18 @@ reports/round-1-capabilities-full.md  # 第一轮附卷:170 条能力点全字�
 data/inventory.tsv         # 全仓文件盘点(path/kind/lines/bytes),inventory.py 生成
 data/ledger.tsv            # 覆盖台账(path/kind/lines/layer/round/status)
 data/capability-mining.json# 14 路子系统挖掘的结构化原始产出(能力点的数据源)
+data/r8a-config-keys.tsv   # R8A 资产:856 个配置键(默认值/定义处/py 与 ts 读取点/文档覆盖)
+data/r8a-env-vars.tsv      # R8A 资产:151 条静态环境变量(运行时会涨到 308,见脚本说明)
+data/r8a-extra-root-keys.tsv # R8A 资产:23 个不在 DEFAULT_CONFIG 里但合法的根键
+data/r8a-config-keys-summary.md # R8A 资产:上面三张表里“该先读哪几片”(脚本生成,勿手改)
 scripts/inventory.py       # 盘点脚本(行数规则的唯一权威定义)
 scripts/assign_layers.py   # 分层规则(首条匹配生效;不匹配即报错;重生成保留 status 列)
-scripts/verify_ledger.py   # 台账校验(文件集一致 + 行数复核 + 分层加总 = 全仓总行数)
+scripts/verify_ledger.py   # 台账校验(基线 HEAD + **基线工作区干净** + 文件集一致 +
+                           # 行数复核 + 分层加总 = 全仓总行数)
+scripts/verify_citations.py# 引用校验(R7C 新增,R8A 起为定稿关卡):`路径:行号` 后的代码块
+                           # 与基线逐字比对;--fix 修无歧义漂移,用后必须裸跑复核
+scripts/config_table.py    # R8A 新增:从 DEFAULT_CONFIG / OPTIONAL_ENV_VARS 字面量 AST
+                           # 抽取配置项全表(不 import 不执行);用前先读它开头的三条告诫
 scripts/render_capabilities.py   # JSON → 附卷渲染
 scripts/render_main_report.py    # JSON → 主卷能力点章节渲染(--compact 出会话消息版)
 notes/                     # 底稿:每轮机制笔记(rN-*,求全求证,带行号证据)
@@ -129,7 +162,19 @@ python3 -m venv /home/user/hermes-venv
 # 3) 跑测试
 cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python \
   bash scripts/run_tests.sh tests/agent/<file>
+
+# 4) 报测试数时,同时记下环境(R8A 新增,理由见下)
+ls -d /home/user/hermes-venv/lib/python*/site-packages/*.dist-info | wc -l
 ```
+
+**报测试通过数时必须一并记环境(R8A 实测催生)**:用例数是**环境的函数**,不是代码的函数。
+R8A 同一套 170 个测试文件先后报出 **3,183** 与 **3,190** 两个数,**两次都 0 失败**,
+差别完全来自"有子代理往共享 venv 里装了平台 extra,于是 7 个被可选依赖门控 skip 的用例真跑了"。
+**不记环境,下一轮拿到不同的数就无从判断是代码变了还是环境变了。**
+查证方法与"基线是否干净"同理——**直接断言,不要间接推断**:
+去看 `site-packages/*.dist-info` 的时间戳,而不是猜。
+(注:venv 是可选、可重建的便利设施,**不是引用基准**;它漂移不影响
+`路径:行号 @ 863e313` 的有效性,但会改变报告里的数,所以必须交代。)
 
 **为什么第 2 步是必需的(R7B 定位,R7C 并入本文件)**:`aiohttp` **不在 `[dev]` extra**,
 而在 `messaging` / `slack` / `matrix` / `teams` / `homeassistant` / `sms` 等**平台 extra** 里
