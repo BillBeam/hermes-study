@@ -419,7 +419,7 @@ def test_git_endpoints_require_auth(repo):
     calls serve authenticated REST requests from the dashboard/desktop, so a
     credential prompt from ``fetch``/``push``/``pull`` could never be answered
     — it would just hang the request until the timeout. Failing fast surfaces
-    the real auth error in the toast instead.
+    the real auth error in the toast instead."""
 ```
 
 `gh` 那侧用它自己的开关:
@@ -630,12 +630,10 @@ _PORT_BINDING_PLATFORM_PORTS: Dict[str, Tuple[str, int]] = {
     "wecom_callback": ("port", 8645),
     "bluebubbles": ("webhook_port", 8645),
     "sms": ("webhook_port", 8080),
-    "whatsapp_cloud": ("port", 8090),
+    "whatsapp_cloud": ("webhook_port", 8090),
     "line": ("port", 8646),
 }
 ```
-
-（注:上面这一段是逐字原文;表里 `whatsapp_cloud` 的键在基线中是 `webhook_port`,见下方 §9-Q4。）
 
 然后只对"运行时报告为活着"的平台解析端口——死态被显式排除:
 
