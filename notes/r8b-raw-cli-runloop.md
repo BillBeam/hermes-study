@@ -16,15 +16,42 @@
 | 2 | 「`cli.py` 的 `main()` 是进程入口」 | **假(但不是"没人调用")** | 打包入口是 `hermes_cli.main:main`;它经 `cmd_chat` **以关键字参数调用** `cli.main()`。`cli.py:main()` 是一个**被当作库函数调用的 Fire 兼容签名**,`fire.Fire(main)` 只在 `python cli.py` 直跑时生效。它有一个**从未被使用的形参** `ignore_user_config`。 |
 | 3 | 「退出时清理恰好跑一次」 | **假(双向都假)** | `_run_cleanup` 有全局幂等锁,所以**至多一次**;但 (a) 锁在干活**之前**置位,中途抛异常就永久停在"半次";(b) 有三条 `os._exit(0)` 路径完全绕过它(**零次**);(c) `/update` 走 `os.execvp` 会跳过尚未触发的 atexit(worktree 清理漏掉)。 |
 
-### 0.2 锚点抽验
+### 0.2 锚点自验(机器复核,含发现并修正的漂移)
 
-写完后用 `Read`/`Grep` 逐条复核了 **21 个**锚点的行号与原文:
+写完初稿后做了**两轮机器复核**,不是抽样,是全量。
 
-`cli.py` 的 989 / 1173-1178 / 1183 / 4778 / 4785 / 9628 / 10720 / 14980 / 15164-15171 / 15453 / 15506 / 15915 / 15984 / 16094 / 16368 / 17083 / 17357 / 17377 / 17506 / 17515 / 17589 / 17607 / 17688 / 17692 / 17714 / 17735 / 17789 / 17804 / 17805 / 17828 / 17918 / 17927 / 18026 / 18049 / 18241 / 18312 / 18484 / 18506 / 18552,
-外加 `pyproject.toml:359`、`hermes_cli/main.py:2709/2735/10854`、`agent/turn_context.py:514`、
-`prompt_toolkit/application/application.py:812/1004/1026`、`prompt_toolkit/key_binding/bindings/basic.py:135`。
+**第一轮:定点抽验 58 个锚点**(逐条比对 `路径:行号` 处的单行原文是否与引用一致)。
+覆盖 `cli.py` 的 989 / 1173 / 1178 / 1183 / 4778 / 4785 / 10720 / 14257 / 14980 / 15164 / 15170 / 15453 / 15506 / 15915 / 15984 / 16094 / 16368 / 17083 / 17357 / 17377 / 17384 / 17506 / 17516 / 17549 / 17589 / 17607 / 17688 / 17692 / 17714 / 17735 / 17794 / 17804 / 17805 / 17828 / 17863 / 17918 / 17927 / 17936 / 18014 / 18026 / 18049 / 18129 / 18241 / 18309 / 18312 / 18484 / 18506 / 18552,外加
+`pyproject.toml:359`、`hermes_cli/main.py:2709 / 2735 / 10854`、`agent/turn_context.py:514`、
+`agent/interrupt_compat.py:22`、`hermes_cli/kanban_db.py:9141`、`hermes_cli/goals.py:2019`、
+`hermes_cli/tips.py:305`、`tests/hermes_cli/test_suppress_eio_on_interrupt.py:29`。
+**结果:58 查 1 错** —— 测试文件那条引到了 29 行,实际那句在 28 行(29 行是它的下一句)。
 
-**结果:0 处行号漂移**(全部一次命中)。原因是本轮所有引用都直接来自 `Read` 输出而非记忆重述。
+**第二轮:全量复核 97 对「锚点 + 紧跟的代码块」**,逐字节比对代码块内容与 `起始行..结束行` 区间,
+并校验行数与区间长度一致(`prompt_toolkit` 的引用比对 venv 内 3.0.52 的实际源码)。
+**首轮结果:97 对中 10 对不合格。** 全部是**区间结束行漂移**(引用范围比代码块多算或少算 1–3 行),
+起始行与代码块内容全部正确:
+
+| 引用 | 原写 | 更正为 |
+|---|---|---|
+| `prompt_toolkit/application/application.py` | 807-823 | **807-818** |
+| `prompt_toolkit/application/application.py` | 1620-1631 | **1620-1630** |
+| `prompt_toolkit/application/application.py` | 1018-1029 | **1018-1026** |
+| `prompt_toolkit/key_binding/key_processor.py` | 271-278 | **272-279**(起止都错 1 行) |
+| `cli.py` | 430-435 | **430-436** |
+| `cli.py` | 1064-1084 | **1064-1085** |
+| `cli.py` | 1132-1155 | **1132-1156** |
+| `cli.py` | 17505-17517 | **17505-17516** |
+| `tests/hermes_cli/test_suppress_eio_on_interrupt.py` | 26-31 | **25-31** |
+| `tests/hermes_cli/test_suppress_eio_on_interrupt.py` | 29 | **28-29** |
+
+**修正后重跑:97 对全部通过(0 problems)。**
+
+**第三轮:全文 148 个不重复的 `路径:行号` 引用**(含正文里没有代码块的那些)做了越界/文件存在性检查,
+**0 处越界、0 处文件不存在**。
+
+**教训**:起始行几乎不会错(直接来自 `Read` 输出),**结束行是靠人数的,系统性偏差**。
+后续底稿应当机器生成区间,或统一只写起始行。
 
 ### 0.3 运行环境与实际跑过的测试
 
@@ -394,8 +421,6 @@ threading.Thread  9
 
 `/background` 同理,注释还点破了一个"两套实现只改了一套"的历史债:
 
-`cli.py:15675-15679 @ 863e313`(注:此段在 `_should_handle_background_command_inline` 的 docstring 里,行号 9675)
-
 `cli.py:9675-9679 @ 863e313`
 
 ```python
@@ -597,7 +622,7 @@ threading.Thread  9
 
 #### 路径 B:真正的 OS SIGINT(`kill -INT`、进程组信号)—— **被静默吞掉**
 
-`app.run()` 默认 `handle_sigint=True`(`prompt_toolkit/application/application.py:623 @ 863e313` 的 `run_async` 默认值),于是 pt 在事件循环上注册了 SIGINT 处理器:
+`app.run()` 默认 `handle_sigint=True`(`prompt_toolkit/application/application.py:624 @ 863e313` 的 `run_async` 默认值),于是 pt 在事件循环上注册了 SIGINT 处理器:
 
 `prompt_toolkit/application/application.py:807-818 @ 863e313`
 
@@ -1652,7 +1677,7 @@ def set_sudo_password_callback(*args, **kwargs):
     )
 ```
 
-依赖注入做得很干净(`hermes_cli/goals.py:2016-2019 @ 863e313` 的 docstring 明说 "fully decoupled from the CLI for testability"),但**返回值被丢弃**(`run_kanban_goal_loop` 声明 `-> Dict[str, Any]`,`_run_kanban_goal_loop_q` 声明 `-> None`)。见 §3 缺陷 3、缺陷 4。
+依赖注入做得很干净(`hermes_cli/goals.py:2014-2017 @ 863e313` 的 docstring 明说 "fully decoupled from the CLI for testability"),但**返回值被丢弃**(`run_kanban_goal_loop` 声明 `-> Dict[str, Any]`,`_run_kanban_goal_loop_q` 声明 `-> None`)。见 §3 缺陷 3、缺陷 4。
 
 DB 连接管理是"每次操作开一条、finally 关掉"的保守写法,三处一模一样(17957-17964、17994-18002、18005-18012):
 

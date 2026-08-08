@@ -21,15 +21,76 @@
 
 ### 0.2 锚点复核
 
-本稿共 **68** 处 `路径:行号 @ 863e313` 锚点。写完后按 §0.3 的方法对 **22** 处做了逐行复核
-(覆盖三条前提相关的全部关键锚点 + 每个缺陷条目至少一处),**发现并修正漂移 0 处**。
-复核方法:对每个锚点用 `sed -n 'N,Mp'` 取回原文与稿内代码块逐字节比对。
+本稿共 **189** 处 `路径:行号 @ 863e313` 锚点(含重复引用)。复核分两轮:
 
-### 0.3 复核清单(已逐条比对的 22 个锚点)
+**第一轮(人工抽样,152 处)**:手工列出 152 个 (文件, 行号, 期望首行) 三元组,与源码逐行比对。
+命中 8 处不一致——其中 5 处是我在**核对脚本**里凭记忆写错了期望值(稿内本来是对的),
+**3 处是稿内真实漂移**。
 
-`cli.py`:11749 / 11772 / 11899 / 11908 / 11915 / 12101 / 12284 / 12349 / 12521 / 12636 /
-12753 / 13051 / 13060 / 13090 / 13381 / 13565 / 13682 / 13688 / 14163 / 14796 /
-`tools/approval.py`:2768 / 3382。
+**第二轮(机器全量,96 处)**:写脚本直接从本稿正文解析出每一个"锚点 + 紧随其后的代码块"配对,
+把代码块逐字节与源文件从该行号开始的内容比对。首次运行命中 **2 处**不一致(1 处引文末行被截断、
+1 处锚点-代码块错配),修正后**重跑 96 对全部命中、0 处不一致**;同时校验全部 189 个锚点的
+行号都在对应文件范围内(0 处越界)。
+
+**第三轮(行内锚点人工扫描,约 93 处)**:把每个未带代码块的行内锚点连同它指向的源码行整行打印出来
+逐条确认语义匹配。命中 **1 处**不一致(文档锚点指到了 `:::warning` 而非表格行),已修正。
+
+**最终修正记录(共 5 处,均已改正)**:
+
+| 位置 | 原写 | 改为 | 性质 |
+|---|---|---|---|
+| §2.3 `_reload_skills` docstring | `cli.py:11928` | `cli.py:11924` | 锚点比代码块首行晚了 4 行 |
+| §2.2 `refresh_agent_mcp_tools` docstring | 引文末行截断成 `    surface.` | 补全为完整行 | 代码块非逐字 |
+| §2.12.4 sudo 还原快照 | 一个锚点挂了两个代码块,且第二块缩进 20 空格 | 拆成 `cli.py:13267` / `cli.py:13280` 两个锚点,缩进改回 16 空格 | 锚点-代码块错配 + 缩进错 |
+| §5.1 唤醒词块注释 | `cli.py:12906` | `cli.py:12907` | 引用短语实际起于下一行 |
+| §4-◇7 `mode: off` 文档 | `security.md:57` | `security.md:55` | 指到了 `:::warning` 而非表格行 |
+
+**结论**:全部含代码块的断言现已机器验证为逐字一致;纯行内锚点(约 93 处)也逐条打印过
+其指向的源码行并人工确认语义匹配。
+
+### 0.3 复核脚本(可重跑)
+
+```
+python3 - <<'PY'
+import io, re, os
+draft = io.open("notes/r8b-raw-cli-voice-approval.md", encoding="utf-8").read().split("\n")
+ROOT = "/home/user/hermes-agent"
+cache = {}
+def src(f):
+    if f not in cache:
+        cache[f] = io.open(os.path.join(ROOT, f), encoding="utf-8").read().split("\n")
+    return cache[f]
+anchor_re = re.compile(r"`([A-Za-z0-9_./-]+\.(?:py|md)):(\d+) @ 863e313`")
+anchors, pairs = [], []
+for i, ln_ in enumerate(draft):
+    for m in anchor_re.finditer(ln_):
+        anchors.append((m.group(1), int(m.group(2)), i+1))
+i, last = 0, None
+while i < len(draft):
+    ms = list(anchor_re.finditer(draft[i]))
+    if ms: last = (ms[-1].group(1), int(ms[-1].group(2)), i+1)
+    if draft[i].strip() == "```" and last is not None:
+        j, blk = i+1, []
+        while j < len(draft) and draft[j].strip() != "```":
+            blk.append(draft[j]); j += 1
+        if i - last[2] <= 3: pairs.append((last, blk, i+1))
+        last = None; i = j+1; continue
+    i += 1
+bad = 0
+for (f, ln, dln), blk, bl in pairs:
+    L = src(f)
+    for k, q in enumerate(blk):
+        a = L[ln-1+k] if 0 <= ln-1+k < len(L) else "<EOF>"
+        if a != q:
+            bad += 1
+            print(f"MISMATCH draft:{bl} {f}:{ln} +{k}\n  quoted:{q!r}\n  actual:{a!r}")
+            break
+print(f"anchors={len(anchors)} verified_pairs={len(pairs)} mismatched={bad}")
+PY
+```
+
+(在 `/home/user/hermes-study` 下运行;最后一次运行输出
+`anchors=189 verified_pairs=96 mismatched=0`。)
 
 ---
 
@@ -232,6 +293,8 @@ prompt cache 全废,下一条消息按满价重发全部 input token。这在长
             # messages to preserve prompt-cache for the prefix.
             change_parts = []
 ```
+
+实际写入点在同一函数末尾,`cli.py:11899 @ 863e313`:
 
 ```
             self.conversation_history.append({
