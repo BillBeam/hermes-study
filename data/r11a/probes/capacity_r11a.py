@@ -122,6 +122,23 @@ def main() -> None:
         print(f"  按行外推总量: {bl * tok / ln:,.0f} token")
         print(f"  按文件外推总量: {bf * tok / fl:,.0f} token")
         print(f"  两者相差 {max(bl * tok / ln, bf * tok / fl) / min(bl * tok / ln, bf * tok / fl):.1f}x")
+    # -- shape-aware estimate ----------------------------------------------
+    # The backlog is not one shape, and R11A happens to hold a cost point for
+    # each: slice I was 13 files / 17,378 lines (bulk data — 1,337 lines/file),
+    # slice C was 118 / 17,619 (short docs — 149 lines/file). Their tokens/line
+    # differ by only 1.24x, which is the real finding: the two shapes cost
+    # nearly the same PER LINE despite a 9x difference in files per line.
+    if len(l3) >= 2:
+        rates = sorted(r["subagent_tokens"] / r["lines"] for r in l3)
+        print("\n=== 形态感知的估算 ===")
+        print(f"  两种形态的 token/行: {rates[0]:.2f}(片 I,批量数据) .. "
+              f"{rates[1]:.2f}(片 C,短文档) —— 相差仅 {rates[1] / rates[0]:.2f}x")
+        print(f"  L3 积压 {bl:,} 行 => {bl * rates[0]:,.0f} .. {bl * rates[1]:,.0f} token")
+        for band in (17500, 20000, 22500):
+            print(f"  以 {band:,} 行/片 切片 => {bl / band:.0f} 片")
+        print("  **约束是行不是文件**:按文件切会得出每片 3.6 万行,"
+              "远超实测的 17.5k–22.5k 容量带。")
+
     print(f"\n  数据点计数: L2 {len(l2)} 个, L3 {len(l3)} 个。")
 
 
