@@ -468,11 +468,13 @@ requires_env:
     from agent.image_gen_registry import get_active_provider, get_provider
 ```
 
-搜索面:
+搜索面(全仓 `.py`,排除 `tests/`;**必须限定到 image_gen 的那一个** —— `hermes_cli/auth.py:1777` 另有一个同名但完全无关的 `get_active_provider()`,指的是推理 provider,裸搜 `get_active_provider` 会把它一起捞进来):
 
 ```verify
-cd /home/user/hermes-agent && grep -rn "get_active_provider" --include=*.py . | grep -v "^./tests/" | grep -v "video_gen\|web_search"
+cd /home/user/hermes-agent && grep -rn "image_gen_registry import get_active_provider\|image_gen_registry\.get_active_provider" --include=*.py . | grep -v "^./tests/"
 ```
+
+实测 2 处命中:`agent/pet/generate/imagegen.py:83` 是**唯一真实调用点**,`agent/video_gen_registry.py:122` 只是一条说"我照着它写的"的注释。
 
 #### 2.2.4 `_reset_for_tests()`
 
@@ -1137,14 +1139,16 @@ def _max_workers_for_tool_batch(runnable_calls) -> int:
 
 即:一批工具调用里**只要有一个是 `image_generate`,整批的并发上限就被压到 image 的上限**。理由(`agent/tool_executor.py:202` 的 docstring):图像生成够慢,值得并发,但突发会撞 TTFB / 限流。
 
-负结论(搜索面写明):**全簇没有任何"按次计费/预算/配额"代码**。
-搜索面 = 这 6 个文件 + `plugins/image_gen/` + `agent/tool_executor.py`,模式 `budget|quota|spend|credit|cost|billing`:
+负结论(搜索面写明):**本簇 6 个文件 + 7 个 image_gen 插件里,没有任何按次计费 / 预算 / 配额的执行代码。**
+搜索面 = 本簇 6 个文件 + `plugins/image_gen/`(`--include=*.py`,故排除 `__pycache__` 的 `.pyc`),模式 `budget|quota|spend|credits?|\bcost\b` 大小写不敏感:
 
 ```verify
-cd /home/user/hermes-agent && grep -rniE "budget|quota|spend|credits?|\bcost\b" agent/image_gen_provider.py agent/image_gen_registry.py agent/image_routing.py tools/image_generation_tool.py tools/image_source.py tools/fal_common.py agent/tool_executor.py plugins/image_gen/
+cd /home/user/hermes-agent && grep -rniE "budget|quota|spend|credits?|\bcost\b" --include=*.py agent/image_gen_provider.py agent/image_gen_registry.py agent/image_routing.py tools/image_generation_tool.py tools/image_source.py tools/fal_common.py plugins/image_gen/
 ```
 
-(实测只命中 `image_generation_tool.py` 里几条讲价格的**注释**与 `plugins/image_gen/*` 的价格字符串,没有任何执行代码。)
+实测 7 处命中,**全部是注释或 UI 字符串**:`tools/image_generation_tool.py:203` / `:273` 是解释为什么把档位钉死的价格注释;`tools/image_source.py:43` / `:338` 的 "budget" 指**字节数**(ingest 上限)不是钱;`plugins/image_gen/{openai-codex,krea,openai}` 三处是模型简介里的 "lowest cost" 之类文案。
+
+**搜索面为什么不含 `agent/tool_executor.py`**:它确实有一整套 `budget` 机制(`from tools.budget_config import BudgetConfig, DEFAULT_BUDGET, budget_for_context_window`,`agent/tool_executor.py:51`),但那是**工具输出的 token 预算**,与图像生成的钱无关,把它放进搜索面只会让这条命令的输出与结论相反。本簇从 `tool_executor.py` 只借了并发上限那一段。
 
 ---
 
@@ -1691,7 +1695,30 @@ ls -d /home/user/hermes-venv/lib/python*/site-packages/*.dist-info | wc -l
 /home/user/hermes-venv/bin/pip list | tail -n +3 | wc -l
 ```
 
-实测:**87 个包**(`[dev]` extra + `aiohttp 3.14.1` + `brotlicffi 1.2.0.1`),与 CLAUDE.md 记录的 R8B 环境一致,本轮**未安装任何新包**。
+实测 **89 个包**(两种数法一致),**不是** CLAUDE.md 记的 R8B 的 87。差额已按"直接断言、不要间接推断"查到具体是哪两个:
+
+```verify
+ls -dlt --time-style=+%Y-%m-%dT%H:%M /home/user/hermes-venv/lib/python*/site-packages/*.dist-info | head -4
+```
+
+```console
+drwxr-xr-x 3 root root 4096 2026-08-09T04:51 .../anthropic-0.87.0.dist-info
+drwxr-xr-x 3 root root 4096 2026-08-09T04:51 .../docstring_parser-0.18.0.dist-info
+drwxr-xr-x 3 root root 4096 2026-08-09T04:27 .../aiohttp-3.14.1.dist-info
+drwxr-xr-x 3 root root 4096 2026-08-09T04:27 .../aiosignal-1.4.0.dist-info
+```
+
+即 `anthropic 0.87.0` + `docstring_parser 0.18.0` 于 **04:51** 落盘,晚于 04:27 那批(`aiohttp` / `brotlicffi`,CLAUDE.md 记载的 87 包基线)。**本子代理全程没有执行过任何 pip 安装**;这两个包是本轮同批其它会话装进这个共享 venv 的。记在这里是因为 CLAUDE.md 立过规矩:用例数是环境的函数,下一轮拿到不同的数才好判断是代码变了还是环境变了。
+
+`fal-client` **仍然不在**(见 §4.3):
+
+```verify
+ls -d /home/user/hermes-venv/lib/python*/site-packages/fal* 2>&1 | head -3
+```
+
+```console
+ls: cannot access '/home/user/hermes-venv/lib/python*/site-packages/fal*': No such file or directory
+```
 
 ### 4.2 跑了什么、结果
 

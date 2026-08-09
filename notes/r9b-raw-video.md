@@ -2101,7 +2101,7 @@ def _handle_xai_video_extend(args: Dict[str, Any], **_kw: Any) -> str:
 
 它在 `_EXTRA_KNOWN_ROOT_KEYS` 里,注释说明了这批键的性质:
 
-`hermes_cli/config.py:1852-1856 @ 863e313`
+`hermes_cli/config.py:1854-1858 @ 863e313`
 
 ```python
 _EXTRA_KNOWN_ROOT_KEYS = {
@@ -2130,9 +2130,9 @@ cd /home/user/hermes-agent && grep -rn "video_gen\." --include=*.py --include=*.
 | `video_gen.model` | 无 | `tools/video_generation_tool.py:188` 的 `value = _read_video_gen_section().get("model")` | 默认模型族 |
 | `video_gen.use_gateway` | False | `tools/tool_backend_helpers.py:278` 的 `def prefers_gateway(config_section: str) -> bool:` | 是否强制走 Nous 托管网关 |
 | `video_gen.fal.model` | 无 | `plugins/video_gen/fal/__init__.py:25` 的 `3. ``video_gen.fal.model`` in ``config.yaml``` | 后端内的模型族(优先于 `video_gen.model`) |
-| `video_gen.xai.storage.enabled` | True | `tools/xai_http.py:186` 的 `enabled = _coerce_bool(storage.get("enabled"), True)` | xAI 存储:出永久 public URL |
-| `video_gen.xai.storage.public_url` | True | `tools/xai_http.py:187` 的 `public_url = _coerce_bool(storage.get("public_url"), True)` | 是否要 public URL |
-| `video_gen.xai.storage.expires_after` | None(不过期) | `tools/xai_http.py:188` 的 `expires_after = _coerce_expires_after(storage.get("expires_after"))` | 保留期(秒) |
+| `video_gen.xai.storage.enabled` | True | `tools/xai_http.py:185` 的 `enabled = _coerce_bool(storage.get("enabled"), True)` | xAI 存储:出永久 public URL |
+| `video_gen.xai.storage.public_url` | True | `tools/xai_http.py:186` 的 `public_url = _coerce_bool(storage.get("public_url"), True)` | 是否要 public URL |
+| `video_gen.xai.storage.expires_after` | None(不过期) | `tools/xai_http.py:187` 的 `expires_after = _coerce_expires_after(storage.get("expires_after"))` | 保留期(秒) |
 
 `tools/xai_http.py:165-179 @ 863e313`
 
@@ -2509,7 +2509,7 @@ def test_fal_text_only_routes_to_text_endpoint(matrix_env, family_id):
 - 子句 B "a routing convention (pass `image_url` …)" 是差异 → **假**。image 侧用的是同一套约定,
   且写在它自己的 ABC docstring 里:
 
-`agent/image_gen_provider.py:175-178 @ 863e313`
+`agent/image_gen_provider.py:177-180 @ 863e313`
 
 ```python
         Routing: if ``image_url`` (or any ``reference_image_urls``) is

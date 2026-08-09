@@ -163,10 +163,11 @@ grep -rn "agent\.pet" --include="*.py" . | grep -v "^./agent/pet/" | grep -v "^.
 2. **命令行子命令与斜杠命令** —— `hermes_cli/pets.py`(`hermes pets ...`)、
    `hermes_cli/cli_commands_mixin.py`(`/pet`、`/hatch`)。
 
-3. **网关 RPC(TUI + Electron 桌面)** —— `tui_gateway/methods_session.py` 里 16 个
-   `pet.*` 方法(`pet.info` / `pet.info.meta` / `pet.cells` / `pet.gallery` / `pet.select` /
-   `pet.remove` / `pet.export` / `pet.rename` / `pet.thumb` / `pet.disable` / `pet.scale` /
-   `pet.cancel` / `pet.generate.status` / `pet.generate` / …)。
+3. **网关 RPC(TUI + Electron 桌面)** —— `tui_gateway/methods_session.py` 里 **15 个**
+   `pet.*` 方法,全仓 `@method("pet.*")` 也正好是这 15 个(`pet.info` / `pet.info.meta` /
+   `pet.cells` / `pet.gallery` / `pet.select` / `pet.remove` / `pet.export` / `pet.rename` /
+   `pet.thumb` / `pet.disable` / `pet.scale` / `pet.cancel` / `pet.generate.status` /
+   `pet.generate` / `pet.hatch`)。
    TUI 侧不能画布,所以网关把精灵**降采样成半块单元格数组**发过去,Ink 用原生颜色属性画:
    `tui_gateway/methods_session.py:1378 @ 863e313`
    ```
@@ -483,7 +484,7 @@ _PROVIDER_LABELS: dict[str, str] = {
 → 白名单里第一个可用的 → 抛 `GenerationError` 并给可执行的修复提示。
 **设计取舍**:宁可硬失败并指路,也不"静默产出一只每行都长得不一样的宠物":
 
-`agent/pet/generate/imagegen.py:10 @ 863e313`
+`agent/pet/generate/imagegen.py:8 @ 863e313`
 ```
 Reference grounding only works on providers that support it — currently OpenAI
 ``gpt-image-2`` (image edits) and Krea (style references). We resolve to one of
@@ -1342,9 +1343,20 @@ def rename_pet(slug: str, display_name: str) -> str | None:
     is. Returns the resulting slug on success, or ``None`` on failure.
     """
 ```
-配套地,`hermes_cli/pets.py:419` 的 `_rename_active_if` 必须把 `display.pet.slug`
-跟着改掉,否则配置会指向一个已经不存在的目录。**这是一条"改名不是纯元数据操作"的
-隐藏契约**,只存在于 docstring 里。
+配套地,配置里的 `display.pet.slug` 必须跟着改,否则它会指向一个已经不存在的目录:
+
+`hermes_cli/pets.py:419 @ 863e313`
+```
+def _rename_active_if(old_slug: str, new_slug: str) -> bool:
+    """Repoint the active pet from ``old_slug`` to ``new_slug`` iff it's active.
+
+    Used when a rename realigns a pet's slug/dir: if the renamed pet was the
+    active one, the config must follow or surfaces point at a now-missing dir.
+    Preserves the ``enabled`` flag. Returns whether anything changed.
+    """
+```
+
+**这是一条"改名不是纯元数据操作"的隐藏契约**,只存在于 docstring 里。
 
 ---
 
@@ -1386,4 +1398,4 @@ def rename_pet(slug: str, display_name: str) -> str | None:
 - 成品章:`chapters/` 里本簇对应章(R9B 主线装订)。
 - 相邻簇:图像生成 provider 层(`agent/image_gen_provider.py` / `agent/image_gen_registry.py` /
   `tools/image_generation_tool.py`)—— 本簇与它的接触面见 §3.1。
-- 网关侧 16 个 `pet.*` RPC 在 `tui_gateway/methods_session.py:1326-1900`,属网关簇。
+- 网关侧 15 个 `pet.*` RPC 全部在 `tui_gateway/methods_session.py` 的 1326–1913 行区间,属网关簇。

@@ -1100,15 +1100,31 @@ cd /home/user/hermes-agent && grep -nE "tempfile\.|_TEMP_DIR|get_hermes_home|get
   agent/transcription_provider.py agent/transcription_registry.py tools/transcription_tools.py tools/voice_mode.py tools/wake_word.py
 ```
 
-留存策略:调用方主动清理,默认 1 小时;**只删 `recording_*.wav`**,
-`_split_wav_for_transcription` 产生的分块文件名前缀不同,不在这个清理范围内
-(它们由 `_transcribe_wav_in_chunks` 的 `finally` 逐个删)。
+留存策略:调用方主动清理,默认 1 小时,且**只删名字形如 `recording_*.wav` 的文件**:
 
 `tools/voice_mode.py:2296` @ 863e313
 
 ```python
     for entry in os.scandir(_TEMP_DIR):
         if entry.is_file() and entry.name.startswith("recording_") and entry.name.endswith(".wav"):
+```
+
+**起草时我把这条写反过一次,记下来当反例**:我先写的是"分块文件前缀不同、不在清理范围内"。
+实际上 `_split_wav_for_transcription` 的前缀是**源 WAV 的 stem**
+(`tools/voice_mode.py:1458`:`prefix=f"{os.path.splitext(os.path.basename(wav_path))[0]}_chunk{index:03d}_"`),
+CLI 录音的 stem 本身就是 `recording_<时间戳>`,所以分块文件叫
+`recording_20260809_120000_chunk001_ab3x9f.wav` —— **首尾都匹配,照样会被清理**。
+主删路径其实是 `_transcribe_wav_in_chunks` 的 `finally` 逐个 unlink,
+这条 1 小时清理是第二道兜底。
+
+```verify
+cd /home/user/hermes-agent && PYTHONDONTWRITEBYTECODE=1 /home/user/hermes-venv/bin/python -c "
+import os
+wav='/tmp/hermes_voice/recording_20260809_120000.wav'
+name=f'{os.path.splitext(os.path.basename(wav))[0]}_chunk{1:03d}_' + 'ab3x9f.wav'
+print('chunk filename example :', name)
+print('=> covered by cleanup_temp_recordings:', name.startswith('recording_') and name.endswith('.wav'))
+"
 ```
 
 **凭据解析**:STT 密钥统一走 `tools.tool_backend_helpers.resolve_provider_secret`,
@@ -1280,7 +1296,19 @@ cd /home/user/hermes-agent && sed -n '112,123p' tools/transcription_tools.py
 
 ### 5.1 环境
 
-- venv:`/home/user/hermes-venv`,**87 个包**(`[dev]` extra + `aiohttp 3.14.1` + `brotlicffi 1.2.0.1`),本轮**未安装任何新包**。
+- venv:`/home/user/hermes-venv`。**本子代理未安装任何包**,但跑测试时实测
+  `site-packages/*.dist-info` = **89 个**,比 CLAUDE.md 记录的 R8B 基准 **87 个多 2 个**。
+  按 CLAUDE.md「直接断言、不要间接推断」查时间戳,多出来的两个是
+  `anthropic-0.87.0` 与 `docstring_parser-0.18.0`,安装时间 **Aug 9 04:51**,
+  晚于 `aiohttp 3.14.1` / `brotlicffi 1.2.0.1` 的 04:27(那是 CLAUDE.md 记录的恢复步骤)。
+  即**本轮有别的并行产出往共享 venv 里装了这两个包**。对本簇 320 个用例**没有影响**
+  (本簇不 import anthropic/docstring_parser),但下一轮拿到不同的数时要能对上这条记录。
+
+```verify
+ls -dlt /home/user/hermes-venv/lib/python*/site-packages/*.dist-info | head -4
+ls -d /home/user/hermes-venv/lib/python*/site-packages/*.dist-info | wc -l
+```
+
 - 容器:root 运行、无 IPv6、无音频设备、离线。
 
 ### 5.2 结果:23 个文件 320 个用例,全绿
