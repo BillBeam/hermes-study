@@ -238,13 +238,13 @@
 一个 agent harness 要交付给不会用终端的人,得跨过四道坎,这一片正好一坎一块:
 
 1. **怎么把一堆 TS/Rust/Python 变成一个可双击的东西** —— electron-builder 钩子链(§2.3)。
-2. **怎么在用户机器上装出一个完整运行时**,而运行时本身是一份要 clone 的 Python 仓库 —— 引导安装器(§2.4)。它的取舍很特别:**安装器不带负载**,只带一个 pin,负载在安装时从 GitHub 现取(README 称之为 thin installer;`test-desktop.mjs:301` 甚至有一条**反向断言**防止旧的 400 MB 胖负载偷偷回来)。
+2. **怎么在用户机器上装出一个完整运行时**,而运行时本身是一份要 clone 的 Python 仓库 —— 引导安装器(§2.4)。它的取舍很特别:**安装器不带负载**,只带一个 pin,负载在安装时从 GitHub 现取(README 称之为 thin installer;`apps/desktop/scripts/test-desktop.mjs` 甚至有一条**反向断言**防止旧的 400 MB 胖负载偷偷回来,见 §5 ◎-1)。
 3. **怎么在不花模型钱、不连真 provider 的前提下证明整条链是通的** —— e2e 的 mock provider(§2.6)。
 4. **怎么让性能回归有一个能被 CI 挡住的数** —— perf 基准框架(§2.7)。
 
 这一片最值得学的一条设计:**安装器与更新器是同一个二进制**(`--update` 切模式),因此
 「安装」和「更新」共用同一套事件通道、同一个进度 UI —— 更新流程只是把真实 manifest 换成一份
-**合成 manifest**(`update.rs:1153 update_stages`),前端一行都不用改。
+**合成 manifest**(`apps/bootstrap-installer/src-tauri/src/update.rs` 的 `update_stages`),前端一行都不用改。
 
 ---
 
@@ -260,7 +260,7 @@ cd /home/user/hermes-agent && python3 -c \
 # => 51
 ```
 
-`apps/desktop/package.json:14 @ 863e313` 起共 51 条,按用途分组列全:
+`apps/desktop/package.json` 的 `scripts` 块共 51 条,按用途分组列全:
 
 | # | script | 做什么 |
 |---|---|---|
@@ -410,20 +410,25 @@ cd /home/user/hermes-agent/apps/bootstrap-installer/src-tauri && \
 
 | 命令 | 定义处 | 入参 | 出参 | 前端调用点 |
 |---|---|---|---|---|
-| `get_mode` | `apps/bootstrap-installer/src-tauri/src/lib.rs:90` 的 `fn get_mode` | — | `"install" \| "update"` | `store.ts:195` |
-| `start_bootstrap` | `apps/bootstrap-installer/src-tauri/src/bootstrap.rs:73` 的 `pub async fn start_bootstrap` | `StartBootstrapArgs{commit,branch,include_desktop,hermes_home}` | `Result<(),String>` | `store.ts:315` |
-| `cancel_bootstrap` | `apps/bootstrap-installer/src-tauri/src/bootstrap.rs:130` 的 `pub async fn cancel_bootstrap` | — | `Result<(),String>` | `store.ts:347` |
+| `get_mode` | `apps/bootstrap-installer/src-tauri/src/lib.rs:90` 的 `fn get_mode` | — | `"install" \| "update"` | `apps/bootstrap-installer/src/store.ts:195`:`invoke<AppMode>('get_mode')` |
+| `start_bootstrap` | `apps/bootstrap-installer/src-tauri/src/bootstrap.rs:73` 的 `pub async fn start_bootstrap` | `StartBootstrapArgs{commit,branch,include_desktop,hermes_home}` | `Result<(),String>` | `apps/bootstrap-installer/src/store.ts:315`:`await invoke('start_bootstrap', {` |
+| `cancel_bootstrap` | `apps/bootstrap-installer/src-tauri/src/bootstrap.rs:130` 的 `pub async fn cancel_bootstrap` | — | `Result<(),String>` | `apps/bootstrap-installer/src/store.ts:347`:`await invoke('cancel_bootstrap')` |
 | `get_bootstrap_status` | `apps/bootstrap-installer/src-tauri/src/bootstrap.rs:139` 的 `pub async fn get_bootstrap_status` | — | `BootstrapStatus{running,completed,install_root,last_error}` | **前端无调用点**(见 §6 ■-9) |
-| `start_update` | `apps/bootstrap-installer/src-tauri/src/update.rs:61` 的 `pub async fn start_update` | — | `Result<(),String>` | `store.ts:337` |
-| `launch_hermes_desktop` | `apps/bootstrap-installer/src-tauri/src/bootstrap.rs:166` 的 `pub async fn launch_hermes_desktop` | `installRoot: String` | `Result<(),String>` | `store.ts:355` |
-| `get_log_path` | `apps/bootstrap-installer/src-tauri/src/paths.rs:200` 的 `pub fn get_log_path` | — | `String` | `store.ts:193` |
-| `get_hermes_home` | `apps/bootstrap-installer/src-tauri/src/paths.rs:205` 的 `pub fn get_hermes_home` | — | `String` | `store.ts:194` |
-| `open_log_dir` | `apps/bootstrap-installer/src-tauri/src/paths.rs:210` 的 `pub fn open_log_dir` | — | `Result<(),String>` | `store.ts:360` |
+| `start_update` | `apps/bootstrap-installer/src-tauri/src/update.rs:61` 的 `pub async fn start_update` | — | `Result<(),String>` | `apps/bootstrap-installer/src/store.ts:337`:`await invoke('start_update')` |
+| `launch_hermes_desktop` | `apps/bootstrap-installer/src-tauri/src/bootstrap.rs:166` 的 `pub async fn launch_hermes_desktop` | `installRoot: String` | `Result<(),String>` | `apps/bootstrap-installer/src/store.ts:355`:`await invoke('launch_hermes_desktop', { installRoot })` |
+| `get_log_path` | `apps/bootstrap-installer/src-tauri/src/paths.rs:200` 的 `pub fn get_log_path` | — | `String` | `apps/bootstrap-installer/src/store.ts:193`:`invoke<string>('get_log_path'),` |
+| `get_hermes_home` | `apps/bootstrap-installer/src-tauri/src/paths.rs:205` 的 `pub fn get_hermes_home` | — | `String` | `apps/bootstrap-installer/src/store.ts:194`:`invoke<string>('get_hermes_home'),` |
+| `open_log_dir` | `apps/bootstrap-installer/src-tauri/src/paths.rs:210` 的 `pub fn open_log_dir` | — | `Result<(),String>` | `apps/bootstrap-installer/src/store.ts:360`:`await invoke('open_log_dir')` |
 
 ### 2.5 Rust→React 事件面(1 通道 / 5 变体,全表)
 
-通道名只有一个,定义在 `apps/bootstrap-installer/src-tauri/src/events.rs:111` 的
-`pub const CHANNEL: &'static str = "bootstrap";`,靠 payload 的 `type` 字段分流。
+通道名只有一个,靠 payload 的 `type` 字段分流。
+
+`apps/bootstrap-installer/src-tauri/src/events.rs:111 @ 863e313`
+
+```
+    pub const CHANNEL: &'static str = "bootstrap";
+```
 
 | `type` | Rust 变体字段 | 前端处理(`apps/bootstrap-installer/src/store.ts`) |
 |---|---|---|
@@ -433,8 +438,20 @@ cd /home/user/hermes-agent/apps/bootstrap-installer/src-tauri && \
 | `complete` | `installRoot`, `marker` | `status='completed'`;install 模式跳 `success`,**update 模式留在 progress**(:259) |
 | `failed` | `stage?`, `error` | `status='failed'`,跳 `failure`(:277) |
 
-`StageState` 枚举同样是 4 值封闭集:`running / succeeded / skipped / failed`
-(`apps/bootstrap-installer/src-tauri/src/events.rs:47` 的 `pub enum StageState`)。
+`StageState` 枚举同样是 4 值封闭集(serde 以小写序列化):
+
+`apps/bootstrap-installer/src-tauri/src/events.rs:45 @ 863e313`
+
+```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum StageState {
+    Running,
+    Succeeded,
+    Skipped,
+    Failed,
+}
+```
 
 前端 action 面(store 导出的全部 6 个 async 动作,不抽样):
 `initialize()`、`startInstall(opts?)`、`startUpdate()`、`cancelInstall()`、
@@ -459,11 +476,16 @@ cd /home/user/hermes-agent/apps/bootstrap-installer/src-tauri && \
   ]
 ```
 
-作用域只有 `"windows": ["main"]`。配套的 CSP 在
-`apps/bootstrap-installer/src-tauri/tauri.conf.json:30` 的
-`"csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost"`
-—— `script-src 'self'` 明确禁掉内联脚本,这正是 `theme.ts` 不能在 index.html 里预涂主题、
-只能在打包模块里做首帧的原因(`apps/bootstrap-installer/src/theme.ts:11`)。
+作用域只有 `"windows": ["main"]`。配套的 CSP:
+
+`apps/bootstrap-installer/src-tauri/tauri.conf.json:30 @ 863e313`
+
+```
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost"
+```
+
+`script-src 'self'` 明确禁掉内联脚本,这正是 `apps/bootstrap-installer/src/theme.ts` 不能在
+index.html 里预涂主题、只能在打包模块里做首帧的原因(该文件开头的注释把这条 CSP 列为原因之一)。
 `withGlobalTauri: false`,即 webview 里没有 `window.__TAURI__` 全局。
 
 ### 2.7 e2e 场景清单(19 spec / 47 用例,逐项已在 §0.C 列全)
@@ -499,8 +521,15 @@ mock 服务器的**剧本触发词全表**(这是 e2e 的隐藏接口面,决定 
 | `E2E_INTERIM_TRIGGER` | `INTERIM_SCRIPT` | 5 | 文本+工具 ×2 → 纯工具无文本 → 文本+工具 → 终答 |
 | 以上都不中 | `MOCK_REPLY` 定值 | — | 逐词 SSE 回一句罐头话 |
 
-服务器只实现两个路由:`GET /v1/models`、`POST /v1/chat/completions`,其余一律 404
-(`apps/desktop/e2e/mock-server.ts:534` 的 `res.writeHead(404, { 'Content-Type': 'application/json' })`)。
+服务器只实现两个路由:`GET /v1/models`、`POST /v1/chat/completions`,其余一律 404。
+
+`apps/desktop/e2e/mock-server.ts:533 @ 863e313`
+
+```
+      // Fallback — 404 for anything else
+      res.writeHead(404, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Not found' }))
+```
 
 ### 2.8 perf 场景注册表(14 个,全表)
 
@@ -545,7 +574,7 @@ baseline.json 里有条目的是 6 个:`stream / keystroke / transcript / cold-s
 
 **跳 1 · 用户动作 → 组件。** 欢迎屏上唯一的按钮。
 
-`apps/bootstrap-installer/src/routes/welcome.tsx:53 @ 863e313`
+`apps/bootstrap-installer/src/routes/welcome.tsx:45 @ 863e313`
 
 ```
       <HackeryButton label="Install" onClick={() => void startInstall()} />
@@ -689,13 +718,34 @@ pub fn parse_stage_result(stdout: &str) -> Option<crate::events::StageResultPayl
 ```
 
 **跳 9 · 回到 UI。** 每一行 stdout 变成一个 `log` 事件,每次状态迁移变成一个 `stage` 事件,
-经 `app.emit(BootstrapEvent::CHANNEL, &event)`(`bootstrap.rs:913`)推给 webview;
-store 的 listener 落到 `$bootstrap`,`progress.tsx:96` 把 `stageOrder` 渲染成列表、
-`:118` 给 running 的那一行挂 Loader。
+推给 webview 的那一步:
 
-**收尾(跳 10)** 全部 stage 成功后写原子标记 + 自拷贝:
-`bootstrap.rs:750 write_bootstrap_complete_marker` → `bootstrap.rs:770 copy_self_to_hermes_home` →
-`Complete` 事件 → store 路由到 success → 用户点 `[ LAUNCH ]` → `launch_hermes_desktop`
+`apps/bootstrap-installer/src-tauri/src/bootstrap.rs:913 @ 863e313`
+
+```
+    if let Err(e) = app.emit(BootstrapEvent::CHANNEL, &event) {
+        tracing::warn!(?e, "failed to emit bootstrap event");
+    }
+```
+
+store 的 listener 落到 `$bootstrap`,`apps/bootstrap-installer/src/routes/progress.tsx` 把
+`stageOrder` 渲染成列表、给 running 的那一行挂 Loader。
+
+**收尾(跳 10)** 全部 stage 成功后写原子标记,再把自己拷进 HERMES_HOME:
+
+`apps/bootstrap-installer/src-tauri/src/bootstrap.rs:750 @ 863e313`
+
+```
+    let marker = match write_bootstrap_complete_marker(&install_root, &pin) {
+```
+
+`apps/bootstrap-installer/src-tauri/src/bootstrap.rs:770 @ 863e313`
+
+```
+    if let Err(err) = crate::paths::copy_self_to_hermes_home() {
+```
+
+随后 `Complete` 事件 → store 路由到 success → 用户点 `[ LAUNCH ]` → `launch_hermes_desktop`
 → `resolve_hermes_desktop_exe` 在 `apps/desktop/release/<os>-unpacked/` 里找**桌面打包产物**
 —— 这一跳正好把本片的 A 块(安装器)与 B 块(桌面打包)接上:安装器最后要启动的东西,
 就是 `npm run pack` 在用户机器上现产出来的那个目录。
@@ -706,41 +756,71 @@ store 的 listener 落到 `$bootstrap`,`progress.tsx:96` 把 `stageOrder` 渲染
 
 ### 4.1 引导安装器为什么是 Rust + Tauri 而不是 Electron
 
-`bootstrap.rs:3` 的模块注释自己交代了来历:它是
-`apps/desktop/electron/bootstrap-runner.ts` 的**直接移植**。取舍很清楚——
-第一次安装时机器上**还没有 Electron**,用 Electron 做引导器等于先下 150 MB 再下真程序;
-Rust + 系统 WebView(Windows 走 WebView2 `embedBootstrapper`)能压到
-`Cargo.toml:74` 注释里写的「5-10MB signed installer」。代价是必须把 bootstrap-runner.ts
-的行为**再实现一遍**,于是 `events.rs` 开头写着「1:1 mirror」,`powershell.rs` 写着
-「Port of `spawnPowerShell`」—— 这是一份**刻意维持的双份实现**,漂移风险由注释背书。
+模块注释自己交代了来历:
+
+`apps/bootstrap-installer/src-tauri/src/bootstrap.rs:3 @ 863e313`
+
+```
+//! Direct port of `runBootstrap` from `apps/desktop/electron/bootstrap-runner.ts`.
+```
+
+取舍很清楚——第一次安装时机器上**还没有 Electron**,用 Electron 做引导器等于先下 150 MB
+再下真程序;Rust + 系统 WebView(Windows 走 WebView2 `embedBootstrapper`)能压到 crate
+自己写下的目标体积:
+
+`apps/bootstrap-installer/src-tauri/Cargo.toml:74 @ 863e313`
+
+```
+# A 5-10MB signed installer is the goal. LTO + size-opt + single codegen unit.
+```
+
+代价是必须把 bootstrap-runner.ts 的行为**再实现一遍**,于是
+`apps/bootstrap-installer/src-tauri/src/events.rs` 开头写着「1:1 mirror」、
+`apps/bootstrap-installer/src-tauri/src/powershell.rs` 写着「Port of `spawnPowerShell`」
+—— 这是一份**刻意维持的双份实现**,漂移风险由注释背书。
 
 ### 4.2 安装器 = 更新器:同一个二进制的两种模式
 
-`AppMode::from_args`(`lib.rs:39`)只看有没有 `--update`;`force_setup_from_args`(`lib.rs:58`)
-另看 `--reinstall` / `--repair`,而且**刻意与 mode 正交**(单测
-`lib.rs:223 fn force_setup_flags_do_not_affect_mode_selection` 钉死了这一点)。
+`AppMode::from_args` 只看有没有 `--update`;`force_setup_from_args` 另看 `--reinstall` / `--repair`,
+而且**刻意与 mode 正交**,这条正交性由一条单测钉死。macOS 上还有第三种行为:
+**bare 启动 + 已安装 = 不显示安装器,直接开 App**;为了这条路径不闪窗,窗口初始就是隐藏的,
+由 `setup()` 决定显不显示 —— 这解释了 `/Applications/Hermes` 为什么既是安装器又是启动器。
 
-macOS 上还有第三种行为:**bare 启动 + 已安装 = 不显示安装器,直接开 App**
-(`lib.rs:132`)。为了这条路径不闪窗,窗口在 `tauri.conf.json:26` 里配成 `"visible": false`,
-由 `setup()` 决定显不显示。这解释了 `/Applications/Hermes` 为什么既是安装器又是启动器。
+| 关注点 | 锚点 + 摘录 |
+|---|---|
+| 模式解析 | `apps/bootstrap-installer/src-tauri/src/lib.rs:39`:`pub fn from_args<I, S>(args: I) -> Self` |
+| 修复标志(与 mode 正交) | `apps/bootstrap-installer/src-tauri/src/lib.rs:58`:`pub fn force_setup_from_args<I, S>(args: I) -> bool` |
+| 正交性由单测钉死 | `apps/bootstrap-installer/src-tauri/src/lib.rs:223`:`fn force_setup_flags_do_not_affect_mode_selection() {` |
+| macOS 启动器快速路径 | `apps/bootstrap-installer/src-tauri/src/lib.rs:132`:`if cfg!(target_os = "macos") && mode == AppMode::Install && !force_setup {` |
+| 为此窗口初始隐藏 | `apps/bootstrap-installer/src-tauri/tauri.conf.json:26`:`"visible": false` |
 
-更新流程(`update.rs:254 run_update`)的四段:
-1. `handoff`:等旧桌面释放 venv shim 与 `app.asar`(Windows 才有强制锁),超时就 `taskkill /F /T /IM hermes.exe /FI "PID ne <self>"`;
-2. `update`:`hermes update --yes --gateway --force --branch <pin>`,失败自动**重试一次**(理由写在 `update.rs:399-411`:更新跨越模块边界时第一次必然带着旧代码跑);
-3. `rebuild`:`hermes desktop --build-only`,同样重试一次;
-4. macOS 才有的 `install`:`ditto` 新 bundle → `swap_in_new_bundle` 三步换位(target→old,tmp→target,删 old)→ `xattr -dr com.apple.quarantine`。
+更新流程 `run_update` 的四段:
 
-`swap_in_new_bundle`(`update.rs:1078`)被单独抽出来正是为了能脱离 ditto 做单测,
+| 段 | 干什么 | 锚点 + 摘录 |
+|---|---|---|
+| 主流程 | 串起下面四段 | `apps/bootstrap-installer/src-tauri/src/update.rs:254`:`async fn run_update(app: AppHandle) -> Result<()> {` |
+| 1 `handoff` | 等旧桌面释放 venv shim 与 `app.asar`(Windows 才有强制锁),超时就 `taskkill /F /T /IM hermes.exe` 并排除自身 PID | `apps/bootstrap-installer/src-tauri/src/update.rs:650`:`pub(crate) async fn wait_for_install_locks_free(install_root: &Path, app: &AppHandle, stage: &str) {` |
+| 2 `update` | `hermes update --yes --gateway --force --branch <pin>`,失败自动**重试一次**(理由:更新跨越模块边界时第一次必然带着旧代码跑) | `apps/bootstrap-installer/src-tauri/src/update.rs:383`:`update_args.push("--force".into());` |
+| 3 `rebuild` | `hermes desktop --build-only`,同样重试一次 | `apps/bootstrap-installer/src-tauri/src/update.rs:488`:`let rebuild_args: Vec<String> = vec!["desktop".into(), "--build-only".into()];` |
+| 4 `install`(仅 macOS) | ditto 新 bundle → 三步换位(target→old,tmp→target,删 old)→ 去隔离属性 | `apps/bootstrap-installer/src-tauri/src/update.rs:1078`:`async fn swap_in_new_bundle(tmp: &Path, target: &Path, old: &Path) -> Result<()> {` |
+
+`swap_in_new_bundle` 被单独抽出来正是为了能脱离 ditto 做单测,
 三条 tokio 单测钉死了「任何失败路径都不能让 target 处于缺失状态」。
 
 ### 4.3 跨进程更新锁
 
 `.hermes-update-in-progress` 这个文件被**三方**读写:Rust 更新器(`update.rs` 的 `UpdateMarkerGuard`)、
 Electron(`apps/desktop/electron/update-marker.ts`)、Python(`hermes_cli/update_lock.py`)。
-`update.rs:129` 把 20 分钟的年龄上限写成常量并注明「三方读同一个文件,任何一方用更短的上限
-都会偷走另外两方认为还活着的锁」。判活的三条豁免(不存在 / 解析失败 / pid 已死 / 超龄 / **pid 就是自己**)
-写在 `live_marker_owner`(`update.rs:148`);最后那条是 #74761:桌面会**抢先**用子进程 pid 写好标记,
-不豁免自己就会「自己拒绝自己」并无限重启。
+代码把 20 分钟的年龄上限写成常量并注明「三方读同一个文件,任何一方用更短的上限
+都会偷走另外两方认为还活着的锁」。判活的豁免(不存在 / 解析失败 / pid 已死 / 超龄 /
+**pid 就是自己**)写在 `live_marker_owner`;最后那条是 #74761:桌面会**抢先**用子进程 pid
+写好标记,不豁免自己就会「自己拒绝自己」并无限重启。
+
+| 关注点 | 锚点 + 摘录 |
+|---|---|
+| 20 分钟上限常量(三方共用) | `apps/bootstrap-installer/src-tauri/src/update.rs:129`:`const UPDATE_MARKER_MAX_AGE_SECS: u64 = 20 * 60;` |
+| 判活与豁免入口 | `apps/bootstrap-installer/src-tauri/src/update.rs:148`:`fn live_marker_owner(path: &Path) -> Option<MarkerOwner> {` |
+| 年龄计算 | `apps/bootstrap-installer/src-tauri/src/update.rs:157`:`let age_secs = now.saturating_sub(started_at);` |
 
 ### 4.4 打包链上每个脚本各自防的是哪一个具体故障
 
@@ -763,14 +843,19 @@ Electron(`apps/desktop/electron/update-marker.ts`)、Python(`hermes_cli/update_l
 
 **(a) 错误横幅是隐式断言。** `e2e/test.ts` 用 `addInitScript` 注入 MutationObserver 收集
 所有 `[role="alert"]`,并在 `afterEach` 里**无条件**检查(即使用例已因别的原因失败),
-理由写在 `test.ts:131-135`:错误横幅常常**就是**根因,失败时压下去反而掩盖问题。
+理由是错误横幅常常**就是**根因,失败时压下去反而掩盖问题。
 故意触发错误的用例得显式调 `allowErrorBanners()`。
 
-**(b) 视觉回归只报告不失败。** `visual-snapshot.ts` 没用 Playwright 的
+**(b) 视觉回归只报告不失败。** `apps/desktop/e2e/visual-snapshot.ts` 没用 Playwright 的
 `toHaveScreenshot`,而是自己把两张 PNG 交给 Electron 的 `nativeImage` 逐像素比,
 超过 1% 才写出 `-expected/-diff` 并 `console.log`,**从不 throw**。
-配套 `playwright.config.ts:52-61` 里的 `toHaveScreenshot` 阈值是给别处用的。
 取舍很明确:像素级门禁在跨机器字体渲染下必然误报,于是把它降级成「CI 摘要里的一张图」。
+
+| 关注点 | 锚点 + 摘录 |
+|---|---|
+| 错误横幅 afterEach 无条件触发 | `apps/desktop/e2e/test.ts:139`:`base.afterEach(async ({}, testInfo) => {` |
+| 视觉差异 ≤1% 直接返回,超了也只 log | `apps/desktop/e2e/visual-snapshot.ts:141`:`if (comparison.mismatchRatio <= 0.01) {` |
+| playwright 自己的 `toHaveScreenshot` 阈值(本片未用于门禁) | `apps/desktop/playwright.config.ts:53`:`toHaveScreenshot: {` |
 
 ### 4.6 perf 框架的隔离设计
 
@@ -791,7 +876,20 @@ Electron(`apps/desktop/electron/update-marker.ts`)、Python(`hermes_cli/update_l
 > Installers are built and uploaded to GitHub Releases manually. macOS/Windows signing & notarization happen automatically when the relevant credentials are present in the environment (`CSC_LINK` / `CSC_KEY_PASSWORD` / `APPLE_*` for macOS, `WIN_CSC_*` for Windows).
 
 **整句一并判定**:这句话讲了三件事——(i) 安装器手工上传 Releases;(ii) macOS 侧凭据齐备即自动签名与公证;(iii) Windows 侧凭据齐备即自动签名。
-(i) 无从证伪,不计。(ii) **成立**:`afterSign: scripts/notarize.mjs`,`notarize.mjs:76-84` 正是「`APPLE_API_KEY/_ID/_ISSUER` 齐备才做,缺了就跳过」。
+(i) 无从证伪,不计。(ii) **成立**:`afterSign: scripts/notarize.mjs`,而该脚本正是
+「`APPLE_API_KEY/_ID/_ISSUER` 齐备才做,缺了就跳过」:
+
+`apps/desktop/scripts/notarize.mjs:79 @ 863e313`
+
+```
+  if (!rawApiKey || !keyId || !issuer) {
+    console.log(
+      'Skipping notarization: APPLE_API_KEY, APPLE_API_KEY_ID, and APPLE_API_ISSUER are not fully configured.'
+    )
+    return
+  }
+```
+
 (iii) **被代码否定**:
 
 `apps/desktop/package.json:248 @ 863e313`
@@ -868,8 +966,21 @@ crate 内没有任意路径读取)。第 1 件**不成立**:macOS 更新路径�
         .map_err(|e| anyhow!("running ditto: {e}"))?;
 ```
 
-随后 `swap_in_new_bundle(&tmp, target_app, &old)` 把它 rename 到 `target_app`
-(`update.rs:1057`),再 `xattr -dr com.apple.quarantine` 掉隔离属性(`update.rs:1059`)。
+随后由下面两步把它 rename 到 `target_app` 并去掉隔离属性:
+
+`apps/bootstrap-installer/src-tauri/src/update.rs:1057 @ 863e313`
+
+```
+    swap_in_new_bundle(&tmp, target_app, &old).await?;
+
+    let _ = Command::new("/usr/bin/xattr")
+        .arg("-dr")
+        .arg("com.apple.quarantine")
+        .arg(target_app)
+        .current_dir(crate::paths::hermes_home())
+        .status()
+        .await;
+```
 *(注:这份 description 不在派工书列的六个文档源里,是 crate 内的自述;标 ▲ 时已注明来源。)*
 
 ### ▲-4 perf 入口注释说默认套件是 3 个场景,实际是 5 个
@@ -895,8 +1006,13 @@ export const CI_SCENARIOS = Object.values(SCENARIOS)
 
 ### ◇-1 perf README 的场景表漏了两个真实场景
 
-`apps/desktop/scripts/perf/README.md:50` 起的表共 13 行,其中一行是 `stream --real`
-(同一模块的一个 flag),故只覆盖 12 个模块;注册表里有 14 个。
+场景表从下面这一行开始,共 13 行:
+
+`apps/desktop/scripts/perf/README.md:50 @ 863e313`
+
+> | `stream` | ci | streaming longtasks, frame p95/p99, mutation cadence | measure-synthetic-stream, profile-synth-stream, profile-long-stream |
+
+13 行里有一行是 `stream --real`(同一模块的一个 flag),故只覆盖 12 个模块;注册表里有 14 个。
 **缺席的是 `multitab`(tier `ci`,在默认套件里,也在 baseline.json 里)与 `stream-history`(tier `manual`)。**
 字面没有假陈述,属「代码有、文档无」。
 
@@ -913,17 +1029,37 @@ cd /home/user/hermes-agent/apps/bootstrap-installer/src-tauri && \
 # exit=1
 ```
 
-它们在 `apps/bootstrap-installer/src-tauri/Cargo.toml:55` 的 `once_cell = "1"` 一带声明。
+声明处(`futures` 单独在 `apps/bootstrap-installer/src-tauri/Cargo.toml:37`,其余三个连在一起):
+
+`apps/bootstrap-installer/src-tauri/Cargo.toml:56 @ 863e313`
+
+```
+thiserror = "1"
+once_cell = "1"
+uuid = { version = "1", features = ["v4"] }
+```
+
 后果不是编译错误,而是**签名安装器的依赖树无谓变大 + 供应链面变宽**,配合 §6 ■-1 的
 无 lockfile 更值得注意。
 
 ### ◎-1 「thin installer 不带 Python 负载」的说法保守但为真
 
-`test-desktop.mjs:16-19` 的注释说包里只有 Electron 壳 + extraResources。
+`apps/desktop/scripts/test-desktop.mjs` 开头的注释说包里只有 Electron 壳 + extraResources。
 `validateBundle()` 不但正向断言 `install-stamp.json` 与 node-pty 存在,还**反向断言**
-`resources/hermes-agent/hermes_cli/main.py` **不得存在**(`test-desktop.mjs:301`),
-并在错误文案里点名「防止 400MB delta 回来」。文档说的是「不带」,代码做的是
-「不带 + 每次打包都验证没带回来」—— 字面为真,实际更强。
+旧的胖负载不得存在:
+
+`apps/desktop/scripts/test-desktop.mjs:301 @ 863e313`
+
+```
+  const staleFactoryMarker = path.join(APP.resourcesPath, 'hermes-agent', 'hermes_cli', 'main.py')
+  if (exists(staleFactoryMarker)) {
+    die(
+      `Thin-installer regression: factory-payload file should NOT be in the package: ${staleFactoryMarker}`
+    )
+  }
+```
+
+文档说的是「不带」,代码做的是「不带 + 每次打包都验证没带回来」—— 字面为真,实际更强。
 
 ---
 
@@ -962,7 +1098,7 @@ cd /home/user/hermes-agent && grep -rniE \
 
 也就是说信任链**完全等于 TLS + GitHub**:`download()` 拿到 200 就落盘(§3 跳 5 的块),
 然后 `-ExecutionPolicy Bypass -File` 执行(§3 跳 7 的块)。
-默认构建**连 commit pin 都没有**(build.rs:107,commit pin 是 opt-in),
+默认构建**连 commit pin 都没有**(见 §3 跳 4 里 `build.rs` 的逐字块:commit pin 是 opt-in),
 所以出厂默认是**跟分支 HEAD 走**,每次安装取当时的 `main`。
 
 **(c) 唯一一处叫 `verify` 的代码做的是相反的事。** 安装器把自己拷进 HERMES_HOME 后,
@@ -1011,7 +1147,7 @@ strip = true
 ```
 
 `panic = "abort"` 下**不会 unwind**,`Drop` 不会跑,标记会留在盘上。
-实际影响被两道兜底缩小了(20 分钟年龄上限 + pid 判活,`update.rs:158`),
+实际影响被两道兜底缩小了(20 分钟年龄上限 + pid 判活,见 §4.3 表),
 但注释声称的不变量「EVERY exit path」在 release 构建里不成立;
 `Drop` 只在 success / early-return 两条路上有效。
 *(在 debug 构建里成立,单测 `update_marker_guard_writes_then_removes_on_drop` 因此是绿的
@@ -1031,8 +1167,15 @@ strip = true
 `<path>.hermes-update-old` 再把 Hermes 放进去,最后 `xattr -dr com.apple.quarantine`。
 调用者是桌面(可信),所以这不是远程可利用,但**没有任何「必须在 /Applications 或用户
 Applications 下」的约束**;一次参数拼接错误就会移走一个无关的 `.app`。
-对比 `install_macos_app_update` 开头那句 `refusing to install update into non-app path`
-(update.rs:991)—— 校验意图是有的,只是止步于扩展名。
+对比 `install_macos_app_update` 开头那句拒绝语:
+
+`apps/bootstrap-installer/src-tauri/src/update.rs:992 @ 863e313`
+
+```
+            "refusing to install update into non-app path: {}",
+```
+
+—— 校验意图是有的,只是止步于扩展名。
 
 ### ■-4 两个直接依赖在**全仓任何 package.json 里都没声明**
 
@@ -1092,10 +1235,22 @@ export interface MockBackendOptions {
 const WS_URL = 'ws://127.0.0.1:9222/devtools/page/6E095DBE024BD280C674D00023C01201'
 ```
 
-`diag-overlay-sweep.mjs:6` 是同一个常量,但至少给了 `process.env.CDP_WS` 覆盖口;
+同目录的 sweep 版是同一个常量,但至少给了 `process.env.CDP_WS` 覆盖口:
+
+`apps/desktop/scripts/diag-overlay-sweep.mjs:6 @ 863e313`
+
+```
+const WS_URL = process.env.CDP_WS || 'ws://127.0.0.1:9222/devtools/page/6E095DBE024BD280C674D00023C01201'
+```
+
 `diag-overlay-full.mjs` 没有任何覆盖口,在别人机器上必然连不上。
-同目录里的其它探针都用 `fetch('http://127.0.0.1:9222/json/list')` 动态发现 target
-(如 `probe-renderer.mjs:2`),说明正确写法在同一目录里就有。
+而同目录里的其它探针都用动态 target 发现,说明正确写法就在旁边:
+
+`apps/desktop/scripts/probe-renderer.mjs:2 @ 863e313`
+
+```
+const list = await (await fetch('http://127.0.0.1:9222/json/list')).json()
+```
 
 ### ■-7 `probe-model-picker.mjs` 的自述用法路径是错的
 
@@ -1121,14 +1276,36 @@ cd /home/user/hermes-agent && grep -rn "rebuild-native\|rebuildNodePty" apps/ --
 # apps/desktop/scripts/rebuild-native.mjs:21:  await rebuildNodePty({ arch })
 ```
 
-只有它自己。`stage-native-deps.mjs:316` 需要重编时**不**调它,而是直接 spawn
-`../../node_modules/.bin/electron-rebuild`。两条重编路径并存,其中一条是死的。
+只有它自己。真正需要重编时走的是另一条路 —— 直接 spawn `electron-rebuild`:
+
+`apps/desktop/scripts/stage-native-deps.mjs:316 @ 863e313`
+
+```
+    const rebuildArgs = [
+      '../../node_modules/.bin/electron-rebuild',
+      '-f',
+      '-w',
+      'node-pty',
+      '--arch',
+      arch
+    ]
+```
+
+两条重编路径并存,其中一条是死的。
 
 ### ■-9 `get_bootstrap_status` 注册了但前端从不调用
 
-`bootstrap.rs:64-66` 的注释说这个状态是「让前端在窗口刷新后重新查询」用的,
-但 `store.ts` 里 6 个 action 无一调用它(§2.4 表);`bootstrap.rs:748` 的注释也承认
-「UI 不会轮询 get_bootstrap_status」,所以标记写失败时必须发 `Failed` 事件。
+`BootstrapHandle` 的注释说这个状态是「让前端在窗口刷新后重新查询」用的,
+但 `apps/bootstrap-installer/src/store.ts` 里 6 个 action 无一调用它(§2.4 表);
+另一处注释也直接承认 UI 不会轮询它:
+
+`apps/bootstrap-installer/src-tauri/src/bootstrap.rs:748 @ 863e313`
+
+```
+    // Marker publish is terminal for this run: a write failure must emit Failed
+    // so the UI leaves the progress state (it does not poll get_bootstrap_status).
+```
+
 即:**设计意图(刷新后可恢复)没有落地**,窗口一刷新前端就回到 `welcome` 且丢掉全部进度。
 搜索面:`apps/bootstrap-installer/src/` 全目录 grep `get_bootstrap_status`,零命中。
 
@@ -1157,8 +1334,14 @@ let _scriptIndex = 0
 
 `build` 里没有 `tsc -b`(§2.1 第 14 条的逐字块)。同段还写「a stale checkout that fails
 typecheck」—— 由于 `build` 不做类型检查,这个场景根本到不了这里。
-同类的还有 `test-desktop.mjs:87` 提到 `electron-main.cjs`,而 bundler 产出的是
-`dist/electron-main.mjs`(`bundle-electron-main.mjs:23`)。
+同类的还有下面这句提到 `electron-main.cjs`,而 `apps/desktop/scripts/bundle-electron-main.mjs`
+产出的是 `dist/electron-main.mjs`:
+
+`apps/desktop/scripts/test-desktop.mjs:87 @ 863e313`
+
+```
+// Match node-pty native binding location to what the bundled electron-main.cjs
+```
 
 ---
 
@@ -1192,9 +1375,15 @@ vitest 4.1.10;**本片未安装任何包**。
 
 ### 7.2 本片跑不了的:`e2e/` 25 文件(如实申报)
 
-**19 个 spec / 47 个用例一个都没跑。** 原因是真 Electron 二进制不存在——
-`e2e/fixtures.ts:290` 的 `findElectron()` 先找
-`<repo>/node_modules/electron/dist/electron`,找不到再 `which electron`,两者皆无就抛。
+**19 个 spec / 47 个用例一个都没跑。** 原因是真 Electron 二进制不存在 —— `findElectron()`
+先找仓库根的 `node_modules/electron/dist/electron`,找不到再 `which electron`,两者皆无就抛:
+
+`apps/desktop/e2e/fixtures.ts:290 @ 863e313`
+
+```
+  const localElectron = path.join(REPO_ROOT, 'node_modules', 'electron', 'dist', 'electron')
+```
+
 主线已确认本容器的 node 环境是用 `ELECTRON_SKIP_BINARY_DOWNLOAD=1` 装的。
 另外 `test:e2e` 的第一步是 `npm run build`(含 `vite build` + esbuild + 暂存 node-pty),
 `launch-packaged-app.spec.ts` 还要求先 `npm run pack`(完整 electron-builder 打包)。
@@ -1247,9 +1436,9 @@ vitest 4.1.10;**本片未安装任何包**。
 | H-K-c | `apps/bootstrap-installer/src-tauri/Cargo.toml:75`:`panic = "abort"` | release 下 `Drop` 不跑,`UpdateMarkerGuard` 注释宣称的「EVERY exit path」不成立 | 交叉验证 `hermes_cli/update_lock.py` 与 `apps/desktop/electron/update-marker.ts` 的兜底是否足以覆盖 |
 | H-K-d | `apps/desktop/scripts/test-desktop.mjs:6`:`import { listPackage } from '@electron/asar'` | 全仓 11 个 package.json 均未声明该依赖,靠 npm 提升解析;它在 `npm run check` 链路上 | 查 CI 工作流是否真的跑 `npm run check`;若跑,这是一颗定时炸弹 |
 | H-K-e | `apps/desktop/e2e/tile-unread-bug.spec.ts:166`:`test.describe.skip('sidebar states — split (visible) unread bug (RED)', () => {` | 一个已知 UI 缺陷被写成红灯用例后整块跳过 | 交给做渲染器/侧栏那一片:该 bug 是否已在别处修掉、这块 skip 是否可以拆 |
-| H-K-f | `apps/bootstrap-installer/src-tauri/src/update.rs:964`:`.filter(\|p\| p.extension().and_then(\|e\| e.to_str()) == Some("app"))` | `--target-app` 只校验后缀不校验位置 | 查桌面侧(`apps/desktop/electron/`)是谁拼这个参数、拼的是什么 |
+| H-K-f | `apps/bootstrap-installer/src-tauri/src/update.rs:957`:`fn target_app_from_args<I, S>(args: I) -> Option<PathBuf>` | `--target-app` 只校验 `.app` 后缀、不校验位置,随后会被 rename 并覆写 | 查桌面侧(`apps/desktop/electron/`)是谁拼这个参数、拼的是什么 |
 | H-K-g | `apps/bootstrap-installer/src-tauri/src/bootstrap.rs:139`:`pub async fn get_bootstrap_status(` | 命令已注册,前端 0 调用,「刷新后可恢复」的设计没落地 | 若后续要讲「安装器的可恢复性」,注意别照抄注释里的意图 |
-| H-K-h | `apps/desktop/scripts/perf/README.md:50`:`| \`stream\` | ci | streaming longtasks, frame p95/p99, mutation cadence | measure-synthetic-stream, profile-synth-stream, profile-long-stream |` | 场景表 13 行覆盖 12 个模块,漏了 `multitab`(ci,在默认套件与 baseline 里)与 `stream-history`(manual) | 写成品章讲 perf 框架时以注册表为准,不要照抄 README 的表 |
+| H-K-h | `apps/desktop/scripts/perf/scenarios/index.mjs:37`:`export const CI_SCENARIOS = Object.values(SCENARIOS)` | `perf/README.md:46` 起的场景表 13 行只覆盖 12 个模块,漏了 `multitab`(ci,在默认套件与 baseline 里)与 `stream-history`(manual) | 写成品章讲 perf 框架时以注册表为准,不要照抄 README 的表 |
 
 ---
 

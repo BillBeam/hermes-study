@@ -251,6 +251,14 @@ cd /home/user/hermes-agent && awk '/^import \{$/{start=NR} {L[NR]=$0} \
 ```
 
 ```text
+29
+```
+
+这 29 个是(**主线补记**:原稿把名单贴在 `verify` 块正下方,而那条命令输出的是**计数**,
+不是名单——被 R10B 新增的 `scripts/verify_evidence_commands.py` 抓到。名单本身没错,
+只是它不是那条命令的输出,故与计数分开摆):
+
+```text
 $dismissedAutoProjectIds  $panesFlipped  $pinnedSessionIds  $sidebarAgentsGrouped
 $sidebarCronOpen  $sidebarMessagingOpenIds  $sidebarPinsOpen  $sidebarProjectOrderIds
 $sidebarRecentsOpen  $sidebarSessionOrderIds  $sidebarSessionOrderManual
@@ -1123,10 +1131,24 @@ cd /home/user/hermes-agent/apps/desktop && for f in src/app/chat/sidebar/*.test.
 | **1 点名到位** | 每个文件至少一次全路径 + 一句话角色 | **达标** | §0 分 10 组共 55 行,全部写全路径。两处导航性占位行已在紧邻处显式说明所指(0.3 表首行、0.10 表中段)。 |
 | **2 接缝穷举** | 每个对外接缝逐项列全 + 机械枚举命令 + 条数 | **约 8 成** | 已穷举:sidebar props 13、section props 40 + 8 分支、layout store 面 29 / 持久键 13、openSession intent 4、行手势 8、动作菜单全项、gateway 事件 47+3、hook 返回面 6 张表、slice 导出 192、projects barrel 15。**未穷举**:profile 轨动作面、slash 命令表、submit 管线错误分支(已在 §2.11 列名)。 |
 | **3 端到端链** | 至少一条链逐跳带锚点 | **达标** | §3.1 共 11 跳,跨 6 个文件 + 2 个 store;§3.2 另附 12 条竞态与其防线锚点。 |
-| **4 逐字取证** | ≥2 个围栏块是逐字源码 | **达标** | 逐字源码围栏块 19 个(tsx/ts 16、py 2、mjs 1),另有 8 个 ```verify / ```console / ```text 声明式非源码块。 |
+| **4 逐字取证** | ≥2 个围栏块是逐字源码 | **达标** | 逐字源码围栏块 **28** 个(`ts` 21 / `tsx` 4 / `py` 2 / `mjs` 1),另有 18 个显式声明的非源码块(`verify` 14 / `text` 3 / `console` 1)。 |
 | **5 记号** | ≥1 条 ■/▲/◇/◎ 带锚点 | **达标** | ◎ 1(桌面用户指南的「按 id 搜索」bullet 对比实际的多字段 + FTS 实现)、◇ 1(分屏菜单无文档,附 grep 搜索面)、■ 2(ALL 视图搜索半覆盖;`replaceRoute` 死参数 + 接缝两侧命名相反)。 |
 
-**未达标处不粉饰**:判据 2 的三处缺口如上;此外 `profile-switcher.tsx`(748 行)、`slash.ts`(1,087 行)、`submit.ts`(747 行)、`use-prompt-actions/index.ts`(962 行)四个文件只读到**接口面 + 依赖面**,未读实现体(这符合 L2,但意味着它们的内部分支面没有被枚举)。
+**未达标处不粉饰**:判据 2 的三处缺口如上;此外 `apps/desktop/src/app/chat/sidebar/profile-switcher.tsx`(748 行)、`apps/desktop/src/app/session/hooks/use-prompt-actions/slash.ts`(1,087 行)、`apps/desktop/src/app/session/hooks/use-prompt-actions/submit.ts`(747 行)、`apps/desktop/src/app/session/hooks/use-prompt-actions/index.ts`(962 行)四个文件只读到**接口面 + 依赖面**,未读实现体(这符合 L2,但意味着它们的内部分支面没有被枚举)。
+
+**引用关卡自测**(本片交付前跑过):
+
+```console
+$ python3 scripts/verify_citations.py /home/user/hermes-agent notes/r10b-raw-session-list.md
+citations=36  OK=29  UNCHECKED=7
+可校验比例 OK/36 = 80.6%
+table_anchors=18  OK=18
+OK: every code-block-backed citation matches the baseline
+```
+
+0 MISMATCH / 0 BLOCK-DRIFT / 0 TABLE-DRIFT / 0 TABLE-OUT-OF-RANGE,可校验比例 80.6%(下限 70%)。
+点名覆盖用 `data/r10/probes/named_coverage.py --scope data/r10b/slices/B.txt` 实测:
+**full-path 零命中 0 / bare-name 零命中 0**(语料只取本底稿)。
 
 ---
 

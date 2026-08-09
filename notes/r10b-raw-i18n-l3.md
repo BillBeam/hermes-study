@@ -689,6 +689,14 @@ export function getRuntimeI18nLocale(): Locale {
 **判定 ▲,但范围要写准**:被证伪的是「唯一入口是 `useI18n()`」这个机制指认,
 **不是**「不要硬编码字符串」这个意图——后者仍然成立,`translateNow` 也是走 i18n 的。
 
+**与片 C 的分工(给主线归并用,避免同一句文档被记两次 ▲)**:上面引的那句话有两半。
+本片打的是**前半句**(「每个字符串都走 `useI18n()`」——存在第二个翻译器 `translateNow`)。
+**后半句**(「No literals in JSX」)由片 C 从消费者侧机械统计,其探针
+`data/r10b/probes/probe_c_i18n.py` 的 docstring 自述目标即为此。
+两者证伪的是同一句的不同分句,**主线归并时应合成一条 ▲ 的两个证据面,而不是两条 ▲**
+(理由与 CLAUDE.md「一句话讲了三件事,只证伪其中一件不能把整句记 ▲」同源)。
+*本片未读片 C 的产出、不代其结论——此处只引用其探针 docstring 声明的目标。*
+
 ### ◇-1 插件 i18n 这套 API 在官方文档里不存在
 
 `apps/desktop/src/i18n/plugin-i18n.ts` 整整 116 行、4 个导出符号
@@ -894,9 +902,9 @@ cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project ui s
 片号            : I
 层              : L3
 文件数 / 行数   : 13 / 17,378
-实际打开的文件数: 27   (片内 13 全部触及,其中 7 个装配件逐行读完;
-                        片外 14 个为追「谁读它 / 缺了会怎样」而打开)
-实际读过的行数  : ~1,070  (≈ 6% of 17,378)
+实际打开的文件数: 31   (片内 13 全部触及,其中 7 个装配件逐行读完;
+                        片外 18 个为追「谁读它 / 缺了会怎样」而打开)
+实际读过的行数  : ~1,155  (≈ 6.6% of 17,378)
 主观耗费        : 中
 ```
 
@@ -904,12 +912,12 @@ cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project ui s
 
 | 来源 | 行数 | 估法 |
 |---|---:|---|
-| 7 个装配件全文 | 567 | 精确(整目录 `Read`,无截断) |
-| `types.ts` + 5 个语言包 | ~210 | 估算:每个文件 head/tail 各 ~14 行 × 6 = ~170,加定向 `sed`/`grep` 命中区域 ~40 行 |
-| 片外文件片段 | ~293 | `field-copy.ts` 57(全文)、`runtime.test.ts` 75(全文)、`main.tsx` 36、`DESIGN.md` ~30、`keybind-settings.tsx` ~15、`tooltip.tsx` ~25、`sdk/index.ts` 13、`find-bar.test.tsx` ~18、其余 6 个文件各 ~4 行 |
-| **合计** | **~1,070** | |
+| 7 个装配件全文 | 567 | **精确**(整文件 `Read`,无截断):14+31+41+103+66+116+196 |
+| `types.ts` + 5 个语言包 | ~235 | 估算:6 个文件各 head/tail ~18 行 = ~108,加定向 `sed`/`grep` 命中区域(`en.ts` ~30、`zh.ts` ~30、`ar.ts` ~25、`types.ts` ~40)= ~125 |
+| 片外 18 个文件的片段 | ~353 | 全文 2 个:`apps/desktop/src/app/settings/field-copy.ts` 57、`apps/desktop/src/i18n/runtime.test.ts` 75。片段 16 个:`main.tsx` ~36、`DESIGN.md` ~35、`tooltip.tsx` ~25、`find-bar.test.tsx` ~20、`rail.tsx` ~17、`sdk/index.ts` 13、`desktop-plugin-sdk.md` ~13、`keybind-settings.tsx` ~10、`chat/sidebar/index.tsx` ~10、`lib/keybinds/actions.ts` ~10、`AGENTS.md` ~10、其余 5 个各 ~5 |
+| **合计** | **~1,155** | |
 
-**16,811 行的数据表 + 类型契约里,人眼只读了约 210 行(1.2%)**,其余全部由一个 AST 探针
+**16,811 行的数据表 + 类型契约里,人眼只读了约 235 行(1.4%)**,其余全部由一个 AST 探针
 一次性算成 §2.2 那张表。**这正是 L3 与 L2 的成本分野**。
 
 **瓶颈在哪**(三条,按耗时降序):
@@ -920,8 +928,10 @@ cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project ui s
    `apps/desktop/src/app/settings/constants.ts` 把两棵子树接回来,五个包才可比。
    **L3 片的规模数只要跨文件引用一次,天真计数就会给出反向结论**,这个坑要预算进去。
 2. **「缺了会怎样」这一问的答案全在片外。** 片内 13 个文件能回答「有什么、有多大」,
-   但 L3-3 要的那条链有 4 跳(`keybind-settings.tsx` / `tooltip.tsx` / `config-field.tsx` /
-   `command-palette/index.tsx`)**一个都不在片里**。追链打开了 14 个片外文件。
+   但 L3-3 要的那条链有 4 跳(`apps/desktop/src/app/settings/keybind-settings.tsx` /
+   `apps/desktop/src/components/ui/tooltip.tsx` / `apps/desktop/src/app/settings/config-field.tsx` /
+   `apps/desktop/src/app/command-palette/index.tsx`)**一个都不在片里**。追链共打开 18 个片外文件,
+   **比片内文件数(13)还多**。
 3. **概念密度低,跨文件核对多。** 单个机制都不难(合并、查表、context),难的是把
    「4 个 locale 集合是否相等」「512 个键为什么不受保护」这类**需要交叉三四个文件才能下结论**的问题坐实。
    期间否定了 2 个错误怀疑(§4.4 `platformIntro`、§4.5 `ar` 的扁平写法),
@@ -931,7 +941,7 @@ cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project ui s
 
 - **不要按行数估 L3 工作量。** 本片 82% 的行数(数据表)消耗了不到 10% 的时间。
   建议改用两个量:**(a) 非数据文件数**(本片 8 个:7 装配 + 1 契约),
-  **(b) 为答「谁读它」必须打开的片外文件数**(本片 14 个)。本片 ≈ 22 个「有效文件」。
+  **(b) 为答「谁读它」必须打开的片外文件数**(本片 18 个)。本片 ≈ 26 个「有效文件」。
 - **同型数据表要在切片时就识别出来并配探针预算。** 一片里若有 N 个同构数据文件,
   成本是「写一个探针」而不是「读 N 个文件」——但这个探针**平均要迭代两次**才算得对(见瓶颈 1)。
 - **L3-3 那条链决定了片外读量。** 切片时若能顺带标出「本片产物的主要消费者在哪几个文件」,

@@ -319,18 +319,23 @@ function isWorkspacePageRoute(to: string): boolean {
 }
 ```
 
-**routes.ts 的导出面(21 项)**,机械枚举:
+**routes.ts 的导出面(32 项)**,机械枚举:
 
 ```verify
-cd /home/user/hermes-agent/apps/desktop/src && grep -c "^export " app/routes.ts   # -> 21
+cd /home/user/hermes-agent/apps/desktop/src && grep -c "^export " app/routes.ts   # -> 32
+cd /home/user/hermes-agent/apps/desktop/src && grep -n "^export " app/routes.ts   # 逐条
 ```
 
-11 个 `*_ROUTE` 常量 + `SESSION_ROUTE_PREFIX` = 12(其中 `NEW_CHAT_ROUTE` 与 `SESSION_ROUTE_PREFIX`
-都等于 `'/'`),类型 3 个(`AppView` / `AppRouteId` / `AppRoute`)+ `RouteContribution` +
-`SidebarNavContribution`,area 常量 2 个(`ROUTES_AREA` / `SIDEBAR_NAV_AREA`),
-`APP_ROUTES`、`OVERLAY_VIEWS`、`$workspaceIsPage`,函数 8 个(`contributedRoutes`、`isOverlayView`、
-`routePathname`、`isNewChatRoute`、`routeSessionId`、`primaryRouteSelectedSessionId`、`sessionRoute`、
-`appViewForPath`、`syncWorkspaceRoute`、`navigateToWorkspacePage`)。
+逐条列全(32 = 12 + 5 + 5 + 10):
+
+- **路径常量 12**:`SESSION_ROUTE_PREFIX` · `NEW_CHAT_ROUTE` · `SETTINGS_ROUTE` · `COMMAND_CENTER_ROUTE` ·
+  `SKILLS_ROUTE` · `MESSAGING_ROUTE` · `WEBHOOKS_ROUTE` · `ARTIFACTS_ROUTE` · `CRON_ROUTE` ·
+  `PROFILES_ROUTE` · `AGENTS_ROUTE` · `STARMAP_ROUTE`(`SESSION_ROUTE_PREFIX` 与 `NEW_CHAT_ROUTE` 同为 `'/'`)。
+- **类型 5**:`AppView` · `AppRouteId` · `AppRoute` · `RouteContribution` · `SidebarNavContribution`。
+- **数据/atom 5**:`APP_ROUTES` · `ROUTES_AREA` · `SIDEBAR_NAV_AREA` · `OVERLAY_VIEWS` · `$workspaceIsPage`。
+- **函数 10**:`contributedRoutes` · `isOverlayView` · `routePathname` · `isNewChatRoute` ·
+  `routeSessionId` · `primaryRouteSelectedSessionId` · `sessionRoute` · `appViewForPath` ·
+  `syncWorkspaceRoute` · `navigateToWorkspacePage`。
 
 ### 2.2 覆盖层触发条件全表(片 J 专属的重点)
 
@@ -1451,16 +1456,24 @@ cd /home/user/hermes-agent/apps/desktop/src && grep -rn "describe\.skip\|it\.ski
 - `apps/desktop/src/app/cron/cron-job-model.test.ts`:script-only 任务的校验与载荷构造被单独钉住,
   说明"script-only 不写 model/provider"是承诺行为而非实现细节。
 
-**未覆盖的空白(如实说)**:本片 86 个文件里只有 20 个有伴生测试。
-`app/cron/index.tsx`(1,225 行)、`app/messaging/index.tsx`(933 行)、`app/webhooks/index.tsx`(609 行)、
-`app/updates-overlay.tsx`(470 行)、`app/pet-overlay/pet-overlay-app.tsx`(481 行)、
-`components/notifications.tsx`(301 行)都**没有**任何 `.test.` 伴生文件。
+**未覆盖的空白(如实说)**:上面那 20 个测试文件对应的是本片 86 个文件里的一部分,
+**片内几个最长的文件反而没有伴生测试**:`app/cron/index.tsx`(1,225 行)、
+`app/webhooks/index.tsx`(609 行)、`app/pet-overlay/pet-overlay-app.tsx`(481 行)、
+`app/updates-overlay.tsx`(470 行)、`app/master-detail.tsx`(406 行)、
+`components/model-picker.tsx`(351 行)、`components/first-run-remote-form.tsx`(346 行)、
+`components/notifications.tsx`(301 行)。
+(`app/messaging/index.tsx` 933 行**有**测试,已计入上面的 20 个。)
 弹出窗那 481 行(点击穿透、拖拽、双击判定)尤其难测——它全靠真实 OS 窗口与 `elementFromPoint`。
 
 ```verify
 cd /home/user/hermes-agent/apps/desktop/src && for f in app/cron/index.tsx app/messaging/index.tsx \
-  app/webhooks/index.tsx app/updates-overlay.tsx app/pet-overlay/pet-overlay-app.tsx components/notifications.tsx; do
-  b="${f%.tsx}"; ls "$b.test.tsx" "$b.test.ts" 2>/dev/null || echo "no test: $f"; done
+  app/webhooks/index.tsx app/updates-overlay.tsx app/pet-overlay/pet-overlay-app.tsx \
+  components/notifications.tsx components/model-picker.tsx components/first-run-remote-form.tsx \
+  app/master-detail.tsx; do
+  b="${f%.tsx}"
+  if [ -f "$b.test.tsx" ] || [ -f "$b.test.ts" ]; then echo "HAS test: $f"; else echo "NO  test: $f"; fi
+done
+# -> 只有 app/messaging/index.tsx 是 HAS,其余 8 个都是 NO
 ```
 
 ---
@@ -1472,8 +1485,36 @@ cd /home/user/hermes-agent/apps/desktop/src && for f in app/cron/index.tsx app/m
 | 1 点名到位 | 每个文件全路径 + 一句话角色 | **达标**。§0 分 12 组共 86 条,组内逐个列全路径,合计与清单一致(7+7+4+9+17+4+11+11+2+3+9+2 = 86)。 |
 | 2 接缝穷举 | 逐项列全 + 机械枚举命令 + 条数 | **基本达标(约 9 成)**。已穷举:路由表 11、AppView 12、OVERLAY_VIEWS 7、routes.ts 导出 21、覆盖层触发表 19 行、z 阶梯 12、keybind action 71(44 逐个列出 + 两组各 N)、panel.tsx 导出 17 + 使用方 8、overlay-split-layout 导出 7 + 使用方 2、pet-overlay 控制消息 7 + 桥方法 9 + state 载荷 6、宠物动作面 10、四张面板页后端调用 11/5/5/0、hooks 导出 11。**未穷举**:`app/master-detail.tsx` 与 `styles.css` 的导出/选择器面只做了分区概述,没有逐项列全(前者 13 个导出已在 §0.1 概括但未逐条列;后者 2,266 行的选择器面本轮判定为不值得逐条)。这两处是缺口,如实记下。 |
 | 3 端到端链 | 逐跳带锚点 | **达标**。§3 五跳:`use-gateway-boot.ts:325` → `store/boot.ts:83` → `gateway-connecting-overlay.tsx:66` 让屏 → `boot-failure-overlay.tsx:62` 上屏 → `boot-failure-reauth.ts:121` 分支 → `boot-failure-overlay.tsx:251` 三套动作 → 6 条 IPC 各带锚点。 |
-| 4 逐字取证 | ≥2 个围栏块是逐字源码 | **达标**。全文逐字源码围栏块 **31** 个,分布在 routes / overlays / boot / pet / cron / artifacts / notifications / onboarding / keybinds / main.tsx / pane tree store。 |
+| 4 逐字取证 | ≥2 个围栏块是逐字源码 | **达标**。无语言标记的 ``` 围栏(= 逐字源码摘录)共 **46** 个,**每一个前面都紧邻一条 `路径:行号 @ 863e313` 锚点**(机械核对见下),分布在 routes / overlays / boot / pet / cron / artifacts / notifications / onboarding / keybinds / main.tsx / pane-shell tree store;另有 18 个 ```` ```verify ```` 与 2 个 ```` ```text ```` 的声明式非源码块。 |
 | 5 记号 | ≥1 条带锚点 | **达标**。▲2、◎2、◇2、■4,共 10 条,每条带锚点与代码/文档原文。 |
+
+围栏块与锚点配对的机械核对(0 = 没有任何一个逐字块是"块后放锚点"或干脆无锚点):
+
+```verify
+cd /home/user/hermes-study && python3 - <<'PY'
+import re
+FENCE = chr(96) * 3
+lines = open('notes/r10b-raw-shell-overlays.md', encoding='utf-8').read().split('\n')
+anchor = re.compile(r'`[^`]*?\.(?:ts|tsx|md|css)(?::\d+(?:-\d+)?)?\s*@\s*863e313`')
+inb = False; plain = 0; bad = 0
+for i, ln in enumerate(lines):
+    if not ln.startswith(FENCE):
+        continue
+    if inb:
+        inb = False; continue
+    inb = True
+    if ln[3:].strip():
+        continue
+    plain += 1
+    j = i - 1
+    while j >= 0 and not lines[j].strip():
+        j -= 1
+    if j < 0 or not anchor.search(lines[j]):
+        bad += 1
+print('plain fences =', plain, ' without preceding anchor =', bad)
+PY
+# -> plain fences = 46  without preceding anchor = 0
+```
 
 ---
 
@@ -1489,7 +1530,7 @@ cd /home/user/hermes-agent/apps/desktop/src && for f in app/cron/index.tsx app/m
 | H-R10B-J-f | `apps/desktop/DESIGN.md:171`:`- **Master/detail overlays:** `OverlaySplitLayout` + `OverlaySidebar` /` | 文档点名 cron / profiles 走 `OverlaySplitLayout`,实测两者都走 `overlays/panel.tsx`,该基元全仓只有 settings 与 command-center 两个使用方(▲1)。 |
 | H-R10B-J-g | `apps/desktop/src/components/pet/roam-geometry.ts:125`:`export function overlayLedge(petW: number): Ledge {` | 该函数按 `OverlayView` 的等距 inset 公式**反推**覆盖层底边而不测量 DOM,与 `overlay-view.tsx:73` 的 `p-[calc(var(--titlebar-height)+0.625rem)]` 靠注释约定耦合;改一边不会让另一边报错。 |
 | H-R10B-J-h | `apps/desktop/src/app/artifacts/index.tsx:132`:`const sessions = (await listAllProfileSessions(30, 1)).sessions` | Artifacts 页没有后端端点,每次刷新拉最多 30 个会话的全部消息在前端现挖产物;`r` 热键可无节流重复触发。成本模型值得下一轮量一量。 |
-| H-R10B-J-i | 本片 6 个大文件无伴生测试(见 §7 末尾的 `verify` 命令) | `app/cron/index.tsx`(1,225)、`app/messaging/index.tsx`(933)、`app/webhooks/index.tsx`(609)、`app/updates-overlay.tsx`(470)、`app/pet-overlay/pet-overlay-app.tsx`(481)、`components/notifications.tsx`(301)零测试文件。 |
+| H-R10B-J-i | 本片 8 个大文件无伴生测试(见 §7 末尾的 `verify` 命令) | `app/cron/index.tsx`(1,225)、`app/webhooks/index.tsx`(609)、`app/pet-overlay/pet-overlay-app.tsx`(481)、`app/updates-overlay.tsx`(470)、`app/master-detail.tsx`(406)、`components/model-picker.tsx`(351)、`components/first-run-remote-form.tsx`(346)、`components/notifications.tsx`(301)零测试文件;`app/messaging/index.tsx`(933)**有**测试。 |
 
 ---
 

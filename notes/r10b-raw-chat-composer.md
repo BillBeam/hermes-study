@@ -234,9 +234,24 @@ export interface ChatBarProps {
 改向。**这是这一片最重要的设计取舍:能力由宿主注入,composer 自己不去猜。**
 
 `ChatBarProps.onSubmit` 的第二参 `SubmitTextOptions` 有 6 个字段(定义在片外
-`apps/desktop/src/app/session/hooks/use-prompt-actions/utils.ts:387`):
+`apps/desktop/src/app/session/hooks/use-prompt-actions/utils.ts`):
 `attachments` / `composerScope` / `displayText` / `fromQueue` / `sessionId` /
 `storedSessionId`。
+
+`apps/desktop/src/app/session/hooks/use-prompt-actions/utils.ts:387 @ 863e313`
+
+```ts
+export interface SubmitTextOptions {
+  attachments?: ComposerAttachment[]
+  /** The composer scope key that was actually loaded when this text was
+   *  submitted (see use-composer-draft's activeQueueSessionKeyRef). Compared
+   *  against the resolved submit target in sessionContextDrift — a mismatch
+   *  means the composer and the session-side refs disagreed about which
+   *  session this send belongs to (#59305). Omit for non-composer submits
+   *  (queue drain, steer, external submit requests): the check is a no-op
+   *  without it. */
+  composerScope?: string | null
+```
 
 ```verify
 cd /home/user/hermes-agent/apps/desktop/src
@@ -275,8 +290,19 @@ export const COMPOSER_AREAS = {
 | `composer.attachments` | data | `ComposerAttachmentProvider` | 给"+"菜单加一行 |
 | `composer.microActions` | data | `ComposerMicroActionProvider` | 输入区上方药丸条,按 `{busy, sessionId, todos}` 现算 |
 
-中间件链的容错是显式的:抛异常按**放行**处理(`apps/desktop/src/app/chat/composer/contrib.ts:90-92`),所以一个坏插件
+中间件链的容错是显式的:抛异常按**放行**处理(`apps/desktop/src/app/chat/composer/contrib.ts`),所以一个坏插件
 吞不掉用户的消息。
+
+`apps/desktop/src/app/chat/composer/contrib.ts:89-91 @ 863e313`
+
+```ts
+
+      current = next
+    } catch {
+      // Pass-through: a faulty middleware must never swallow the message.
+    }
+  }
+```
 
 ### 2.4 焦点/插入事件总线 —— 6 个事件,6 对 request/on
 
@@ -315,8 +341,22 @@ grep -rn "requestComposerFocus\|requestComposerInsert\b\|requestComposerInsertRe
 `blurComposerInput`,构成"哪一个 composer 是 active"的所有权协议。
 
 `ComposerTarget` 只有三种取值形态:`'main'`、`'edit'`(消息就地编辑框)、`'tile:<storedId>'`
-(`apps/desktop/src/app/chat/composer/focus.ts:21`,类型上是 `'edit' | 'main' | (string & {})`,后者靠 `apps/desktop/src/app/chat/session-tile.tsx:138`
+(`apps/desktop/src/app/chat/composer/focus.ts:21`,类型上是 `'edit' | 'main' | (string & {})`,后者靠 `apps/desktop/src/app/chat/session-tile.tsx`
 `target: \`tile:${storedSessionId}\`` 生成)。
+
+`apps/desktop/src/app/chat/session-tile.tsx:133 @ 863e313`
+
+```ts
+  const scope = useMemo<ComposerScope>(
+    () => ({
+      $awaitingInput: sessionAwaitingInput(runtimeId),
+      $messages: view.$messages,
+      attachments,
+      target: `tile:${storedSessionId}`
+    }),
+    [attachments, runtimeId, storedSessionId, view.$messages]
+  )
+```
 
 ### 2.5 `ComposerScope` —— 一个 ChatBar 是谁,4 个字段
 
@@ -365,9 +405,19 @@ export interface SessionView {
 
 ### 2.7 `PaneMirror<T>` —— 三种瓦片共用的窗格镜像配置,15 个字段
 
-`apps/desktop/src/app/chat/pane-mirror.ts:18` 起。字段:`source`、`also`、`key`、
+`apps/desktop/src/app/chat/pane-mirror.ts` 起。字段:`source`、`also`、`key`、
 `prefix`、`dir`、`anchor`、`before`、`minWidth`、`title`、`tabLead`、`stripTools`、
 `render`、`tabWrap`、`tabDrag`、`close`。
+
+`apps/desktop/src/app/chat/pane-mirror.ts:18 @ 863e313`
+
+```ts
+export interface PaneMirror<T> {
+  /** Reactive source list. */
+  source: ReadableAtom<T[]>
+  /** Extra atoms whose changes should re-sync (e.g. titles living elsewhere). */
+  also?: ReadableAtom<unknown>[]
+```
 
 ```verify
 cd /home/user/hermes-agent/apps/desktop/src
@@ -401,12 +451,42 @@ const EMOJI_TRIGGER_RE = /(?:^|[\s\uFFFC])(:)([a-zA-Z0-9_+-]{2,})$/
 `serializeTextBefore` 让每个 chip 只贡献这一个占位符,于是"药丸后面紧跟 `@`"照样开气泡,
 而药丸的 label 文字不会泄漏进正则。
 
-**`@` 的 6 个 browse scope**(`apps/desktop/src/app/chat/composer/text-utils.ts:21` `DIRECTIVE_SCOPES`):
-`file` / `folder` / `url` / `image` / `tool` / `git`。`apps/desktop/src/app/chat/composer/hooks/use-at-completions.ts:13`
-的 `REF_STARTERS` 是同一组 6 个,`:15` 的 `STARTER_META` 给每个一句说明。
+**`@` 的 6 个 browse scope** —— `file` / `folder` / `url` / `image` / `tool` / `git`:
 
-**补全适配器三选一**(`apps/desktop/src/app/chat/composer/hooks/use-composer-trigger.ts:177-184`):`@`→`at.adapter`、
+`apps/desktop/src/app/chat/composer/text-utils.ts:19 @ 863e313`
+
+```ts
+/** Directive kinds the `@` popover can scope a browse to. Mirrors the starter
+ *  rows in use-at-completions and the gateway's `complete.path` prefixes. */
+export const DIRECTIVE_SCOPES = ['file', 'folder', 'url', 'image', 'tool', 'git'] as const
+
+export type DirectiveScope = (typeof DIRECTIVE_SCOPES)[number]
+```
+
+补全侧的 `REF_STARTERS` 是同一组 6 个(同文件 `:15` 的 `STARTER_META` 给每个一句说明):
+
+`apps/desktop/src/app/chat/composer/hooks/use-at-completions.ts:12 @ 863e313`
+
+```ts
+const KIND_RE = /^@(file|folder|url|image|tool|git):(.*)$/
+const REF_STARTERS = new Set(['file', 'folder', 'url', 'image', 'tool', 'git'])
+```
+
+**补全适配器三选一** —— `@`→`at.adapter`、
 `/`→`slash.adapter`、`:`→`emoji.adapter`。
+
+`apps/desktop/src/app/chat/composer/hooks/use-composer-trigger.ts:177-184 @ 863e313`
+
+```ts
+  const triggerAdapter: Unstable_TriggerAdapter | null =
+    trigger?.kind === '@'
+      ? at.adapter
+      : trigger?.kind === '/'
+        ? slash.adapter
+        : trigger?.kind === ':'
+          ? (emoji?.adapter ?? null)
+          : null
+```
 
 **接受键规则**(整块逐字):
 
@@ -470,8 +550,19 @@ export function acceptsTriggerCompletion({
 编辑器之外还有两处键盘认领:
 `apps/desktop/src/app/chat/composer/hooks/use-composer-undo.ts:113` 在 **document 捕获阶段**认领 `beforeinput` 的
 `historyUndo`/`historyRedo`(macOS 菜单栏的 Edit→Undo 加速键会先于网页拿到按键);
-`apps/desktop/src/app/chat/composer/hooks/use-composer-esc-cancel.ts:59` 在 window 上监听 Escape,处理"焦点在转录区而非输入框"
+`apps/desktop/src/app/chat/composer/hooks/use-composer-esc-cancel.ts` 在 window 上监听 Escape,处理"焦点在转录区而非输入框"
 时的停止。
+
+`apps/desktop/src/app/chat/composer/hooks/use-composer-esc-cancel.ts:59 @ 863e313`
+
+```ts
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => escCancelRef.current(event)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+```
 
 ### 2.10 网关 RPC —— 本片直接发起 8 个
 
@@ -498,11 +589,18 @@ grep -rnoE "request(Gateway)?(<[^>]*>)?\(\s*'[a-z][a-z_]*\.[a-z_]+'" \
 
 ### 2.11 DOM 契约(`data-slot` / `data-*` 属性)—— 13 个 slot
 
-`aui_edit-composer-root`(片外挂的,`apps/desktop/src/app/chat/composer/focus.ts:49` 只读它)、`chat-drop-overlay`、
+`aui_edit-composer-root`(片外挂的,`apps/desktop/src/app/chat/composer/focus.ts` 只读它)、`chat-drop-overlay`、
 `coding-status-cwd`、`composer-attachments`、`composer-bounds`、
 `composer-completion-drawer`、`composer-directive-action`、`composer-dock`、
 `composer-drag-region`、`composer-fade`、`composer-rich-input`、`composer-root`、
 `composer-surface`。
+
+`apps/desktop/src/app/chat/composer/focus.ts:48 @ 863e313`
+
+```ts
+/** Inline edit composer root — mounted only while a user bubble is being edited. */
+const EDIT_COMPOSER_ROOT = '[data-slot="aui_edit-composer-root"]'
+```
 
 其中 4 个是**跨模块被查询**的真接缝,不只是样式钩子:
 
@@ -534,22 +632,84 @@ stash)、`composer-queue`(排队消息)、`composer-input-history`(上下翻历�
 是这个状态的所有者。`ChatBar` 不让两者互相引用,而是自己造一个 ref 分别传给两边
 (`apps/desktop/src/app/chat/composer/index.tsx:188` 的注释原话:"an explicit shared handle, not a back-reference")。
 
-`useComposerDraft` 返回 16 个成员(`apps/desktop/src/app/chat/composer/hooks/use-composer-draft.ts:419-436`):
+`useComposerDraft` 返回 16 个成员(`apps/desktop/src/app/chat/composer/hooks/use-composer-draft.ts`):
 `activeQueueSessionKeyRef`、`clearDraft`、`draftRef`、`editorRef`、`focusInput`、
 `hasText`、`insertInlineRefs`、`insertText`、`isHelpHint`、`isSteerableText`、
 `loadIntoComposer`、`requestMainFocus`、`sessionIdRef`、`setComposerText`、`stashAt`、
 `syncDraftFromEditor`。
 
-`useComposerQueue` 返回 10 个(`apps/desktop/src/app/chat/composer/hooks/use-composer-queue.ts:371-382`):
+`apps/desktop/src/app/chat/composer/hooks/use-composer-draft.ts:419-436 @ 863e313`
+
+```ts
+  return {
+    activeQueueSessionKeyRef,
+    clearDraft,
+    draftRef,
+    editorRef,
+    focusInput,
+    hasText,
+    insertInlineRefs,
+    insertText,
+    isHelpHint,
+    isSteerableText,
+    loadIntoComposer,
+    requestMainFocus,
+    sessionIdRef,
+    setComposerText,
+    stashAt,
+    syncDraftFromEditor
+  }
+```
+
+`useComposerQueue` 返回 10 个(`apps/desktop/src/app/chat/composer/hooks/use-composer-queue.ts`):
 `beginQueuedEdit`、`drainNextQueued`、`editingQueuedPrompt`、`exitQueuedEdit`、
 `queueCurrentDraft`、`queueEdit`、`queueParked`、`queuedPrompts`、`sendQueuedNow`、
 `stepQueuedEdit`。
 
-`useComposerTrigger` 返回 15 个(`apps/desktop/src/app/chat/composer/hooks/use-composer-trigger.ts:441-457`):
+`apps/desktop/src/app/chat/composer/hooks/use-composer-queue.ts:371-382 @ 863e313`
+
+```ts
+  return {
+    beginQueuedEdit,
+    drainNextQueued,
+    editingQueuedPrompt,
+    exitQueuedEdit,
+    queueCurrentDraft,
+    queueEdit,
+    queueParked,
+    queuedPrompts,
+    sendQueuedNow,
+    stepQueuedEdit
+  }
+```
+
+`useComposerTrigger` 返回 15 个(`apps/desktop/src/app/chat/composer/hooks/use-composer-trigger.ts`):
 `argStageEmpty`、`ascendTriggerPath`、`closeTrigger`、`commitTypedSlashDirective`、
 `moveTriggerActive`、`refreshTrigger`、`replaceTriggerWithChip`、`setTriggerActive`、
 `slashFreeTextArgStage`、`trigger`、`triggerActive`、`triggerActiveExplicit`、
 `triggerItems`、`triggerKeyConsumedRef`、`triggerLoading`。
+
+`apps/desktop/src/app/chat/composer/hooks/use-composer-trigger.ts:441-457 @ 863e313`
+
+```ts
+  return {
+    argStageEmpty,
+    ascendTriggerPath,
+    closeTrigger,
+    commitTypedSlashDirective,
+    moveTriggerActive,
+    refreshTrigger,
+    replaceTriggerWithChip,
+    setTriggerActive,
+    slashFreeTextArgStage,
+    trigger,
+    triggerActive,
+    triggerActiveExplicit,
+    triggerItems,
+    triggerKeyConsumedRef,
+    triggerLoading
+  }
+```
 
 `useComposerSubmit` 返回 4 个:`dispatchSubmit`、`queueDraft`、`steerDraft`、`submitDraft`。
 `useComposerVoice` 返回 8 个;`useComposerPopout` 返回 7 个;`useComposerDrop` 返回 7 个;
@@ -596,16 +756,47 @@ IME 组字期间跳过(`:418-427`),其余走 rAF 合并。
 
 ### 跳 3 — Enter 进入决策树
 
-`apps/desktop/src/app/chat/composer/index.tsx:772` 的 Enter 分支先从 DOM 现读一次(`:781`,理由:AUI state 落后一帧),
+`apps/desktop/src/app/chat/composer/index.tsx` 的 Enter 分支先从 DOM 现读一次(`:781`,理由:AUI state 落后一帧),
 判定有 payload 后调 `submitDraft()`(`:812`)。
+
+`apps/desktop/src/app/chat/composer/index.tsx:772 @ 863e313`
+
+```tsx
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+
+      // Decide from the DOM, not React state. `hasComposerPayload` is derived
+      // from the AUI composer state, which lags the latest keystroke by a
+      // render, so on fast typing / IME the just-typed text isn't in state yet.
+      // Without the live read, a real message typed while prompts are queued
+      // would drain the queue instead of sending. submitDraft() re-syncs and
+      // sends the live editor text.
+      const editorText = editorRef.current ? composerPlainText(editorRef.current) : draftRef.current
+      const hasLivePayload = editorText.trim().length > 0 || attachments.length > 0
+```
 
 ### 跳 4 — `submitDraft` 定型引用并选路
 
-`apps/desktop/src/app/chat/composer/hooks/use-composer-submit.ts:132-141` 再从 DOM 同步一次;`:146`
+`apps/desktop/src/app/chat/composer/hooks/use-composer-submit.ts` 再从 DOM 同步一次;`:146`
 `const text = pathifyRefs(draftRef.current)` 把没来得及打空格的裸 `@src/main.ts`
 升格成 `@file:\`src/main.ts\``;`:160` 若本会话有 clarify 卡片则先 skip;
 `:195-201` 走"发送"分支:`triggerHaptic('submit')` → `resetBrowseState` →
 `clearDraft()` → `scope.attachments.clear()` → `dispatchSubmit(text, submittedAttachments)`。
+
+`apps/desktop/src/app/chat/composer/hooks/use-composer-submit.ts:132-141 @ 863e313`
+
+```ts
+    const editor = editorRef.current
+
+    if (editor) {
+      const domText = composerPlainText(editor)
+
+      if (domText !== draftRef.current) {
+        draftRef.current = domText
+        setComposerText(domText)
+      }
+    }
+```
 
 ### 跳 5 — `dispatchSubmit`:带回滚的发送原语
 
@@ -676,13 +867,44 @@ IME 组字期间跳过(`:418-427`),其余走 rAF 合并。
 ### 跳 7 — `onSubmitProp` = `ChatView` 收到的 `onSubmit` prop
 
 `apps/desktop/src/app/chat/index.tsx:619` 把它原样透传给 `ChatBar`。瓦片场景下这个 prop 来自
-`apps/desktop/src/app/chat/session-tile.tsx:215` `onSubmit={actions.submitText}`。
+`apps/desktop/src/app/chat/session-tile.tsx` `onSubmit={actions.submitText}`。
+
+`apps/desktop/src/app/chat/session-tile.tsx:214 @ 863e313`
+
+```tsx
+          onSteer={actions.steerPrompt}
+          onSubmit={actions.submitText}
+          onThreadMessagesChange={actions.handleThreadMessagesChange}
+```
 
 ### 跳 8 — 瓦片的 `submitText`:斜杠命令分流
 
-`apps/desktop/src/app/chat/session-tile-actions.ts:226-243`:若无附件且文本匹配 `SLASH_COMMAND_RE`,
+`apps/desktop/src/app/chat/session-tile-actions.ts`:若无附件且文本匹配 `SLASH_COMMAND_RE`,
 交给 `sessionTileDelegate()?.executeSlash(...)` 并 `return true`(**不走网关提交**);
 否则 `return await submitPromptText(rawText, options)`。
+
+`apps/desktop/src/app/chat/session-tile-actions.ts:226-243 @ 863e313`
+
+```ts
+  const submitText = useCallback(
+    async (rawText: string, options?: SubmitTextOptions) => {
+      const visibleText = rawText.trim()
+      const attachments = options?.attachments ?? scope.attachments.$attachments.get()
+
+      listTileSession(visibleText)
+
+      if (!attachments.length && SLASH_COMMAND_RE.test(visibleText)) {
+        triggerHaptic('selection')
+        await sessionTileDelegate()?.executeSlash(visibleText, runtimeIdRef.current)
+
+        return true
+      }
+
+      return await submitPromptText(rawText, options)
+    },
+    [listTileSession, scope.attachments.$attachments, submitPromptText]
+  )
+```
 
 ### 跳 9 — `useSubmitPrompt` 组装网关参数
 
@@ -728,8 +950,23 @@ IME 组字期间跳过(`:418-427`),其余走 rAF 合并。
 
 ### 4.1 草稿引擎:为什么真源不在 React 里
 
-`apps/desktop/src/app/chat/composer/hooks/use-composer-draft.ts:43-52` 的文档注释把设计意图写得很直白:文字活在
+`apps/desktop/src/app/chat/composer/hooks/use-composer-draft.ts` 的文档注释把设计意图写得很直白:文字活在
 contentEditable + `draftRef`,React 只看**粗粒度选择器**。实际只订阅了三个:
+
+`apps/desktop/src/app/chat/composer/hooks/use-composer-draft.ts:43-52 @ 863e313`
+
+```ts
+/**
+ * The composer's draft engine — the detached source-of-truth spine. The live
+ * text lives in the contentEditable DOM + `draftRef`; React only sees coarse
+ * edge selectors, so typing never re-renders the chrome. Owns the imperative
+ * composer-runtime subscription (draftRef mirror + external repaint + debounced
+ * per-session stash), the edit primitives (append/insert/inline-refs), focus,
+ * and per-session load/clear/stash/restore. The contentEditable *event*
+ * handlers stay in ChatBar (they bridge into the trigger engine) and drive the
+ * primitives exposed here.
+ */
+```
 
 - `hasText` —— 空↔非空(`:67`)
 - `isHelpHint` —— 文本恰好等于 `?`(`:68`)
@@ -739,11 +976,19 @@ contentEditable + `draftRef`,React 只看**粗粒度选择器**。实际只订�
 
 1. `composerRuntime.subscribe(sync)`(`:307`)—— AUI 侧变了就镜像回 `draftRef`,
    并且只在**编辑器没有焦点**时才重绘 DOM(`:280`,焦点在时 DOM 才是真源)。
-2. 防抖 400ms 的按会话落盘(`apps/desktop/src/app/chat/composer/composer-utils.ts:27` `DRAFT_PERSIST_DEBOUNCE_MS`)。
+2. 防抖 400ms 的按会话落盘(`apps/desktop/src/app/chat/composer/composer-utils.ts` `DRAFT_PERSIST_DEBOUNCE_MS`)。
 3. `useLayoutEffect` 的会话切换 stash/restore(`:370`)。**必须是 layout effect**:
    它换的是模块级 `$attachments` atom,passive effect 要等浏览器绘制后才跑,
    那一帧里 DOM 已经是会话 B 而附件还是会话 A(#59305)。
 4. `pagehide` 兜底(`:397-417`)—— Cmd+R 时 React 不跑 effect cleanup。
+
+`apps/desktop/src/app/chat/composer/composer-utils.ts:25 @ 863e313`
+
+```ts
+// Quiet period after the last keystroke before persisting the draft;
+// unmount/pagehide flushes bypass it.
+export const DRAFT_PERSIST_DEBOUNCE_MS = 400
+```
 
 **跨会话落盘的守卫是双层的**:`draftScopeRef`(`:102`,只在切换 effect 里写,所以永远
 指向"编辑器里装的是谁的文本")负责让每次捕获天生正确;`isPendingDraftPersistCurrent`
@@ -770,13 +1015,52 @@ contentEditable + `draftRef`,React 只看**粗粒度选择器**。实际只订�
 
 ### 4.3 队列:一把锁、一个 park 标志、有界重试
 
-- **一把排空锁**:`drainingQueueRef`,所有排空路径共用 `runDrain(pickEntry)`
-  (`apps/desktop/src/app/chat/composer/hooks/use-composer-queue.ts:198`),`pickEntry` 让调用方选队首 / 指定 id / 跳过正在编辑的那条。
-- **park(暂停)是显式停止的语义**:`haltRun`(`apps/desktop/src/app/chat/composer/index.tsx:282-286`)先
-  `parkQueuedPrompts` 再 `onCancel()`。Stop 键、Esc、语音打断、转录区的停止
-  (`apps/desktop/src/app/chat/index.tsx:380-384`)都走它;而"发送这条队列消息"引发的打断走**原始**
-  `onCancel`(`apps/desktop/src/app/chat/composer/hooks/use-composer-queue.ts:273`),因为那次打断的目的正是让队列流起来。
-- **成功排空自动解 park**:
+**一把排空锁。** `drainingQueueRef` + 一条共用的 `runDrain(pickEntry)`,
+`pickEntry` 让调用方选队首 / 指定 id / 跳过正在编辑的那条:
+
+`apps/desktop/src/app/chat/composer/hooks/use-composer-queue.ts:196 @ 863e313`
+
+```ts
+  // All queue drain paths share one lock + send-then-remove sequence.
+  // `pickEntry` lets each caller choose head, by-id, or skip-edited.
+  const runDrain = useCallback(
+    async (pickEntry: (entries: QueuedPromptEntry[]) => QueuedPromptEntry | undefined): Promise<boolean> => {
+```
+
+**park(暂停)是显式停止的语义。** Stop 键、Esc、语音打断,以及转录区的停止
+(`apps/desktop/src/app/chat/index.tsx:380-384`)都走 `haltRun`,它先 park 再 cancel:
+
+`apps/desktop/src/app/chat/composer/index.tsx:282 @ 863e313`
+
+```ts
+  const haltRun = useCallback(() => {
+    parkQueuedPrompts(activeQueueSessionKeyRef.current)
+
+    return onCancel()
+  }, [activeQueueSessionKeyRef, onCancel])
+```
+
+而"发送这条队列消息"引发的打断走**原始** `onCancel`(不 park),因为那次打断的目的
+正是让队列流起来:
+
+`apps/desktop/src/app/chat/composer/hooks/use-composer-queue.ts:263 @ 863e313`
+
+```ts
+      if (busy) {
+        // Promote to the head, then interrupt. The gateway always emits a
+        // settle (message.complete + session.info running:false) when the
+        // turn unwinds, and the busy→false auto-drain below sends this entry.
+        // Unpark first: this interrupt exists to REACH the queue, so the
+        // settle drain must flow — unlike a Stop/Esc halt, which parks.
+        promoteQueuedPrompt(activeQueueSessionKey, id)
+        unparkQueuedPrompts(activeQueueSessionKey)
+        triggerHaptic('selection')
+        void Promise.resolve(onCancel())
+
+        return true
+```
+
+**成功排空自动解 park。**
 
 `apps/desktop/src/app/chat/composer/hooks/use-composer-queue.ts:229 @ 863e313`
 
@@ -822,34 +1106,132 @@ contentEditable + `draftRef`,React 只看**粗粒度选择器**。实际只订�
 | 水化 | 任何"整段到货"的文本(粘贴、恢复草稿、撤销步、重建行) | `apps/desktop/src/app/chat/composer/rich-editor.ts:199` `appendComposerContents` → `chipSpans` → `slashCommandMatches` |
 
 水化通道最容易被忽视,却是"打字路径与非打字路径必须给出同一结果"的那一半。
-`apps/desktop/src/app/chat/composer/slash-refs.ts:32-47` 的两个选项就是为此存在:`boundaryBefore`(粘贴落在词中间时,
+`apps/desktop/src/app/chat/composer/slash-refs.ts` 的两个选项就是为此存在:`boundaryBefore`(粘贴落在词中间时,
 index 0 的 token 不算命令)与 `trailingCommitted`(惰性文本里结尾的 `/clean` 是完整命令,
 而正在打字时结尾的 `/wor` 是半个查询,归气泡管)。
 
-`apps/desktop/src/app/chat/composer/path-refs.ts:22` 的 `BARE_PATH_RE` 要求 token 里**必须有 `/`**,理由写在 `:17-21`:
+`apps/desktop/src/app/chat/composer/slash-refs.ts:32-47 @ 863e313`
+
+```ts
+export interface SlashCommandScanOptions {
+  /**
+   * Whether the text is preceded by a token boundary. False when it's being
+   * inserted mid-word (a paste landing against existing characters), which
+   * disqualifies a token at index 0 — `foo/clean` is not a command. It also
+   * makes that token mid-message rather than an invocation.
+   */
+  boundaryBefore?: boolean
+  /**
+   * Whether a token ending the text counts as committed. True for inert text
+   * (a paste, dropped content): nothing is being typed, so `/clean` at the end
+   * is the whole command. False while editing live, where a trailing `/wor` is
+   * a half-typed query the popover owns and must leave editable.
+   */
+  trailingCommitted?: boolean
+}
+```
+
+`apps/desktop/src/app/chat/composer/path-refs.ts` 的 `BARE_PATH_RE` 要求 token 里**必须有 `/`**,理由写在 `:17-21`:
 `@teknium1` 是一个人名,`@diff` 是一个简单引用,猜错就把人名变成文件引用。
+
+`apps/desktop/src/app/chat/composer/path-refs.ts:17 @ 863e313`
+
+```ts
+// A `/` is required, exactly like URL_RE requires an explicit scheme: `@teknium1`
+// and `@diff` are a handle and a simple ref, not paths, and guessing wrong turns
+// someone's name into a file reference. A separator is the cheap signal that the
+// user meant a path. The token also can't start with a `:` kind prefix — that is
+// already a typed ref and REF_RE owns it.
+const BARE_PATH_RE = /(?<![\w@/])@((?!(?:file|folder|url|image|tool|line|terminal|session|git):)[^\s@:]*\/[^\s@:]*)/g
+const TYPED_BARE_PATH_RE = new RegExp(`${BARE_PATH_RE.source}$`)
+```
 
 ### 4.5 撤销栈:为什么必须整个自己拿
 
-`apps/desktop/src/app/chat/composer/undo-history.ts:1-19` 给的因果链很完整:富编辑器为了躲开 Chromium 的 O(n²) 编辑管线
+`apps/desktop/src/app/chat/composer/undo-history.ts` 给的因果链很完整:富编辑器为了躲开 Chromium 的 O(n²) 编辑管线
 (#45812)改用 `Range` 直接改 DOM,代价是这些改动**不进 Chromium 的撤销栈**,于是
 ⌘Z 会跳过粘贴、撤掉粘贴之前的那次编辑。半拿(只记自己的)会和 Chromium 自己的打字条目
 交错、乱序撤销,所以只能整个拿。
+
+`apps/desktop/src/app/chat/composer/undo-history.ts:1-19 @ 863e313`
+
+```ts
+/**
+ * The composer's own undo stack.
+ *
+ * The rich editor mutates its DOM through `Range` rather than the browser's
+ * editing commands — `execCommand('insertText')` is ~O(n²) on large multiline
+ * blobs and froze the composer for seconds on a big paste (#45812). The cost of
+ * that bypass is that those mutations never reach Chromium's undo stack, so
+ * ⌘Z skipped straight past a paste and undid whatever came *before* it, leaving
+ * the pasted text stranded.
+ *
+ * Owning the whole stack is the only coherent fix: a half-owned one interleaves
+ * our snapshots with Chromium's own typing entries and undoes them out of order.
+ * So every composer edit — typed or programmatic — records here, and the editor
+ * intercepts ⌘Z / ⌘⇧Z instead of letting the native command run.
+ *
+ * Snapshots are plain text + a caret offset, not DOM: the editor already
+ * round-trips losslessly through `composerPlainText`/`renderComposerContents`,
+ * so text is the smallest thing that fully restores a state.
+ */
+```
 
 快照是"纯文本 + caret 偏移"而非 DOM,因为编辑器本来就能通过
 `composerPlainText`/`renderComposerContents` 无损往返。
 连续打字用 600ms 窗口合并成一条(`COALESCE_WINDOW_MS`),上限 200 条。
 
-`withUndoPoint`(`apps/desktop/src/app/chat/composer/hooks/use-composer-undo.ts:66-78`)这个原语值得单独一提:它先取快照、再跑
+`withUndoPoint`(`apps/desktop/src/app/chat/composer/hooks/use-composer-undo.ts`)这个原语值得单独一提:它先取快照、再跑
 条件编辑、**只有真跑了才记账**。因为"快照必须在编辑前取"和"不能每次 Backspace 都清空
 redo 栈"这两个要求是冲突的。
 
+`apps/desktop/src/app/chat/composer/hooks/use-composer-undo.ts:62-74 @ 863e313`
+
+```ts
+  /** Run a conditional edit, banking its pre-edit state only if it actually
+   *  ran. The snapshot has to be taken first (the edit destroys the state we'd
+   *  be saving), but recording unconditionally would clear the redo stack on
+   *  every Backspace that falls through to the native path. */
+  const withUndoPoint = useCallback(
+    (edit: () => boolean) => {
+      const before = snapshot()
+      const ran = edit()
+
+      if (ran) {
+        history.record(before)
+      }
+
+      return ran
+    },
+    [history, snapshot]
+  )
+```
+
 ### 4.6 弹出(pop-out):状态归 zone,夹取归 surface
 
-`apps/desktop/src/app/chat/composer/hooks/use-composer-popout.ts:24-37` 讲清了一个 N-surface 的坑:一个布局 zone 为整个 tab
+`apps/desktop/src/app/chat/composer/hooks/use-composer-popout.ts` 讲清了一个 N-surface 的坑:一个布局 zone 为整个 tab
 栈存**一个**意图,但每个 surface 的 rect 不同,所以夹取必须在各 surface 本地做。
 若把夹取结果写回 store,每个 keep-alive 挂着的后台 tab 都会用**它自己的**几何去覆盖,
 最后写者获胜 —— 这就是"在一个 tab 里拖动,到另一个 tab 就丢了"的成因。
+
+`apps/desktop/src/app/chat/composer/hooks/use-composer-popout.ts:24-37 @ 863e313`
+
+```ts
+/**
+ * This surface's on-screen placement, derived from its zone's drag intent.
+ *
+ * A zone stores one intent for its whole tab stack — drag the box in any tab and
+ * it moves in all of them — but each surface owns a different rect, so the
+ * intent is clamped per surface. Clamping into the store instead would have
+ * every keep-alive-mounted tab overwrite the others with a position bounded by
+ * ITS geometry, last writer winning: that's how a drag in one tab used to get
+ * lost in another.
+ *
+ * Re-placing is skipped while this surface drags (the gesture already clamped
+ * against this rect) and while it's an inactive tab (still mounted, so a live
+ * drag would otherwise force a reflow per background tab per frame).
+ */
+```
 
 手势(`use-popout-drag.ts`)的常量表:长按 360ms、容忍 10px、向上撕出 16px、
 停靠带高 72px、中央容差 150px、垂直/水平衰减 260/220px。停靠接近度是对**本 surface 的
@@ -857,21 +1239,97 @@ redo 栈"这两个要求是冲突的。
 
 ### 4.7 会话瓦片:同一棵树,换两个 Provider
 
-`apps/desktop/src/app/chat/session-tile.tsx:192-222` 是全片最能说明架构的 30 行:瓦片就是
+`apps/desktop/src/app/chat/session-tile.tsx` 是全片最能说明架构的 30 行:瓦片就是
 `<SessionViewProvider value={view}><ComposerScopeProvider value={scope}><ChatView …/>`。
 `buildTileView`(`:77-105`)把 `$sessionTiles` + `$sessionStates` 计算成与主会话
 **同形**的 13 个 atom;`scope`(`:133-141`)给它一份自己的附件集与 `tile:<id>` 路由键。
 
-`ChatView` 是 `memo()` 的(`apps/desktop/src/app/chat/index.tsx:274`),所以瓦片必须把每个回调 prop 都
+`apps/desktop/src/app/chat/session-tile.tsx:192-222 @ 863e313`
+
+```tsx
+  return (
+    <SessionViewProvider value={view}>
+      <ComposerScopeProvider value={scope}>
+        <ChatView
+          gateway={gateway}
+          modelMenuContent={modelMenuContent}
+          onAddContextRef={addContextRefAttachment}
+          onAddUrl={onAddUrl}
+          onAttachDroppedItems={composer.attachDroppedItems}
+          onAttachImageBlob={composer.attachImageBlob}
+          onCancel={actions.cancelRun}
+          onDeleteSelectedSession={noop}
+          onDismissError={actions.dismissError}
+          onEdit={actions.editMessage}
+          onPasteClipboardImage={onPasteClipboardImage}
+          onPickFiles={onPickFiles}
+          onPickFolders={onPickFolders}
+          onPickImages={onPickImages}
+          onReload={actions.reloadFromMessage}
+          onRemoveAttachment={onRemoveAttachment}
+          onRestoreToMessage={actions.restoreToMessage}
+          onRetryResume={onRetryResume}
+          onSteer={actions.steerPrompt}
+          onSubmit={actions.submitText}
+          onThreadMessagesChange={actions.handleThreadMessagesChange}
+          onToggleSelectedPin={noop}
+          onTranscribeAudio={tileTranscribeAudio}
+        />
+      </ComposerScopeProvider>
+    </SessionViewProvider>
+  )
+```
+
+`ChatView` 是 `memo()` 的(`apps/desktop/src/app/chat/index.tsx`),所以瓦片必须把每个回调 prop 都
 `useCallback` 稳住 —— `apps/desktop/src/app/chat/session-tile.tsx:154-158` 的注释与 `:107-112` 的模块级常量
 (`noop`、`tileTranscribeAudio`)都是为这一条。
 
+`apps/desktop/src/app/chat/index.tsx:271 @ 863e313`
+
+```tsx
+// Memoized: the tile caller (session-tile.tsx) and the contrib surface re-render
+// on idle ticks unrelated to the chat; with stable callback props (hoisted to
+// useCallback at the call sites) memo() lets the whole chat shell skip those.
+export const ChatView = memo(function ChatView({
+```
+
 ### 4.8 会话拖拽:一套指针会话,四种落点
 
-`apps/desktop/src/app/chat/session-drag.ts:1-26` 记录了一次**技术选型的撤退**:原来用原生 HTML5 DnD,代价是
+`apps/desktop/src/app/chat/session-drag.ts` 记录了一次**技术选型的撤退**:原来用原生 HTML5 DnD,代价是
 macOS 的取消回弹动画、被动画卡住的 `dragend`、页面根本收不到的 Esc、以及要防着
 react-dnd/dnd-kit 的窗口级装甲。改成指针会话后这些全没了,已知代价是"不能再把会话拖进
 另一个 BrowserWindow"。
+
+`apps/desktop/src/app/chat/session-drag.ts:1-26 @ 863e313`
+
+```ts
+/**
+ * Sidebar session drag — the session RESOLVER over the shared pointer drag
+ * session (pane-shell drag-session.ts). Same machinery as a pane drag
+ * (threshold, rAF moves, snapshots, Esc-as-top-layer with synchronous
+ * teardown), session-specific targeting:
+ *
+ *   - a chat zone's TAB STRIP  → stack: open the session as a tab at the
+ *     divider's slot (the strip caret shows it);
+ *   - a chat zone's EDGE band  → split: open the session as a tile docked on
+ *     that edge (the zone sheet morphs to the half);
+ *   - a chat zone's CENTER / the composer → link: insert an `@session` chip
+ *     into that surface's composer (ChatDropOverlay owns the visual);
+ *   - anything else (sidebar, terminal, gutters) → deny.
+ *
+ * Zones that don't host a chat surface are NOT targets — the overlay never
+ * lights them, so a release there must not commit either (one truth).
+ *
+ * This replaced the native-HTML5 drag + SessionTileDropBridge: riding the
+ * native DnD layer meant macOS's cancel snap-back animation, a `dragend`
+ * held hostage until that animation finished, an Esc the page never even
+ * saw, and window-level armor against react-dnd/dnd-kit. A pointer session
+ * has none of those failure modes. Native DnD remains only at the true OS
+ * boundary (Finder file drops). Known trade: a session can no longer be
+ * dragged into a separate BrowserWindow (native DnD was the only transport
+ * that crossed windows).
+ */
+```
 
 落点四选一(`:149-192`):tab 栏 → 堆叠;边缘带 → 分屏;聊天 zone 中央或输入区 → 链接;
 非聊天 zone 的中央 → 也堆叠(那里没有 composer 可链接)。提交:
@@ -919,8 +1377,16 @@ react-dnd/dnd-kit 的窗口级装甲。改成指针会话后这些全没了,已�
 
 代码里是 8 个(见 §2.3 的逐字块,`apps/desktop/src/app/chat/composer/contrib.ts:31-40`):文档漏了 **`underside`**
 (整个 composer 下方的无边框浮条,`apps/desktop/src/app/chat/composer/index.tsx:1271-1273` 在渲染它)与
-**`microActions`**(输入区上方的药丸条,`apps/desktop/src/app/chat/composer/index.tsx:1080` 的 `<ActionBadges>`
+**`microActions`**(输入区上方的药丸条,`apps/desktop/src/app/chat/composer/index.tsx` 的 `<ActionBadges>`
 + `use-micro-actions.ts` 的发布路径)。
+
+`apps/desktop/src/app/chat/composer/index.tsx:1079 @ 863e313`
+
+```tsx
+          <div className={cn(composerFloatingStrip, 'px-[5px] pb-1.5 empty:hidden')}>
+            <ActionBadges sessionId={statusSessionId} />
+          </div>
+```
 
 **判为 ◎ 而不是 ▲**:文档点名的那 6 个逐个都成立,句子的谓语("让插件在 composer 周围
 加控件 / 提供附件源 / 在发送前改写草稿")对这 6 个也成立;它只是把一个 8 项的集合
@@ -951,20 +1417,85 @@ grep -rn "ComposerMicroActionProvider\|composer.microActions\|composer.underside
 `apps/desktop/DESIGN.md` 只有三处提到 composer(`:48`、`:196`、`:198`),内容是
 "聊天是主界面"与"不要 fork 第二套 markdown/message/tool-call 组件"。而本片最关键的
 架构决定 —— **主会话不是特权体,它只是第一个 tab,和瓦片读同一形状的 13 个 atom**
-(`apps/desktop/src/app/chat/session-view.tsx:22-41` 的注释就是这么讲的)—— 在任何文档里都没有对应描述。
+(`apps/desktop/src/app/chat/session-view.tsx` 的注释就是这么讲的)—— 在任何文档里都没有对应描述。
 `website/docs/user-guide/desktop.md` 讲了 tab / 分屏的**用户可见行为**,没讲这层模型。
+
+`apps/desktop/src/app/chat/session-view.tsx:22-41 @ 863e313`
+
+```ts
+/**
+ * SESSION VIEW — the store surface a ChatView renders from. Every session,
+ * including the one in the workspace pane, renders from ITS OWN slice of
+ * `$sessionStates`. The workspace pane is just the first tab: a session
+ * surface with no privileged state of its own.
+ *
+ * That symmetry is load-bearing. The pane used to render off the global
+ * `$messages`/`$busy` atoms — a mirror of whichever session was active — so
+ * with two turns in flight (⌘T tabs made that routine), navigating away from
+ * a still-streaming session left it painting into the surface now showing a
+ * different conversation. Reading the per-session slice makes that
+ * structurally impossible rather than merely guarded.
+ *
+ * The global atoms stay the DRAFT surface: a new chat has no runtime id, and
+ * therefore no slice, until its first turn creates one.
+ *
+ * Everything is atoms (not values) so subscription granularity survives:
+ * ChatView subscribes only to the coarse edges; `$messages` stays boundary-
+ * only exactly like the primary view's perf contract.
+ */
+```
 
 ### 文档成立的几处(记录以免下一轮重复排查)
 
-- `website/docs/user-guide/desktop.md:80` "模型选择器就在 composer 里,麦克风左边" ——
-  成立:`apps/desktop/src/app/chat/composer/controls.tsx:94-95` 的顺序正是 `<ModelPill>` 紧接 `<DictationButton>`。
-- `website/docs/user-guide/desktop.md:47` "按 Stop(或 Esc)会暂停队列并把它展开在 composer 上方" —— 成立:
-  `apps/desktop/src/app/chat/composer/index.tsx:282` `haltRun` 先 `parkQueuedPrompts`;`apps/desktop/src/app/chat/composer/queue-panel.tsx:65-67`
-  `defaultCollapsed={!parked}` 且 `key={parked ? 'parked' : 'flowing'}`(靠换 key 重挂
-  来强制展开)。
-- `website/docs/user-guide/skills/bundled/software-development/software-development-inspecting-hermes-desktop-dom.md:103` 用
-  `[data-slot="composer-rich-input"]` 判定 composer 是否存在 —— 与
-  `apps/desktop/src/app/chat/composer/rich-editor.ts:22` 的 `RICH_INPUT_SLOT` 一致。
+**(1) "模型选择器在 composer 里、麦克风左边" —— 成立。**
+
+`website/docs/user-guide/desktop.md:80 @ 863e313`
+
+> The model picker lives in the **composer**, just left of the microphone.
+
+代码侧顺序正是 `<ModelPill>` 紧接 `<DictationButton>`:
+
+`apps/desktop/src/app/chat/composer/controls.tsx:93 @ 863e313`
+
+```tsx
+    <div className="ml-auto flex shrink-0 items-center gap-(--composer-control-gap)">
+      <ModelPill compact={compactModelPill} disabled={disabled} model={state.model} />
+      <DictationButton disabled={disabled} onToggle={onDictate} state={state.voice} status={voiceStatus} />
+      <AutoSpeakButton active={autoSpeak} disabled={disabled} onToggle={onToggleAutoSpeak} />
+      <WakeWordButton disabled={disabled} />
+```
+
+**(2) "按 Stop(或 Esc)会暂停队列并把它展开在 composer 上方" —— 成立。**
+
+`website/docs/user-guide/desktop.md:47 @ 863e313`
+
+> - **Composer history and queue editing** — press the up/down arrow keys in an empty composer
+
+`haltRun` 先 `parkQueuedPrompts` 再 `onCancel`(见 §4.3 的逐字块);面板靠**换 key 重挂**
+来强制展开,而不是靠一个受控的展开状态:
+
+`apps/desktop/src/app/chat/composer/queue-panel.tsx:65 @ 863e313`
+
+```tsx
+      defaultCollapsed={!parked}
+      icon={<Codicon className="text-muted-foreground/70" name={parked ? 'debug-pause' : 'layers'} size="0.8rem" />}
+      key={parked ? 'parked' : 'flowing'}
+      label={parked ? c.queuedPaused(entries.length) : c.queued(entries.length)}
+```
+
+**(3) DOM 探查技能文档用的 `data-slot` 与代码一致。**
+
+`website/docs/user-guide/skills/bundled/software-development/software-development-inspecting-hermes-desktop-dom.md:103 @ 863e313`
+
+```text
+  composer: !!document.querySelector('[data-slot="composer-rich-input"]')
+```
+
+`apps/desktop/src/app/chat/composer/rich-editor.ts:22 @ 863e313`
+
+```ts
+export const RICH_INPUT_SLOT = 'composer-rich-input'
+```
 
 ---
 
@@ -1013,7 +1544,14 @@ npx eslint $(sed 's|^apps/desktop/||' /home/user/hermes-study/data/r10b/slices/A
 (对比 `apps/desktop/src/app/chat/composer/hooks/use-composer-draft.ts:392` 与 `apps/desktop/src/app/chat/composer/hooks/use-composer-queue.ts:369` 的写法)。
 实际影响很小(`scope` 来自 context,在一个 surface 的生命周期内稳定),但它是
 **未被声明的**违规:本仓库对这条规则的纪律是"要么修,要么就地写明为什么豁免",
-这 4 处两样都没做。规则等级是 `warn`(`eslint.config.shared.mjs:92`),所以 CI 不拦。
+这 4 处两样都没做。规则等级是 `warn`(`eslint.config.shared.mjs`),所以 CI 不拦。
+
+`eslint.config.shared.mjs:92 @ 863e313`
+
+```js
+      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/rules-of-hooks': 'error',
+```
 
 ### ■-A-2 排队按钮不像排队快捷键那样先从 DOM 重读草稿
 
@@ -1044,8 +1582,18 @@ keypress cannot queue a stale draft"):
     }
 ```
 
-按钮路径(controls 里的 Layers3 排队键,`apps/desktop/src/app/chat/composer/index.tsx:933`
+按钮路径(controls 里的 Layers3 排队键,`apps/desktop/src/app/chat/composer/index.tsx`
 `onQueue={queueDraft}`)直接调同一个 `queueDraft`,而它不重读:
+
+`apps/desktop/src/app/chat/composer/index.tsx:931 @ 863e313`
+
+```tsx
+      hasComposerPayload={hasComposerPayload}
+      onDictate={dictate}
+      onQueue={queueDraft}
+      onToggleAutoSpeak={handleToggleAutoSpeak}
+      state={state}
+```
 
 `apps/desktop/src/app/chat/composer/hooks/use-composer-submit.ts:229 @ 863e313`
 
@@ -1060,8 +1608,35 @@ keypress cannot queue a stale draft"):
   }
 ```
 
-`queueCurrentDraft` 读的是 `draftRef.current`(`apps/desktop/src/app/chat/composer/hooks/use-composer-queue.ts:179`),
-而 `draftRef` 的更新被 rAF 合并(`apps/desktop/src/app/chat/composer/index.tsx:398-407`)。
+`queueCurrentDraft` 读的是 `draftRef.current`:
+
+`apps/desktop/src/app/chat/composer/hooks/use-composer-queue.ts:178 @ 863e313`
+
+```ts
+  const queueCurrentDraft = useCallback(() => {
+    const text = draftRef.current
+
+    if (!activeQueueSessionKey || (!text.trim() && attachments.length === 0)) {
+      return false
+```
+
+而 `draftRef` 的更新被 rAF 合并:
+
+`apps/desktop/src/app/chat/composer/index.tsx:398 @ 863e313`
+
+```ts
+  const scheduleFlushEditorToDraft = (editor: HTMLDivElement) => {
+    if (flushRafRef.current !== undefined) {
+      return
+    }
+
+    flushRafRef.current = window.requestAnimationFrame(() => {
+      flushRafRef.current = undefined
+      flushEditorToDraft(editor)
+    })
+  }
+```
+
 **暴露窗口很窄**(要在最后一次按键与点击之间不足一帧),我没有构造出实际复现;
 把它记为 ■ 的依据是**同一危险在键盘路径上被显式挡了、在按钮路径上没有**,
 而 `submitDraft` 的对应分支(`apps/desktop/src/app/chat/composer/hooks/use-composer-submit.ts:186` 的 `queueCurrentDraft()`)
@@ -1070,11 +1645,18 @@ keypress cannot queue a stale draft"):
 
 ### ■-A-3(观察,非确证)`handlePaste` 里 `scope` 遮蔽了外层的 `ComposerScope`
 
-`apps/desktop/src/app/chat/composer/index.tsx:142` `const scope = useComposerScope()` 是整个组件的
+`apps/desktop/src/app/chat/composer/index.tsx` `const scope = useComposerScope()` 是整个组件的
 scope;`:497` `const scope = openDirectiveScope(event.currentTarget)` 在 `handlePaste`
 里用同名局部变量遮蔽了它(值是一个 number)。当前 `handlePaste` 体内没有用到外层
 `scope`,所以没有行为缺陷 —— 但这是本片里语义最重的一个变量名,遮蔽它是一个
 真实的"下一次编辑会踩"的形状。**不是缺陷,是隐患**,如实记在这里。
+
+`apps/desktop/src/app/chat/composer/index.tsx:142 @ 863e313`
+
+```ts
+  const scope = useComposerScope()
+  const attachments = useStore(scope.attachments.$attachments)
+```
 
 ---
 

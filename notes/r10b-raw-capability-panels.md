@@ -182,8 +182,15 @@ python3 /home/user/hermes-study/data/r10b/probes/probe_h_areas.py /home/user/her
 
 **这张表是完整的,不是抽样的**,理由是注册表只有三个读口(`getArea` / `subscribeArea` /
 `useContributions`)与一个写口(`register(Many)` 的 `area` 字段),脚本把四个口都扫了。
-唯一的**结构性缺口**要如实说:`area` 是 `string`(`apps/desktop/src/contrib/types.ts:21`
-的 `area: string`),所以插件**可以注册到一个不存在的 area**,那只是永远没人渲染,不会报错。
+唯一的**结构性缺口**要如实说:`area` 是裸 `string`,所以插件**可以注册到一个不存在的 area**
+—— 那只是永远没人渲染,不会报错。
+
+`apps/desktop/src/contrib/types.ts:20` @ 863e313
+
+```
+  /** Namespaced area id this contribution targets, e.g. `'secondarySidebar'`. */
+  area: string
+```
 
 ### 2.2 表 B —— 插件能力面(`ctx.*` 与 `host.*`,共 24 项)
 
@@ -339,7 +346,15 @@ cd /home/user/hermes-agent && grep -rn "desktop-plugins\|desktopPluginsRoot" --i
 `apps/desktop/src/contrib/runtime-loader.test.ts`(8 处)、`apps/desktop/src/global.d.ts`(2 处)、
 `apps/desktop/src/app/contrib/controller.tsx`(1 处)、`apps/desktop/src/app/settings/plugins-settings.tsx`(经
 `desktopPluginsRoot`,2 处)。**没有任何一处是下载、解包、npm/pip 安装或执行命令**;
-读取只经 `desktop.readFileText(file)`(`apps/desktop/src/contrib/runtime-loader.ts:212`)。
+读取只经一次 IPC 文本读:
+
+`apps/desktop/src/contrib/runtime-loader.ts:211` @ 863e313
+
+```
+  try {
+    const { text } = await desktop.readFileText(file)
+    const id = await loadRuntimePlugin(text, name, { file })
+```
 另外单独搜过 manifest 字段:
 
 ```verify
@@ -470,7 +485,7 @@ export function usePaletteContributions(): Array<PaletteContribution & { key: st
 8. **内核** —— `run()` = `set(!get())` = `setYoloEnabled(...)`(`@/lib/yolo-session`,片外),
    最终改的是审批绕过开关;`$yoloActive` 翻转后,第 7 步重读的 `detail()` 立刻显示 `on`。
    同一个 store 函数还有另外两个门(状态栏闪电图标、`/yolo` 斜杠命令)—— 控制器的注释把这点
-   写死了:「⌘K 是通向**同一个** store 函数的第三扇门」(`controller.tsx:639-641`)。
+   写死了:「⌘K 是通向**同一个** store 函数的第三扇门」(`apps/desktop/src/app/contrib/controller.tsx:639-641`)。
 
 **这条链证明的设计**:核心自己的命令也走插件的路。第 1 步那个 `registry.register` 调用,
 和 `apps/desktop/src/plugins/kanban/plugin.tsx:126` 里 kanban 注册 `kanban.open` 的调用,
@@ -482,26 +497,48 @@ export function usePaletteContributions(): Array<PaletteContribution & { key: st
 
 ### 4.1 贡献注册表:一个原语,两族载荷
 
-`Contribution` 只有 8 个字段(`apps/desktop/src/contrib/types.ts:17-43`),但它承载两族东西:
+`Contribution` 只有 8 个字段,但它承载两族东西:
 
 - **Family A(UI 贡献)**:有 `render()`,由 `<Slot>` 或 pane 宿主渲染;
 - **Family B(数据贡献)**:有 `data`,由某个引擎消费(布局树、主题、keybind、palette 行、
   composer 中间件……)。
 
-区别不在类型系统里,而在**消费者怎么读**。`apps/desktop/src/app/contrib/panes.tsx:126-136`
-的状态栏收集器把两族都接住了:有 `render` 就包一层 boundary 当 render-item,否则把 `data`
-当 `StatusbarItem` 用。
+区别不在类型系统里,而在**消费者怎么读**。状态栏收集器把两族都接住了:有 `render` 就包一层
+boundary 当 render-item,否则把 `data` 当 `StatusbarItem` 用。
 
-三个值得记的设计取舍:
+`apps/desktop/src/app/contrib/panes.tsx:125` @ 863e313
 
-1. **快照按 area 缓存、按 area 失效**。`registry.ts:143-159` 的 `invalidate` 只清被动的 area
-   并只通知该 area 的订阅者,全局通道另开。代价写在注释里:**`when()` 不是响应式的** ——
-   它只在快照重建时求值,外部状态翻转不会自己重解析(`apps/desktop/src/contrib/types.ts:28-32`)。
-   composer 的 microActions 因此不用 `when`,改用 `resolve(ctx)` 返回数组
-   (`apps/desktop/src/app/chat/composer/contrib.ts:116` 的注释明说是为了绕开这一点)。
-2. **同 id 覆盖 = 后写者赢**。`put()` 先 filter 掉同 id 再 push(`registry.ts:117`)。
-   控制器据此把「打包插件在核心之后加载」变成一个特性:
-   `apps/desktop/src/app/contrib/controller.tsx:392` @ 863e313
+```
+  return items
+    .map(c =>
+      c.render
+        ? ({
+            id: c.id,
+            render: () => (
+              <ContribBoundary id={c.id} variant="chip">
+                {c.render!()}
+              </ContribBoundary>
+            )
+          } satisfies StatusbarItem)
+        : (c.data as StatusbarItem)
+    )
+    .filter(Boolean)
+```
+
+**三个值得记的设计取舍:**
+
+| # | 取舍 | 证据(锚点 + 摘录) |
+|---|---|---|
+| 1 | 快照**按 area** 缓存、**按 area** 失效,全局通道另开 | `apps/desktop/src/contrib/registry.ts:143` 的 `private invalidate(areas: readonly string[]) {` |
+| 1a | 代价:`when()` **不是响应式的**,只在快照重建时求值 | `apps/desktop/src/contrib/types.ts:29`:`*  NOTE: evaluated when the area's snapshot is (re)built — i.e. on a` |
+| 1b | composer 的 microActions 因此改用 `resolve(ctx)` 返回数组绕开 | `apps/desktop/src/app/chat/composer/contrib.ts:116`:`resolve: (ctx: ComposerMicroActionContext) => ComposerAction[]` |
+| 2 | 同 id 覆盖 = 后写者赢(`put()` 先 filter 同 id 再 push) | `apps/desktop/src/contrib/registry.ts:117`:`this.byArea.set(c.area, [...list.filter(e => e.id !== c.id), c])` |
+| 3 | 错误隔离是**唯一**的隔离:每次 `render()` 包一层墙 | `apps/desktop/src/contrib/react/boundary.tsx:28` 的 `export function ContribBoundary({ children, id, variant = 'pane' }: ContribBoundaryProps) {` |
+| 3a | 事件 fan-out 同理:监听器抛异常只 log | `apps/desktop/src/contrib/events.ts:41`:`console.error('[plugins] gateway event listener failed', error)` |
+
+取舍 2 被控制器直接当成特性用 —— 「打包插件在核心之后加载」:
+
+`apps/desktop/src/app/contrib/controller.tsx:392` @ 863e313
 
 ```
 // Bundled plugins load AFTER core, so a same-id contribution from a plugin
@@ -510,11 +547,8 @@ export function usePaletteContributions(): Array<PaletteContribution & { key: st
 discoverBundledPlugins()
 ```
 
-   注意这条只在 **id 相同**时成立;`gateway-pill` 插件用的是**不同 id**,所以它不是覆盖而是
-   叠加 —— 见 §6 ■-H-1。
-3. **错误隔离是唯一的隔离**。`ContribBoundary`(`react/boundary.tsx:28`)包住每一次
-   `render()`;`emitGatewayEvent`(`events.ts:38-42`)对每个监听器 try/catch。
-   两处的注释都反复强调这只是**错误**隔离。
+注意这条只在 **id 相同**时成立;`gateway-pill` 插件用的是**不同 id**,所以它不是覆盖而是
+叠加 —— 见 §6 ■-H-1。
 
 ### 4.2 插件加载的两条路,与「这不是能力边界」的自陈
 
@@ -567,9 +601,25 @@ export function createPluginContext(pluginId: string, onDispose?: (dispose: () =
   也就把「什么时候这个理由失效」写死了(远程源);
 - 它把 `integrity` 定位成**传输接缝**而非**信任接缝**,精确堵住了「有 sha256 所以安全」这个误读。
 
-`types.ts:3-9` 的注释提到「later, the trust/capability gate(WoW 式 taint)」—— 那是**规划**,
-基线里没有实现:`registry.getArea` 的 filter 只看 `enabled` 和 `when`
-(见 §3 第 3 步代码块),**没有任何一行读 `source`**。
+类型文件的注释提到「later, the trust/capability gate(WoW 式 taint)」—— 那是**规划**:
+
+`apps/desktop/src/contrib/types.ts:3` @ 863e313
+
+```
+/**
+ * Where a contribution came from. `'core'` is the app's own default UI;
+ * anything else is a plugin/extension id (e.g. `'plugin:kanban'`). This is the
+ * provenance tag that drives precedence and, later, the trust/capability gate
+ * (WoW-style taint: plugin-sourced contributions can be blocked from privileged
+ * actions unless granted).
+ */
+```
+
+**基线里没有实现**:`registry.getArea` 的 filter 只看 `enabled` 和 `when`
+(见 §3 第 3 步代码块),**没有任何一行读 `source`**。搜索面:
+`apps/desktop/src/contrib/registry.ts` 全文 162 行已逐行读过,`source` 一次都没出现;
+全 `src/` 搜 `\.source` 的命中都在拼 render key(如 `` `${c.source ?? 'core'}:${c.id}` ``,
+见 §3 第 4 步代码块)而非做判定。
 
 **启停生命周期**是两条路共有的:每个记录带 loader 交出的 activate/deactivate 句柄,
 用户决策持久化在 `hermes.desktop.pluginDecisions.v2`,**缺席 ≠ 启用**(这正是
@@ -586,7 +636,19 @@ export function createPluginContext(pluginId: string, onDispose?: (dispose: () =
 **磁盘门是自维护的**:每个 `plugin.js` 被 fs 监视(存盘即热重载),目录本身也被监视
 (新文件夹自动加载、删除自动卸载),老 Electron 壳回落到 5 秒可见轮询。
 一处值得记的边界处理:热编辑改了 `plugin.id` 时,`loadRuntimePlugin` 只会 dispose **新** id,
-所以 `loadDiskPlugin` 得自己收拾旧化身(`runtime-loader.ts:215-221`),否则贡献与清单行都会成孤儿。
+所以磁盘装载器得自己收拾旧化身,否则贡献与清单行都会成孤儿。
+
+`apps/desktop/src/contrib/runtime-loader.ts:215` @ 863e313
+
+```
+    // A hot-edit that changes `plugin.id`: loadRuntimePlugin only disposes the
+    // NEW id, so unload the previous incarnation here or its contributions +
+    // inventory row orphan.
+    if (id && prevId && prevId !== id) {
+      unloadRuntimePlugin(prevId)
+      dropPlugin(prevId)
+    }
+```
 
 ### 4.3 技能面板:四个 tab,三种「能力」,一套开关语义
 
@@ -597,8 +659,19 @@ export function createPluginContext(pluginId: string, onDispose?: (dispose: () =
 - **MCP** —— 外部工具服务器(见 §4.4);
 - **Hub** —— 尚未安装的、可搜索的远程技能。
 
-**开关的写入语义是乐观 + 静默**:单个 toggle 立刻改缓存、成功不弹 toast、失败回滚并报错
-(`index.tsx:339-353`)。批量 toggle 则**故意串行**,注释给了理由:
+**开关的写入语义是乐观 + 静默**:单个 toggle 立刻改缓存、成功不弹 toast、失败回滚并报错。
+
+`apps/desktop/src/app/skills/index.tsx:336` @ 863e313
+
+```
+  // Single toggles are optimistic and silent on success (the row repaints
+  // immediately — a toast per flip would spam rapid customization). Errors
+  // revert and notify.
+  async function handleToggleSkill(skill: SkillInfo, enabled: boolean) {
+    setSkills(current => current?.map(row => (row.name === skill.name ? { ...row, enabled } : row)) ?? current)
+```
+
+批量 toggle 则**故意串行**,注释给了理由:
 
 `apps/desktop/src/app/skills/index.tsx:373` @ 863e313
 
@@ -608,8 +681,15 @@ export function createPluginContext(pluginId: string, onDispose?: (dispose: () =
   async function bulkApply(skillTargets: SkillInfo[], toolsetTargets: ToolsetInfo[], enabled: boolean) {
 ```
 
-**批量控制永远作用于整 tab、不作用于搜索结果**,这条也写进了注释(`index.tsx:291-293`):
-「一个全 tab 控件如果悄悄缩到当前 query,就是在撒谎」。
+**批量控制永远作用于整 tab、不作用于搜索结果**,这条也写进了注释:
+
+`apps/desktop/src/app/skills/index.tsx:291` @ 863e313
+
+```
+  // Bulk actions ("All" master switch, "Disable unused") and the master-switch
+  // state target the WHOLE tab, never the search-filtered view — a tab-wide
+  // control that silently scoped to the current query would be a lie.
+```
 
 **读写有没有经过审批闸?没有。** 这是派工书线索 2 的答案,取证如下:
 
@@ -622,7 +702,17 @@ export function createPluginContext(pluginId: string, onDispose?: (dispose: () =
   const editable = skill.provenance === 'agent'
 ```
 
-  `editable` 为假时,Edit / Archive 两个按钮**不渲染**(`index.tsx:751`)。
+  `editable` 为假时,Edit / Archive 两个按钮**不渲染**:
+
+  `apps/desktop/src/app/skills/index.tsx:751` @ 863e313
+
+```
+      {editable && (
+        <div className="flex items-center gap-2">
+          <Button onClick={onEdit} size="xs" variant="text">
+            {t.skills.edit}
+          </Button>
+```
 - **API 侧没有对应的门**。`PUT /api/learning/node` 直接调 `edit_node`,不看 provenance:
   `hermes_cli/web_server.py:3568` @ 863e313
 
@@ -636,7 +726,15 @@ async def update_learning_node(body: LearningNodeEdit):
         res = edit_node(body.id, body.content)
 ```
 
-  再往下 `tools/skill_manager_tool.py:977` 的 docstring 自己说是「**any** existing skill」,
+  再往下,写入函数的 docstring 自己说是「**any** existing skill」:
+
+  `tools/skill_manager_tool.py:977` @ 863e313
+
+```
+def _edit_skill(name: str, content: str) -> Dict[str, Any]:
+    """Replace the SKILL.md of any existing skill (full rewrite)."""
+```
+
   它的四道闸是 frontmatter 校验、体积校验、org-mirror 写保护、background-review 保护
   —— 都与 provenance 无关。
 - **审批系统(`tools/approval.py`)管的是 agent 的工具调用,不管桌面用户的直接 REST 写**。
@@ -671,7 +769,15 @@ import 的正是 `deleteLearningNode, editLearningNode, getLearningNode`,右键�
 真正的闸在后端(§2.5 表 E 的 B 行已取证),所以这不是安全漏洞,只是
 **UI 允许用户按下一个后端注定拒绝的按钮**,失败以动作日志里的
 `Installation blocked: …` 呈现。信任等级(`builtin` / `trusted` / `community`)在 UI 上
-是彩色徽章 + 去重排序权重(`hub.tsx:47` 的 `TRUST_RANK`),同样只是呈现。
+是彩色徽章 + 去重排序权重,同样只是呈现。
+
+`apps/desktop/src/app/skills/hub.tsx:45` @ 863e313
+
+```
+// Dedup rank when the same skill surfaces from multiple sources — higher trust
+// wins. Mirrors the backend's unified_search `_TRUST_RANK`.
+const TRUST_RANK: Record<string, number> = { builtin: 2, trusted: 1, community: 0 }
+```
 
 ### 4.4 MCP tab:桌面端真正的「任意执行」门
 
@@ -704,7 +810,25 @@ const STARTER_ENTRY = { command: 'npx', args: ['-y', '@modelcontextprotocol/serv
   }
 ```
 
-`silentReload` 发的是 `reload.mcp` RPC(`mcp-tab.tsx:673`)。合起来:
+热推的实现:
+
+`apps/desktop/src/app/skills/mcp-tab.tsx:668` @ 863e313
+
+```
+  const silentReload = async () => {
+    if (!gateway) {
+      return
+    }
+
+    try {
+      await gateway.request('reload.mcp', { confirm: true, session_id: activeSessionId ?? undefined })
+    } catch (err) {
+      notifyError(err, m.reloadFailed)
+    }
+  }
+```
+
+合起来:
 **在文本框里敲一个 `command`,按 Save,几百毫秒后 agent 就会 spawn 它。**
 没有扫描、没有确认框、没有审批。
 
@@ -712,23 +836,62 @@ const STARTER_ENTRY = { command: 'npx', args: ['-y', '@modelcontextprotocol/serv
 但它意味着**桌面端「装东西」的真实高危面是 MCP tab,不是插件门**。二者的对照是:
 插件门给的是渲染进程内的应用权限(§4.2),MCP tab 给的是后端主机上的进程权限。
 
-一个设计细节值得记:`normalizeEntry`(`mcp-tab.tsx:73`)把 Cursor/Claude 写的 `type` 字段
-改写成 Hermes 读的 `transport`,`parseServersDoc`(`mcp-tab.tsx:84`)同时接受
-`{"mcpServers": {...}}` 与裸 name→config 映射 —— 目标是让任何 README 里的
-「把这段加进你的 mcp.json」原样粘贴就能用。这是**兼容生态的粘贴面**,不是安全面。
+一个设计细节值得记:入站规范化让**任何 README 的片段原样粘贴就能用**。
+
+`apps/desktop/src/app/skills/mcp-tab.tsx:71` @ 863e313
+
+```
+// Cursor/Claude write `type`; Hermes reads `transport`. Normalize on the way
+// in so pasted configs behave identically under the CLI/TUI loader.
+function normalizeEntry(entry: Record<string, unknown>): Record<string, unknown> {
+```
+
+`apps/desktop/src/app/skills/mcp-tab.tsx:83` @ 863e313
+
+```
+/** Accepts `{"mcpServers": {...}}` (ecosystem), a bare name→config map, or throws. */
+function parseServersDoc(raw: string): McpServers {
+```
+
+这是**兼容生态的粘贴面**,不是安全面。
 
 ### 4.5 命令面板:关闭态的成本被压到一个订阅
 
 ⌘K 的性能设计值得单独记,因为它是一个可迁移的模式:
 **面板拆成 `CommandPalette`(常驻)与 `CommandPaletteBody`(仅打开时存在)两层**。
 常驻层只订阅一个 store;十几个 store 订阅、三个服务端查询、几百行的分组构建全在 body 里。
-注释给了改之前的病症(`index.tsx:474-479`):一次进行中的更新会按进度行重写 `$updateApply`,
-于是**为一个没人看得见的面板**重建整个行集。
+注释给了改之前的病症:
+
+`apps/desktop/src/app/command-palette/index.tsx:470` @ 863e313
+
+```
+ * Everything expensive — a dozen store subscriptions (connection, update
+ * status/apply, keybinds, worktrees, projects, theme, i18n), three server
+ * queries, and the group builders that assemble a few hundred rows — lives in
+ * `CommandPaletteBody`, which only exists while the palette is on screen.
+ * Before this split those hooks ran on every render of the always-mounted
+ * component: an in-flight update rewrote `$updateApply` per progress line and
+ * rebuilt the entire row set each time, for a surface nobody could see.
+```
 
 三个配套细节:
 
-- `mounted` **滞后于** `open`,由内容自己的 `animationend` 退休(`index.tsx:1284-1288`),
-  所以关闭动画时长由 CSS 拥有,不是硬编计时器;另有 1000ms 兜底给 jsdom 这种不跑动画的环境。
+- `mounted` **滞后于** `open`,由内容自己的 `animationend` 退休,所以关闭动画时长由 CSS
+  拥有,不是硬编计时器;另有 1000ms 兜底给 jsdom 这种不跑动画的环境。
+
+  `apps/desktop/src/app/command-palette/index.tsx:1280` @ 863e313
+
+```
+        // The close animation finishing is what retires this whole subtree —
+        // the CSS owns the duration, not a hardcoded timer. Guarded on the
+        // content itself (descendants animate too) and on the closed state, so
+        // an OPEN animation never unmounts the palette we just opened.
+        onAnimationEnd={event => {
+          if (event.target === event.currentTarget && event.currentTarget.dataset.state === 'closed') {
+            onExited()
+          }
+        }}
+```
 - `openCount` 作为 key **每次打开都重挂 body**,于是搜索词/子页状态自动清零,不需要 close effect。
 - 排序**不用 cmdk 自己的**:`shouldFilter={false}`,自研 `scoreItem`(七档:精确 > 前缀 >
   整词 > 词前缀 > 子串 > 散词 > 仅关键词)+ `rankGroups`。注释里记了 cmdk 分组重排为什么
@@ -748,12 +911,42 @@ const STARTER_ENTRY = { command: 'npx', args: ['-y', '@modelcontextprotocol/serv
       emitGatewayEvent(event)
 ```
 
-「先听」+「不能影响」这两件事同时成立的原因是 `emitGatewayEvent` 只是 fan-out,
-不看返回值也不 await(`contrib/events.ts:31-45`);监听器抛异常只 `console.error`。
-零监听时直接 return,所以无插件时是零成本。
+「先听」+「不能影响」这两件事同时成立的原因是 `emitGatewayEvent` 只是 fan-out:
+不看返回值、不 await、零监听时直接 return(所以无插件时是零成本),监听器抛异常只 log。
 
-`wiring.tsx` 还是 DEV 演示的安装点,动态 import 放在 DEV 守卫**内部**,
-让模块在生产构建里被摇掉(`wiring.tsx:302-314`)。
+`apps/desktop/src/contrib/events.ts:31` @ 863e313
+
+```
+export function emitGatewayEvent(event: RpcEvent): void {
+  if (listeners.size === 0) {
+    return
+  }
+
+  for (const type of [event.type, '*']) {
+    for (const listener of listeners.get(type) ?? []) {
+      try {
+        listener(event)
+      } catch (error) {
+        console.error('[plugins] gateway event listener failed', error)
+      }
+    }
+  }
+}
+```
+
+`wiring.tsx` 还是 DEV 演示的安装点,动态 import 放在 DEV 守卫**内部**,让模块在生产构建里被摇掉:
+
+`apps/desktop/src/app/contrib/wiring.tsx:300` @ 863e313
+
+```
+  // Dev-only: install the credit-notice demo trigger (Ctrl+Shift+C / ⌘K palette
+  // / window.__creditsDemo). Dynamic import inside the DEV guard so the module
+  // is dropped from production builds.
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return
+    }
+```
 
 ### 4.7 星图:一个只读可视化 + 两个写动作 + 一个分享码
 
@@ -785,13 +978,32 @@ kanban 是「插件能力上限」的实测样本 —— 4,731 行,注册 **6 �
 它另外用了三个非-area 接缝:`ctx.rest` 打自己的 `/api/plugins/kanban/*`(复用既有的
 `plugins/kanban/dashboard/plugin_api.py`,**没有新后端**)、`ctx.socket` 做失效推送、
 `ctx.i18n.register` 挂插件作用域的语言包(991 行,不碰核心 `en.ts`)。
-标题栏切换器走的是**第四种**接缝 —— `<Contribute>` 反向 portal,把菜单投进
-`titleBar.center` 并随页面卸载自动注销(`board-switcher.tsx:1-6` 的 docstring)。
+标题栏切换器走的是**第四种**接缝 —— `<Contribute>` 反向 portal:
 
-`plugin.tsx:95-99` 有一段值得记的**命名空间礼仪**:核心占了 `mod+n`(`session.new`)与
-`mod+shift+n`(`session.newWindow`),核心只在 `mod+alt+1…9` 用 alt 且从不配字母,
-所以 `⌘⌥<字母>` 被认定为**插件命令的天然命名空间**。这类约定在代码里写下来,
-比放在文档里更可能被遵守。
+`apps/desktop/src/plugins/kanban/board-switcher.tsx:1` @ 863e313
+
+```
+/**
+ * Titlebar board switcher — the board page projects this into `titleBar.center`
+ * (where chat shows the session-title dropdown) via `<Contribute>`, so it
+ * exists exactly while the page is mounted — no route sniffing. Same chrome as
+ * the session title: quiet label + chevron, menu on click.
+ */
+```
+
+还有一段值得记的**命名空间礼仪**:
+
+`apps/desktop/src/plugins/kanban/plugin.tsx:95` @ 863e313
+
+```
+    // ⌘⌥N / Ctrl+Alt+N: `mod+n` is `session.new` and `mod+shift+n` is
+    // `session.newWindow`, both core built-ins a plugin can't shadow. Adding
+    // Alt keeps the "N for new" mnemonic on a chord core leaves free — it uses
+    // `alt` only for the `mod+alt+1…9` profile slots, never with a letter. That
+    // makes ⌘⌥<letter> the natural namespace for plugin commands.
+```
+
+这类约定在代码里写下来,比放在文档里更可能被遵守。
 
 ---
 
@@ -871,11 +1083,19 @@ cd /home/user/hermes-agent/apps/desktop/src && grep -c "LAYOUTS_AREA" sdk/index.
 
 ### ◎-H-1 —— 「curated OS door」的措辞保守但字面为真
 
-`apps/desktop/src/contrib/plugin.ts:38-42` 把 `PluginOs` 描述为
-「every way a plugin reaches outside the app window, in one attributed namespace
-instead of the raw `window.hermesDesktop` bridge」。字面**为真**:`PluginOs` 确实是四个
-带归属的门。但同一份 SDK 里的 `host.request`(§2.2)是无限制网关 RPC,`ctx.rest` 是
-命名空间内 REST —— 「reaches outside the app window」的实际总面比这四个门大得多。
+`apps/desktop/src/contrib/plugin.ts:38` @ 863e313
+
+```
+/** The curated OS door — every way a plugin reaches outside the app window,
+ *  in one attributed namespace instead of the raw `window.hermesDesktop`
+ *  bridge. Every member resolves a result instead of throwing when the
+ *  capability can't apply (no Electron shell, older desktop build), so
+ *  callers branch on the return value rather than sniffing the bridge. */
+```
+
+字面**为真**:`PluginOs` 确实是四个带归属的门。但同一份 SDK 里的 `host.request`(§2.2)
+是无限制网关 RPC,`ctx.rest` 是命名空间内 REST —— 「reaches outside the app window」的
+实际总面比这四个门大得多。
 `runtime-loader.ts` 的 SECURITY 段已经把这点说清楚了,所以这不是矛盾,是**同一份代码里
 一处保守措辞** → ◎,不是 ▲。
 
@@ -903,8 +1123,14 @@ const plugin: HermesPlugin = {
   register(ctx) {
 ```
 
-   对照 `apps/desktop/src/plugins/example/plugin.tsx:75` 的 `defaultEnabled: false,`
-   与 `apps/desktop/src/plugins/kanban/plugin.tsx:83` 的 `defaultEnabled: false,`。
+   三个内置插件的对照:
+
+   | 插件 | `defaultEnabled` | 锚点 + 摘录 |
+   |---|---|---|
+   | example | `false` | `apps/desktop/src/plugins/example/plugin.tsx:75`:`defaultEnabled: false,` |
+   | kanban | `false` | `apps/desktop/src/plugins/kanban/plugin.tsx:83`:`defaultEnabled: false,` |
+   | gateway-pill | **未声明 → 落回 `true`** | `apps/desktop/src/plugins/gateway-pill/plugin.tsx:351`:`id: 'gateway-pill',` |
+
    机械核对:
 
 ```verify
@@ -930,10 +1156,15 @@ cd /home/user/hermes-agent/apps/desktop/src && grep -rn "defaultEnabled" plugins
   )
 ```
 
-   核心的 `gateway-health` 在 `coreLeftStatusbarItems` 里
-   (`use-statusbar-items.tsx:407` 的 `id: 'gateway-health',`),插件注册进 `statusBar.right`
-   (`gateway-pill/plugin.tsx:359` 的 `area: 'statusBar.right',`)。**id 不同**,
-   所以 §4.1 那条「同 id 后写者赢」的覆盖机制**不生效** —— 那正是这个插件本想利用的机制。
+   两个药丸的 id 与落点:
+
+   | 来源 | 注册表 id / StatusbarItem id | 落点 | 锚点 + 摘录 |
+   |---|---|---|---|
+   | 核心 | `gateway-health` | `coreLeftStatusbarItems` | `apps/desktop/src/app/shell/hooks/use-statusbar-items.tsx:407`:`id: 'gateway-health',` |
+   | 插件 | `gateway-pill:pill` / `gateway-pill` | `statusBar.right` | `apps/desktop/src/plugins/gateway-pill/plugin.tsx:360`:`area: 'statusBar.right',` |
+
+   **id 不同**,所以 §4.1 那条「同 id 后写者赢」的覆盖机制**不生效**
+   —— 那正是这个插件本想利用的机制。
 
 **这个 app 根确实是出货根**,不是实验分支:
 
@@ -946,7 +1177,7 @@ cd /home/user/hermes-agent/apps/desktop/src && cat app/index.tsx
 
 **严重度**:UI 重复,不影响正确性。**我未运行 Electron 验证渲染结果**(容器无 Electron 二进制,
 `e2e/` 需要真 Electron),结论是静态追链得出的;若作者另有运行期抑制,应在 `use-statusbar-items`
-或 `panes.tsx:122-139` 之外的地方,而这两处我已逐行读过、没有。
+或 `apps/desktop/src/app/contrib/panes.tsx:122-139` 之外的地方,而这两处我已逐行读过、没有。
 
 ### ■-H-2 —— `hello-runtime/plugin.runtime.js` 是死文件,而加载器 docstring 仍把它当活的来源
 
@@ -1084,8 +1315,25 @@ cd /home/user/hermes-agent/apps/desktop && grep -rln "contrib/registry\|Contribu
 | **1 点名到位** | 66/66 全路径 + 一句话角色 | **达标** | §0 七张表,合计 12+14+4+4+3+14+15 = 66 |
 | **2 接缝穷举** | 5 张表全列、3 张给机械枚举命令 | **达标(有一处如实标注的边界)** | 表 A(22 area)与表 C(14 palette 贡献)各有一个可重跑的 probe;表 B(24 项能力面)、表 D(27 个动作)、表 E(3 条安装路径)逐条列全并逐条带锚点。**边界**:表 A 只能穷举「被消费的 area」;因为 `area: string`,插件理论上可注册到任意字符串,该情形永远无人渲染,不构成挂载点 |
 | **3 端到端链** | ⌘K "yolo" 八跳全带锚点 | **达标** | §3:注册 → 工厂 → 注册表 → 面板订阅 → 分组 → 打分 → 执行 → store,第 8 跳出片(`@/lib/yolo-session`)已注明 |
-| **4 逐字取证** | 18 个围栏块是逐字源码摘录 | **达标** | 分布在 §2.5 / §3(6 块)/ §4 / §5 / §6 |
+| **4 逐字取证** | **46 个**锚点→围栏块配对逐字命中基线 | **达标(远超下限 2)** | 校验器实测,见下 |
 | **5 记号** | 2 ▲ + 1 ◇ + 1 ◎ + 3 ■ | **达标** | ▲-H-1(AGENTS.md,已按整段判定并写明只判第 3 个断言)、▲-H-2(plugins/README.md,已标注来源等级)、◇-H-1、◎-H-1、■-H-1/2/3 |
+
+**引用关卡实测**(本片自跑,主线可复现):
+
+```verify
+cd /home/user/hermes-study && python3 scripts/verify_citations.py /home/user/hermes-agent notes/r10b-raw-capability-panels.md
+```
+
+```text
+citations=58  OK=46  UNCHECKED=12
+可校验比例 OK/58 = 79.3%
+table_anchors=119  OK=112  UNCHECKED=7
+OK: every code-block-backed citation matches the baseline
+```
+
+**0 MISMATCH / 0 BLOCK-DRIFT / 0 TABLE-DRIFT / 0 TABLE-OUT-OF-RANGE;可校验比例 79.3%,高于 70% 下限。**
+12 条散文 UNCHECKED 是**区域指路**(如「`registry.ts` 全文 162 行已逐行读过」这类
+指向一个范围而非一行的引用),不是漏校验的摘录;7 条表格 UNCHECKED 是格里未声明摘录的次级引用。
 
 **未达标/打折的地方,如实写:**
 
@@ -1103,7 +1351,7 @@ cd /home/user/hermes-agent/apps/desktop && grep -rln "contrib/registry\|Contribu
 | id | 锚点 + 摘录 | 一句话现象 | 建议接手 |
 |---|---|---|---|
 | **H-R10B-a** | `apps/desktop/src/plugins/gateway-pill/plugin.tsx:350`:`const plugin: HermesPlugin = {` | 该插件未声明 `defaultEnabled`,默认开启,与核心 `gateway-health` 同时渲染两个网关药丸(§6 ■-H-1);**未经运行期验证** | 有 Electron 的轮次跑一次 `e2e/boot.spec.ts` 变体截图核实 |
-| **H-R10B-b** | `apps/desktop/src/plugins/hello-runtime/plugin.runtime.js:28`:`id: 'hello-runtime',` | 全仓无任何引用,双重不可达;`contrib/runtime-loader.ts:13` 的 "Sources today" 仍把它列为活来源(§6 ■-H-2) | 台账里该文件应归 **L4(有理由排除:死代码)**,而不是 L2 |
+| **H-R10B-b** | `apps/desktop/src/plugins/hello-runtime/plugin.runtime.js:28`:`id: 'hello-runtime',` | 全仓无任何引用,双重不可达;`apps/desktop/src/contrib/runtime-loader.ts:13` 的 "Sources today" 仍把它列为活来源(§6 ■-H-2) | 台账里该文件应归 **L4(有理由排除:死代码)**,而不是 L2 |
 | **H-R10B-c** | `hermes_cli/skills_hub.py:680`:`allowed, reason = should_allow_install(result, force=force)` | 被调函数用 `None` 表示「需确认」,此处 `if not allowed` 把它当 block;方向保守但违反契约(§6 ■-H-3) | 后端片(hermes_cli/tools)轮次;同时查 `tools/skill_manager_tool.py:136` 的 `allowed, reason = should_allow_install(result)` 是否同病 |
 | **H-R10B-d** | `apps/desktop/src/contrib/types.ts:21`:`export type ContributionSource = 'core' \| (string & {})` | `source` 字段的注释说它「drives precedence and, later, the trust/capability gate」;基线里 `registry.getArea` 的 filter 完全不读 `source`,precedence 只由 `order` 决定(§4.2) | 若后续轮做「插件信任模型」章,这是唯一的现存挂钩点 |
 | **H-R10B-e** | `apps/desktop/src/app/skills/index.tsx:733`:`const editable = skill.provenance === 'agent'` | UI 侧的 provenance 门无 API 侧对应物;星图右键(`node-context-menu.tsx`)是同批端点的第二扇门且完全不看 provenance(§4.3) | 值得在成品章里作为「看起来像规则的外观约束」的例子 |
