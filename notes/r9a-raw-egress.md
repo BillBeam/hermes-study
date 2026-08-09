@@ -343,15 +343,24 @@ to a "bump the pinned version" loop.
 没有任何转发/中继代码。
 
 ```verify
-# 搜索面:本模块内所有网络相关调用点
+# 搜索面:本模块内所有网络相关调用点(实跑输出,逐字粘贴)
+$ cd /home/user/hermes-agent
 $ grep -nE "socket\.|urllib\.request\.|http\.client|asyncio|aiohttp|requests\." \
       agent/proxy_sources/iron_proxy.py
+217:    # AWS Bedrock / SageMaker: SigV4-signed requests.
+550:    req = urllib.request.Request(url, headers={"User-Agent": "hermes-agent"})
 552:        with urllib.request.urlopen(req, timeout=_DOWNLOAD_TIMEOUT) as resp:  # noqa: S310
 952:    req = urllib.request.Request(
 959:        with urllib.request.urlopen(req, timeout=_MGMT_RELOAD_TIMEOUT) as resp:
+1483:        # each other's requests.  The canonical env name is what
 2431:        with socket.create_connection((host, port), timeout=0.5):
-# 550 行的 Request 构造在 _http_download,952/959 在 reload_proxy(loopback 管理 API),
-# 2431 在 _port_listening(存活探测)。零转发逻辑。
+# 逐条判读:
+#   217 / 1483 是散文里的 "requests." 被 `requests\.` 匹到 —— 误命中,与 §4.2 记的
+#                "regress 含 egress" 同类,保留在这里正是为了让读者看见它、不必猜。
+#   550 / 552   _http_download(下载二进制)
+#   952 / 959   reload_proxy(打 loopback 管理 API)
+#   2431        _port_listening(TCP 存活探测)
+# 没有任何转发/中继代码 —— 代理逻辑 100% 在第三方 Go 二进制里。
 ```
 
 **所以"出网约束"在这里是安全机制还是转发机制?——两者都是,但主体是"本机安全机制"**:
@@ -389,9 +398,20 @@ GPG 的取舍写得很清楚:**缺 gpg / 缺签名资产 → 降级(只留 SHA-2
 ```
 
 **◇(代码有、文档无)#1**:用户文档 `website/docs/user-guide/egress/iron-proxy.md:427` 只说
-"SHA-256 verified against the upstream `checksums.txt`",**GPG 签名校验这一层两份 egress 文档都没提**。
-搜索面:`grep -niE "gpg|signature|签名|public-key" website/docs/user-guide/egress/iron-proxy.md
-website/docs/developer-guide/egress-internals.md` → 0 命中。
+"SHA-256 verified against the upstream `checksums.txt`",**GPG 发布签名校验这一层两份 egress 文档都没提**。
+搜索面(实跑,退出码 1 = 零命中):
+
+```verify
+$ cd /home/user/hermes-agent
+$ grep -niE "\bgpg\b|checksums\.txt\.asc|public-key\.asc|release-channel|tamper" \
+      website/docs/user-guide/egress/iron-proxy.md \
+      website/docs/developer-guide/egress-internals.md
+$ echo "exit=$?"
+exit=1
+# 注:放宽成 grep -niE "gpg|signature|签名|public-key" 会命中 3 行,但那 3 行讲的都是
+# provider 侧的 "signature-based auth"(SigV4 / service-account OAuth),
+# 与本节说的"发布通道签名校验"无关 —— 这就是为什么上面的模式要写得这么窄。
+```
 
 解包用 PEP 706 data filter,并在 filter 不可用时靠自己的成员名净化兜底:
 
@@ -1162,6 +1182,7 @@ def _redact_token(token: str) -> str:
 搜索面:
 
 ```verify
+$ cd /home/user/hermes-agent
 $ grep -nE "logger\.(debug|info|warning|error)" agent/proxy_sources/iron_proxy.py
 459:            logger.warning("iron-proxy auto-install failed: %s", exc)
 489:        logger.info("Downloading %s", asset_url)
@@ -1173,14 +1194,21 @@ $ grep -nE "logger\.(debug|info|warning|error)" agent/proxy_sources/iron_proxy.p
 819:    logger.info("Generated iron-proxy CA at %s", ca_crt)
 1028:        logger.warning(
 1094:        logger.warning(
-1196:        logger.warning(
-1207:        logger.warning(
-1319:        logger.warning(
-1432:    logger.warning("Failed to read iron-proxy mappings.json: %s", exc)
+1432:        logger.warning("Failed to read iron-proxy mappings.json: %s", exc)
 1999:    logger.info("Started iron-proxy pid=%s config=%s", proc.pid, cfg)
+2196:                    logger.warning(
+2207:                    logger.warning(
+2227:                logger.warning(
+2248:            logger.warning(
+2319:            logger.warning(
 2331:    logger.info("Stopped iron-proxy pid=%s", pid)
-# 逐条看过:参数分别是 异常对象 / URL / 版本号+路径 / gpg stderr 片段 / 路径 /
-# 候选 IP / 缺失的**变量名**列表 / 警告条数 / pid。没有任何一处传入 token 或 key 的**值**。
+# 18 处逐条看过,参数依次是:
+#   459 异常对象 / 489 URL / 545 版本号+路径 / 579 无参 / 594 异常对象 /
+#   610 gpg stderr 片段(截 200 字符) / 628 无参 / 819 路径 /
+#   1028 无参 / 1094 候选 IP 字符串 / 1432 异常对象 / 1999 pid+配置路径 /
+#   2196 缺失的**变量名**列表 / 2207 警告**条数** / 2227 无参 /
+#   2248 异常对象 / 2319 pid / 2331 pid
+# 没有任何一处传入 token 或 key 的**值**;2227 更是连变量**名**都不打(理由见下)。
 ```
 
 其中 BWS 那两条尤其小心——**连"环境变量名"都不打**,因为 CodeQL 的污点分析分不清名和值:
@@ -1772,9 +1800,20 @@ from hermes_cli.config_defaults import DEFAULT_CONFIG, OPTIONAL_ENV_VARS  # noqa
   本轮只从 Hermes 侧的注释推断了它的语义(不扫 body),**iron-proxy v0.39 的 Go 侧行为不在基线内、
   未验证**。凡涉及"`require: true` 在什么条件下判定为未替换"的结论,都带着这条未验证前提。
 - **H-R9A-c**:锚点 `tools/environments/docker.py:923` 的 `resource_args.append("--network=none")`——
-  这条与 egress 是**互斥**的(断网后连不上 host 的 iron-proxy),但本轮没查到任何一处
-  代码检查这两个开关的组合。若 `terminal.network=false` 与 `proxy.enabled=true` 同时开,
-  预期是容器创建成功但所有出站(含代理)全挂;**未取证**,留给 R9 的 Docker 后端轮。
+  这条与 egress 是**互斥**的(断网后连不上 host 的 iron-proxy),但**没有任何一处代码检查这两个开关的组合**。
+  搜索面(实跑,退出码 1 = 零命中):
+
+  ```verify
+  $ cd /home/user/hermes-agent
+  $ grep -nE "network" tools/environments/docker.py | grep -iE "egress|proxy"
+  $ echo "exit=$?"
+  exit=1
+  # docker.py 里 "network" 与 "egress|proxy" 从未出现在同一行 —— 没有交叉校验。
+  ```
+
+  若 `terminal.network=false` 与 `proxy.enabled=true` 同时开,预期是容器创建成功
+  (`_egress_proxy_args_for_docker` 只看 `proxy.*`,不看 network)但所有出站(含到代理的 CONNECT)全挂。
+  **这个"预期"本身未实跑取证**,留给有 Docker 环境的轮次确认。
 - **H-R9A-d**:`website/docs/developer-guide/egress-internals.md:294` 声称 iron-proxy 写的是
   "line-delimited JSON",并给了外链 `docs.iron.sh/audit`。**日志格式在基线里无法验证**
   (需要真跑 v0.39 二进制)。任何依赖"审计日志可被机器解析"的结论都要先补这一步。

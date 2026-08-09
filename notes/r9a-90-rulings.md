@@ -249,7 +249,79 @@ cd /home/user/hermes-agent && grep -n "^import \|^from " agent/skill_preprocessi
 
 ---
 
-## 3. 一份**没有腐烂**的文档:`subagent-lifecycle-api.md`
+## 3. 一条 ▲:`AGENTS.md` 把 `max_iterations` 的默认值写成 500,实际是 90
+
+### 3.1 文档侧
+
+这一段挂在哪个标题下,是判定的前提。它归 `AGENTS.md:314` 的
+`## AIAgent Class (run_agent.py)` 管——**文档自己点名了它在描述 `run_agent.py`**。
+
+`AGENTS.md:328 @ 863e313`
+
+>     max_iterations: int = 500,         # tool-calling iterations (shared with subagents)
+
+整段是以 `def __init__(` 开头的**函数签名清单**(322–332 行),读者会当作权威签名读。
+
+### 3.2 代码侧
+
+`run_agent.py:412 @ 863e313`
+
+```
+class AIAgent:
+```
+
+其 `__init__` 从 435 行开始,第 446 行是那个参数:
+
+`run_agent.py:446 @ 863e313`
+
+```
+        max_iterations: int = 90,  # Default tool-calling iterations (shared with subagents)
+```
+
+同一个默认值在 agent 初始化侧也是 90:
+
+`agent/agent_init.py:470 @ 863e313`
+
+```
+    max_iterations: int = 90,  # Default tool-calling iterations (shared with subagents)
+```
+
+### 3.3 搜索面
+
+断言 —— *全仓没有任何一处把 `max_iterations` 的默认值定为 500*。
+
+搜索面:全仓 `--include="*.py"`、排除 `./tests`,搜 `max_iterations` 且带默认值形态
+(`int = ` / `= 500` / `= 90`)。命中 5 处,全部列出:
+
+```verify
+cd /home/user/hermes-agent && grep -rn "max_iterations" --include="*.py" . | grep -v "^./tests" | grep -E "= *500|= *90|int = "
+# → agent/agent_init.py:470   max_iterations: int = 90
+#   mini_swe_runner.py:171    max_iterations: int = 15
+#   mini_swe_runner.py:640    max_iterations: int = 15
+#   run_agent.py:446          max_iterations: int = 90
+#   batch_runner.py:540       max_iterations: int = 10
+```
+
+排除项:测试目录被排除(测试里的构造参数不是产品默认值);
+本搜索面不覆盖 YAML/JSON 配置里的默认值,但文档那一行描述的是 **Python 函数签名**,
+所以配置侧不在争议范围内。**没有任何一处是 500。**
+
+### 3.4 定案
+
+**▲**。判据可复现:读 `AGENTS.md` 的 AIAgent 签名 → 以为不传 `max_iterations` 时上限是 500 →
+实际构造出来的 agent 上限是 90,**差 5.6 倍**。
+
+**注释文字几乎逐字相同**(文档 `# tool-calling iterations (shared with subagents)`
+vs 代码 `# Default tool-calling iterations (shared with subagents)`),说明文档当年是从代码抄的,
+**抄完之后数字漂了而注释没漂**——这正是「作者自绘地图」最典型的腐烂方式:
+形状还对,数值已经不对,而形状对会让读者更信任它。
+
+**为什么这条落在 R9A 而不是 R2**:`max_iterations` 的注释自己写着 **shared with subagents**,
+它是委派簇的迭代预算上限。R2 读回合主循环时这一行在射程内但未被判定;本轮因为读委派而撞上。
+
+---
+
+## 4. 一份**没有腐烂**的文档:`subagent-lifecycle-api.md`
 
 本项目的 ▲ 计数衡量的是「作者自绘地图的腐烂程度」。为了让这个指标有意义,
 **核出「没腐烂」的样本同样要记**——否则读者只看得到坏消息,无法判断腐烂是普遍还是局部。

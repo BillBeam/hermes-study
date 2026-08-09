@@ -58,7 +58,7 @@ Directory Structure:
 |---|---|---|
 | `_ALLOWED_SUPPORT_DIRS` | `tools/skills_hub.py:155` | references, templates, scripts, assets, **examples** |
 | `ALLOWED_SUBDIRS` | `tools/skill_manager_tool.py:520` | references, templates, scripts, assets |
-| `SKILL_SUPPORT_DIRS` | `agent/skill_utils.py:51` | references, templates, assets, scripts |
+| `SKILL_SUPPORT_DIRS` | `agent/skill_utils.py:50` | references, templates, assets, scripts |
 
 `tools/skills_hub.py:155 @ 863e313`
 
@@ -94,19 +94,21 @@ ALLOWED_SUBDIRS = {"references", "templates", "scripts", "assets"}
 
 被代码真正消费的字段(逐个查过读取点,不是抄文档):
 
+(读取点一律在 `tools/skills_tool.py` 内,除非另注;下表列函数名而非行号,行号见后文各节的锚点)
+
 | 字段 | 读取点 | 作用 |
 |---|---|---|
-| `name` | `skills_tool.py:738` | 列表/查看的规范名;**截断到 64 字符** |
-| `description` | `skills_tool.py:744` | 列表里的一行说明;缺省时回落到正文首行非 `#` 行 |
-| `platforms` | `agent/skill_utils.skill_matches_platform` | OS 硬门控,不匹配直接不出现 |
-| `prerequisites.env_vars` | `skills_tool.py:283` | **legacy**,归一化进 `required_environment_variables` |
-| `prerequisites.commands` | `skills_tool.py:288` | 收集了但**从不使用**(见 §3.4) |
-| `required_environment_variables` | `skills_tool.py:342` | 就绪度判定 + 沙箱 env 透传 |
-| `required_credential_files` | `skills_tool.py:1535` | 注册进远程沙箱挂载 |
-| `setup.help` / `setup.collect_secrets` | `skills_tool.py:292` | 交互式收密钥 |
-| `compatibility` | `skills_tool.py:1699` | 原样透出(agentskills.io 兼容字段) |
-| `metadata.hermes.tags` / `.related_skills` | `skills_tool.py:1463` | 标签;**顶层 `tags:` 作为回落** |
-| `metadata`(整块) | `skills_tool.py:1701` | 原样透出 |
+| `name` | `_find_all_skills` / `skill_view` | 列表/查看的规范名;**截断到 64 字符** |
+| `description` | `_find_all_skills` | 列表里的一行说明;缺省时回落到正文首行非 `#` 行 |
+| `platforms` | `agent.skill_utils.skill_matches_platform` | OS 硬门控,不匹配直接不出现 |
+| `prerequisites.env_vars` | `_collect_prerequisite_values` | **legacy**,归一化进 `required_environment_variables` |
+| `prerequisites.commands` | `_collect_prerequisite_values` | 收集了但**从不使用**(见 §3.4) |
+| `required_environment_variables` | `_get_required_environment_variables` | 就绪度判定 + 沙箱 env 透传 |
+| `required_credential_files` | `skill_view` → `tools.credential_files.register_credential_files` | 注册进远程沙箱挂载 |
+| `setup.help` / `setup.collect_secrets` | `_normalize_setup_metadata` | 交互式收密钥 |
+| `compatibility` | `skill_view` 结果组装 | 原样透出(agentskills.io 兼容字段) |
+| `metadata.hermes.tags` / `.related_skills` | `skill_view` 结果组装 | 标签;**顶层 `tags:` 作为回落** |
+| `metadata`(整块) | `skill_view` 结果组装 | 原样透出 |
 
 三个长度上限,来源不同、后果不同:
 
@@ -579,7 +581,7 @@ class SkillReadinessStatus(str, Enum):
 
 缺失的变量会尝试**交互式收集**,但只在能安全弹窗的界面上:
 
-`tools/skills_tool.py:418 @ 863e313`
+`tools/skills_tool.py:417 @ 863e313`
 
 ```python
     missing_names = [entry["name"] for entry in missing_entries]
@@ -622,7 +624,7 @@ class SkillReadinessStatus(str, Enum):
 ```
 
 两个 `*_commands` 字段被**硬编码成空列表**,而 `_collect_prerequisite_values` 明明返回了命令列表
-(`tools/skills_tool.py:286-289`),调用点只取第一个返回值丢弃第二个(`legacy_env_vars, _ = ...`,
+(`tools/skills_tool.py:280-289`),调用点只取第一个返回值丢弃第二个(`legacy_env_vars, _ = ...`,
 `tools/skills_tool.py:1487`)。模块自己的 docstring 承认这点:
 
 `tools/skills_tool.py:37 @ 863e313`
@@ -670,14 +672,14 @@ class SkillReadinessStatus(str, Enum):
 
 | 能力 | 本地 skill | 插件 skill |
 |---|---|---|
-| platform 门控 | ✅ | ✅ `skills_tool.py:895` |
-| 注入扫描 | 只 log | 只 log `skills_tool.py:906` |
-| `skills.disabled` 配置 | ✅ `skills_tool.py:1281` | ❌(只查插件是否被禁) |
+| platform 门控 | ✅ | ✅ 走同一个 `skill_matches_platform` |
+| 注入扫描 | 只 log | 只 log(同一份 `_INJECTION_PATTERNS`) |
+| `skills.disabled` 配置 | ✅ 见 §6 守卫表 | ❌(只查插件本身是否被禁) |
 | `linked_files` | ✅ | ❌ 硬编码 `None` |
 | `file_path` 下钻 | ✅ | ❌ **静默忽略**(■-1) |
 | env / 凭据就绪度 | ✅ | ❌ 恒为 `available` |
-| 预处理(模板变量 / inline shell) | ✅ | ✅ `skills_tool.py:939` |
-| 兄弟技能横幅 | ❌ | ✅ `skills_tool.py:924` |
+| 预处理(模板变量 / inline shell) | ✅ | ✅ 走同一个 `preprocess_skill_content` |
+| 兄弟技能横幅 | ❌ | ✅ 只有插件路径有 |
 
 返回体只有六个字段:
 
@@ -952,7 +954,7 @@ grep -n "_org_mirror_write_guard\|_background_review_write_guard\|_pinned_guard\
 
 其中一条 bug 修复的因果链非常值得记:
 
-`tools/skill_manager_tool.py:386 @ 863e313`
+`tools/skill_manager_tool.py:387 @ 863e313`
 
 ```python
         # A MISSING record and an explicit `created_by: null` must resolve
@@ -1976,7 +1978,7 @@ _INLINE_SHELL_RE = re.compile(r"!`([^`\n]+)`")
 
 文档也如实警告了:
 
-> website/docs/developer-guide/creating-skills.md:315 @ 863e313
+`website/docs/developer-guide/creating-skills.md:312 @ 863e313`
 
 > This is **off by default** — any snippet in a SKILL.md runs on the host without approval, so only enable it for skill sources you trust:
 
@@ -2002,7 +2004,7 @@ grep -n 'inline\|!`' /home/user/hermes-agent/tools/skills_guard.py
 判定对象是"Security scanning and `--force`"小节里的**整个 Important behavior 项目列表**
 (三条 bullet 属于同一个标题、同一段论述):
 
-> website/docs/user-guide/features/skills.md:711 @ 863e313
+`website/docs/user-guide/features/skills.md:716 @ 863e313`
 
 > Important behavior:
 > - `--force` can override policy blocks for caution/warn-style findings.
@@ -2062,7 +2064,7 @@ INSTALL_POLICY = {
 
 ### ▲-2 `platforms` 的隐藏范围,对 `skill_view` 的描述不准确(措辞级)
 
-> website/docs/user-guide/features/skills.md:194 @ 863e313
+`website/docs/user-guide/features/skills.md:194 @ 863e313`
 
 > When set, the skill is automatically hidden from the system prompt, `skills_list()`, and slash commands on incompatible platforms. If omitted, the skill loads on all platforms.
 
@@ -2109,7 +2111,7 @@ def skill_matches_environment(frontmatter: Dict[str, Any]) -> bool:
 
 ### ◎-1 AGENTS.md 的 optional-skills 分类清单显著少于实况
 
-> AGENTS.md:861 @ 863e313
+`AGENTS.md:861 @ 863e313`
 
 > `hermes skills install official/<category>/<skill>`. Adapter lives in
 > `tools/skills_hub.py` (`OptionalSkillSource`). Categories include
@@ -2217,7 +2219,7 @@ LEGACY_INDEX_CACHE_DIR = os.path.join(REPO_ROOT, "skills", "index-cache")
 | H-9A-4 | `tools/skills_hub.py:3205` | `BrowseShSource.fetch` 对远端 JSON 给出的 `skillMdUrl` 直接 `httpx.get(..., follow_redirects=True)`,不经 `_guarded_http_get`(同文件 :302) | 下一轮把 `skills_hub.py` 内全部 20 处裸 `httpx.get` 按"URL 是否远端可控"分类,给出完整清单 |
 | H-9A-5 | `tools/skills_guard.py:101` | `THREAT_PATTERNS` 中无任何一条匹配 `` !`cmd` ``,而 `skills.inline_shell` 打开后该语法在 `skill_view` 时执行 | 下一轮读 `skills_guard.py` 全文(1,161 行,本轮只读了 40-120 与 766-816),核 9 类模式的完整覆盖面 |
 | H-9A-6 | `tools/skills_tool.py:118` | 深度 ≥2 的新增 skill 不改变缓存签名,`_find_all_skills` 在 30 秒内看不到它(实测 scan 2 缺 `second`) | 非缺陷,但 R12 蓝图写"缓存签名深度 = 允许的嵌套深度"时需要这条实测 |
-| H-9A-7 | `tools/skills_tool.py:286` + `:1650` | `prerequisites.commands` 被解析后丢弃,`required_commands` / `missing_required_commands` 恒为 `[]` | 下一轮若读 setup 流程,确认 CLI 侧是否另有命令检查(本轮只核了 `skills_tool.py` 内) |
+| H-9A-7 | `tools/skills_tool.py:280` + `:1650` | `prerequisites.commands` 被解析后丢弃,`required_commands` / `missing_required_commands` 恒为 `[]` | 下一轮若读 setup 流程,确认 CLI 侧是否另有命令检查(本轮只核了 `skills_tool.py` 内) |
 | H-9A-8 | `tools/skills_hub.py:946` | `_download_directory` 三方法(约 90 行)无生产调用方,仅 `tests/tools/test_skills_hub.py` 调用 | 台账层面记为"测试保活的死路径";若 R12 讲下载策略,需说明引用驱动取代了整目录下载 |
 
 **本轮未覆盖(明确交代,避免下一轮误以为已读)**:

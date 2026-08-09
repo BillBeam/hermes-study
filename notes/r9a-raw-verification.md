@@ -58,12 +58,12 @@
 ```text
         生产者(写台账)                        台账                       消费者(读台账)
   ┌──────────────────────────────┐   ┌──────────────────────┐   ┌───────────────────────────┐
-  │ tools/terminal_tool.py:3145  │──▶│ verification_events  │◀──│ agent/verification_stop   │
+  │ tools/terminal_tool.py       │──▶│ verification_events  │◀──│ agent/verification_stop   │
   │   record_terminal_result     │   │  (命令 + 分类 + 结果) │   │   _verification_snapshot  │
   │   仅前台命令                  │   ├──────────────────────┤   │   → build_..._nudge       │
   ├──────────────────────────────┤   │ verification_state   │   ├───────────────────────────┤
-  │ tools/file_tools.py:1752     │──▶│  (session,root) →     │◀──│ tui_gateway/methods_      │
-  │   mark_workspace_edited      │   │  last_event_id /      │   │  session.py:281           │
+  │ tools/file_tools.py          │──▶│  (session,root) →     │◀──│ tui_gateway/methods_      │
+  │   mark_workspace_edited      │   │  last_event_id /      │   │  session.py               │
   │   仅 write_file / patch      │   │  last_edit_at /       │   │  "verification.status"    │
   └──────────────────────────────┘   │  changed_paths_json   │   │  只读展示,不判决          │
                                      └──────────────────────┘   └───────────────────────────┘
@@ -148,6 +148,45 @@ class VerificationEvidence:
     session_id: str
     output_summary: str = ""
 ```
+
+落盘形状(两张表,一张流水一张指针):
+
+`agent/verification_evidence.py:112 @ 863e313`
+
+```sql
+        CREATE TABLE IF NOT EXISTS verification_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            cwd TEXT NOT NULL,
+            root TEXT NOT NULL,
+            command TEXT NOT NULL,
+            canonical_command TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            scope TEXT NOT NULL,
+            status TEXT NOT NULL,
+            exit_code INTEGER NOT NULL,
+            output_summary TEXT NOT NULL
+        )
+```
+
+`agent/verification_evidence.py:130 @ 863e313`
+
+```sql
+        CREATE TABLE IF NOT EXISTS verification_state (
+            session_id TEXT NOT NULL,
+            root TEXT NOT NULL,
+            last_event_id INTEGER,
+            last_edit_at TEXT,
+            changed_paths_json TEXT NOT NULL DEFAULT '[]',
+            PRIMARY KEY (session_id, root)
+        )
+```
+
+**主键是 `(session_id, root)`** —— 即「谁、在哪个仓库」。同一个会话在两个仓库里干活会有两行;
+两个会话在同一个仓库里干活也会有两行、互不影响(这是
+`tests/agent/test_verification_evidence.py:120` 钉住的隔离语义)。
+`verification_events` 是只增流水,`verification_state` 是每 `(会话, 仓库)` 一行的**指针 + 脏标记**。
 
 **回答「一条证据是什么」:它不是文件 diff,不是测试报告结构体,而是「一条被识别出来的终端命令
 及其退出码 + 输出摘要」。** 具体地:
@@ -1028,8 +1067,22 @@ def _status_detail(status: dict[str, Any]) -> str:
 
 **回答问题 4:它既不是钩子注册点,也不是钩子实现,而是一个「配置读取 + 文案常量」的公共小模块。**
 真正的钩子注册在 `hermes_cli/plugins.py`(`get_pre_verify_continue_message`,定义在 2323 行)、
-触发在 `agent/conversation_loop.py:7109`。这个文件之所以单独存在,是因为它被**两条互不相识的路**
-各取一半:
+触发在门②:
+
+`agent/conversation_loop.py:7104 @ 863e313`
+
+```python
+                try:
+                    from agent.verify_hooks import max_verify_nudges
+                    from hermes_cli.lifecycle import has_hook
+                    from hermes_cli.plugins import get_pre_verify_continue_message
+
+                    if _edited and has_hook("pre_verify") and _attempt < max_verify_nudges():
+```
+
+`has_hook("pre_verify")` 是这道门的总开关:**没有任何插件注册过这个钩子时,门② 完全不执行**
+(连配置都不读)。所以默认安装下门② 是空的,`max_verify_nudges` 也就无从生效。
+`verify_hooks.py` 之所以单独存在,是因为它被**两条互不相识的路**各取一半:
 
 `agent/verify_hooks.py:1 @ 863e313`
 
@@ -1053,12 +1106,12 @@ decision while preserving ``pre_verify`` for user/plugin policy.
 
 | 导出 | 被谁 import | 用途 |
 |---|---|---|
-| `max_verify_nudges` | `agent/conversation_loop.py:7105`(门②) | 限制 `pre_verify` 连续放行次数 |
-| `coding_verify_guidance` / `CODING_VERIFY_GUIDANCE` | `agent/verification_stop.py:237`(门①) | 拼进证据 nudge 的尾巴 |
+| `max_verify_nudges` | 门②(上面那个 import 块,7105 行) | 限制 `pre_verify` 连续放行次数 |
+| `coding_verify_guidance` / `CODING_VERIFY_GUIDANCE` | 门①(`agent/verification_stop.py:237`) | 拼进证据 nudge 的尾巴 |
 | `DEFAULT_MAX_VERIFY_NUDGES` | 仅测试与本文件 | 默认值 3 |
 
-搜索面:全仓 `grep -rn "verify_hooks"` 的非测试命中只有
-`agent/conversation_loop.py:7105` 与 `agent/verification_stop.py:237` 两处。
+搜索面:全仓 `grep -rn "verify_hooks"` 的非测试命中只有上面那个 import 块
+与 `agent/verification_stop.py:237` 两处。
 **它是一个「把默认指导文案从门② 搬到门① 上」这个历史决定的残留物**:
 docstring 第二段明确说了「shipped guidance 不做成第二个默认停止门」——
 如果做成默认 `pre_verify` 钩子,那么每个改过代码的回合都会**无条件**多烧一轮;
@@ -1299,9 +1352,21 @@ _VERIFICATION_CONTINUATION_FLAGS = (
 
 nudge 那条 user 消息带标记 → 被 `_drop_verification_continuation_scaffolding` 从返回/存活历史里
 剥掉;而模型那条「我做完了」的 assistant 消息**不带标记**、照常入库并推给 UI。
-`agent/agent_runtime_helpers.py:608` 另有一条:两条相邻 assistant 消息里,
-前一条若是 `verification_required`/`verify_hook_continue` 候选,**用后一条替换**而非合并,
-避免「过早的完成宣告」被拼进最终答案。
+另有一条配套规则,保证「过早的完成宣告」不会被拼进最终答案:
+
+`agent/agent_runtime_helpers.py:608 @ 863e313`
+
+```python
+    def _is_verification_candidate(m: Dict) -> bool:
+        return m.get("finish_reason") in {
+            "verification_required",
+            "verify_hook_continue",
+        }
+```
+
+两条相邻 assistant 消息里,前一条若是这两种候选之一,**用后一条替换**而非按常规做 union 合并
+(常规路径会把 `tool_calls` 并集、把文本拼接)。两条都仍然留在 state.db 里,
+被改的只是送给模型重放的那份内存序列。
 
 ---
 
@@ -1326,18 +1391,15 @@ nudge 那条 user 消息带标记 → 被 `_drop_verification_continuation_scaff
 三个写入点上,所以台账里连 `last_edit_at` 都不会被写 —— 门禁不仅没被触发,
 连「这个工作区脏了」都不知道。
 
-搜索面(全仓 `*.py`,含 tests):
+搜索面:全仓 `*.py`(不限目录、含 tests),模式 `mark_workspace_edited`,
+共 10 处命中;下面第二条命令把 7 处 `./tests/` 下的命中排除,余 3 处 —— 1 处是定义、
+1 处是 import、只有最后 1 处是真正的调用点。
 
 ```verify
-$ grep -rn "mark_workspace_edited" --include='*.py' .
+$ grep -rn "mark_workspace_edited" --include='*.py' . | wc -l
+10
+$ grep -rn "mark_workspace_edited" --include='*.py' . | grep -v '^\./tests/'
 ./agent/verification_evidence.py:526:def mark_workspace_edited(
-./tests/agent/test_verification_evidence.py:9:    mark_workspace_edited,
-./tests/agent/test_verification_evidence.py:159:    mark_workspace_edited(
-./tests/agent/test_verification_stop.py:8:    mark_workspace_edited,
-./tests/agent/test_verification_stop.py:130:    mark_workspace_edited(session_id="s1", cwd=project_b, paths=[changed_b])
-./tests/agent/test_verification_stop.py:194:    mark_workspace_edited(session_id="s1", cwd=tmp_path, paths=[changed])
-./tests/agent/test_verification_stop.py:216:    mark_workspace_edited(session_id="s1", cwd=tmp_path, paths=[code])
-./tests/agent/test_verification_evidence_fd_leak.py:81:    ve.mark_workspace_edited(session_id="s1", cwd=tmp_path, paths=["mod.py"])
 ./tools/file_tools.py:1734:        from agent.verification_evidence import mark_workspace_edited
 ./tools/file_tools.py:1752:        mark_workspace_edited(session_id=session_id or task_id, cwd=cwd, paths=paths)
 ```
@@ -1355,7 +1417,22 @@ def _mark_verification_stale(
     """Best-effort note that successful edits made prior verification stale."""
 ```
 
-它在 `tools/file_tools.py` 内被调用 3 次(1798 / 1825 / 1990)。
+它在 `tools/file_tools.py` 内被调用 3 次(1798 / 1825 / 1990),三处都紧贴「本次写入确实落地了」
+这个判定之后 —— 例如 patch 那一处:
+
+`tools/file_tools.py:1986 @ 863e313`
+
+```python
+            if not result_dict.get("error"):
+                result_dict["files_modified"] = _resolved_modified
+                if len(_resolved_modified) == 1:
+                    result_dict["resolved_path"] = _resolved_modified[0]
+                _mark_verification_stale(task_id, _resolved_modified, session_id=session_id)
+```
+
+注意 `files_modified` / `resolved_path` 这两个键同时是 `_extract_landed_file_mutation_paths`
+在回合内取绝对路径的来源(§6.1),所以「台账里的脏标记」与「回合内的 changed_paths」
+用的是同一份路径,不会各说各话。
 
 ### 7.2 ◆ 硬绕过 B:`api_mode == "codex_app_server"` 整条路不问门禁
 
@@ -1458,8 +1535,8 @@ after lint: passed kind= lint changed_paths= []
 nudge: None
 ```
 
-注:文档把 lint 明确列为可接受证据(§9 引 configuration.md:943 「a passing test run, build,
-lint, etc.」),所以**这不是文档-代码矛盾**;但它意味着 `kind`/`scope` 两个字段
+注:文档把 lint 明确列为可接受证据(§9 ◎1 引的 configuration.md 那句里写着
+「a passing test run, build, lint, etc.」),所以**这不是文档-代码矛盾**;但它意味着 `kind`/`scope` 两个字段
 **在门禁侧完全没有被消费**——它们只被记录、只被 TUI 展示。见 §9 ◇2。
 
 **(d) 设计使然:没有 canonical 套件时,模型自己写的、零断言的脚本就是「通过证据」。**
@@ -1629,7 +1706,7 @@ $ cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python -m pytest -p n
 
 >   max_verify_nudges: 3         # Cap on consecutive continue nudges per turn (built-in + pre_verify hooks)
 
-代码侧:`max_verify_nudges` 的唯一非测试消费点在门②(`agent/conversation_loop.py:7109`,§6.2 已引),
+代码侧:`max_verify_nudges` 的唯一非测试消费点在门②(§5 已引那个 import 块),
 门① 用的是 `build_verify_on_stop_nudge` 的**硬编码默认 2**,且生产调用方不传该参数(§6.2)。
 搜索面:全仓 `grep -rn "max_verify_nudges" --include='*.py' --include='*.md'` 命中
 `hermes_cli/config_defaults.py:148`、`agent/verify_hooks.py`(定义与 `__all__`)、
@@ -1647,7 +1724,7 @@ $ cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python -m pytest -p n
 
 **配置文件里的注释是对的(只说 `pre_verify`),网站文档的注释是错的(多写了 built-in)。**
 后果具体:用户把 `max_verify_nudges` 调成 0 想关掉内建轻推,实际只关掉了插件门,
-内建门仍会推 2 次。`hooks.md:703` 那一句(同样引下)因为写在 `pre_verify` 小节里、
+内建门仍会推 2 次。hooks 文档里那句同名的「Bounded」(下面单独引)因为写在 `pre_verify` 小节里、
 只说 hook,**是对的**,不计入 ▲。
 
 `website/docs/user-guide/features/hooks.md:703 @ 863e313`
@@ -1663,7 +1740,7 @@ $ cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python -m pytest -p n
 > Fires **once per turn when the agent edited code**, just before it finishes (after the built-in verify-on-stop guard). This is a user/plugin policy gate: a callback can keep the agent going — run a check, defer it, tidy the diff — instead of letting it stop.
 
 后半句(「在内建 verify-on-stop 之后」)与代码一致:门② 确实排在门① 之后
-(`agent/conversation_loop.py:7043` 门①、`:7109` 门②)。
+(门① 在 `agent/conversation_loop.py` 的 7043 行、门② 在 7109 行,§6.2 / §5 各已引)。
 前半句「once per turn」与代码矛盾:门② 在 `while` 循环内、每次走到终局判定都会重跑,
 上限是 `max_verify_nudges`(默认 3),不是 1。同一份文档第 705 行自己说出了正确行为:
 
@@ -1678,9 +1755,7 @@ $ cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python -m pytest -p n
 
 `website/docs/user-guide/configuration.md:943 @ 863e313`
 
-> When enabled, Hermes refuses to accept a final answer on a turn where the agent edited code in a workspace but produced no fresh verification evidence (a passing test run, build, lint, etc.) — it injects a synthetic follow-up asking the agent to verify or explain why it can't. Doc/markdown/skill-only edits never trigger it, and the loop is bounted so it can never trap the agent.
-
-*(上一行为便于对照抄录,原文末词为 `bounded`;此处引文按原文校正见下,判定不依赖该词。)*
+> When enabled, Hermes refuses to accept a final answer on a turn where the agent edited code in a workspace but produced no fresh verification evidence (a passing test run, build, lint, etc.) — it injects a synthetic follow-up asking the agent to verify or explain why it can't. Doc/markdown/skill-only edits never trigger it, and the loop is bounded so it can never trap the agent.
 
 逐句判定:
 - 「refuses to accept a final answer」+ 「injects a synthetic follow-up asking the agent to
