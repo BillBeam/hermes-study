@@ -382,6 +382,73 @@ cd /home/user/hermes-agent && grep -c "plugins.enabled\|HERMES_SAFE_MODE\|safe_m
 **主线接受这条 ■。** 与 §1/§2 并读,本轮第三次看到同一形状:
 **守卫存在、但某一条路径不问它。**
 
+### 3.5.6 通过:供应链审计的 CVSS 分档是死代码(簇 C 的 ■-6)
+
+这条后果比听起来大:它让 `hermes security-audit --fail-on critical` 对
+**只带 CVSS 向量串、不带文字等级**的通告一律放行(退出码 0)。
+
+`hermes_cli/security_audit.py:342-350 @ 863e313`
+
+```python
+    # Fall back to CVSS score → tier
+    score: Optional[float] = None
+    for sev_entry in record.get("severity") or []:
+        s = sev_entry.get("score")
+        if isinstance(s, str):
+            # CVSS vector strings look like "CVSS:3.1/AV:N/..." — we can't
+            # parse without a lib. Look for an explicit numeric in
+            # affected[].ecosystem_specific later if present.
+            continue
+```
+
+`hermes_cli/security_audit.py:357-366 @ 863e313`
+
+```python
+    if score is not None:
+        if score >= 9.0:
+            return "CRITICAL"
+        if score >= 7.0:
+            return "HIGH"
+        if score >= 4.0:
+            return "MODERATE"
+        if score > 0:
+            return "LOW"
+    return "UNKNOWN"
+```
+
+主线逐行核对 `:343`(声明)到 `:357`(使用)之间的**全部**语句:
+循环体把值读进的是**另一个名字 `s`**,分支要么 `continue` 要么落空,
+**没有任何一条语句给 `score` 赋过值**。于是 `:357` 的条件恒为假,
+`:358-365` 八行分档**不可达**,函数对这类记录恒返回 `"UNKNOWN"`。
+注释里那句 "Look for an explicit numeric in `affected[].ecosystem_specific` later if present"
+描述的是一个**没有写出来**的后续步骤——`:352-356` 那段只查文字等级 `severity`,不取数值。
+
+### 3.5.7 通过但需加一层判断:`PYTEST_CURRENT_TEST` 让受管层整层消失(簇 C 的 ■-3)
+
+现象属实,但**不是疏忽,是一个写明了意图的测试接缝**——主线把整段 docstring 一并判定后
+认为子代理的"绕过"措辞对,而"缺陷"的性质要说清楚:
+
+`hermes_cli/managed_scope.py:44-49 @ 863e313`
+
+```python
+    Used to ignore the system default ``/etc/hermes`` during tests so a real
+    managed scope on a developer/CI box can't leak policy into the suite. Tests
+    that exercise managed scope set ``HERMES_MANAGED_DIR`` explicitly, which is
+    still honored (the override path below runs before this guard takes effect).
+    """
+    return "PYTEST_CURRENT_TEST" in os.environ
+```
+
+**裁定:仍记 ■,但归类为"测试接缝具备生产后果",不是"忘了防"。**
+理由是这一层的产品定位:`managed_scope.py` 自称
+"Managed scope — IT-pushed, **user-immutable** config & env layer"。
+它要约束的对象**正是能设置环境变量的那个用户**;
+而解除它只需要在环境里放一个名字里带 `PYTEST` 的变量。
+代码解释了**为什么这么做**(防 CI 机器上的真实策略污染测试),
+但没有任何地方交代**这么做的代价**——受管层因此不是权限边界,只是默认值。
+这与 §1 那条 docstring 是同一类问题的两种表现:
+**注释说清了意图,却没说清它让什么变得不成立。**
+
 ---
 
 ## 4. 本轮对历史产出的就地改正(制度要求点名)
