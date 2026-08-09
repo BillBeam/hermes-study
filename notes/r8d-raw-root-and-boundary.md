@@ -1646,8 +1646,19 @@ Plus: channels_list (Hermes-specific extra)
 **负结论(全仓无写入点),搜索面**:基线根,`--include=*.py`,**不排除 tests**,
 模式 `_pending_approvals`(整个标识符,不是子串猜测)。命中分三类:
 (a) `gateway/run.py` / `gateway/slash_commands.py` / `gateway/session_state.py` 里的
-**同名但无关**属性(那是 gateway runner 的字段,`gateway/run.py:5819`
-`_pending_approvals = legacy_dict_property("_pending_approvals")`,与 EventBridge 无任何引用关系);
+**同名但无关**属性 —— 那是 gateway runner 的字段,与 EventBridge 无任何引用关系:
+
+`gateway/run.py:5817-5820 @ 863e313`
+
+```python
+    _session_ephemeral_pin = legacy_dict_property("_session_ephemeral_pin")
+    _session_vc_last = legacy_dict_property("_session_vc_last")
+    _pending_approvals = legacy_dict_property("_pending_approvals")
+    _update_prompt_pending = legacy_dict_property("_update_prompt_pending")
+```
+
+(同名不同物这件事本身就是排查陷阱:一条 `grep _pending_approvals` 会给出 70 多个命中,
+其中绝大多数属于 gateway,很容易让人以为"这个字段当然有人写";)
 (b) `mcp_serve.py` 自身的 4 处(1 处初始化 + 2 处读 + 1 处 pop);
 (c) `tests/test_mcp_serve.py` 的 5 处**直接注入**。生产写入点:**零**。
 
@@ -1739,12 +1750,23 @@ docstring 老实承认 "best-effort without gateway IPC",但**返回值写的是
 
 > Event types: `message`, `approval_requested`, `approval_resolved`
 
-整段判定:这张表在 `### Available tools` 标题下(`mcp.md:812`),开头一句是
-"The MCP server exposes 10 tools"(`:814`);同页 `### Current limits`(`:858-863`)
-列了 4 条限制(仅 stdio、200ms 轮询、无 push 协议、仅文本发送),
-**没有一条**提到审批工具不可用。`approval_requested` 事件类型同理:文档列了,代码不产。**▲-3。**
+整段判定:这张表在 `### Available tools` 标题下,开头一句是
+"The MCP server exposes 10 tools";同页还有一节专门讲已知限制,列了 4 条:
 
-(注:中文站 `website/i18n/zh-Hans/.../mcp.md:547-548` 是同一断言的翻译,同一处 ▲,不重复计数。)
+`website/docs/user-guide/features/mcp.md:858-863 @ 863e313`
+
+> ### Current limits
+>
+> - The embedded `hermes mcp serve` exposes a **stdio-only** MCP server today. If you need an HTTP MCP server, run a separate adapter — or, much more commonly, use the MCP **client** side of Hermes, which already speaks both stdio and HTTP (`url` + `headers` in `mcp_servers.yaml` / `config.yaml`; see [HTTP servers](#http-servers) above).
+> - Event polling at ~200ms intervals via mtime-optimized DB polling (skips work when files are unchanged)
+> - No `claude/channel` push notification protocol yet
+> - Text-only sends (no media/attachment sending through `messages_send`)
+
+四条里**没有一条**提到审批工具不可用。也就是说文档不仅在工具表里正面承诺了这个能力,
+还在"我们知道自己缺什么"的清单里把它排除在外。`approval_requested` 事件类型同理:
+文档列了,代码不产。**▲-3。**
+
+(注:中文站的同名页面是同一断言的翻译,同一处 ▲,不重复计数。)
 
 ### 7.4 ■-3:`hermes mcp serve --verbose` 不会开启 DEBUG
 
@@ -1757,7 +1779,19 @@ docstring 老实承认 "best-effort without gateway IPC",但**返回值写的是
         logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
 ```
 
-调用链:`hermes_cli/mcp_config.py:1078-1079` → `mcp_serve.run_mcp_server(verbose=...)`。
+调用链是这样接上的:
+
+`hermes_cli/mcp_config.py:1074-1079 @ 863e313`
+
+```python
+    """Main dispatcher for ``hermes mcp`` subcommands."""
+    action = getattr(args, "mcp_action", None)
+
+    if action == "serve":
+        from mcp_serve import run_mcp_server
+        run_mcp_server(verbose=getattr(args, "verbose", False))
+```
+
 而在此之前,`hermes_cli/main.py` 在**模块 import 期**就已经建好了 root handler:
 
 `hermes_cli/main.py:747-757 @ 863e313`
@@ -1904,7 +1938,16 @@ hermes.mcp_serve DEBUG enabled?: False
         self._new_event.set()
 ```
 
-`QUEUE_LIMIT = 1000`(`mcp_serve.py:288`)。客户端如果轮询间隔内产生了 >1000 条事件,
+上限是硬编码的:
+
+`mcp_serve.py:288-289 @ 863e313`
+
+```python
+QUEUE_LIMIT = 1000
+POLL_INTERVAL = 0.2  # seconds between DB polls (200ms)
+```
+
+客户端如果轮询间隔内产生了 >1000 条事件,
 早的事件被从队头丢弃,**客户端无法察觉**:它拿到的下一批 cursor 会直接跳号,
 但返回体里没有任何"你漏了 N 条"的信号(没有 `dropped` / `oldest_cursor` 字段)。
 对一个以 `after_cursor` 做断点续传的协议来说,**静默丢事件**是缺陷。记 ■-4(轻度)。
@@ -1949,13 +1992,28 @@ hermes.mcp_serve DEBUG enabled?: False
 
 ## 9. 测试作行为规格
 
-**环境记录(按 CLAUDE.md 要求)**:`/home/user/hermes-venv`,未安装任何包、未改动 venv。
+**环境记录(按 CLAUDE.md 要求,且本轮必须多说一句)**:`/home/user/hermes-venv`,
+**本簇未安装任何包、未改动 venv**。但共享 venv 在本轮**被别人改了**,必须交代:
 
 ```verify
 ls -d /home/user/hermes-venv/lib/python*/site-packages/*.dist-info | wc -l
+ls -la --time-style=+%H:%M:%S -d /home/user/hermes-venv/lib/python*/site-packages/*.dist-info | awk '{print $6, $7}' | sort | tail -8
 ```
 
-实测 **87**(与 R8B 记录一致)。运行方式:
+首次跑测试时是 **87 个包**(与 R8B 记录一致),收尾复核时变成 **93**。
+按 CLAUDE.md "直接断言、不要间接推断"的要求去看 `dist-info` 时间戳,而不是猜:
+87 个的时间戳集中在 `01:19:41`–`01:20:14`(venv 初建),
+另外 6 个是 `01:33:43`–`01:33:45` 装进来的 ——
+`boto3` / `botocore` / `jmespath` / `s3transfer`(AWS)、`edge_tts`(TTS)、`tabulate`。
+即本轮有**同伴子代理往共享 venv 装了平台 extra**,与本簇无关。
+
+**处置**:不做推断,直接在 93 包状态下把 7 个文件**整体重跑一遍**,
+结果与 87 包时**逐文件相同**(见下表)。本簇 7 个文件都不受这 6 个包门控
+(它们是 AWS/TTS/表格渲染,与 `hermes_time` / `hermes_logging` / `utils` /
+`active_sessions` / `mem_trim` / proxy / `mcp_serve` 无依赖关系),所以两次读数一致是预期内的。
+**下表的数是 93 包状态下的复核值。**
+
+运行方式:
 
 ```verify
 cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python \
@@ -1971,8 +2029,8 @@ cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python \
 | `tests/hermes_cli/test_active_sessions.py` | 3 | 全通过 |
 | `tests/test_mcp_serve.py` | 88 | 全通过 |
 | `tests/test_hermes_logging.py` | 28 | 全通过 |
-| `tests/test_timezone.py` | ~10 | 全通过 |
-| `tests/agent/test_context_compressor_temporal_anchoring.py` | ~3 | 全通过 |
+| `tests/test_timezone.py` | 11 | 全通过 |
+| `tests/agent/test_context_compressor_temporal_anchoring.py` | 2 | 全通过 |
 
 **合计 7 个文件 / 148 个用例 / 0 失败。** 本簇**没有**遇到 CLAUDE.md 里记录的三类
 环境性必然失败(无 IPv6 / root / 离线 models.dev)——原因见 §6.3:

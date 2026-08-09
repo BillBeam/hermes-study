@@ -2633,7 +2633,9 @@ cd /home/user/hermes-agent && ls -a .gitmodules; echo "(b) 总数=$(grep -rn "su
 
 ### ▲-2 `website/docs/getting-started/updating.md:113` —— 「Expected output」整块与代码不符
 
-归属标题:`### Windows: another hermes.exe is running` 末尾的 "Expected output looks like:" 块。
+归属标题:`### Windows: another hermes.exe is running` 末尾的 "Expected output looks like:" 块(第 111–125 行)。
+
+`website/docs/getting-started/updating.md:113`
 
 > ```
 > $ hermes update
@@ -2643,11 +2645,14 @@ cd /home/user/hermes-agent && ls -a .gitmodules; echo "(b) 总数=$(grep -rn "su
 > 📦 Updating dependencies...
 > ✅ Dependencies updated
 > 🔍 Checking for new config options...
+> ✅ Config is up to date  (or: Found 2 new options — running migration...)
 > 🔄 Restarting gateways...
+> ✅ Gateway restarted
 > ✅ Hermes Agent updated successfully!
 > ```
 
-判定:这段「预期输出」在基线代码里**一行都不存在**。实际打印的是:
+判定:整块 11 行里,只有第 2 行 `Updating Hermes Agent...` 在代码里**近似**存在
+(实际带 `⚕ ` 前缀),其余每一条带 emoji 的进度行在基线代码里**都不存在**。实际打印的是:
 
 `hermes_cli/update_cmd.py:3599`
 
@@ -2913,7 +2918,20 @@ cd /home/user/hermes-agent && grep -rn "autocrlf" README.md AGENTS.md website/do
 
 ## 10. 测试作行为规格
 
-本轮实际运行(基线只读,未装任何包;venv = `/home/user/hermes-venv`,87 包环境)。
+本轮实际运行(基线只读;**本子代理未装任何包、未改 venv**)。
+
+**环境必须记(CLAUDE.md 立的规矩:用例数是环境的函数)**:
+测试时 `/home/user/hermes-venv` 实测 **93 个包 / 93 个 `*.dist-info`**,
+**不是** CLAUDE.md 里记的 R8B 的 87 个。差额 6 个直接查了时间戳(不靠推断):
+`edge_tts-7.2.7` / `tabulate-0.10.0` / `botocore-1.42.97` / `boto3-1.42.89` /
+`jmespath-1.1.0` / `s3transfer-0.16.1`,`dist-info` 目录 mtime 全部是 **2026-08-09T01:33 UTC**,
+即 **本轮(R8D)进行中**由本子代理之外的某个执行位装入共享 venv。
+87 + 6 = 93,差额完全对上。本簇测试不依赖这 6 个包,通过数不受影响,但**下一轮拿到不同的数时请先查这一条**。
+
+```verify
+ls -dlt --time-style=+%Y-%m-%dT%H:%M /home/user/hermes-venv/lib/python*/site-packages/*.dist-info | head -6
+ls -d /home/user/hermes-venv/lib/python*/site-packages/*.dist-info | wc -l
+```
 
 ```console
 cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python bash scripts/run_tests.sh <files>
