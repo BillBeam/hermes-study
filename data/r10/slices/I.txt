@@ -1,0 +1,2 @@
+native/fts5_cjk/vendor/sqlite3.h
+native/fts5_cjk/vendor/sqlite3ext.h
