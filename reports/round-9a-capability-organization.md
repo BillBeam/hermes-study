@@ -326,7 +326,7 @@ R8D 锚点各差一行(实为 `:666` / `:234`);`iron_proxy` 是第三方 Go 二�
 | **H-R9A-f** | R9D | `tools/skills_hub.py:3205` 的 `httpx.get(md_url, ..., follow_redirects=True)` | 8 处裸调用里唯一 URL 取自远端 JSON 的一处未走同文件 `:302` 的守卫 |
 | **H-R9A-g** | R9D | `AGENTS.md:971-974` 的 toolset 清单 | 文档列 30 个键、代码有 58 个,**文档还漏 28 个**;本轮只判定了「文档有而代码无」的 3 个,漏列那一半未判 |
 | **H-R9A-h** | 制度(下一轮开工时) | `scripts/verify_citations.py` 的锚点配对规则 | 移交表格行内的锚点永远配不上块、恒记 UNCHECKED,从不被校验;本轮因子代理共享资源纪律未改 `scripts/`,仅提出 |
-| **H-R8D-g**(续转) | R11B | `chapters/r2-*` / `r4-*` / `r5-*` / `r6-*` / `r7-*` / `r7b-*` 六章 | 校验器逐章点名 UNCHECKED ≥90%;本轮全量比例升到 74.0% 是稀释所致,**欠账未动** |
+| **H-R8D-g**(续转) | R11B | `chapters/r2-*` / `r4-*` / `r5-*` / `r6-*` / `r7-*` / `r7b-*` 六章 | 校验器逐章点名 UNCHECKED ≥90%;本轮全量比例升到 73.5% 是稀释所致,**欠账未动** |
 | **H-R8D-h**(续转) | R11 复盘 | `notes/r8d-str-setup-and-ux.md` 记的两条 docstring 级 ▲ | 模块 docstring 级 ▲ 与「作者自绘地图」级 ▲ 是否分开计数,仍需一次统一裁定;本轮沿用分开处理 |
 | **H-R8D-i**(续转) | R12 前置 | 本报告 §4 | R12 前置条件已量化为「再做完 R9B/R9C/R9D 三轮」,与 R10/R11 进度无关 |
 | **H-R8D-j**(续转) | R11A | `pyproject.toml` 的 extra 定义 | `pip install -e ".[dev]"` 装不出全绿套件;贡献者指南未交代跑通全套所需的 extra 集合 |
