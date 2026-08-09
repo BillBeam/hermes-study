@@ -68,8 +68,8 @@ def main() -> None:
         l3_backlog()
         r = l3[0]
         print("\nExtrapolating slice I onto the WHOLE remaining L3 backlog:")
-        by_line = 584490 / r["lines"]
-        by_file = 1878 / r["files"]
+        by_line = nl_backlog() / r["lines"]
+        by_file = nf_backlog() / r["files"]
         print(f"  scaled by LINES : {by_line:5.1f} x slice I  -> ~{by_line:.0f} slices")
         print(f"  scaled by FILES : {by_file:5.1f} x slice I  -> ~{by_file:.0f} slices")
         print(f"  the two disagree by {max(by_line, by_file) / min(by_line, by_file):.0f}x.")
@@ -77,6 +77,22 @@ def main() -> None:
         print("  which 5 are huge data tables and whose chain left the slice entirely,")
         print("  while both backlog buckets are ~1,000 small homogeneous documents.")
         print("  Recommendation in the report: R11 runs a CALIBRATION slice, not a forecast.")
+
+
+def _l3_rem():
+    import csv as _csv
+    led = Path(__file__).resolve().parents[2] / "ledger.tsv"
+    rows = list(_csv.DictReader(led.open(newline="", encoding="utf-8"), delimiter="\t"))
+    return [r for r in rows if r["layer"].strip() == "L3"
+            and r["status"].strip() == "R1-inventoried"]
+
+
+def nf_backlog() -> int:
+    return len(_l3_rem())
+
+
+def nl_backlog() -> int:
+    return sum(int(r["lines"]) for r in _l3_rem())
 
 
 def l3_backlog() -> None:
@@ -99,11 +115,16 @@ def l3_backlog() -> None:
         top = collections.Counter("/".join(r["path"].split("/")[:2]) for r in g).most_common(1)[0][0]
         print(f"  {rnd:>6} {len(g):6d} {sum(ln):8d} {statistics.median(ln):7.0f} {max(ln):7d}"
               f"  {dict(st)} {top}")
+    # Read the backlog straight off the ledger's status column -- do NOT subtract
+    # this round's slice separately. The first draft did both (subtracting slice I
+    # from a set that no longer contained it once the ledger was updated), which
+    # silently moved the headline number from 1,878 to 1,865 the moment the
+    # ledger landed. A double-subtraction that only appears after a later step is
+    # exactly the kind of arithmetic a report should not be carrying by hand.
     rem = [r for r in l3 if r["status"].strip() == "R1-inventoried"]
-    done = [r for r in l3 if r["round"].strip() == "R10"]
-    nf = len(rem) - len(done)
-    nl = sum(int(r["lines"]) for r in rem) - sum(int(r["lines"]) for r in done)
-    print(f"\n  L3 still R1-inventoried once R10B lands: {nf} files / {nl} lines")
+    nf = len(rem)
+    nl = sum(int(r["lines"]) for r in rem)
+    print(f"\n  L3 still R1-inventoried: {nf} files / {nl} lines")
     print(f"  R10's quoted backlog (787 / 263,763) is {263763 / nl:.0%} of it.")
 
 

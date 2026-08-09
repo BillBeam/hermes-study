@@ -9,10 +9,10 @@
 标称 977 文件 / 214,245 行。核:
 
 ```verify
-cd /home/user/hermes-study && python3 - <<'EOF'
+git show 884cb7f:data/ledger.tsv > /tmp/ledger-at-start.tsv && python3 - <<'EOF'
 import csv, collections
 rows = {}
-with open('data/ledger.tsv', newline='', encoding='utf-8') as f:
+with open('/tmp/ledger-at-start.tsv', newline='', encoding='utf-8') as f:
     for r in csv.DictReader(f, delimiter='\t'):
         rows[r['path'].strip()] = r
 rem = [l.strip() for l in open('data/r10/slices/REMAINDER.txt', encoding='utf-8') if l.strip()]
@@ -32,6 +32,10 @@ files=977 lines=214245
 layer: {'L2': (964, 196867), 'L3': (13, 17378)}
 status: {'R1-inventoried': 977}
 ```
+
+*命令读的是 **`884cb7f` 那一版台账**(本轮改 `status` 之前的最后一版),不是当前工作区的。
+开工读数必须在收工后仍可复现,而 `status` 列在本轮末尾会被改写——直接读当前台账的话,
+**这段证据会被本轮自己的后续步骤作废**。*
 
 **与任务书一致。** 三件事值得单独记:
 

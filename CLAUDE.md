@@ -217,8 +217,12 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   把"保守但为真"计进 ▲ 会让它不可比。字面为真就不是 ▲。*
 - **shell 命令即证据(R8-fix,review-1 建议-16 / M-16d;R10B 起脚本可查)**:凡把 shell 命令写进证据,
   **必须是重跑能复现该结论的那一条**,并用 ```` ```verify ```` 围栏标注。
-  **R10B 起由脚本强制**:```` ```verify ```` 块后**紧跟**的 ```` ```text ```` 块会被重跑比对,
-  不一致即失败。每轮 commit 前对**当轮 notes 与报告**运行:
+  **R10B 新增脚本检查,R11 起升格为阻断**(沿用 R7C→R8A、R8C→R8D 的同一套分期):
+  ```` ```verify ```` 块后**紧跟**的 ```` ```text ```` 块会被重跑比对。
+  **R10B 本轮的强制范围是「当轮主线 notes + 报告 + 成品章」**(作者知道这条规则时写的那些);
+  各片底稿是在这道关卡存在**之前**派出去的,本轮**只报数不阻断**,积压交 R11 清完再升格
+  ——一个对着自己没造成的积压狂叫的关卡,只会教会作者忽略它。
+  每轮 commit 前运行:
 
   ```bash
   python3 scripts/verify_evidence_commands.py notes/rN-*.md reports/round-N-*.md
