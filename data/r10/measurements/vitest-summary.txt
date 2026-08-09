@@ -1,0 +1,7 @@
+ Test Files  138 passed (138)
+      Tests  1530 passed | 1 skipped (1531)
+   Duration  42.60s (transform 22.45s, setup 0ms, import 53.27s, tests 33.37s, environment 22ms)
+########## vitest: web ##########
+ Test Files  27 passed (27)
+      Tests  191 passed (191)
+   Duration  5.19s (transform 1.84s, setup 0ms, import 3.83s, tests 1.30s, environment 4.20s)

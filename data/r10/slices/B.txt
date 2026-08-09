@@ -1,0 +1,11 @@
+tui_gateway/compute_host.py
+tui_gateway/git_probe.py
+tui_gateway/host_supervisor.py
+tui_gateway/methods_complete.py
+tui_gateway/methods_config.py
+tui_gateway/methods_prompt.py
+tui_gateway/methods_session.py
+tui_gateway/methods_tools.py
+tui_gateway/project_tree.py
+tui_gateway/slash_worker.py
+tui_gateway/synthetic_turn.py

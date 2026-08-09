@@ -1,0 +1,11 @@
+slice	title	files	lines
+A	tui_gateway 协议骨架与传输	11	15821
+B	tui_gateway 方法面与宿主监管	11	9742
+C	acp_adapter 编辑器接驳	11	5831
+D	ui-tui 客户端主干	82	18000
+E	ui-tui 组件、库与构建脚本	97	24682
+F	hermes-ink 终端渲染器	131	27170
+G	web 仪表盘前端	131	49274
+H	apps/desktop/electron 主进程与后端监管	80	26639
+I	native/fts5_cjk 随附头文件(处置)	2	14498
+REMAINDER	本轮显式不吃下(移交 R10B)	977	214245
