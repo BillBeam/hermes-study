@@ -385,7 +385,20 @@ H-R8D-i 把 R12 前置定为**"L1 全部 deep-read"**。
    均为静态全链对读,未在真实回合里端到端跑——需真实 provider 凭据,项目边界明写不配置。
 9. **本轮未做的事**:未跑真实模型/计费/云端点,未配置任何凭据;
    `chapters/` 六章的 UNCHECKED 欠账未动;§3.4 那 39 个积压未就地补读(本轮责任是点名 + 归属)。
-10. **基线洁净的一处如实交代**:跑测试会在基线工作区生成 `test_durations.json`,
+10. **一处边界违反,自查发现并已修复(本轮)**:边界明写"不把任何会话、模型标识、
+    背景信息写入仓库产物"。本轮初稿的三条 ```verify 命令里,复现脚本的路径带着
+    **会话专属的 scratchpad 目录名(含会话 UUID)**——那是会话信息写进了产物。
+    **修法不是删掉路径,而是把三个探针脚本落库**到 `data/r9d/probes/`
+    (`l1_named_coverage.py` / `h_r9a_b_repro.py` / `h_r9a_b_run_variant.py`,
+    另加 `h_r9a_e_ctx_probe.py`),命令改用仓库相对路径并**重跑确认三条全部复现**。
+    这比删路径更好:证据从"某次会话里跑过"变成"任何人 clone 下来都能重跑"。
+    *这条边界不在任何关卡覆盖面内,是自查撞见的;R9C 也曾在提交信息上违反过同一条边界。*
+11. **一处历史同型问题,本轮未修(点名移交)**:同样的会话路径出现在**此前五轮**的底稿里
+    (`notes/r8c-raw-config-endpoints.md`、`notes/r8d-raw-credentials-security.md`、
+    `notes/r9a-raw-skills-agent-side.md`、`notes/r9a-raw-skills-sync.md`、
+    `notes/r9c-raw-secret-sources.md`)。**本轮只修自己造成的部分**,历史部分立 H-R9D-f 移交,
+    因为改动它们要连带复核各自的 ```verify 是否仍能复现,不宜在收口轮顺手做。
+12. **基线洁净的一处如实交代**:跑测试会在基线工作区生成 `test_durations.json`,
     它被基线自己的 `.gitignore:35` 覆盖,故 `git status --porcelain` 为空、
     **所有已跟踪文件逐字未变**(`git diff HEAD` 为空),`路径:行号 @ 863e313` 引用不受影响。收工已清除。
 
@@ -410,6 +423,7 @@ H-R8D-i 把 R12 前置定为**"L1 全部 deep-read"**。
 | **H-R9D-b** | R11A | `tools/thread_context.py:118`:`return ctx.run(_inner)` | 返回的包装器不能并发复用,第二个并发调用抛 `RuntimeError: cannot enter context`;与 H-R9A-e 是同一套上下文传播设施的两个缺口 |
 | **H-R9D-c** | R11A | `agent/think_scrubber.py:89`:`_OPEN_TAGS: Tuple[str, ...] = tuple(f"<{name}>" for name in _OPEN_TAG_NAMES)` | 带属性的推理标签在流式路径下完整泄露给用户、在非流式路径下把整条回复吃空——同一输入两条路径结果相反 |
 | **H-R9D-d** | R11A | `tools/managed_tool_gateway.py:298`:`(actual.scheme, actual.netloc) == (expected.scheme, expected.netloc)` | 托管网关信任闸门对主机名大小写敏感(用 `netloc` 而非 `hostname`),且 `TOOL_GATEWAY_SCHEME=http` 可让 Nous bearer 走明文 |
+| **H-R9D-f** | R11B | `notes/r9c-raw-secret-sources.md:280`:`cd /tmp/claude-0/-home-user-hermes-study/` | 此前五轮底稿的 ```verify 命令里带会话专属 scratchpad 路径(含会话 UUID),既违反"不写会话信息进产物"的边界,也让那些命令**换个会话就跑不了**;修时须连带复核各自能否复现 |
 | **H-R9D-e** | R11 复盘 | 本报告 §3.4 | 点名覆盖率测量**对"报告它"不幂等**;重测必须剔除承载积压清单的文件,否则读到虚高改善 |
 | **H-R9C-e**(改述后续转) | R11B | 本报告 §3.4 的 **39 / 10** | 已标 `*-deep-read` 但全语料零点名的历史积压,建议按 R7B 12 个单独一片 + R8B 18 个一节 + R2/R4/R6 9 个并入 |
 | **H-R8D-g**(续转) | R11B | `chapters/r2-turn-loop-and-model-access.md` 等六章 | 校验器逐章点名 UNCHECKED ≥90%;**本轮未动** |

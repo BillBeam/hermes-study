@@ -217,7 +217,7 @@ R9C §3.1 立了这个测量:把已标 `*-deep-read` 的 L1 文件路径,拿去�
 
 ```verify
 cd /home/user/hermes-study && python3 \
-    /tmp/claude-0/-home-user-hermes-study/11b9bcbd-a8fd-518c-931a-498c7a1d5f37/scratchpad/l1_named_coverage.py \
+    data/r9d/probes/l1_named_coverage.py \
     . --scope notes,chapters,reports --list-misses
 ```
 

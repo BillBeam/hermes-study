@@ -64,7 +64,7 @@ CPython 两条路径的收尸时机根本不同:
 
 ```verify
 cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python \
-    /tmp/claude-0/-home-user-hermes-study/11b9bcbd-a8fd-518c-931a-498c7a1d5f37/scratchpad/h_r9a_b_repro.py
+    data/r9d/probes/h_r9a_b_repro.py
 ```
 
 ```text
@@ -117,7 +117,7 @@ asyncio 侧的 watcher 线程**通常抢先**(主线 8 次全赢),但**并非结
 
 ```verify
 cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python \
-    /tmp/claude-0/-home-user-hermes-study/11b9bcbd-a8fd-518c-931a-498c7a1d5f37/scratchpad/h_r9a_b_run_variant.py
+    data/r9d/probes/h_r9a_b_run_variant.py
 ```
 
 ```text
