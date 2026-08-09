@@ -299,9 +299,9 @@ const ChainToolFallback: FC<ToolCallMessagePartProps> = props => {
 |---|---|---|
 | `todo` | **不渲染**(null) | 无条件;todo 面板在 composer 状态栈 |
 | `react_to_message` | **不渲染**(null) | 仅 `!isError`;失败时落回 `ToolFallback` |
-| `delegate_task` | `DelegateTool` 扇出卡 | `props.isError` 时落回 `ToolFallback`(`message-parts.tsx:42`) |
-| `image_generate` | `GeneratedImage` 图卡 | 有 result 但 `generatedImageFromResult()` 解不出时落回 `ToolFallback`(`message-parts.tsx:29`) |
-| `clarify` | `ClarifyTool` 问答卡 | 有 result → 定格态;无 result 且消息已停 → `ToolFallback`(`clarify-tool.tsx:200`) |
+| `delegate_task` | `DelegateTool` 扇出卡 | `props.isError` 时落回 `ToolFallback`(`apps/desktop/src/components/assistant-ui/thread/message-parts.tsx:42`) |
+| `image_generate` | `GeneratedImage` 图卡 | 有 result 但 `generatedImageFromResult()` 解不出时落回 `ToolFallback`(`apps/desktop/src/components/assistant-ui/thread/message-parts.tsx:29`) |
+| `clarify` | `ClarifyTool` 问答卡 | 有 result → 定格态;无 result 且消息已停 → `ToolFallback`(`apps/desktop/src/components/assistant-ui/clarify-tool.tsx:200`) |
 | **其他一切** | `ToolFallback` → `ToolEntry` | 这是 fallback 本身 |
 
 三个"专属卡片"工具再被登记进 `CARD_TOOLS`,决定它们**不被折进运行摘要**:
@@ -879,10 +879,10 @@ run 的身份**用它的第一个 tool call id,而不是位置**
 |---|---|---|
 | ```` ```svg ```` 围栏 | **DOMPurify svg profile** | `apps/desktop/src/components/assistant-ui/embeds/svg-embed.tsx:14` 的 `DOMPurify.sanitize(code, {` |
 | ```` ```mermaid ```` 围栏 | **mermaid `securityLevel: 'strict'`** | `apps/desktop/src/components/assistant-ui/embeds/mermaid-embed.tsx:25` 的 `mermaid.initialize({ fontFamily: 'inherit', securityLevel: 'strict', startOnLoad: false, theme })` |
-| markdown 正文 | Streamdown 自身(不走 `dangerouslySetInnerHTML`) | `markdown-text.tsx:599` |
+| markdown 正文 | Streamdown 自身(不走 `dangerouslySetInnerHTML`) | `apps/desktop/src/components/assistant-ui/markdown-text.tsx:599` |
 | 裸链接 → 富嵌入 | provider 白名单 + 同意闸门 + 固定 embedUrl 主机 | 见下 |
 | X/Instagram blockquote | `escapeHtml()` 拼属性 + 官方脚本 | `apps/desktop/src/components/assistant-ui/embeds/social-embed.tsx:30` 的 `const url = escapeHtml(descriptor.sourceUrl)` |
-| 外链点击 | `openExternalLink` / `PrettyLink`,非 http(s) 走 `rel="noopener noreferrer"` | `markdown-text.tsx:273` |
+| 外链点击 | `openExternalLink` / `PrettyLink`,非 http(s) 走 `rel="noopener noreferrer"` | `apps/desktop/src/components/assistant-ui/markdown-text.tsx:273` |
 | 工具结果里的图片 | 只认 `data:image/` 或带图片扩展名的 http(s) | `fallback-model/index.ts:775` |
 | 终端输出 | 自研 ANSI 解析 → span,不注入 HTML | `apps/desktop/src/components/assistant-ui/ansi-text.tsx:14` 的 `export const AnsiText = memo(({ className, text }: AnsiTextProps) => {` |
 
@@ -1035,23 +1035,46 @@ export const LIVE_TAIL_MAX_GROUPS = 6
 理由:`contain-intrinsic-size: auto` 只在元素**渲染过之后**才记住尺寸,一轮刚流完就被跳过会
 snap 回流式中途那个更小的高度,把粘底锁往上顶 —— 就是"长会话最后会显示旧回复"那个 bug。
 
-三处 shiki 隔离(`shiki-block.tsx` / `syntax-diff.tsx` / `markdown-text.tsx` 的
+三处 shiki 隔离(`apps/desktop/src/components/chat/shiki-block.tsx` /
+`apps/desktop/src/components/chat/syntax-diff.tsx` /
+`apps/desktop/src/components/assistant-ui/markdown-text.tsx` 的
 `useCodePlugin()`)都是同一个动机:多 MB 的 grammar+theme bundle 绝不能进入口 chunk。
 
 ### 4.5 右侧栏三块面板
 
-**文件树**是"浏览这个会话的 cwd",没有 cwd 就只显示一行提示,而**不是**退回 Hermes 的启动目录
-(`right-sidebar/index.tsx:38` 的 `const hasWorkspace = Boolean(currentCwd)`)。
-`.gitignore` 过滤在 `files/ipc.ts` 做,带 git-root 与 ignore 两级缓存。
+**文件树**是"浏览这个会话的 cwd",没有 cwd 就只显示一行提示,而**不是**退回 Hermes 的启动目录:
+
+`apps/desktop/src/app/right-sidebar/index.tsx:36 @ 863e313`
+
+```
+  // bare/detached chat (resolveNewSessionCwd → '') has none, so it shows the
+  // empty hint instead of whatever dir Hermes happens to run from.
+  const hasWorkspace = Boolean(currentCwd)
+```
+
+`.gitignore` 过滤在 `apps/desktop/src/app/right-sidebar/files/ipc.ts` 做,带 git-root 与
+ignore 两级缓存。
 
 **review** 面板是纯 store 驱动(`@/store/review` 的 12+ 个 atom),本片只提供三块视图
-(树/列表、diff、ship bar)与一份纯数据构建(`tree-data.ts`)。`churn-bar.tsx` 是**明确
-未接线的死代码**,文件头自陈。
+(树/列表、diff、ship bar)与一份纯数据构建
+(`apps/desktop/src/app/right-sidebar/review/tree-data.ts`)。
 
 **终端**是这三块里唯一有"状态必须活下来"要求的:xterm 的 WebGL renderer 会观察自己的
 DOM attachment,一挪 DOM 就会 detach 并清屏。所以宿主**不动**,而是挂在布局根、用
-`position: fixed` 追着 slot 的 bounding rect 跑(`terminal/persistent.tsx:15` 的注释)。
-`store.ts` 里的 `$terminalInjection` 是个小而有意思的接缝:
+`position: fixed` 追着 slot 的 bounding rect 跑:
+
+`apps/desktop/src/app/right-sidebar/terminal/persistent.tsx:15 @ 863e313`
+
+```
+/**
+ * One xterm Terminal mounted at the layout root and CSS-overlayed onto
+ * whichever `<TerminalSlot />` is active. Moving the host DOM detaches xterm's
+ * WebGL renderer (it observes its own attachment) and resets the screen, so
+ * the host stays put and we chase the slot's bounding rect with position:fixed.
+ */
+```
+
+`apps/desktop/src/app/right-sidebar/store.ts` 里的 `$terminalInjection` 是个小而有意思的接缝:
 
 `apps/desktop/src/app/right-sidebar/store.ts:16 @ 863e313`
 
@@ -1081,9 +1104,16 @@ grep -rl "WIDGET_SHELL_CLASS" /home/user/hermes-agent/apps/desktop/src --include
 # /home/user/hermes-agent/apps/desktop/src/components/assistant-ui/thread/changed-files-card.tsx
 ```
 
-`apps/desktop/src/components/chat/widget-shell.ts:12` 的
-`export const WIDGET_SHELL_CLASS = 'rounded-3xl bg-(--ui-widget-surface-background) px-3.5 py-3'`
-自己的 docstring 也只举了同样两个例子。
+常量本身:
+
+`apps/desktop/src/components/chat/widget-shell.ts:12 @ 863e313`
+
+```
+export const WIDGET_SHELL_CLASS = 'rounded-3xl bg-(--ui-widget-surface-background) px-3.5 py-3'
+```
+
+该文件自己的 docstring(`apps/desktop/src/components/chat/widget-shell.ts:1-11`)也只举了
+同样两个例子。
 
 **记 ◎ 不记 ▲**:文档那句字面为真(clarify 与 artifact card 确实都穿了这件外壳),
 括号里是举例不是穷举,只是保守 —— 按记号约定,字面为真就不是 ▲。
@@ -1113,12 +1143,19 @@ X / Google Maps 发请求,而这条默认值只写在代码注释里。
 
 ### 未成立的 ▲(记一笔,防下一轮重做)
 
-`website/docs/user-guide/desktop.md:105`(归 `### Terminal` 标题管)写
-"A real terminal lives in the right sidebar, next to the file browser"。
-乍看与 `controller.tsx:183` 的 `placement: 'bottom'` 矛盾,**但不成立**:`placement` 只是
-contribution 的落位提示,真正的默认位置是 `DEFAULT_TREE`(`controller.tsx:339`),
-它把 `grp-terminal` 放在 `spl-right` 这个右侧 column split 里,与 `[review, files]` 同列。
-文档字面为真,不记 ▲ 也不记 ◎。
+`website/docs/user-guide/desktop.md:103 @ 863e313`
+
+> ### Terminal
+>
+> A real terminal lives in the right sidebar, next to the file browser:
+
+乍看与 `apps/desktop/src/app/contrib/controller.tsx:183` 的 `placement: 'bottom'` 矛盾,
+**但不成立**:`placement` 只是 contribution 的落位提示,真正的默认位置是 `DEFAULT_TREE`
+(`apps/desktop/src/app/contrib/controller.tsx:339`),它把 `grp-terminal` 放在 `spl-right`
+这个右侧 column split 里,与 `[review, files]` 同列。文档字面为真,不记 ▲ 也不记 ◎。
+**判定时把这一句所属的整节(`### Terminal` 下的三条 bullet)一起看过**:
+"Shells persist while hidden" 与 `PersistentTerminal` 一致,"Add to chat" 与
+`terminal/clipboard.ts` 的选择镜像一致,都成立。
 
 ---
 
@@ -1134,9 +1171,19 @@ python3 data/r10b/probes/probe_f_tool_names.py /home/user/hermes-agent
 # UI-only (dead rows)   : 5 -> browser_fill, browser_take_screenshot, edit_file, list_files, session_search_recall
 ```
 
-**为什么这个对账是有效的**:`tool.start` 事件带的就是注册表里的原始工具名
-(`tui_gateway/server.py:5311` 的 `"name": name,`),没有任何改名层,所以 `TOOL_META` 的键
-必须逐字等于注册名才可能命中。
+**为什么这个对账是有效的**:`tool.start` 事件带的就是注册表里的原始工具名,没有任何改名层,
+所以 `TOOL_META` 的键必须逐字等于注册名才可能命中。
+
+`tui_gateway/server.py:5308 @ 863e313`
+
+```
+    if _tool_progress_enabled(sid) or _tool_lifecycle_required_for_ui(name):
+        payload = {
+            "tool_id": tool_call_id,
+            "name": name,
+            "context": _tool_ctx(name, args),
+        }
+```
 
 **负结论的搜索面**(以 `edit_file` 为例,最干净的一个):
 
@@ -1150,9 +1197,21 @@ grep -rn "edit_file" /home/user/hermes-agent --include=*.py | wc -l
 `i18n/types.ts` 1 处、`tool/fallback.test.ts` 1 处 —— 共 9 处,**Python 侧 0 处**。
 搜索面 = 基线全树的 `*.py`(0 命中)与 `*.py *.ts *.tsx *.md *.mdx`(排除 `node_modules`,9 命中)。
 内核注册名的采集面 = `tools/**/*.py` 里的 `registry.register(name="…")`(含换行写法),82 个。
-**这不覆盖运行期注册**:插件(`hermes_cli/plugins.py:452`)与 MCP 工具的名字来自清单/远端,
-理论上一个插件可以叫 `edit_file`;但那是插件,不是内置工具,而 `TOOL_META` 显然是内置表的镜像
-(其余 18 个键全部逐字命中内置注册名)。
+**这不覆盖运行期注册**:插件与 MCP 工具的名字来自清单/远端,理论上一个插件可以叫 `edit_file`;
+但那是插件,不是内置工具,而 `TOOL_META` 显然是内置表的镜像(其余 18 个键全部逐字命中内置注册名)。
+插件的动态注册入口:
+
+`hermes_cli/plugins.py:450 @ 863e313`
+
+```
+        from tools.registry import registry
+
+        registry.register(
+            name=name,
+            toolset=toolset,
+            schema=schema,
+            handler=handler,
+```
 
 **影响分级**:
 - `browser_fill` / `browser_take_screenshot` / `list_files` / `session_search_recall` —— 纯死行:
@@ -1170,12 +1229,12 @@ grep -rn "edit_file" /home/user/hermes-agent --include=*.py | wc -l
 
 三道闸口用**同一个谓词**("有没有 diff"),而且互不兜底:
 
-1. 行本身被隐藏 —— `apps/desktop/src/components/assistant-ui/tool/fallback.tsx:529` 的
-   `if (isFileEdit && !isPending && view.status !== 'error' && !view.inlineDiff) {`
-2. 它也进不了运行摘要 —— `isCardTool()` 把所有文件编辑排除在 run 之外
-   (`fallback.tsx:754` 的 `export function isCardTool(toolName: string): boolean {`),
-   所以没有"Edited 1 file"那一行来兜底。
-3. 它也进不了 "N files changed" 卡:
+1. **行本身被隐藏** —— 见 §4.3 引的
+   `apps/desktop/src/components/assistant-ui/tool/fallback.tsx:529`。
+2. **它也进不了运行摘要** —— `isCardTool()` 把所有文件编辑排除在 run 之外(见 §2.3 的
+   `apps/desktop/src/components/assistant-ui/tool/fallback.tsx:754` 块),所以没有
+   "Edited 1 file"那一行来兜底。
+3. **它也进不了 "N files changed" 卡**:
 
 `apps/desktop/src/components/assistant-ui/thread/changed-files.ts:44 @ 863e313`
 
@@ -1187,18 +1246,60 @@ grep -rn "edit_file" /home/user/hermes-agent --include=*.py | wc -l
       continue
 ```
 
-**"没有 diff"比注释暗示的更常见。** 注释说"only `patch` persists its diff in the tool result",
-这一点属实:`PatchResult.to_dict()`(`tools/file_operations.py:226` 的 `if self.diff:`)会写
-`result["diff"]`,而 `WriteResult`(`tools/file_operations.py:178` 的 `class WriteResult:`)
-**根本没有 diff 字段**。实时那一路靠的是事件旁路 —— 网关在 `tool.complete` 上现渲染一个
-`inline_diff`(`tui_gateway/server.py:5363` 的 `payload["inline_diff"] = "\n".join(rendered)`),
-渲染层把它记进按 tool_call_id 分键的 `$toolInlineDiff`。这条旁路有三种断法:
+**"没有 diff"比注释暗示的更常见。** 注释说 "only `patch` persists its diff in the tool result",
+这一点属实 —— `PatchResult.to_dict()` 只在 `self.diff` 非空时写 `result["diff"]`,
+而空操作(`no_change`)本来就没有 diff:
+
+`tools/file_operations.py:221 @ 863e313`
+
+```
+        result: Dict[str, Any] = {"success": self.success}
+        if self.no_change:
+            result["no_change"] = True
+        if self.note:
+            result["note"] = self.note
+        if self.diff:
+            result["diff"] = self.diff
+```
+
+`write_file` 的结果类型**根本没有 diff 字段**:
+
+`tools/file_operations.py:177 @ 863e313`
+
+```
+@dataclass
+class WriteResult:
+    """Result from writing a file."""
+```
+
+实时那一路靠的是事件旁路 —— 网关在 `tool.complete` 上现渲染一个 `inline_diff`,
+渲染层把它记进按 tool_call_id 分键的 `$toolInlineDiff`。**但整段渲染包在裸的
+`except Exception: pass` 里**:
+
+`tui_gateway/server.py:5352 @ 863e313`
+
+```
+    try:
+        from agent.display import render_edit_diff_with_delta
+
+        rendered: list[str] = []
+        if render_edit_diff_with_delta(
+            name,
+            result,
+            function_args=args,
+            snapshot=snapshot,
+            print_fn=rendered.append,
+        ):
+            payload["inline_diff"] = "\n".join(rendered)
+    except Exception:
+        pass
+```
+
+于是这条旁路有三种断法:
 
 - **重载/重放**:`tool.complete` 不会重放,`$toolInlineDiff` 为空 → 所有 `write_file` 都无痕。
-- **渲染抛异常**:`render_edit_diff_with_delta` 外面是裸的 `except Exception: pass`
-  (`tui_gateway/server.py:5364-5365`)→ 静默无 `inline_diff`,实时也无痕。
-- **`patch` 的空操作**:`no_change: true` 时不带 diff(`file_operations.py:222-227`
-  按 `if self.diff:` 写字段)→ 无痕。
+- **渲染抛异常**:上面那个 `except` 静默吞掉 → 实时也无痕。
+- **`patch` 的空操作**:`no_change: true` 时不带 diff → 无痕。
 
 结果是"agent 说它改了文件,transcript 上什么都没有"。
 
@@ -1241,20 +1342,57 @@ node -e "console.log('notpinterest.com'.includes('pinterest.'), 'google.evil.com
 **影响有限但不为零。** 不构成 SSRF:两者的 `embedUrl` 都是**写死的主机**
 (`assets.pinterest.com` / `maps.google.com`),攻击者控制的只有 id/query 参数。
 真正的后果是**观感冒充**:模型输出一个 `https://notpinterest.com/pin/1` 的裸链接,
-transcript 里会长出一张真的 Pinterest 卡片。同意占位卡上显示的 `hostOf(descriptor)`
-是原始主机(`embeds/embed-consent.tsx:51` 的 `return new URL(descriptor.sourceUrl).hostname.replace(/^www\./, '')`),
+transcript 里会长出一张真的 Pinterest 卡片。缓解项是同意占位卡显示的是**原始主机**:
+
+`apps/desktop/src/components/assistant-ui/embeds/embed-consent.tsx:44 @ 863e313`
+
+```
+function hostOf(descriptor: EmbedDescriptor): string {
+  // x.com posts often arrive as twitter.com links — show the current brand.
+  if (descriptor.provider === 'twitter') {
+    return 'x.com'
+  }
+
+  try {
+    return new URL(descriptor.sourceUrl).hostname.replace(/^www\./, '')
+  } catch {
+    return descriptor.label
+```
+
 所以在 `ask` 模式下用户还能看见真实主机;但在 `always` 模式或该 provider 已被"永久允许"后,
 占位卡不出现,只剩那张卡。
 
 ### ■-4(轻)三处死分支
 
-- `social-embed.tsx` 的 `tiktok` 那条 `SCRIPT` 与 `markup()` 的 `case 'tiktok'` 不可达:
-  `LazyRenderer` 只在 `renderer === 'tweet' || provider === 'instagram'` 时走 social,
-  而 tiktok 的 descriptor 是 `renderer: 'frame'`(`embeds/providers/tiktok.ts:19` 的 `id: \`tiktok:${id}\`,`)。
-- `instagram` descriptor 的 `embedUrl` 从不被读:走 social 那一路只用 `sourceUrl`。
-- `apps/desktop/src/app/right-sidebar/review/churn-bar.tsx:9` 的
-  `// changed file. Not wired in — drop \`<ChurnBar file={file} />\` into a review row`
-  —— 作者自陈的未接线组件(59 行)。这条是**有意保留**,列出来只为让台账不把它当活代码。
+**(a)** `apps/desktop/src/components/assistant-ui/embeds/social-embed.tsx` 的 `tiktok` 那条
+`SCRIPT` 与 `markup()` 的 `case 'tiktok'` 不可达:`LazyRenderer` 只在
+`renderer === 'tweet' || provider === 'instagram'` 时走 social,而 tiktok 的 descriptor
+写的是 `renderer: 'frame'`,注释还专门解释了为什么走 frame:
+
+`apps/desktop/src/components/assistant-ui/embeds/providers/tiktok.ts:16 @ 863e313`
+
+```
+  return {
+    // The official player is a clean dark video iframe (no white blockquote
+    // chrome), so it goes through the plain-iframe frame path, sized 9:16.
+    aspectRatio: 9 / 16,
+    embedUrl: `https://www.tiktok.com/player/v1/${id}`,
+    id: `tiktok:${id}`,
+```
+
+**(b)** `instagram` descriptor 的 `embedUrl` 从不被读:走 social 那一路只用 `sourceUrl`。
+
+**(c)** 作者自陈的未接线组件(59 行),**有意保留**;列出来只为让台账不把它当活代码:
+
+`apps/desktop/src/app/right-sidebar/review/churn-bar.tsx:7 @ 863e313`
+
+```
+// Per-row "digital rain" churn bar: a right-anchored, clipped stream of
+// Matrix-ish glyphs whose width is the file's churn relative to the biggest
+// changed file. Not wired in — drop `<ChurnBar file={file} />` into a review row
+// (which must be `relative isolate overflow-hidden`) to revive it.
+const GLYPHS = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾅﾆﾇﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾚﾜ0123456789:=*+<>¦'
+```
 
 ---
 
@@ -1292,8 +1430,8 @@ grep -rnE "\.(skip|todo|skipIf|runIf)\(" src/components/assistant-ui src/compone
 
 53 个文件全部被收集且全部执行,**没有整文件跳过、没有收集错误、没有 `describe.skip`**,
 没有被掩盖的用例。唯一的噪音是 jsdom 打印 5 次
-`Not implemented: HTMLCanvasElement's getContext()` —— 那是 `image-generation-placeholder.tsx`
-的 ASCII 扩散画布在 jsdom 下取不到 2D context,组件自己有 fallback,不影响断言。
+`Not implemented: HTMLCanvasElement's getContext()` —— 那是
+`apps/desktop/src/components/chat/image-generation-placeholder.tsx` 的 ASCII 扩散画布在 jsdom 下取不到 2D context,组件自己有 fallback,不影响断言。
 
 **当作行为规格读的几个**(和本片结论直接相关):
 
@@ -1318,8 +1456,22 @@ grep -rnE "\.(skip|todo|skipIf|runIf)\(" src/components/assistant-ui src/compone
 | **1 点名到位** | 每个文件全路径 + 一句话角色 | **达标** | §0.1–§0.6 共 8+19+10+28+30+29 = **124** 条,每条都是仓库根可解析的全路径 |
 | **2 接缝穷举** | 每个对外接缝逐项列全 + 机械枚举命令 | **达标(有一处声明式让步)** | §2.1–§2.11 共 11 张表,全部给了条数;5 条 ```verify 命令可重跑。**让步**:§2.2 的"未覆写槽位"来自 `@assistant-ui/core` 的 npm 类型,**不在基线仓库内**,已明写无锚点 |
 | **3 端到端链** | ≥1 条,逐跳带锚点 | **达标(2 条)** | §3.1 审批链 5 跳(内核→事件→store→组件→RPC→内核),§3.2 `read_terminal` 反向链 3 跳 |
-| **4 逐字取证** | ≥2 个围栏块是逐字源码 | **达标** | 全文 **21** 个源码围栏块,分布在 12 个文件;非源码块一律 ```text/```verify/```console 声明 |
+| **4 逐字取证** | ≥2 个围栏块是逐字源码 | **达标** | 全文 **59** 个逐字源码围栏块;另有 16 个声明式非源码块(```verify ×13 / ```text ×2 / ```console ×1) |
 | **5 记号** | ≥1 条带锚点 | **达标** | ◎×1、◇×1、■×4,外加一条"未成立的 ▲"备案 |
+
+**引用关卡实测**(交稿前自跑):
+
+```console
+$ python3 scripts/verify_citations.py /home/user/hermes-agent notes/r10b-raw-message-render.md
+citations=75  OK=61  UNCHECKED=14
+可校验比例 OK/75 = 81.3%
+table_anchors=35  OK=25  UNCHECKED=10
+OK: every code-block-backed citation matches the baseline
+```
+
+0 MISMATCH / 0 BLOCK-DRIFT / 0 TABLE-DRIFT / 0 TABLE-OUT-OF-RANGE;可校验比例 **81.3%**,
+高于 70% 下限。剩下的 14 条 UNCHECKED 全部是散文里的"区域指路"锚点(如
+`apps/desktop/src/app/contrib/controller.tsx:384-387`),不是排版错误 —— 锚点一律在块之前。
 
 **未达标 / 已知不足,如实列出**:
 
@@ -1327,11 +1479,14 @@ grep -rnE "\.(skip|todo|skipIf|runIf)\(" src/components/assistant-ui src/compone
   `toolDetailText()` 的 7 个分支、`toolCopyPayload()` 的 6 个分支逐条展开成表 —— 那是实现体,
   按 L2 定义不读;但它们确实构成"工具名 → 文案"的一张隐式表。**这一层只做到了"列全了入口与字段,
   没有列全每个工具的文案分支"**,约 7 成。
-- `user-edit-composer.tsx`(852 行)、`use-terminal-session.ts`(1,059 行)、
-  `diff-lines.tsx`(677 行)三个大文件只读了头部与导出面,**没有读接口面之外的任何实现**。
+- `apps/desktop/src/components/assistant-ui/thread/user-edit-composer.tsx`(852 行)、
+  `apps/desktop/src/app/right-sidebar/terminal/use-terminal-session.ts`(1,059 行)、
+  `apps/desktop/src/components/chat/diff-lines.tsx`(677 行)三个大文件只读了头部与导出面,**没有读接口面之外的任何实现**。
   它们各自的对外面(props / 导出)已列入 §2.1 的 366 条。
-- `code-editor.tsx` / `json-document-editor.tsx` / `image-generation-placeholder.tsx` /
-  `vibe-hearts.tsx` 四个与"消息渲染"关系较远的文件,只读了头部 30 行 + 导出面。
+- `apps/desktop/src/components/chat/code-editor.tsx` /
+  `apps/desktop/src/components/chat/json-document-editor.tsx` /
+  `apps/desktop/src/components/chat/image-generation-placeholder.tsx` /
+  `apps/desktop/src/components/chat/vibe-hearts.tsx` 四个与"消息渲染"关系较远的文件,只读了头部 30 行 + 导出面。
 
 ---
 

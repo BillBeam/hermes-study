@@ -107,7 +107,7 @@ composer hook modules  : 24
 | `apps/desktop/src/app/chat/composer/hooks/use-composer-branch.ts` | 分支 / worktree 交接:草稿随新会话走 |
 | `apps/desktop/src/app/chat/composer/hooks/use-composer-esc-cancel.ts` | 焦点不在输入框时的全局 Esc 停止(只有 active 的那个 composer 响应) |
 | `apps/desktop/src/app/chat/composer/hooks/use-composer-placeholder.ts` | 占位文案:静息 / 重连中 / 启动中,只在真正换会话时重掷 |
-| `apps/desktop/src/app/chat/composer/hooks/use-composer-popout.ts` 之外的 `apps/desktop/src/app/chat/composer/hooks/use-composer-url-dialog.ts` | Add URL 对话框的开合与提交 |
+| `apps/desktop/src/app/chat/composer/hooks/use-composer-url-dialog.ts` | Add URL 对话框的开合与提交(开合状态、autofocus、优先走宿主 `onAddUrl`,否则插一条 `@url:` 指令) |
 | `apps/desktop/src/app/chat/composer/hooks/use-micro-actions.ts` | 把注册的微动作 provider 解析成本会话的药丸集合并发布到 store |
 | `apps/desktop/src/app/chat/composer/hooks/use-status-presence.ts` | 三个按会话的 feed 合成一个布尔"有没有状态栈",避免逐条变更重渲染 ChatBar |
 
@@ -1708,18 +1708,18 @@ grep -rn "describe\.skip\|it\.skip\|test\.skip\|\.todo\|describe\.skipIf\|it\.sk
 
 | 测试文件 | 钉住的规格 |
 |---|---|
-| `composer/enter-submit-dom-race.test.tsx` | Enter 必须从 DOM 现读,而不是从落后一帧的 AUI state —— §3 跳 3 的那条约束 |
-| `composer/ime-composition-dom-repro.test.tsx` | IME 组字期间 Enter 不提交;`compositionend` 必须 flush(#39614) |
-| `composer/at-folder-navigation.test.tsx` | Tab 进目录 / Backspace 出目录,以及 browse scope 要随路径带下去 |
-| `composer/composer-text-guard.test.tsx` | 提交/排队路径不得把陈旧草稿发出去 |
-| `composer/focus.test.ts` | `'active'` 的解析与自愈:claim 指向被埋掉的后台 composer 时要落到可见的那个 |
-| `composer/hooks/use-composer-queue.test.tsx` | 排空锁、park/unpark、跳过正在编辑的条目、有界重试 |
-| `composer/hooks/use-composer-draft.test.tsx` | 会话切换的 stash/restore、防抖落盘的 scope 正确性(#54527) |
-| `composer/undo-history.test.ts` | 合并窗口、no-op 编辑不入栈、traversal 结束打字 burst |
-| `composer/contrib.test.ts` | 中间件链:空链逐字放行、按注册序改写、`null` 取消、抛异常按放行 |
-| `session-view.test.ts` | 主视图读自己的 session slice,后台会话继续流式不得污染 |
-| `surface-vars.test.ts` | 测量值只能写到本 surface 的根,写 `:root` 会给每个 thread 垫一个全局底 |
-| `transcript-window.test.ts` | 按渲染权重(非条数)开窗,且切口要对齐分支组 |
+| `apps/desktop/src/app/chat/composer/enter-submit-dom-race.test.tsx` | Enter 必须从 DOM 现读,而不是从落后一帧的 AUI state —— §3 跳 3 的那条约束 |
+| `apps/desktop/src/app/chat/composer/ime-composition-dom-repro.test.tsx` | IME 组字期间 Enter 不提交;`compositionend` 必须 flush(#39614) |
+| `apps/desktop/src/app/chat/composer/at-folder-navigation.test.tsx` | Tab 进目录 / Backspace 出目录,以及 browse scope 要随路径带下去 |
+| `apps/desktop/src/app/chat/composer/composer-text-guard.test.tsx` | 提交/排队路径不得把陈旧草稿发出去 |
+| `apps/desktop/src/app/chat/composer/focus.test.ts` | `'active'` 的解析与自愈:claim 指向被埋掉的后台 composer 时要落到可见的那个 |
+| `apps/desktop/src/app/chat/composer/hooks/use-composer-queue.test.tsx` | 排空锁、park/unpark、跳过正在编辑的条目、有界重试 |
+| `apps/desktop/src/app/chat/composer/hooks/use-composer-draft.test.tsx` | 会话切换的 stash/restore、防抖落盘的 scope 正确性(#54527) |
+| `apps/desktop/src/app/chat/composer/undo-history.test.ts` | 合并窗口、no-op 编辑不入栈、traversal 结束打字 burst |
+| `apps/desktop/src/app/chat/composer/contrib.test.ts` | 中间件链:空链逐字放行、按注册序改写、`null` 取消、抛异常按放行 |
+| `apps/desktop/src/app/chat/session-view.test.ts` | 主视图读自己的 session slice,后台会话继续流式不得污染 |
+| `apps/desktop/src/app/chat/surface-vars.test.ts` | 测量值只能写到本 surface 的根,写 `:root` 会给每个 thread 垫一个全局底 |
+| `apps/desktop/src/app/chat/transcript-window.test.ts` | 按渲染权重(非条数)开窗,且切口要对齐分支组 |
 
 ---
 
@@ -1730,8 +1730,30 @@ grep -rn "describe\.skip\|it\.skip\|test\.skip\|\.todo\|describe\.skipIf\|it\.sk
 | 1 | 点名到位 | **达标**。84 个文件全部以全路径出现在 §0.1–§0.6,各带一句角色。同型薄文件(status-stack 四件、chat 根的两个 overlay)也逐个列了全路径。 |
 | 2 | 接缝穷举 | **基本达标,有一处自报不足**。已穷举并给出机械命令+条数的:导出面 250、`ChatBarProps` 22、`SubmitTextOptions` 6、`COMPOSER_AREAS` 8、focus 总线 6 事件 + 6 对 API + 片外 11 个调用点、`ComposerScope` 4、`SessionView` 13、`PaneMirror` 15、触发正则 4 + scope 6 + kind 3、键盘分支 20 + 编辑器事件 10 + 片外 2 处认领、网关 RPC 8、`data-slot` 13(含 5 个跨模块查询点)、store 40 模块/180 符号、24 个 hook 的返回面。**不足**:`preview-pane.tsx`(725 行)的 `<webview>` 事件面(`did-fail-load`/`console-message`/`dom-ready` 等)我只读了组件的 props 契约与注册接口(`registerPreviewPageReader` / `registerPreviewDevTools`),**没有逐项列全 webview 事件表**;`use-voice-conversation.ts`(736 行)的状态机迁移表同理只到 5 个状态名与返回面,没有列全迁移边。这两处约占本片接缝面的一成,记为**九成达标**。 |
 | 3 | 端到端链 | **达标**。§3 给了 10 跳,每跳带锚点,含拒绝回滚路径。 |
-| 4 | 逐字取证 | **达标**。逐字围栏块 13 个(contrib 8 键、focus 6 事件、`ChatBarProps`、四条触发正则、`MAIN_COMPOSER_SCOPE`、`acceptsTriggerCompletion`、`flushEditorToDraft`、`dispatchSubmit`、ChatBar 的 `onSubmit` 包装、`submitParams`、`prompt.submit` 调用、队列解 park、`pickDrainHead`、`SessionView`、`session-drag` 的 `onCommit`、`openInWorktree`、`queueDraft`、⌘Enter 分支)—— 实为 19 个,远超 2 个下限。 |
+| 4 | 逐字取证 | **达标**。逐字源码围栏块 **57 个**(`grep -c '^```ts$\|^```tsx$\|^```js$'`),外加 16 行 `>` 文档引用;下限是 2。 |
 | 5 | 记号 | **达标**。◎ 1 条(SDK 文档 6 vs 8)、◇ 2 条、■ 2 条 + 1 条隐患,均带锚点与可复现命令。 |
+
+**引用关卡实测**(供主线报数直接引用):
+
+```verify
+cd /home/user/hermes-study
+python3 scripts/verify_citations.py /home/user/hermes-agent notes/r10b-raw-chat-composer.md
+```
+
+```text
+citations=81  OK=60  UNCHECKED=21
+可校验比例 OK/81 = 74.1%
+table_anchors=31  OK=13  UNCHECKED=18
+OK: every code-block-backed citation matches the baseline
+```
+
+0 MISMATCH / 0 BLOCK-DRIFT / 0 TABLE-DRIFT / 0 TABLE-OUT-OF-RANGE,可校验比例 74.1%
+(高于 70% 下限)。**过程交代**:首轮跑出 1 处 MISMATCH(把 `￼` 抄成了字面的
+object-replacement 字符,是"手抄代码抄漏半行"的同类)与 1 处 TABLE-DRIFT
+(移交表里 `apps/desktop/src/app/chat/composer/focus.ts` 的 `blurComposerInput`
+我先写成了 `:332`,函数头实为 `:331`);另用过一次
+`--fix` 处理 16 处**我自己选块起点造成的**行号漂移(块从锚点上方几行的注释开始),
+用后已不带 `--fix` 复跑确认。
 
 ---
 
@@ -1746,7 +1768,7 @@ grep -rn "describe\.skip\|it\.skip\|test\.skip\|\.todo\|describe\.skipIf\|it\.sk
 | H-A-e | `website/docs/developer-guide/desktop-plugin-sdk.md:336` 的 `let a plugin add controls around the message composer, provide an` | SDK 文档把 `COMPOSER_AREAS` 写成 6 项,代码是 8 项(缺 `underside`、`microActions`);`ComposerMicroActionProvider` 在整个 `website/` 里零命中。记 ◎+◇,未记 ▲。 |
 | H-A-f | `apps/desktop/src/app/chat/composer/index.tsx:497`:`const scope = openDirectiveScope(event.currentTarget)` | 在 `handlePaste` 内用同名 `scope` 遮蔽了 `:142` 的 `ComposerScope`;当前无行为缺陷,是隐患。 |
 | H-A-g | `apps/desktop/src/app/chat/right-rail/preview-pane.tsx:27`:`type PreviewWebview = HTMLElement & {` | 本片**未穷举**的接缝之一:`<webview>` 的事件/方法面只读了这个结构类型与两处注册接口,事件表(`did-fail-load` / `console-message` / `dom-ready` …)没列全。 |
-| H-A-h | `apps/desktop/src/app/chat/composer/hooks/use-voice-conversation.ts:19`:`export type ConversationStatus = 'idle' | 'listening' | 'transcribing' | 'thinking' | 'speaking'` | 本片**未穷举**的接缝之二:语音会话状态机只记了 5 个状态名与 7 个返回成员,状态迁移边没列。 |
+| H-A-h | `apps/desktop/src/app/chat/composer/hooks/use-voice-conversation.ts:48`:`export function useVoiceConversation({` | 本片**未穷举**的接缝之二:语音会话状态机只记了 5 个状态名与 7 个返回成员,状态迁移边没列。 |
 | H-A-i | `apps/desktop/src/app/chat/composer/contrib.ts:39`:`microActions: 'composer.microActions'` | 若后续轮次要写"插件如何扩展 composer"的成品章,这一区与 `underside` 是文档里查不到的两块,必须从代码取证。 |
 
 ---

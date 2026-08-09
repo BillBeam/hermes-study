@@ -850,7 +850,14 @@ grep -o "components/ui/[a-z-]*'" apps/desktop/src/sdk/index.ts | sort -u | wc -l
 ```
 
 **② 渲染层 —— `variant: 'menu'` 走 DropdownMenu 分支**
-`apps/desktop/src/app/shell/statusbar-controls.tsx:225` 起:`item.variant === 'menu' && (item.menuContent || …)` → `DropdownMenuTrigger asChild` 包一个 `<button>`,内容进 `DropdownMenuContent side="top"`。**菜单内容只在打开时才挂载**(Radix Presence),所以下面那次 RPC 是"点开才发"。
+
+`apps/desktop/src/app/shell/statusbar-controls.tsx:225 @ 863e313`
+
+```tsx
+  if (item.variant === 'menu' && (item.menuContent || !!item.menuItems?.length)) {
+```
+
+→ `DropdownMenuTrigger asChild` 包一个 `<button>`,内容进 `DropdownMenuContent side="top"`。**菜单内容只在打开时才挂载**(Radix Presence),所以下面那次 RPC 是"点开才发"。
 
 **③ 状态层 —— `requestGateway` 从哪来**
 
@@ -921,11 +928,35 @@ def _(rid, params: dict) -> dict:
         return _err(rid, 5000, f"Could not compute context breakdown: {exc}")
 ```
 
-真正算账的是 `agent/context_breakdown.py:89` 的 `compute_session_context_breakdown`,它调 `build_system_prompt_parts(agent)` 把系统提示拆成 stable/context/volatile 三段再逐类估 token。
+真正算账的是下面这个函数,它调 `build_system_prompt_parts(agent)` 把系统提示拆成 stable/context/volatile 三段再逐类估 token:
+
+`agent/context_breakdown.py:89 @ 863e313`
+
+```python
+def compute_session_context_breakdown(
+    agent: Any,
+    messages: Optional[List[dict]] = None,
+) -> Dict[str, Any]:
+    """Return a Cursor-style context usage breakdown for one live agent."""
+    from agent.model_metadata import estimate_messages_tokens_rough
+    from agent.system_prompt import build_system_prompt_parts
+```
 
 **⑥ 回流** —— 面板把 `context_max/percent/used` 通过 `onUsageSnapshot` 写回 `setCurrentUsage`,于是**状态栏那一行的百分比标签本身也被这次弹层刷新了**。这是链条闭环的地方:一个"只读弹层"顺手校正了它的触发器。
 
-链条中的关键设计:**状态栏项是数据(`StatusbarItem` 对象),不是组件**。`StatusbarItemView` 被 `memo` 包住,注释里给了实测数字——五标签流式跑一轮 2,174 次渲染里 1,446 次是浪费的(`apps/desktop/src/app/shell/statusbar-controls.tsx:195-200`)。
+链条中的关键设计:**状态栏项是数据(`StatusbarItem` 对象),不是组件**。`StatusbarItemView` 被 `memo` 包住,注释里给了实测数字:
+
+`apps/desktop/src/app/shell/statusbar-controls.tsx:195 @ 863e313`
+
+```tsx
+/** Memoized: `useStatusbarItems` rebuilds the item array whenever ANY of its
+ *  inputs change, but each individual item object is usually identical across
+ *  those rebuilds. Without this, one changed item (the running timer, say)
+ *  re-rendered every other item in the bar — measured at 1,446 wasted renders
+ *  of 2,174 during a five-tab streaming run. `navigate` is stable for the
+ *  router's lifetime, so item identity is the only real input. */
+const StatusbarItemView = memo(function StatusbarItemView({
+```
 
 ---
 
@@ -1000,12 +1031,26 @@ const OVERLAPPING_CENTERS_SENSITIVITY = 75
 
 **移植到什么程度**:连 `zonesFromPoint` 里"只捕获到一个 zone 但没有严格捕获就当没捕获"这条 C++ 里的怪规则、`HighlightedZones` 的初始 zone 闩锁状态机、四种重叠消解算法(Smallest / Largest / Positional / ClosestCenter),都是逐行搬过来的。**唯一有意的偏离**在覆盖层动画:
 
-> 覆盖层入场淡入。FancyZones 出厂是 200ms(zones-engine 里的 `FADE_IN_DURATION_MILLIS`);
-> 在光标底下起手的拖拽里那条斜坡读起来像卡顿,所以这里的 sheet 快得多 —— 同样的柔化,即时的手感。
+`apps/desktop/src/components/pane-shell/tree/renderer/tree-group.tsx:734 @ 863e313`
 
-(`OVERLAY_FADE_MS = 80`,`apps/desktop/src/components/pane-shell/tree/renderer/tree-group.tsx:737`)
+```tsx
+/** Overlay entry fade. FancyZones ships 200ms (FADE_IN_DURATION_MILLIS in
+ *  zones-engine); on a drag that starts under the cursor that ramp reads as
+ *  lag, so the sheets snap in far faster — same softening, instant feel. */
+const OVERLAY_FADE_MS = 80
+```
 
-**网格 → 树的桥是有损的**:`grid-to-tree.ts` 只能表达 guillotine(整刀切)布局;互锁的"风车"排列返回 null,编辑器就把 Save 禁掉并给出解释(`treeExpressible` → `t.zones.notExpressible`)。这是一个诚实的能力边界:**FancyZones 的模型比这棵树能表达的更宽**。
+**网格 → 树的桥是有损的**:`grid-to-tree.ts` 只能表达 guillotine(整刀切)布局;互锁的"风车"排列返回 null,编辑器就把 Save 禁掉并给出解释(`treeExpressible` → `t.zones.notExpressible`)。
+
+`apps/desktop/src/components/pane-shell/tree/grid-to-tree.ts:80 @ 863e313`
+
+```ts
+  // No full-length cut exists on either axis: non-guillotine (pinwheel).
+  return null
+}
+```
+
+这是一个诚实的能力边界:**FancyZones 的模型比这棵树能表达的更宽**。
 
 ### 4.4 轨道模型:什么时候是"固定侧栏",什么时候是"分剩余空间"
 
@@ -1047,7 +1092,21 @@ export const hiddenPaneProps = (hidden: boolean): Record<string, string> => (hid
 | 其它(未绑定的核心 pane) | `dismissTreePane` | 移出树 + 记进 `$dismissedPanes`,采纳不会再把它加回来 |
 | `uncloseable`(主 workspace) | 不提供 Close | 但它的**标签**仍可被"关闭手势"清空成新草稿(靠 `$panesWithCloser` 而非 `uncloseable` 判定) |
 
-再叠一层:`togglePaneVisible` 统一了所有开关(⌃`、⌘G、状态栏按钮、⌘K 行)。它的注释讲了一条通用教训——**开关不要问自己的布尔,要问屏幕**:
+再叠一层:`togglePaneVisible` 统一了所有开关(⌃`、⌘G、状态栏按钮、⌘K 行)。
+
+`apps/desktop/src/components/pane-shell/tree/store.ts:1543 @ 863e313`
+
+```ts
+export function togglePaneVisible(paneId: string) {
+  if (isPaneVisible(paneId)) {
+    closeTreePane(paneId)
+  } else {
+    restoreTreePane(paneId)
+  }
+}
+```
+
+它的文档注释讲了一条通用教训——**开关不要问自己的布尔,要问屏幕**:
 
 > A free-floating `!$open.get()` diverges from the tree the moment anything
 > else moves the pane — stacked behind a sibling tab, minimized from the zone
@@ -1116,7 +1175,20 @@ export const FLOATING_PLACEMENT = 'floating'
 
 它被两个测试文件当行为规格钉住(`apps/desktop/src/components/pane-shell/tree/floating-adoption.test.ts`、`apps/desktop/src/components/pane-shell/tree/renderer/floating-panes.test.tsx`),渲染路径见 §2.5 的两段引用。
 
-**同一件事的 SDK 侧是对的**:`apps/desktop/src/sdk/index.ts:140-145` 的注释专门讲了 `'floating'` 是"唯一的非平铺值",要配 `anchor` + `width`/`height`。所以这不是"功能没写文档",是**同一份 API 的两处文档互相矛盾,网站那一处是错的**。
+**同一件事的 SDK 侧是对的**:
+
+`apps/desktop/src/sdk/index.ts:140 @ 863e313`
+
+```ts
+/** Pane placement roles. `'floating'` is the one NON-tiling value: the pane is
+ *  excluded from the layout tree and rendered as a fixed, draggable card above
+ *  it — it takes no width from any zone, has no tab, and can't be docked.
+ *  Pair it with `anchor` (spawn corner, default `'top-right'`) plus
+ *  `width`/`height`. */
+export type { FloatingAnchor } from '@/components/pane-shell/tree/renderer/floating-rect'
+```
+
+所以这不是"功能没写文档",是**同一份 API 的两处文档互相矛盾,网站那一处是错的**。
 
 > 附带的 ◇:同一小节的 pane `data` 载荷写成 `{ placement, dock?, width?, height? }`(第 201 行的表格),
 > 而代码里的 `PaneChrome` 有 16 键、另有 `dock` 与 `revealOnPreset` 两键在 store 侧读取(见 §2.5)。
@@ -1125,7 +1197,7 @@ export const FLOATING_PLACEMENT = 'floating'
 
 ### ▲-2 `DESIGN.md` 说 `SearchField` 是"唯一的搜索输入框",同目录里还有两个
 
-文档(`apps/desktop/DESIGN.md:157`,在 `## Form controls` 标题下):
+文档(`apps/desktop/DESIGN.md:158`,在 `## Form controls` 标题下):
 
 > - **`SearchField`** — borderless, underline-on-focus, auto-width. The only
 >   search input. Don't build boxed search bars; don't wrap it in a bordered tile.
@@ -1144,8 +1216,27 @@ grep -rln "CommandInput" apps/desktop/src --include=*.tsx | grep -v ui/command.t
 # → 12(会话选择器、语言切换、模型选择器、⌘K 命令面板、worktree/分支选择器、设置里的可搜索下拉…)
 ```
 
-- `DropdownMenuSearch`(`apps/desktop/src/components/ui/dropdown-menu.tsx:35`)是第二个,本片的模型目录菜单就在用它;
-- `CommandInput`(`apps/desktop/src/components/ui/command.tsx:26`)是第三个,而且它**恰恰是一条"带框的搜索栏"**:外层 `div` 是 `flex h-11 items-center gap-2 border-b border-border px-3`。
+第二个是 `DropdownMenuSearch`,本片的模型目录菜单就在用它:
+
+`apps/desktop/src/components/ui/dropdown-menu.tsx:31 @ 863e313`
+
+```tsx
+/**
+ * Borderless filter input for a searchable dropdown. Autofocuses, keeps the
+ * menu's typeahead from eating keystrokes, and still lets arrow/enter/escape
+ * drive the list. Drop it in as the first child of a `DropdownMenuContent`.
+```
+
+第三个是 `CommandInput`,而且它**恰恰是一条"带框的搜索栏"**——外层 `div` 有 `border-b border-border` 与固定 `h-11`:
+
+`apps/desktop/src/components/ui/command.tsx:26 @ 863e313`
+
+```tsx
+function CommandInput({ className, right, ...props }: CommandInputProps) {
+  return (
+    <div className="flex h-11 items-center gap-2 border-b border-border px-3" data-slot="command-input-wrapper">
+      <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
+```
 
 宽容读法是"唯一的**页面/面板级**搜索输入框",但文档没这么写,而 `DESIGN.md` 开头(第 17-20 行)自己规定:命名契约"与代码一同维护,这个文件里一个过时的名字就是 bug,和过时的类型一样"。按它自己的标准,这条要改。
 
@@ -1169,11 +1260,40 @@ grep -rn -i "powertoys" --include=LICENSE --include=NOTICE --include="*.md" . 2>
 
 ### ◇-2 `window.__HERMES_LAYOUT_TREE__` 自动化钩子
 
-`apps/desktop/src/components/pane-shell/tree/store.ts:1660-1670` 在 `import.meta.env.DEV || VITE_PERF_PROBE === '1'` 时往 window 上挂 7 个入口(`close` `dismissed` `get` `move` `registry` `reset` `reveal`)。E2E 与性能探针靠它驱动布局。任何文档都没提。
+`apps/desktop/src/components/pane-shell/tree/store.ts:1659 @ 863e313`
+
+```ts
+// Dev hook for automation.
+if ((import.meta.env.DEV || import.meta.env.VITE_PERF_PROBE === '1') && typeof window !== 'undefined') {
+  ;(window as unknown as Record<string, unknown>).__HERMES_LAYOUT_TREE__ = {
+    close: closeTreePane,
+    dismissed: () => $dismissedPanes.get(),
+    get: () => $layoutTree.get(),
+    move: moveTreePane,
+    registry,
+    reset: resetLayoutTree,
+    reveal: revealTreePane
+  }
+}
+```
+
+E2E 与性能探针靠这 7 个入口驱动布局。任何文档都没提。
 
 ### ◎-1 `DESIGN.md` 关于 `Button` 的"命名契约"完全准确
 
-反向验证(这条是**正结论**,值得记):DESIGN.md:110-119 列的 8 个 variant(`default destructive secondary outline ghost link text textStrong`)与 11 个 size(`default xs sm lg inline micro icon icon-xs icon-sm icon-lg icon-titlebar`)和 `apps/desktop/src/components/ui/button.tsx:17-54` 的 cva 定义**逐字一致,无多无少**。同样准确的还有:`controlVariants` 确由 Input / Textarea / SelectTrigger 三者消费;`no-native-title.test.ts` 这个被文档点名的测试文件**确实存在**(`apps/desktop/src/components/ui/__tests__/no-native-title.test.ts`);`Loader` 的 `lemniscate-bloom` 确在 `LOADER_TYPES` 的 22 个值里。
+反向验证(这条是**正结论**,值得记):`apps/desktop/DESIGN.md:110-119` 列的 8 个 variant(`default destructive secondary outline ghost link text textStrong`)与 11 个 size(`default xs sm lg inline micro icon icon-xs icon-sm icon-lg icon-titlebar`)和 cva 定义**逐字一致,无多无少**。size 一侧的原文:
+
+`apps/desktop/src/components/ui/button.tsx:36 @ 863e313`
+
+```ts
+      size: {
+        default: 'px-3 py-1.5 has-[>svg]:px-2.5',
+        xs: "gap-1 px-2 py-0.5 text-[0.6875rem] leading-4 has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: 'px-2.5 py-1 has-[>svg]:px-2',
+        lg: 'px-5 py-2 text-sm leading-5 has-[>svg]:px-4',
+```
+
+同样准确的还有:`controlVariants` 确由 Input / Textarea / SelectTrigger 三者消费;`no-native-title.test.ts` 这个被文档点名的测试文件**确实存在**(`apps/desktop/src/components/ui/__tests__/no-native-title.test.ts`);`Loader` 的 `lemniscate-bloom` 确在 `LOADER_TYPES` 的 22 个值里。
 
 记 ◎ 而不是"无事":`Loader` 的文档只说"animated math/ascii curves",实际是 **22 条具名曲线**的可选集(`LOADER_TYPES`),文档字面为真但显著保守。
 
@@ -1200,7 +1320,19 @@ export function setTreeSplitWeights(splitId: string, weights: number[]) {
 }
 ```
 
-注释里的 "persist on the trailing edge" 指的是拖拽路径:`startSash` 的 `cleanup()` 在 `pointerup` 时调 `persistTree()`(`apps/desktop/src/components/pane-shell/tree/renderer/tree-split.tsx:382`)。但双击复位走的是另一条路,它的最后一行就是 `setTreeSplitWeights`,之后什么都没有:
+注释里的 "persist on the trailing edge" 指的是拖拽路径:`startSash` 的 `cleanup()` 在 `pointerup` 时调 `persistTree()`。
+
+`apps/desktop/src/components/pane-shell/tree/renderer/tree-split.tsx:379 @ 863e313`
+
+```tsx
+        window.removeEventListener('pointermove', onMove, true)
+        window.removeEventListener('pointerup', cleanup, true)
+        window.removeEventListener('pointercancel', cleanup, true)
+        persistTree()
+      }
+```
+
+但双击复位走的是另一条路,它的最后一行就是 `setTreeSplitWeights`,之后什么都没有:
 
 `apps/desktop/src/components/pane-shell/tree/renderer/tree-split.tsx:460 @ 863e313`
 
@@ -1256,7 +1388,19 @@ grep -rn "sidebar_state" . 2>/dev/null | grep -v node_modules
 # → 只有一行:apps/desktop/src/components/ui/sidebar.tsx:18 的常量定义本身
 ```
 
-**搜索面**:仓库全树(`grep -rn`),字面量 `sidebar_state`,只排除 `node_modules`。**零读取点**——写进去的值没有任何代码取出来过。真正的持久化是 `$sidebarOpen`(`apps/desktop/src/store/layout.ts`),`SidebarProvider` 被受控使用(`apps/desktop/src/app/contrib/controller.tsx:692-696` 传 `open`/`onOpenChange`)。
+**搜索面**:仓库全树(`grep -rn`),字面量 `sidebar_state`,只排除 `node_modules`。**零读取点**——写进去的值没有任何代码取出来过。真正的持久化是 `$sidebarOpen`(`apps/desktop/src/store/layout.ts`),`SidebarProvider` 被**受控**使用:
+
+`apps/desktop/src/app/contrib/controller.tsx:691 @ 863e313`
+
+```tsx
+  return (
+    <SidebarProvider
+      className="h-screen min-h-0 flex-col bg-background"
+      onOpenChange={setSidebarOpen}
+      open={sidebarOpen}
+      style={{ '--sidebar-width': '100%' } as CSSProperties}
+    >
+```
 
 **为什么算缺陷而不是"无害的死代码"**:(a) 它是每次侧栏开合都会跑的一次副作用;(b) 它在 Electron renderer 的 origin 上种了一个 7 天有效期的 cookie,这个 origin 还托管远程网关的内容;(c) 它是"vendored 副本没有随宿主环境裁剪"的活样本 —— 和 `'use client'` 同源。**严重度低**,但它是本片里唯一一处"上游代码在这个宿主里语义为零却仍在执行"的地方。
 

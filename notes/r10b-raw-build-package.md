@@ -70,6 +70,9 @@
 
 ### 0.B `apps/desktop/scripts/`(74)
 
+分组核对:打包主链 11 + 签名/公证/身份 3 + 打包验证与开发启动 5 + perf 框架 23 +
+脚本自测 4 + 诊断/探针/开发工具 28 = **74**。
+
 **打包主链(11)**
 
 | 全路径 | 一句话角色 |
@@ -132,7 +135,8 @@
 | `apps/desktop/scripts/perf/scenarios/session-switch.mjs` | tier `backend`:路由→首帧→稳定 |
 | `apps/desktop/scripts/perf/scenarios/profile-switch.mjs` | tier `backend`:侧栏 profile 切换 |
 
-**诊断 / 探针(16 个 diag-* + 6 个 probe/profile/eval/reload 类 + 1 篇调查日志)**
+**诊断 / 探针 / 开发工具(28 = 16 个 `diag-*` + 4 个 `probe-*` + 1 个 `profile-*` +
+1 篇调查日志 + eval/reload/reload-renderer/click-session/live-drive 5 个 + 1 个 `.gitignore`)**
 
 | 全路径 | 一句话角色 |
 |---|---|
@@ -162,6 +166,7 @@
 | `apps/desktop/scripts/reload.mjs` | CDP 硬刷新渲染器(no-HMR 模式下改完代码用) |
 | `apps/desktop/scripts/reload-renderer.mjs` | 同上的另一个变体(按 target 类型找页面) |
 | `apps/desktop/scripts/click-session.mjs` | 按标题模糊匹配点一个会话 |
+| `apps/desktop/scripts/live-drive.mjs` | 对真实例的驱动台:`status` / `fps [秒]` / `drag` / `type` / `switch` / `send "msg"` 六个子命令,报 fps 与 LoAF |
 | `apps/desktop/scripts/.gitignore` | 1 行:忽略 `share-codes.txt`(gen-share-codes.ts 的产物) |
 
 **脚本自测(4,本片唯一能在本容器跑的测试)**
@@ -534,7 +539,8 @@ mock 服务器的**剧本触发词全表**(这是 e2e 的隐藏接口面,决定 
 ### 2.8 perf 场景注册表(14 个,全表)
 
 ```verify
-cd /home/user/r10b-ts/hermes-agent/apps/desktop/scripts/perf && node -e "
+# 从任意 hermes-agent 检出的根目录执行(纯 import,不写任何文件):
+cd apps/desktop/scripts/perf && node -e "
 import('./scenarios/index.mjs').then(m => {
   console.log('SCENARIOS =', Object.keys(m.SCENARIOS).length, Object.keys(m.SCENARIOS).join(','));
   console.log('CI_SCENARIOS =', m.CI_SCENARIOS.length, m.CI_SCENARIOS.join(','));})"
@@ -544,8 +550,8 @@ import('./scenarios/index.mjs').then(m => {
 # CI_SCENARIOS = 5 stream,keystroke,transcript,multitab,render-churn
 ```
 
-(该命令跑在主线备好的**基线之外**副本 `/home/user/r10b-ts/hermes-agent`,不污染基线;
-文件内容与基线逐字一致。)
+(本轮实测跑在主线备好的**基线之外**副本上,以免在只读基线里留下任何痕迹;
+这些场景模块无外部依赖,内容与基线逐字一致。)
 
 tier 分布:`ci` ×5、`backend` ×5、`report` ×2、`cold` ×1、`manual` ×1。
 baseline.json 里有条目的是 6 个:`stream / keystroke / transcript / cold-start / multitab / render-churn`
@@ -1350,7 +1356,10 @@ typecheck」—— 由于 `build` 不做类型检查,这个场景根本到不了
 ### 7.1 本片能跑的:`scripts/**.test.mjs`(4 文件)
 
 ```verify
-cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project electron scripts/
+# 通用形式:在任意已 `npm ci`(仓库根)的 hermes-agent 检出里执行 ——
+cd apps/desktop && npx vitest run --project electron scripts/
+# 本轮实测用的是主线备好的、基线之外的副本(避免在只读基线里产生 node 侧产物):
+#   cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project electron scripts/
 ```
 
 **passed 37 / failed 0 / skipped 0**,4 个测试文件全部执行(无整文件跳过、无零执行)。
@@ -1359,7 +1368,7 @@ cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project elec
 作为对照,整个 `electron` project(含片外的 `electron/**`,74 个文件):
 
 ```verify
-cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project electron
+cd apps/desktop && npx vitest run --project electron
 # Test Files  78 passed | 1 skipped (79)
 #      Tests  938 passed | 2 skipped (940)
 ```
@@ -1416,6 +1425,19 @@ vitest 4.1.10;**本片未安装任何包**。
 | 3 | 端到端链 | **达标**。§3「点 `[ INSTALL ]` → 第一个 stage 跑起来」共 10 跳,每跳一个锚点 + 逐字块,终点接回 §0.B 的桌面打包产物。 |
 | 4 | 逐字取证 | **达标**。逐字围栏块 20+ 个(rust/toml/json/mjs/ts 均有),远超 2 个下限。 |
 | 5 | 记号 | **达标**。▲×4、◇×2、◎×1、■×11,每条带锚点;全称否定处均写出搜索面。 |
+
+**引用关卡自测(交付前跑过,主线复核用):**
+
+```console
+python3 scripts/verify_citations.py /home/user/hermes-agent notes/r10b-raw-build-package.md
+citations=55  OK=52  UNCHECKED=3
+可校验比例 OK/55 = 94.5%
+table_anchors=45  OK=43  UNCHECKED=2
+OK: every code-block-backed citation matches the baseline
+```
+
+0 MISMATCH / 0 BLOCK-DRIFT / 0 TABLE-DRIFT / 0 TABLE-OUT-OF-RANGE;可校验比例 94.5%(下限 70%)。
+片内 149 个文件的**全路径**均在本文出现(机械核对:逐条 `in` 匹配,缺失 0)。
 
 **未达标 / 需打折的地方,如实写出:**
 - **e2e 只读不跑**(§7.2)。19 个 spec 的行为我只能转述其断言,不能声称验证过。

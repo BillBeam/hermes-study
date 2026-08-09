@@ -126,3 +126,97 @@ LOCALE_OPTIONS=[ar,en,ja,zh,zh-hant] TRANSLATIONS=[ar,en,ja,zh,zh-hant] equal=tr
 ```
 
 派工书里问过「`languages.ts` 列的语言集合与实际语言包是否严格相等」。**相等,不记记号。**
+
+---
+
+## 复核 2:■-R10-01 在桌面渲染进程里**没有孪生**(有搜索面的负结论)
+
+R10 立的 ■-R10-01 是:dashboard 的 plugin manifest `external_dependencies[].install`
+字段以 `shell=True` 交给 `_run_setup_command`,无过滤。派工时我给片 H 的提示是
+「桌面端装插件走的是同一条路还是另一条?」。主线在片 H 到货**之前**独立查了一遍,
+先把答案落在这里,以便与片 H 的结论互相对照而不是互相污染。
+
+**结论:本轮范围内(`apps/desktop/src/` + `apps/shared/src/`)没有这条路。渲染进程一次 shell 都不开。**
+
+### 2.1 搜索面
+
+第一面 —— manifest 的那几个字段名:
+
+```verify
+cd /home/user/hermes-agent && grep -rn "external_dependencies\|externalDependencies\|install_cmd\|installCmd" \
+  apps/desktop/src apps/shared/src 2>/dev/null | wc -l
+```
+
+```text
+0
+```
+
+第二面 —— 任何形式的进程启动。**这一条我先做错了一次,把改正过程留在这里**:
+初稿写的是一条带 `grep -cv` 排除项的命令并声称输出 `0`,而我实际只看过未过滤列表的
+**前 12 行**(`head -12`)就下了结论。重跑真实输出是 **17**,不是 0。
+——这正是本项目反复记的那个形状:**把截断当成全貌**。改为逐条列出全部 17 处:
+
+```verify
+cd /home/user/hermes-agent && grep -rnE "spawn\(|exec\(|execFile\(|shell: *true" apps/desktop/src \
+  --include=*.ts --include=*.tsx | grep -v "\.test\." | grep -vE "\.exec\(|function spawn\(|spawn\(cfg" | wc -l
+```
+
+```text
+17
+```
+
+**17 处逐条查过,没有一处是启动进程**:
+
+- **16 处在 `apps/desktop/src/lib/desktop-slash-commands.ts`**,是同一个本地工厂函数的调用。
+  它返回一个**描述符**,不执行任何东西:
+
+  `apps/desktop/src/lib/desktop-slash-commands.ts:137 @ 863e313`
+
+  ```ts
+  const exec = (): DesktopCommandSurface => ({ kind: 'exec' })
+  ```
+
+  `surface: exec()` 的意思是「这条斜杠命令由网关侧执行」,是一行元数据。
+  (16 处里还有 1 处是注释里提到 `exec()`。)
+
+- **1 处在 `apps/desktop/src/store/hub-actions.ts:74`** 的 `await spawn()`,而 `spawn`
+  是这个函数自己的**形参名**,由调用方传进来的回调:
+
+  `apps/desktop/src/store/hub-actions.ts:66 @ 863e313`
+
+  ```ts
+  async function runHubAction(key: string, kind: HubActionKind, spawn: () => Promise<{ name: string }>): Promise<void> {
+  ```
+
+**排除项也要说清楚**:上面命令去掉的是 `RegExp.prototype.exec`(渲染层大量用它做文本匹配)、
+`components/particles/particle-field.tsx` 里那个叫 `spawn` 的**粒子生成函数**,
+以及 `*.test.*`。**剔除项 + 逐条查证的 17 处,合起来才是完整的搜索面。**
+
+### 2.2 但负结论要带上它的边界:渲染进程有 72 个 IPC 出口
+
+「渲染层不开进程」不等于「渲染层不能让别人开进程」。它对外只有一座桥:
+
+```verify
+cd /home/user/hermes-agent && grep -rhoE "window\.hermesDesktop\??\.[a-zA-Z_]+" apps/desktop/src \
+  --include=*.ts --include=*.tsx | sed 's/.*\.//' | sort -u | wc -l
+```
+
+```text
+72
+```
+
+72 个成员里,**`terminal` 这一个就是专门用来执行命令的**
+(`apps/desktop/src/app/right-sidebar/terminal/use-terminal-session.ts`,右侧栏的终端面板),
+另有 `openExternal` / `revealPath` / `openDir` / `uninstall` / `repairBootstrap` /
+`resetBootstrap` 这些会落到主进程的动作。**所以正确的表述是:**
+
+> 渲染进程自己不开进程;能不能开、开什么,由主进程 `apps/desktop/electron/` 那 72 个通道的
+> 实现决定——而那部分是 **R10 片 H 的范围**,本轮不重读。
+
+R10 片 H 已就 Electron IPC 记过一条:`fs:reveal` / `openDir` / `rename` / `trash`
+绕过 `hardening.ts`,同组另 6 条都过。**本复核与那条不冲突,是它的另一侧**:
+本轮证明的是「危险不在渲染层」,R10 证明的是「危险在通道实现的守卫一致性上」。
+两条合起来支持 R10 的那句可迁移形式——**守卫要绑在收口点,不是绑在每条缝的入口**。
+
+*不主张的部分*:本复核**没有**重验那 72 个通道各自的实现,也**没有**判断 `terminal`
+通道有没有审批闸。那两件事都在 R10 已读过的 `apps/desktop/electron/` 里。
