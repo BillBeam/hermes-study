@@ -191,7 +191,17 @@ flowchart TD
         )
 ```
 
-紧接着(`cli.py:18213-18215`)把 `skills_prompt` 用 `"\n\n".join` 接到 `cli.system_prompt` 后面。
+紧接着把 `skills_prompt` 用 `"\n\n".join` 接到 `cli.system_prompt` 后面:
+
+`cli.py:18212 @ 863e313`
+
+```python
+        if skills_prompt:
+            cli.system_prompt = "\n\n".join(
+                part for part in (cli.system_prompt, skills_prompt) if part
+            ).strip()
+```
+
 **这是全仓唯一把 skill 正文写进系统提示的地方**(搜索面:`grep -rn "build_preloaded_skills_prompt" --include=*.py`
 非测试命中 4 处,全在 `cli.py`,其中 3 处是转发壳和定义)。
 
@@ -729,7 +739,17 @@ def _resolve_dotpath(config: Dict[str, Any], dotted_key: str):
   demo.path = /root/from-config    ← 正确
 ```
 
-写入侧是一致的(`hermes_cli/config.py:2400` 用 `_set_nested(config, storage_key, value)`),
+写入侧是一致的——同一个点号串被逐段下钻着写回去:
+
+`hermes_cli/config.py:2399 @ 863e313`
+
+```python
+                if value:
+                    storage_key = f"{SKILL_CONFIG_PREFIX}.{var['key']}"
+                    _set_nested(config, storage_key, value)
+                    results["config_added"].append(var["key"])
+```
+
 所以**只要走 `hermes update` / `hermes config set` 就不会踩**;手改 config.yaml 会踩。
 这不是 ■(读写两侧自洽),但是一条必须写进设计蓝图的**格式契约**。
 
@@ -1500,11 +1520,35 @@ _PREVIEW_RAW_SELECT = (
         return extract_user_instruction_from_skill_message(text)
 ```
 
-**单 skill 与 bundle 的抽取方向相反**,这是一个很容易写错的细节:
-单 skill 的用户指令在**正文之后**(所以从后往前找 `rfind`,因为正文可能引用同一句话),
-bundle 的用户指令在**正文之前**(所以从前往后找 `find`)。两个私有函数
-`_extract_single_skill_user_instruction`(:139)与
-`_extract_bundle_user_instruction`(:154)分别实现。
+**单 skill 与 bundle 的抽取方向相反**,这是一个很容易写错的细节。
+单 skill 的用户指令在**正文之后**,所以要从后往前找——因为正文本身可能引用同一句话:
+
+`agent/skill_commands.py:139 @ 863e313`
+
+```python
+def _extract_single_skill_user_instruction(message: str) -> Optional[str]:
+    # Single-skill format appends the user instruction after the skill body, so
+    # the last occurrence is the user-provided one; the body may quote this text.
+    marker_idx = message.rfind(_SINGLE_SKILL_INSTRUCTION)
+    if marker_idx < 0:
+        return None
+```
+
+bundle 的用户指令在**正文之前**(header 里),所以从前往后找,并在第一个 skill 块处截断:
+
+`agent/skill_commands.py:154 @ 863e313`
+
+```python
+def _extract_bundle_user_instruction(message: str) -> Optional[str]:
+    # Bundle format puts the user instruction before the loaded skills, so the
+    # first occurrence is the user-provided one.
+    marker_idx = message.find(_BUNDLE_USER_INSTRUCTION)
+    if marker_idx < 0:
+        return None
+
+    instruction = message[marker_idx + len(_BUNDLE_USER_INSTRUCTION):]
+    first_skill_idx = instruction.find(_BUNDLE_FIRST_SKILL_BLOCK)
+```
 
 UI 侧的投影/反投影一对:
 
@@ -2354,12 +2398,12 @@ _DEFAULT_TELEGRAM_MENU_MAX_COMMANDS = 60
 | 5 | bundle YAML 不是 mapping(顶层是字符串) | WARNING "is not a mapping; skipping" | 否 | 下方 console |
 | 6 | bundle 没有 `skills:` 键 | WARNING "has no skills list; skipping" | 否 | 下方 console |
 | 7 | bundle 引用了不存在的 skill | 其余照装,header 里写 `Skills missing (skipped): …`,返回值第三元给出名单 | 否 | 下方 console |
-| 8 | bundle 里**所有** skill 都装不上 | 返回 `None`,调用方打印 "Failed to load bundle" | 否 | 源码 `skill_bundles.py:341-342` |
+| 8 | bundle 里**所有** skill 都装不上 | 返回 `None`,调用方打印 "Failed to load bundle" | 否 | 6.3 引块的 `if not skill_blocks: return None` |
 | 9 | inline shell 片段超时 | 返回 `[inline-shell timeout after Ns: cmd]` | 否 | 下方 console |
 | 10 | inline shell 片段非零退出 | **返回 stderr/stdout 原文,无任何标记** | 否 | 下方 console(▲-1) |
 | 11 | inline shell 命令不存在 | 返回 bash 的 `command not found` 原文 | 否 | 下方 console |
-| 12 | config.yaml 读不出来 | `load_skills_config()` 返回 `{}` → `template_vars` 走默认 True、`inline_shell` 走默认 False | 否 | `skill_preprocessing.py:25-36` |
-| 13 | 整个 skill 扫描抛异常 | `except Exception: pass`,返回空表(**无日志**) | 否 | `skill_commands.py:465-467` |
+| 12 | config.yaml 读不出来 | `load_skills_config()` 返回 `{}` → `template_vars` 走默认 True、`inline_shell` 走默认 False | 否 | 4.3 的 `load_skills_config` 引块 |
+| 13 | 整个 skill 扫描抛异常 | `except Exception: pass`,返回空表(**无日志**) | 否 | 5.1 末尾的引块 |
 
 ```console
 $ HERMES_HOME=$SC/h3 python -c "...get_skill_commands(); get_skill_bundles(); build_bundle_invocation_message('/combo')"
@@ -2440,7 +2484,7 @@ empty snippet in content   -> 'a !`` b'
 
 ## 10. 文档-代码对照
 
-### ▲-1 · inline-shell 失败标记(`website/docs/developer-guide/creating-skills.md:321`)
+### ▲-1 · inline-shell 的失败标记
 
 归属标题:`#### Inline shell snippets (opt-in)`(同文件 `:303`)。整句判定:
 
@@ -2452,15 +2496,15 @@ empty snippet in content   -> 'a !`` b'
 
 | 分句 | 判定 | 依据 |
 |---|---|---|
-| "run with the skill directory as their working directory" | ✅ 成立 | `skill_preprocessing.py:75` 的 `cwd=str(cwd) if cwd else None`,`cwd` 由 `expand_inline_shell` 传入 `skill_dir` |
-| "output is capped at 4000 characters" | ✅ 成立(实际会多出 13 字符的 `...[truncated]` 后缀,不计为冲突) | `skill_preprocessing.py:101-102` |
+| "run with the skill directory as their working directory" | ✅ 成立 | 4.2 引块里的 `cwd=str(cwd) if cwd else None`,`cwd` 由 `expand_inline_shell` 传入 `skill_dir` |
+| "output is capped at 4000 characters" | ✅ 成立(实际会多出 13 字符的 `...[truncated]` 后缀,不计为冲突) | 4.2 末尾的输出处理引块 |
 | **"Failures (timeouts, non-zero exits) show up as a short `[inline-shell error: ...]` marker"** | **▲ 证伪** | 见下 |
 | "instead of breaking the whole skill" | ✅ 成立 | 所有分支都 `return` 字符串,不抛 |
 
-证伪判据:**超时**返回的是 `[inline-shell timeout after {timeout}s: {command}]`
-(`skill_preprocessing.py:84`),不是 `[inline-shell error: ...]`;
-**非零退出**根本不产生标记——`check=False`(`:79`)让它不抛异常,
-`:98-100` 直接把 stdout(空则 stderr)当成输出贴进模型消息。可零成本复现:
+证伪判据(全部在 4.2 已引的三个块里):**超时**返回的是
+`[inline-shell timeout after {timeout}s: {command}]`,不是 `[inline-shell error: ...]`;
+**非零退出**根本不产生标记——`check=False` 让它不抛异常,
+输出处理直接把 stdout(空则 stderr)当成内容贴进模型消息。可零成本复现:
 
 ```verify
 cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python -c "
@@ -2480,7 +2524,7 @@ print(repr(run_inline_shell('sleep 5', None, 1)))
 喂给模型,而文档让作者以为会看到一个显眼的 error 标记。`[inline-shell error: ...]`
 实际只在三种情况出现:bash 不存在、测试守卫误报、以及 `subprocess.run` 本身抛的其它异常。
 
-### ▲-2 · "Bundles work in every surface … dispatch is centralized"(`website/docs/user-guide/features/skills.md:430`)
+### ▲-2 · "Bundles work in every surface … dispatch is centralized"
 
 归属标题:`### Behavior`(同文件 `:426`)。整条 bullet:
 
@@ -2539,9 +2583,8 @@ webhook 那一路只处理单 skill,且只装**第一个**匹配上的:
 
 ### ■-1 · 插件 skill 经 bundle / `-s` 加载时 `${HERMES_SKILL_DIR}` 不被替换
 
-**机制**:`_serve_plugin_skill` 的返回 JSON 没有 `skill_dir` 也没有 `path`
-(`tools/skills_tool.py:949-957`),而 `_load_skill_payload` 只从这两个字段取目录
-(`agent/skill_commands.py:220-227`),于是 `skill_dir = None`;
+**机制**:`_serve_plugin_skill` 的返回 JSON 没有 `skill_dir` 也没有 `path`(5.2 已引),
+而 `_load_skill_payload` 只从这两个字段取目录(5.2 已引),于是 `skill_dir = None`;
 `_build_skill_message` 拿 `None` 去做模板替换,`substitute_template_vars` 的
 `if token == "HERMES_SKILL_DIR" and skill_dir_str:` 为假,**保留字面量**。
 
@@ -2572,7 +2615,7 @@ Run node ${HERMES_SKILL_DIR}/scripts/x.js    ← bundle 路径:字面量原样�
 **为什么这是 ■ 而不是小瑕疵**:`HERMES_SKILL_DIR` **全仓从不导出到任何子进程**。
 搜索面:`grep -rn "HERMES_SKILL_DIR" --include=*.py --include=*.ts --include=*.sh .`
 去掉 `tests/`,只有两处命中——`agent/skill_preprocessing.py` 自己的正则与替换、
-以及 `hermes_cli/config_defaults.py:1793` 的一句注释。也就是说模型如果照着
+以及 4.3 引块里 `config_defaults.py` 的一句注释。也就是说模型如果照着
 `node ${HERMES_SKILL_DIR}/scripts/x.js` 交给 terminal 工具,bash 会把它展开成空串,
 变成 `node /scripts/x.js`——**一个静默的错误路径**。
 同一条缺陷还让 `[Skill directory: …]` 段和 supporting-files 清单整个消失(上面 console 里可见)。
@@ -2582,7 +2625,7 @@ Run node ${HERMES_SKILL_DIR}/scripts/x.js    ← bundle 路径:字面量原样�
 
 ### ■-2 · TUI/桌面 rewind 重放丢 bundle、丢 stacked 的第 2..N 个 skill
 
-**机制**:`_expand_skill_invocation_for_replay`(`tui_gateway/server.py:6895-6909`)
+**机制**:5.4 引用的 `_expand_skill_invocation_for_replay`
 先 `partition(" ")` 取第一个 token,再 `resolve_skill_command_key` 查
 `get_skill_commands()`。bundle 的 slug 不在这张表里 → 原样返回;
 stacked 的投影是 `/alpha /beta do Y`,第一个 token 只能还原 `alpha`。
@@ -2613,9 +2656,9 @@ STACK bodies kept?: alpha= True beta= False
 ```
 
 **危害**:这个函数的 docstring 自己写的目标是 "makes the replayed turn identical to
-the original"(`tui_gateway/server.py:6891`),调用点的注释更是把失败模式点名了
-("sends the agent nine literal characters instead of the skill it originally loaded",
-`tui_gateway/methods_prompt.py:119-120`)。bundle 重放时**恰好就是这个失败模式**:
+the original",调用点的注释更是把失败模式点名了
+("sends the agent nine literal characters instead of the skill it originally loaded")
+——两段都在 5.4 引过。bundle 重放时**恰好就是这个失败模式**:
 模型收到字面文本 `/combo do X`,一个 skill 也没装,但 UI 上看起来和原来那一轮一模一样。
 用户会以为"重跑了同一件事",实际是在裸模型上重跑。
 
@@ -2655,14 +2698,37 @@ skill -> None
 skills -> True
 ```
 
-更糟的是 CLI 的前缀匹配会把 `/skill xxx` **静默扩展成 `/skills xxx`**
-(`cli.py:10496-10525`,`all_known` 里 `/skills` 是唯一以 `skill` 开头的内置命令时),
-于是用户按提示操作,进的是 skill **管理器**(search/install/inspect),不是加载器。
-`agent/skill_commands.py:434` 的注释也重复了同一个说法
-("The skill remains fully loadable via /skill <name>")。
+更糟的是 CLI 的前缀匹配会把 `/skill xxx` **静默扩展成 `/skills xxx`**——
+`all_known` 里以 `skill` 开头的内置命令只有 `/skills` 一个时,唯一匹配即被执行:
 
-**这条会不会有别的兜底?** 检查过 gateway 的 `_check_unavailable_skill`
-(`gateway/run.py:3059-3097`):它只覆盖"已安装但被禁用"和"仅在 optional-skills 里"两类,
+`cli.py:10493 @ 863e313`
+
+```python
+                # Prefix matching: if input uniquely identifies one command, execute it.
+                # Matches against both built-in COMMANDS and installed skill commands so
+                # that execution-time resolution agrees with tab-completion.
+                from hermes_cli.commands import COMMANDS
+                typed_base = cmd_lower.split()[0]
+                all_known = set(COMMANDS) | set(skill_commands) | set(skill_bundles)
+                matches = [c for c in all_known if c.startswith(typed_base)]
+```
+
+于是用户按提示操作,进的是 skill **管理器**(search/install/inspect),不是加载器。
+同一处的上方注释也重复了同一个说法("The skill remains fully loadable via /skill <name>")。
+
+**这条会不会有别的兜底?** 检查过 gateway 的 `_check_unavailable_skill`:
+
+`gateway/run.py:3059 @ 863e313`
+
+```python
+def _check_unavailable_skill(command_name: str) -> str | None:
+    """Check if a command matches a known-but-inactive skill.
+
+    Returns a helpful message if the skill exists but is disabled or only
+    available as an optional install. Returns None if no match found.
+```
+
+它只覆盖"已安装但被禁用"和"仅在 optional-skills 里"两类,
 碰撞被跳过的 skill 两类都不属于,落到"Unknown command"分支——而且如果碰撞的名字
 本身是核心命令(如 `help`),会直接执行核心命令。
 
@@ -2670,10 +2736,16 @@ skills -> True
 
 ### ■-4 · `agent/skill_utils.get_disabled_skill_names` 在调用时把整个 `gateway` 包拉进来,且无 try 兜底
 
-模块开头声明"intentionally avoids importing … any heavy dependency chain"(`:1-6`,上文已引)。
-`get_disabled_skill_names` 里那句 `from gateway.session_context import get_session_env`
-(`agent/skill_utils.py:458`)**不在任何 try 里**——对比同仓的兄弟实现
-`_resolve_skill_commands_platform`(`agent/skill_commands.py:181-189`),
+模块开头声明 "intentionally avoids importing … any heavy dependency chain"(第 3 节已引)。
+而 `get_disabled_skill_names` 里这一句**不在任何 try 里**:
+
+`agent/skill_utils.py:458 @ 863e313`
+
+```python
+    from gateway.session_context import get_session_env
+```
+
+对比同仓的兄弟实现 `_resolve_skill_commands_platform`(5.5 已引),
 一模一样的 import 是包了 try 的。
 
 `gateway/session_context` 本身很轻,但导入它会先执行 `gateway/__init__.py`,
@@ -2714,7 +2786,7 @@ submods: ['gateway', 'gateway.config', 'gateway.dead_targets', 'gateway.delivery
 ### ◇-1 · `HERMES_BUNDLES_DIR` 未在环境变量参考里出现
 
 搜索面:`grep -rn "HERMES_BUNDLES_DIR" --include=*.md --include=*.py .` 去掉 `tests/`,
-只有 `agent/skill_bundles.py:69` 与 `:72` 两处命中,
+只有 `agent/skill_bundles.py` 的 `_bundles_dir()` 两行命中(第 6 节已引),
 `website/docs/reference/environment-variables.md` 零命中。
 虽然 docstring 写的是 "for tests",但它是一个真实生效的运行时覆盖,
 运维完全可以用它把 bundle 目录指到别处。
@@ -2722,24 +2794,43 @@ submods: ['gateway', 'gateway.config', 'gateway.dead_targets', 'gateway.delivery
 ### ◇-2 · frontmatter 原文进模型输入,文档未提
 
 第 1 节的实测输出里,`---\nname: demo\ndescription: …\n---` 整块 YAML 是发给模型的。
-机制:`skill_view` 的 `content` 就是 `skill_md.read_text()` 的全文
-(`tools/skills_tool.py:1224` 读入,`:1553` 直接赋给 `rendered_content`,
-中间没有剥 frontmatter 的步骤);`_build_skill_message` 拿的就是这个 `content`。
+机制:`skill_view` 的 `content` 就是 `skill_md.read_text()` 的全文——
+
+`tools/skills_tool.py:1222 @ 863e313`
+
+```python
+        # Read the file once — reused for platform check and main content below
+        try:
+            content = skill_md.read_text(encoding="utf-8")
+        except Exception as e:
+```
+
+——它在 5.2 引过的 `rendered_content = content` 处被直接采用,中间没有剥 frontmatter 的步骤;
+`_build_skill_message` 拿的就是这个 `content`。
 `website/docs/developer-guide/creating-skills.md` 讲了 frontmatter 有哪些字段,
 但没说这些字段会**原样出现在模型上下文里**。对 skill 作者来说这是有意义的信息:
 一个写了 30 行 `metadata` 的 skill,那 30 行每次装载都要花 token。
 
 ### ◇-3 · bundle 因平台禁用而跳过的成员,调用方拿不到
 
-`build_bundle_invocation_message` 的返回是
-`(message, loaded_names, missing)`(`agent/skill_bundles.py:368`),
-`disabled` 这个列表只进了给模型看的 header(`:357-359`),没有进返回值。
-CLI 的分发只打印 `Skipped missing skills`(`cli.py:10437-10440`),
+`build_bundle_invocation_message` 的返回是 `(message, loaded_names, missing)`,
+`disabled` 这个列表只进了给模型看的 header,没有进返回值(两处都在 6.3 引过)。
+CLI 的分发只打印 missing:
+
+`cli.py:10437 @ 863e313`
+
+```python
+                    if missing:
+                        ChatConsole().print(
+                            f"[yellow]Skipped missing skills: {', '.join(missing)}[/]"
+                        )
+```
+
 所以"某个 skill 因为你在这个平台上禁用了它而没装"这件事,**用户在界面上看不到**。
 
 ### ◇-4 · `_inject_skill_config` 读的 `raw_content` 键根本不存在
 
-`agent/skill_commands.py:248` 的 `loaded_skill.get("raw_content") or loaded_skill.get("content")`
+5.3 引块里的 `loaded_skill.get("raw_content") or loaded_skill.get("content")`
 ——`skill_view` 从不返回 `raw_content`(搜索面见 5.3)。当前靠 `content` 含 frontmatter
 恰好工作。这是一个**没有断言保护的隐式契约**:哪天 `skill_view` 改成返回剥掉 frontmatter
 的正文,这里会静默退化(`config_vars` 为空 → 直接 `return`,无日志),
@@ -2747,8 +2838,8 @@ CLI 的分发只打印 `Skipped missing skills`(`cli.py:10437-10440`),
 
 ### ◇-5 · 预处理逻辑在两处各写一遍
 
-`agent/skill_preprocessing.py:138-143`(`preprocess_skill_content`)与
-`agent/skill_commands.py:287-292`(`_build_skill_message` 内联)是同一套逻辑的两份实现:
+`preprocess_skill_content`(4.3 引块)与 `_build_skill_message` 里的内联版本(5.3 引块)
+是同一套逻辑的两份实现:
 同样的 `template_vars` 默认 True、`inline_shell` 默认 False、
 `int(cfg.get("inline_shell_timeout", 10) or 10)` 兜底。
 `_build_skill_message` 完全可以调 `preprocess_skill_content(content, skill_dir, session_id)`,
@@ -2769,14 +2860,23 @@ CLI 的分发只打印 `Skipped missing skills`(`cli.py:10437-10440`),
         )
 ```
 
-——**这是第四个消息生成器**,而 `agent/skill_commands.py:41-45` 那段"MUST stay
-byte-identical"的注释只点名了两个(单 skill + bundle),
-被测试锁住的也只有那两个(`tests/openviking_plugin/test_openviking.py:173-187`)。
+——**这是第四个消息生成器**,而 5.4 引的那段 "MUST stay byte-identical" 注释
+只点名了两个(单 skill + bundle)。被测试锁住的也只有那两个:
+
+`tests/openviking_plugin/test_openviking.py:172 @ 863e313`
+
+```python
+        assert single is not None
+        assert skill_commands._SKILL_INVOCATION_PREFIX in single
+        assert skill_commands._SINGLE_SKILL_MARKER in single
+        assert skill_commands._SINGLE_SKILL_INSTRUCTION in single
+        assert skill_commands._RUNTIME_NOTE in single
+```
 cron 这一份和 TS 那一份都没有任何跨实现断言。cron 版本还缺 `[Skill directory:]`、
 缺 config 注入、缺 supporting-files 清单——同一个 skill 在 cron 里和在 CLI 里,
 模型看到的内容是不一样的。
 
-### ◎ · AGENTS.md:381 的说法准确,但不完整
+### ◎ · AGENTS.md 对 slash 注入的描述准确,但不完整
 
 `AGENTS.md:381 @ 863e313`
 
@@ -2787,7 +2887,7 @@ cron 这一份和 TS 那一份都没有任何跨实现断言。cron 版本还缺
 (`cli.py:10488-10489` 的 `self._pending_input.put(msg)`,
 `gateway/run.py` 的 `event.text = msg`)。
 只是同一个模块的 `build_preloaded_skills_prompt` 走的**是** system prompt
-(`cli.py:18213-18215`),而 AGENTS.md 没有提。字面为真、覆盖不全,按记号规则记 ◎ 不记 ▲。
+(第 2 节路径 C 的引块),而 AGENTS.md 没有提。字面为真、覆盖不全,按记号规则记 ◎ 不记 ▲。
 
 ---
 
@@ -2795,11 +2895,42 @@ cron 这一份和 TS 那一份都没有任何跨实现断言。cron 版本还缺
 
 | 编号 | 锚点文件 | 一句话现象 | 建议接手方 |
 |---|---|---|---|
-| H9A-1 | `agent/context_compressor.py:483-493` | `_collect_ghosted_skill_names` 的原始正文分支要求 `msg.get("role") == "tool"`,而 `/skill` 注入的正文是 `role == "user"`;**未跑压缩器复现**,只做了代码阅读 + 搜索面(该文件对 `_SKILL_INVOCATION_PREFIX` / `SKILL_SCAFFOLD_SQL_LIKE` 零引用) | 压缩簇(R5 后续)或 R9 汇总轮 |
+| H9A-1 | `agent/context_compressor.py` 的 `_collect_ghosted_skill_names` | `_collect_ghosted_skill_names` 的原始正文分支要求 `msg.get("role") == "tool"`,而 `/skill` 注入的正文是 `role == "user"`;**未跑压缩器复现**,只做了代码阅读 + 搜索面(该文件对 `_SKILL_INVOCATION_PREFIX` / `SKILL_SCAFFOLD_SQL_LIKE` 零引用) | 压缩簇(R5 后续)或 R9 汇总轮 |
 | H9A-2 | `agent/skill_commands.py:465-467` | 整个 `scan_skill_commands` 外层是 `except Exception: pass`,skills 目录整体不可读时表现为"零个 skill",无任何日志;bundle 侧同类失败每一步都有 WARNING,两者可观测性不对称 | R9 汇总轮(可与 ■-3 的提示改法一起提) |
-| H9A-3 | `agent/skill_commands.py:23` + `:477-481` | `_skill_commands` 是模块级全局,而它的作用域键 `_resolve_skill_commands_platform()` 来自 task-local contextvar;当前靠"整条同步调用无 await"成立,gateway 已经在 `run.py:15532-15546` 加了防御性复查——**是否存在真实竞态未验证**(未构造并发用例) | R9 汇总轮或 gateway 簇 |
+| H9A-3 | `agent/skill_commands.py:23` + `:477-481` | `_skill_commands` 是模块级全局,而它的作用域键 `_resolve_skill_commands_platform()` 来自 task-local contextvar;当前靠"整条同步调用无 await"成立,gateway 已经在 `gateway/run.py:15532-15546` 加了防御性复查——**是否存在真实竞态未验证**(未构造并发用例) | R9 汇总轮或 gateway 簇 |
 | H9A-4 | `tools/skills_tool.py:949-957` | 插件 skill 返回 JSON 缺 `skill_dir` / `path`,是 ■-1 的直接根因;修法在 skills_tool 一侧,不在本底稿范围 | 本轮 skills_hub / skills_tool 子代理 |
-| H9A-5 | `hermes_cli/commands.py:917-967` | Telegram 菜单只收 `skill_md_path` 落在本地 skills 目录或 `external_dirs` 前缀下的 skill,`.hub` 目录被显式排除——即 **hub 安装的 skill 不出现在 gateway slash 菜单**,但 `/<slug>` 打全名仍可用;此差异未在 skills 文档里说明 | skills_hub 子代理 / R9 汇总轮 |
+| H9A-5 | `hermes_cli/commands.py` 的 `_collect_gateway_skill_entries` | Telegram 菜单只收 `skill_md_path` 落在本地 skills 目录或 `external_dirs` 前缀下的 skill,`.hub` 目录被显式排除——即 **hub 安装的 skill 不出现在 gateway slash 菜单**,但 `/<slug>` 打全名仍可用;此差异未在 skills 文档里说明 | skills_hub 子代理 / R9 汇总轮 |
+
+H9A-1 的锚点代码(注意 `msg.get("role") == "tool"` 这一条):
+
+`agent/context_compressor.py:483 @ 863e313`
+
+```python
+        text = content if isinstance(content, str) else _content_text_for_contains(content)
+        for name in _extract_pruned_skill_names(text):
+            _add(name)
+        if (
+            msg.get("role") == "tool"
+            and isinstance(content, str)
+            and len(content) > _SKILL_VIEW_PRUNE_MIN_CHARS
+        ):
+```
+
+H9A-5 的锚点代码(`_hub_dir` 前缀被显式排除):
+
+`hermes_cli/commands.py:943 @ 863e313`
+
+```python
+        for cmd_key in sorted(skill_cmds):
+            info = skill_cmds[cmd_key]
+            skill_path = info.get("skill_md_path", "")
+            if not skill_path:
+                continue
+            if not any(skill_path.startswith(prefix) for prefix in _allowed_prefixes):
+                continue
+            if skill_path.startswith(_hub_dir):
+                continue
+```
 
 ---
 

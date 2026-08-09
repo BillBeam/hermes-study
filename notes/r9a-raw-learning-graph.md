@@ -15,7 +15,7 @@
 | `agent/learning_mutations.py` | 206 | 图上节点的 编辑/删除 —— 从节点 id 反查磁盘位置并改写 |
 | `agent/learn_prompt.py` | 150 | `/learn` 的提示词模板(一个模块级常量 + 一个字符串拼接函数) |
 
-**并行子代理读的是策展侧(`agent/curator.py` / `insights.py` / `curator_backup.py`),
+**并行子代理读的是策展侧(`agent/curator.py` / `agent/insights.py` / `agent/curator_backup.py`),
 本文只在第 7 节写清两侧的接口,不越界逐行读对方文件。**
 
 ---
@@ -211,14 +211,22 @@ def build_edges(nodes: dict[str, SkillNode]) -> list[tuple[str, str]]:
 
 注意「BOTH endpoints exist」是在 **`learned_skills`** 这个已经筛过的字典上判的
 (`:268` 传的是 `learned_skills`)。仓库自带技能里那 30 多处 `related_skills` 声明
-(`skills/productivity/pdf/SKILL.md:12` 等)因此**永远连不出一条边**——两端都被
+(`skills/productivity/pdf/SKILL.md` 12 行等)因此**永远连不出一条边**——两端都被
 `source != "base"` 滤掉了。这张图的技能边,实际只可能出现在用户 profile 技能之间。
 
 ◇ **`related_skills` 在 Python 侧只有这一个真正的消费者。**
 搜索面:`grep -rn "related_skills" --include=*.py .` 命中 4 个非文档文件——
-`agent/learning_graph.py`(本模块)、`tools/skills_tool.py:1456-1465,1640`(只是把它读进
-skill 元数据字典返回给工具调用方)、`website/scripts/generate-skill-docs.py:346`(生成文档
-站的「相关技能」链接)。**没有任何一处用它做技能路由、上下文预取或推荐。**
+`agent/learning_graph.py`(本模块)、`tools/skills_tool.py`(只是把它读进 skill 元数据字典返回给工具调用方,见下)、
+`website/scripts/generate-skill-docs.py` 346(生成文档站的「相关技能」链接)。
+**没有任何一处用它做技能路由、上下文预取或推荐。**
+
+`tools/skills_tool.py:1463 @ 863e313`
+```python
+        tags = _parse_tags(hermes_meta.get("tags") or frontmatter.get("tags", ""))
+        related_skills = _parse_tags(
+            hermes_meta.get("related_skills") or frontmatter.get("related_skills", "")
+        )
+```
 换句话说:仓库里 30 多个 `related_skills:` 声明,对 agent 的运行时行为零影响。
 
 **边 2:记忆↔技能,来自词法重叠打分。**
@@ -266,8 +274,15 @@ def _memory_skill_edges(memory_cards: list[dict[str, Any]], skills: list[SkillNo
                     "body": chunk[:1200],
 ```
 
-实践中记忆节点数其实是被**别处**卡住的:`memory.memory_char_limit` 默认 2200 字符、
-`user_char_limit` 默认 1375(`hermes_cli/config_defaults.py:1656-1657`),所以
+实践中记忆节点数其实是被**别处**卡住的:
+
+`hermes_cli/config_defaults.py:1656 @ 863e313`
+```python
+        "memory_char_limit": 2200,   # ~800 tokens at 2.75 chars/token
+        "user_char_limit": 1375,     # ~500 tokens at 2.75 chars/token
+```
+
+所以
 `MEMORY.md` 整体就那么大,`§` 段数只可能是几十条量级。技能节点数则没有这种天然上限。
 
 ### 2.5 实测规模曲线(可零成本复现)
@@ -327,7 +342,7 @@ def parse_node_kind(node_id: str) -> str:
 ```
 
 于是一个恰好叫 `memory:foo:1` 的**技能**会被当成记忆处理。实际不可能——技能名有
-`lowercase-hyphenated` 约束(`agent/learn_prompt.py:35` 起的 authoring standards),不含冒号。
+`lowercase-hyphenated` 约束(`agent/learn_prompt.py` 35 起的 authoring standards),不含冒号。
 但这是「靠约定不靠类型」的一处,重实现时值得换成显式 kind 字段。
 
 ### 3.2 写是原子的,读-改-写不是
@@ -536,7 +551,7 @@ def _delete_skill(name: str) -> dict[str, Any]:
 ```
 
 三层保护叠在这一个函数上:(a) pinned 直接拒;(b) `archive_skill` 自己再拒 hub 安装的、
-外部目录的、以及未开 `curator.prune_builtins` 的自带技能(`tools/skill_usage.py:1071` 起);
+外部目录的、以及未开 `curator.prune_builtins` 的自带技能(`tools/skill_usage.py` 1071 起);
 (c) 只是 `rename` 进 `~/.hermes/skills/.archive/`,而 `build_skill_nodes` 的路径过滤
 (`:130`,上面引过)会跳过 `.archive`,所以节点从图上消失但文件还在。
 
@@ -599,8 +614,16 @@ def _clear_skill_cache() -> None:
         agent._iters_since_skill = 0
 ```
 
-两个默认值都是 10(`agent/agent_init.py:1669`、`:1769`),分别可由
-`memory.nudge_interval` / `skills.creation_nudge_interval` 覆盖(`:1684`、`:1772`)。
+两个默认值都是 10,分别可由 `memory.nudge_interval` /
+`skills.creation_nudge_interval` 覆盖(`agent/agent_init.py` 1684、1772):
+
+`agent/agent_init.py:1669 @ 863e313`
+```python
+    agent._memory_nudge_interval = 10
+    agent._turns_since_memory = 0
+    agent._iters_since_skill = 0
+```
+
 这个不对称是有意的:记忆学的是「用户是谁」(按对话轮数采样),技能学的是
 「这类活怎么干」(按干活强度采样)。一轮里调 30 次工具的深度 debug 会立刻触发技能复盘;
 30 轮闲聊则只触发记忆复盘。
@@ -622,13 +645,39 @@ def _clear_skill_cache() -> None:
             pass  # Background review is best-effort
 ```
 
-◇ **同一段逻辑在 codex 运行时里有一份平行实现**,`agent/codex_runtime.py:848-860`
-条件与签名一字不差(该文件 `:845` 的注释自称 "same cadence + signature as the default
-path")。重实现时这是一个「一个策略两处落地」的典型味道点。
+◇ **同一段逻辑在 codex 运行时里有一份平行实现**,条件与签名一字不差,
+连计数器的增量都得自己补一遍(因为它绕开了 chat_completions 循环):
+
+`agent/codex_runtime.py:811 @ 863e313`
+```python
+    # Only _iters_since_skill needs explicit increment, since the
+    # chat_completions loop bumps it per tool iteration (line ~12110)
+    # and that loop is bypassed on this path.
+    agent._iters_since_skill = (
+        getattr(agent, "_iters_since_skill", 0) + turn.tool_iterations
+    )
+```
+
+`agent/codex_runtime.py:848 @ 863e313`
+```python
+    if (
+        turn.final_text
+        and not turn.interrupted
+        and (should_review_memory or should_review_skills)
+    ):
+        try:
+            agent._spawn_background_review(
+                messages_snapshot=list(messages),
+                review_memory=should_review_memory,
+                review_skills=should_review_skills,
+            )
+```
+
+重实现时这是一个「一个策略两处落地」的典型味道点。
 
 三个派发点合计(搜索面:`grep -rn "_spawn_background_review" --include=*.py . | grep -v tests`):
-`agent/turn_finalizer.py:718`(默认路径)、`agent/codex_runtime.py:854`(codex 路径)、
-`hermes_cli/cli_commands_mixin.py:2482` 与 `gateway/slash_commands.py:2877`(`/refine`,用户手动)。
+`agent/turn_finalizer.py:718`(默认路径)、`agent/codex_runtime.py` 854(codex 路径)、
+`hermes_cli/cli_commands_mixin.py` 2482 与 `gateway/slash_commands.py` 2877(`/refine`,用户手动)。
 
 ### 4.3 抢不抢主回合的资源:模型侧不抢,进程侧抢
 
@@ -923,7 +972,18 @@ _PARALLEL_SAFE_TOOLS = frozenset({
 就走并发路径,白名单静默失效。
 
 触发条件(全部可由模型自己决定,无需任何外部输入):一条 assistant 消息里 ≥2 个工具调用,
-且 `_plan_tool_batch_segments` 把整批判为单一 parallel 段(`run_agent.py:7618-7624`)。
+且 `_plan_tool_batch_segments` 把整批判为单一 parallel 段:
+
+`run_agent.py:7619 @ 863e313`
+```python
+            if len(segments) == 1:
+                kind = segments[0][0]
+                if kind == "parallel":
+                    return self._execute_tool_calls_concurrent(
+                        assistant_message, messages, effective_task_id, api_call_count
+                    )
+                return self._execute_tool_calls_sequential(
+```
 
 **严重程度要说准**:逃出去的都是读类/外呼类,不是任意写。但 `web_search`/`web_extract`
 是网络外呼、`image_generate`/`vision_analyze` 是**付费** API 调用、`read_file`/`search_files`
@@ -976,9 +1036,20 @@ skill -> True
 combined -> False
 ```
 
-而 combined 恰恰是**最常触发**的那个——两个 nudge 都到期时就用它
-(`agent/background_review.py:1052-1057`),而两个阈值都是 10、又都由同一段对话驱动,
-同时到期完全正常。测试也只覆盖了那两条(`tests/test_background_review_session_isolation.py:22-28`,
+而 combined 恰恰是**最常触发**的那个——两个 nudge 都到期时就用它:
+
+`agent/background_review.py:1052 @ 863e313`
+```python
+    if review_memory and review_skills:
+        prompt = getattr(agent, "_COMBINED_REVIEW_PROMPT", _COMBINED_REVIEW_PROMPT)
+    elif review_memory:
+        prompt = getattr(agent, "_MEMORY_REVIEW_PROMPT", _MEMORY_REVIEW_PROMPT)
+    else:
+        prompt = getattr(agent, "_SKILL_REVIEW_PROMPT", _SKILL_REVIEW_PROMPT)
+```
+
+而两个阈值都是 10、又都由同一段对话驱动,
+同时到期完全正常。测试也只覆盖了那两条(`tests/test_background_review_session_isolation.py` 22-28,
 combined 没有对应用例)。
 
 **影响面必须说准**:`_persist_disabled`(4.6 节)已经从源头堵住了新的污染,这层只是
@@ -1025,7 +1096,7 @@ agent 就会「变成策展员」拒绝用户的真实任务(这正是注释 `:3
 
 所以准确说法是:**CLI/TUI 用户看得见一行 `⚠ Auxiliary background review failed: ...`;
 消息平台(Telegram/Discord/Slack…)用户看不见,只进日志。** 这是有意的
-(`gateway/run.py:729` 自称 "surfaces should not receive transient auxiliary/compression chatter")。
+(`gateway/run.py` 729 自称 "surfaces should not receive transient auxiliary/compression chatter")。
 
 另有一处**局部**的吞异常,是刻意的、而且理由写得很好:
 
@@ -1139,6 +1210,54 @@ still runs and still writes」),但网关侧还有一层**延迟投递**是文�
 即在消息平台上,`💾 Self-improvement review: ...` 不是复盘一结束就发,而是**攒到主响应
 投递确认之后**才放出来——否则会插在用户的回答前面。这是文档没写的行为。
 
+### 4.12 复盘提示词本身:「不要学什么」写得比「要学什么」还长
+
+三个提示词都是模块级常量(`_MEMORY_REVIEW_PROMPT` 171-180、
+`_SKILL_REVIEW_PROMPT` 182-305、`_COMBINED_REVIEW_PROMPT` 307-406),
+即**不可被用户配置覆盖**,只保留了一条 per-agent 属性的向后兼容口子(见 4.8 的选择逻辑)。
+
+技能复盘提示词里最值得抄的不是「该学什么」,是**长达 30 行的「不许学什么」**:
+
+`agent/background_review.py:272 @ 863e313`
+```python
+    "Do NOT capture (these become persistent self-imposed constraints "
+    "that bite you later when the environment changes):\n"
+    "  • Environment-dependent failures: missing binaries, fresh-install "
+    "errors, post-migration path mismatches, 'command not found', "
+    "unconfigured credentials, uninstalled packages. The user can fix "
+    "these — they are not durable rules.\n"
+    "  • Negative claims about tools or features ('browser tools do not "
+    "work', 'X tool is broken', 'cannot use Y from execute_code'). These "
+    "harden into refusals the agent cites against itself for months "
+    "after the actual problem was fixed.\n"
+```
+
+还有一条针对「把失败的尝试写成最佳实践」的专门禁令:
+
+`agent/background_review.py:288 @ 863e313`
+```python
+    "  • Unresolved failures: if the session ended WITHOUT actually "
+    "finding a working method — you tried several things, none worked, "
+    "and told the user to check manually — do NOT write those attempts "
+    "up as a 'reliable workflow' or 'recommended approach'. That presents "
+    "an untested sequence of failures as validated guidance a future "
+    "session will trust and repeat. Either say 'Nothing to save', or, "
+```
+
+另一侧是对「主动性」的显式加压——注意它把「什么都没做」定义成损失而不是中性:
+
+`agent/background_review.py:182 @ 863e313`
+```python
+_SKILL_REVIEW_PROMPT = (
+    "Review the conversation above and update the skill library. Be "
+    "ACTIVE — most sessions produce at least one skill update, even if "
+    "small. A pass that does nothing is a missed learning opportunity, "
+    "not a neutral outcome.\n\n"
+```
+
+这两股力(主动学 + 严格不学某些类)是自主学习系统里最难调的一对张力,
+而 hermes 的做法是**把两边都写成显式清单**,而不是靠一句「用你的判断」。
+
 ---
 
 ## 5. `learn_prompt.py` —— 模板在哪、参数化了什么、能不能被覆盖
@@ -1226,7 +1345,7 @@ awk -F'\t' 'NR>1 && $1 ~ /learn/' /home/user/hermes-study/data/r8a-config-keys.t
         "referred to something you just did, and the text they pasted as-is. "
 ```
 
-控制点不在本模块,而在网关的发送者鉴权(`gateway/slash_commands.py:1393`、`:4342-4345`
+控制点不在本模块,而在网关的发送者鉴权(`gateway/slash_commands.py` 1393、4342-4345
 的 `_is_user_authorized` / allowlist)。**结论:本模块自身不做鉴权,也不该做;
 重实现时要记住的是「斜杠命令的信任边界由入口的发送者鉴权定义,不由模板定义」。**
 
@@ -1259,11 +1378,12 @@ bucket metadata the TUI walks as a tree. The age gradient and complementary
 memory ink are ported from the desktop source, not guessed.
 ```
 
-`apps/desktop/src/app/starmap/` 确实存在(16 个文件,含 `color.ts`、`time-axis.ts`、
-`geometry.ts`、`constants.ts`),而这个模块逐函数写明自己 port 自哪个 ts 文件:
-`recency_ink` ← `geometry.ts recencyInk`(`:65`)、`compute_recency` ← `time-axis.ts
-computeRecency`(`:83`)、`derive_palette` ← `color.ts computePalette`(`:186`)、
-`LEAD_IN` ← `time-axis.ts LEAD_IN`(`:22`)、`AGE_GRADIENT` ← `constants.ts`(`:26`)。
+`apps/desktop/src/app/starmap/` 确实存在(16 个文件,含 `apps/desktop/src/app/starmap/color.ts`、
+`apps/desktop/src/app/starmap/time-axis.ts`、`apps/desktop/src/app/starmap/geometry.ts`、
+`apps/desktop/src/app/starmap/constants.ts`),而这个模块逐函数写明自己 port 自哪个 ts 文件
+(本文件行号:65 `recency_ink` ← geometry.ts `recencyInk`;83 `compute_recency` ←
+time-axis.ts `computeRecency`;186 `derive_palette` ← color.ts `computePalette`;
+22 `LEAD_IN` ← time-axis.ts;26 `AGE_GRADIENT` ← constants.ts)。
 
 **渲染给谁看,精确答案:两个终端消费者,不含桌面。** 桌面拿的是原始 payload
 (`GET /api/learning/graph`)自己用 TS 画;这个模块只服务
@@ -1290,8 +1410,17 @@ STYLE_DIM = "dim"
 ```
 
 这是本簇最值得抄的一个接口设计:**渲染器只产出语义 + 亮度,不产出颜色**。
-CLI 用 rich 的调色板、TUI 用 Ink 的、两边还各自跟随用户的 skin
-(`hermes_cli/journey.py:30-46` 从 `skin_engine` 取主色再 `derive_palette`)。
+CLI 用 rich 的调色板、TUI 用 Ink 的、两边还各自跟随用户的 skin:
+
+`hermes_cli/journey.py:41 @ 863e313`
+```python
+@lru_cache(maxsize=1)
+def _palette() -> dict[str, str]:
+    from agent.learning_graph_render import derive_palette
+
+    return derive_palette(_primary_hex(), dark=True)
+```
+
 一份渲染逻辑,三套外观,零 if-else。
 
 ### 6.3 分桶:自适应粒度,且有一条「宁可超行数」的例外
@@ -1331,9 +1460,17 @@ def render_frames(payload: dict[str, Any], *, cols: int = 80, rows: int = 16, fr
 
 | 表面 | 谁在跑 | 会不会卡 |
 |---|---|---|
-| TUI `learning.frames` | `tui_gateway` 的 8 线程 RPC 池(`tui_gateway/server.py:291-293`) | 占 1/8 worker,不卡网关;且 TUI 只要 2 帧 |
+| TUI `learning.frames` | `tui_gateway` 的 8 线程 RPC 池(下方引用) | 占 1/8 worker,不卡网关;且 TUI 只要 2 帧 |
 | `hermes journey --play` | CLI 前台进程,`_play` 自己按 42 帧循环渲染 | 卡的是它自己,用户就在等这个动画 |
 | 桌面 `/api/learning/graph` | **FastAPI 事件循环线程** | **会卡整个 dashboard** |
+
+`tui_gateway/server.py:292 @ 863e313`
+```python
+_pool = concurrent.futures.ThreadPoolExecutor(
+    max_workers=_rpc_pool_workers,
+    thread_name_prefix="tui-rpc",
+)
+```
 
 TUI 实际只要 2 帧,这一点在前端写死:
 
@@ -1401,12 +1538,19 @@ async def get_learning_graph(profile: Optional[str] = None):
         review_agent._memory_write_origin = "background_review"
 ```
 
-与 `agent/background_review.py:803-804` 同值。下游据此判定「这是自主写、无人在场」:
-`tools/skill_provenance.py:75` 的 `is_background_review()` → `tools/skill_manager_tool.py`
+与 `agent/background_review.py` 803-804 同值。下游据此判定「这是自主写、无人在场」:
+`tools/skill_provenance.py` 75 的 `is_background_review()` → `tools/skill_manager_tool.py`
 的 `_background_review_write_guard`(`:301`)与 `_background_review_read_before_write_guard`
-(`:424`)。后者要求**改一个技能之前必须先读过它**,读标记存在
-`tools/skill_manager_tool.py:55-56` 的 ContextVar 里,由 background_review 在每次复盘开始时
-清空(`agent/background_review.py:911-913`)。
+(`:424`)。后者要求**改一个技能之前必须先读过它**,由 background_review 在每次复盘开始时清空
+(`agent/background_review.py` 911-913)。值得与 4.7 节那个洞并排看——**同一个仓库里,
+读后写守卫用的是 ContextVar(跨线程传得过去),工具白名单用的是 threading.local(传不过去)**:
+
+`tools/skill_manager_tool.py:55 @ 863e313`
+```python
+_background_review_read_paths: "_ctxvars.ContextVar[frozenset[str]]" = _ctxvars.ContextVar(
+    "background_review_read_paths", default=frozenset()
+)
+```
 
 **接口 2:提示词里的分工契约。** 技能复盘提示词自己声明「重叠合并归 curator 管」:
 
@@ -1425,7 +1569,7 @@ user-owned 的「不许改」清单,而真正的执行在 `skill_manager_tool` �
 
 **图谱侧对策展的唯一依赖**:`learning_mutations._delete_skill` 调
 `tools.skill_usage.archive_skill`,归档目录与 `hermes curator restore` 共用
-(`agent/learning_mutations.py:141` 的提示语直接指向 `hermes curator restore`)。
+(`agent/learning_mutations.py` 141 的提示语直接指向 `hermes curator restore`)。
 
 ---
 
@@ -1449,8 +1593,8 @@ user-owned 的「不许改」清单,而真正的执行在 `skill_manager_tool` �
 
 **整行判定**:第 68 行两个断言——(a)「**CLI only**」、(b)「打开学习旅程时间轴」。
 (b) 成立;(a) 不成立。判据是代码里 TUI 与桌面各自注册了这个命令:
-`ui-tui/src/app/slash/commands/ops.ts:331`(name: 'journey')、
-`apps/desktop/src/lib/desktop-slash-commands.ts:203`(surface: action('journey')),
+`ui-tui/src/app/slash/commands/ops.ts` 331(name: 'journey')、
+`apps/desktop/src/lib/desktop-slash-commands.ts` 203(surface: action('journey')),
 分别打到 `tui_gateway` 的 `learning.frames` RPC 和 `GET /api/learning/graph`。
 
 **读法上的诚实交代**:如果把 "CLI only" 读成「不在消息平台上」,第 68 行就是真的。
@@ -1463,18 +1607,18 @@ user-owned 的「不许改」清单,而真正的执行在 `skill_manager_tool` �
 仓库自带技能里 30+ 处 `related_skills:` 声明,在 Python 侧唯一的图相关消费者是
 `learning_graph.build_edges`;而该函数只在 `learned_skills`(已排除 base)上连边,
 所以这些声明**一条边都连不出来**。文档站的技能页会用它渲染「相关技能」链接
-(`website/scripts/generate-skill-docs.py:346`),这是它唯一真正生效的地方。
+(`website/scripts/generate-skill-docs.py` 346),这是它唯一真正生效的地方。
 
 ### ◇2 —— 网关侧延迟投递复盘通知(见 4.11)
 
 `display.memory_notifications` 的文档只讲了三档展示详细度,没提消息平台上通知会被**攒到
-主响应投递确认之后**才发(`gateway/run.py:25651-25666`)。
+主响应投递确认之后**才发(`gateway/run.py` 25651-25666)。
 
 ### ◇3 —— 后台复盘没有 wall-clock 超时
 
 配置里有 `timeout: 120` 看起来像超时,实际无人读(4.10 步骤 2)。唯一的边界是
-`max_iterations=16`(`agent/background_review.py:788`)。文档两处讲 background_review
-(`memory.md:295` 起、`configuration.md`)都没说清这一点。
+`max_iterations=16`(`agent/background_review.py` 788)。文档两处讲 background_review
+(`website/docs/user-guide/features/memory.md` 295 行起、`website/docs/user-guide/configuration.md`)都没说清这一点。
 
 ### ◎1 —— 「同一份图数据驱动三个表面」是真的,但少说了一件事
 
@@ -1521,7 +1665,7 @@ user-owned 的「不许改」清单,而真正的执行在 `skill_manager_tool` �
 6. **渲染器输出语义 + 亮度,不输出颜色。** 6.2 节。一份布局逻辑服务 N 套外观。
 
 7. **提示词里的「不要学什么」比「要学什么」更长,而且是对的。**
-   `_SKILL_REVIEW_PROMPT:272-300` 花了 30 行讲不要捕获什么:环境依赖的失败、对工具的
+   见 4.12:`_SKILL_REVIEW_PROMPT` 花了 30 行讲不要捕获什么——环境依赖的失败、对工具的
    负面断言、瞬时错误、一次性任务叙事、**未解决的失败**。理由写得极准——
    「These harden into refusals the agent cites against itself for months after the actual
    problem was fixed」。自主学习系统的主要风险不是学得少,是把噪声固化成永久约束。
@@ -1536,13 +1680,13 @@ user-owned 的「不许改」清单,而真正的执行在 `skill_manager_tool` �
 
 | # | 锚点文件(带行号) | 一句话现象 | 建议去向 |
 |---|---|---|---|
-| H-9A-1 | `agent/learning_mutations.py:47-62` | `_memory_local_index` 的 stale 守卫只比 source 不比内容;并发插入时 `delete_node("memory:memory:2")` 删掉的是原来的 1 号条目并返回 `ok: True`(3.3 节有完整复现输出) | 成品章「学习闭环」的取舍一节;若做同类系统,列为必修 |
-| H-9A-2 | `agent/learning_graph.py:206` 与 `:134` 的 `except OSError` | 非 UTF-8 的 `MEMORY.md` / `SKILL.md` 抛 `UnicodeDecodeError`(是 `ValueError` 不是 `OSError`),整张图 500;同仓 `tools/memory_tool.py:770` 的写法把它一起捕获了 | 同上 |
-| H-9A-3 | `hermes_cli/plugins.py:2101` + `agent/tool_executor.py:1173-1178` | 后台复盘的工具白名单存在 `threading.local()`,并发工具 worker 上失效;实测 `terminal`/`write_file`/`delegate_task` 在 worker 线程上返回 `None`(= 放行) | **优先级最高**;需与 R9 其他簇的「工具授权」线索合并判断是否还有别的 threading.local 安全断言 |
-| H-9A-4 | `hermes_state.py:372-375` vs `agent/background_review.py:308` | 防污染前缀表只列了两条,而 `_COMBINED_REVIEW_PROMPT` 开头是 "Review the conversation above and update two things:",匹配不上;combined 恰是两个 nudge 同时到期时用的那个 | 与策展侧子代理的发现合并核对 |
-| H-9A-5 | `hermes_cli/web_server.py:3527-3541` | `async def` 里直接调同步的 `build_learning_graph()`,未 `run_in_threadpool`;同文件 `:6294-6307` 的同类端点做了 offload 并写了注释 | 低优先级(现实规模 ~100ms),但可作为「dashboard 端点阻塞事件循环」这一类线索的样本 |
-| H-9A-6 | `agent/codex_runtime.py:848-860` vs `agent/turn_finalizer.py:714-724` | 后台复盘的触发条件与调用签名在两条运行时路径里各写了一遍,`codex_runtime.py:845` 的注释自称与默认路径一致 | 归入「一个策略两处落地」的跨簇清单 |
-| H-9A-7 | `agent/learning_graph.py:262-267` + `:125-153` | `build_skill_nodes` 把仓库自带的 71 个技能全部读盘解析 frontmatter,随后在 `source != "base"` 处全部丢弃 | 纯性能观察,非缺陷;重实现时把过滤下推到 `_iter_skill_files` |
+| H-9A-1 | `agent/learning_mutations.py` 47-62 | `_memory_local_index` 的 stale 守卫只比 source 不比内容;并发插入时 `delete_node("memory:memory:2")` 删掉的是原来的 1 号条目并返回 `ok: True`(3.3 节有完整复现输出) | 成品章「学习闭环」的取舍一节;若做同类系统,列为必修 |
+| H-9A-2 | `agent/learning_graph.py` 206 与 134 的 `except OSError` | 非 UTF-8 的 `MEMORY.md` / `SKILL.md` 抛 `UnicodeDecodeError`(是 `ValueError` 不是 `OSError`),整张图 500;同仓 `tools/memory_tool.py` 770 的写法把它一起捕获了 | 同上 |
+| H-9A-3 | `hermes_cli/plugins.py` 2101 + `agent/tool_executor.py` 1173-1178 | 后台复盘的工具白名单存在 `threading.local()`,并发工具 worker 上失效;实测 `terminal`/`write_file`/`delegate_task` 在 worker 线程上返回 `None`(= 放行) | **优先级最高**;需与 R9 其他簇的「工具授权」线索合并判断是否还有别的 threading.local 安全断言 |
+| H-9A-4 | `hermes_state.py` 372-375 vs `agent/background_review.py` 308 | 防污染前缀表只列了两条,而 `_COMBINED_REVIEW_PROMPT` 开头是 "Review the conversation above and update two things:",匹配不上;combined 恰是两个 nudge 同时到期时用的那个 | 与策展侧子代理的发现合并核对 |
+| H-9A-5 | `hermes_cli/web_server.py` 3527-3541 | `async def` 里直接调同步的 `build_learning_graph()`,未 `run_in_threadpool`;同文件 `:6294-6307` 的同类端点做了 offload 并写了注释 | 低优先级(现实规模 ~100ms),但可作为「dashboard 端点阻塞事件循环」这一类线索的样本 |
+| H-9A-6 | `agent/codex_runtime.py` 848-860 vs `agent/turn_finalizer.py` 714-724 | 后台复盘的触发条件与调用签名在两条运行时路径里各写了一遍,`agent/codex_runtime.py` 845 行的注释自称与默认路径一致 | 归入「一个策略两处落地」的跨簇清单 |
+| H-9A-7 | `agent/learning_graph.py` 262-267 + 125-153 | `build_skill_nodes` 把仓库自带的 71 个技能全部读盘解析 frontmatter,随后在 `source != "base"` 处全部丢弃 | 纯性能观察,非缺陷;重实现时把过滤下推到 `_iter_skill_files` |
 
 ---
 
@@ -1559,8 +1703,17 @@ venv:/home/user/hermes-venv,Python 3.11.15,dist-info 计数 87
 ```
 
 18 个用例覆盖的是不变量(边的两端必须是真节点、cluster 覆盖全部节点、记忆写入格式与
-memory 工具字节一致),**不是**快照——`tests/agent/test_learning_graph.py:1-7` 的
-docstring 明确说不断言技能目录的条数,因为那会变成 change-detector。这个测试写法值得抄。
+memory 工具字节一致),**不是**快照:
+
+`tests/agent/test_learning_graph.py:3 @ 863e313`
+```
+Asserts invariants (edges resolve to real nodes, clusters cover every node,
+memory cards are represented consistently), never a snapshot of the live skill
+catalog — that catalog grows every release and a count assertion would be a
+change-detector.
+```
+
+不断言技能目录的条数,因为那会变成 change-detector。这个测试写法值得抄。
 
 但覆盖有明显缺口,与第 8 节的 ■ 一一对应:没有并发/staleness 用例、没有非 UTF-8 用例、
 没有 combined 提示词的清洗用例、没有白名单跨线程用例。

@@ -183,6 +183,26 @@ background subagent" 与代码矛盾:实际调用的是 `dispatch_async_delegati
   cron、Kanban worker、`hermes -z`),且没有可自投的 api_server session id;
 - **异步池满**:`dispatch_async_delegation_batch` 返回 `rejected`。
 
+`tools/delegate_tool.py:3187 @ 863e313`
+```python
+        # Finite sessions cannot route a detached subagent result back to the
+        # agent after their turn/process ends. This includes stateless HTTP
+        # requests (#10760) and one-shot Kanban workers (#63169). Fall back to
+        # SYNCHRONOUS execution so the result returns in this same turn instead
+        # of handing out a handle with no durable consumer. Mirrors the
+        # pool-at-capacity inline fallback below.
+        try:
+            from gateway.session_context import async_delivery_supported
+            _async_ok = async_delivery_supported()
+        except Exception:
+            _async_ok = True
+```
+
+注意 `except Exception: _async_ok = True` —— 探测失败时**假定支持**。这是
+「乐观失败」而不是失败关闭,理由大概是:探测不出来就走后台,最坏结果是一条
+完成事件无人认领(它会留在队列/durable 表里),而反过来把一个长任务强行同步
+执行会直接卡死一次 HTTP 请求。这个取舍值得在重实现时明确写下来。
+
 两处都会在结果里塞一个 `note` 说明「其实是同步跑的」。这一点对**重实现**很重要:
 **异步入口必须有一条同步退路**,否则一个满池就变成功能不可用。
 
@@ -291,9 +311,58 @@ def _begin_finalization(
 把「跑完了」和「送到了」拆成两列,是这套设计里最值得抄的一笔:一个已完成但
 没送出去的结果,和一个还在跑的任务,恢复逻辑完全不同。
 
-`owner_pid` + `owner_started_at` 这一对是**租约**(§5.1)。
+`owner_pid` + `owner_started_at` 这一对是**租约**(§5.1),在派发时同步写下:
+
+`tools/async_delegation.py:200 @ 863e313`
+```python
+def _persist_dispatch(record: Dict[str, Any]) -> None:
+    now = time.time()
+    try:
+        from gateway.status import get_process_start_time
+        owner_started_at = get_process_start_time(__import__("os").getpid())
+    except Exception:
+        owner_started_at = None
+    task_payload = {
+        key: record.get(key)
+        for key in ("goal", "goals", "context", "toolsets", "role", "model", "is_batch")
+        if key in record
+    }
+```
+
+`task_json` 存的是**任务规格本身**(goal / context / toolsets / model),
+不是结果。理由在 §5.1:重启后要凭它合成一条自洽的 `unknown` 完成事件——
+那时原始记录已随进程消失,只有这一列还知道当初派的是什么活。
+
 `origin_session_id` 是 api_server 的自投唤醒目标——它必须持久化,否则重启后
 恢复出来的完成事件无处投递。
+
+所有 durable 写都包在同一个上下文管理器里,它存在的唯一理由是一个 fd 泄漏:
+
+`tools/async_delegation.py:181 @ 863e313`
+```python
+@contextmanager
+def _transaction() -> Iterator[sqlite3.Connection]:
+    """Open a connection, commit/rollback on exit, and ALWAYS close it.
+
+    ``sqlite3.Connection.__enter__``/``__exit__`` only commit or roll back the
+    transaction; they do not close the connection. Using ``with _connect()``
+    alone therefore leaks a connection — and its WAL/SHM file descriptors — on
+    every durable dispatch, completion, and delivery-claim, deferring the close
+    to the garbage collector. On a long-running gateway that exhausts
+    ``RLIMIT_NOFILE`` (the cron-ledger sibling of this bug was #69567 / PR #69594).
+    """
+    conn = _connect()
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
+```
+
+**可迁移**:Python 的 `with sqlite3.connect(...)` **不关连接**,只管事务。
+任何「每次操作开一个连接」的持久层都必须自己封 close,否则在长驻进程上
+必然撞 `RLIMIT_NOFILE`。仓库为此专门有一个回归测试
+(`tests/tools/test_async_delegation_fd_leak.py`)。
 
 ◇ **`finalizing` 这个 `state` 值没有任何写入方**。
 搜索面:对 `tools/async_delegation.py` 全文搜 `state=` 的所有 UPDATE/INSERT
@@ -523,6 +592,27 @@ def _db_path():
                     token, in_tool = record.get("_progress_token"), False
 ```
 
+强制终局时给用户/模型的那条错误串,是本簇里写得最好的一段「可执行错误信息」——
+它同时交代了**现象、最可能的根因、以及下一步该干什么**:
+
+`tools/async_delegation.py:1268 @ 863e313`
+```python
+    error = (
+        f"Async delegation {delegation_id} stalled: the detached subagent "
+        "stopped making progress (no new API calls, tool activity, or "
+        "streamed tokens), did not respond to interruption, and never "
+        "produced a completion event. The worker may be wedged inside a "
+        "model API call — this is a known failure mode of long-lived "
+        "gateway processes (#60203). Re-dispatch the task if it is still "
+        "needed."
+    )
+```
+
+除错误串外还有一组**结构化**字段(`stalled_after_quiet_seconds` /
+`stall_threshold_seconds` / `stall_phase` / `stall_grace_seconds`),
+刻意与同步路径的 `timeout_seconds` / `timed_out_after_seconds` / `timeout_phase`
+对齐,好让父 agent 和 UI **不必解析字符串**就能区分「停滞被杀」与其它失败。
+
 监控线程**自己退场**,由下一次带 `progress_fn` 的派发重启:
 
 `tools/async_delegation.py:1247 @ 863e313`
@@ -580,6 +670,30 @@ wedge 了也永远等不到 `stalled` 事件,只能靠进程重启的 `unknown` 
 # would join on exit and defeat the whole point of async). Workers are daemon
 # threads so a hard process exit doesn't hang on an in-flight child.
 ```
+
+守护池本身是共享设施,它存在的理由值得单独记一笔——CPython 的
+`ThreadPoolExecutor` 会把 worker 注册进 `_threads_queues`,其 `atexit` 钩子
+**无条件 join**,`shutdown(wait=False)` 也拦不住:
+
+`tools/daemon_pool.py:12 @ 863e313`
+```python
+``DaemonThreadPoolExecutor`` spawns daemon workers and skips the
+``_threads_queues`` registration, so:
+
+  - ``_python_exit`` never joins them, and
+  - the interpreter's non-daemon thread join at shutdown skips them.
+
+Semantics are otherwise identical (initializer/initargs, work queue,
+idle-thread reuse).  Use it for any pool whose work is best-effort or
+independently interruptible and must never hold the process open:
+concurrent tool execution, background memory sync, catalog fan-out,
+subagent timeout wrappers.  Do NOT use it for work that must complete
+before exit (durable writes) — those belong on foreground threads with
+```
+
+最后一句划出了边界:**持久化写不能放在守护线程上**。这正好解释了 §3.1 里
+`_begin_finalization` 为什么要先置 `finalizing` 再落盘——落盘本身跑在守护线程上,
+所以必须用状态标记来吸收「进程在落盘中途退出」的风险,而不能靠 join。
 
 所以**在跑的子代理必然随进程一起消失**。兜底不在运行期,而在**下次进程启动**:
 
@@ -853,7 +967,7 @@ durable 行停在 `running` 直到进程退出后被 §5.1 判成 `unknown`。�
 上,一个停滞了几十分钟的委派身边跑完 51 个后台委派,并不罕见。修法:把判据
 改成 `status not in ("running","stalling","finalizing")`,与模块其它地方一致。
 
-### 5.6 ◇ 「活着」在同一个模块里有五种定义
+### 5.6 ◇ 「活着」在同一个模块里有四套定义,分散在六处
 
 | 函数 | 认定为「活」的 status 集合 |
 |---|---|
@@ -864,9 +978,28 @@ durable 行停在 `running` 直到进程退出后被 §5.1 判成 `unknown`。�
 | 派发容量门 / `interrupt_all` / `interrupt_for_session` | running, stalling(**漏 finalizing**) |
 | `_prune_completed_locked()` | running(**漏 stalling + finalizing**,见 §5.5) |
 
-第 4 行的后果是可观测性偏差:`active_task_count()` 喂给
-`agent/monitoring/gateway_health_export.py` 做健康指标,一个停滞中的批次会被
-少计。第 5 行的后果是容量门比 `active_count()` 宽松——一个正在 finalize 的记录
+第 4 行的后果是可观测性偏差:
+
+`tools/async_delegation.py:565 @ 863e313`
+```python
+def active_task_count() -> int:
+    """Number of async delegation TASKS (child subagents) currently running.
+
+    Unlike ``active_count()`` (units/slots), this expands a batch to its child
+    count: a running batch of N tasks contributes N, a single subagent
+    contributes 1. This is the truthful "how many subagents are actually
+    working right now" figure for observability, where a 3-task batch shown as
+    "1" undercounts real concurrent work. Falls back to counting a batch as 1
+    if its goal list is missing.
+    """
+    with _records_lock:
+        total = 0
+```
+
+它自称是「how many subagents are actually working right now」的**真实**数字,
+并被 `agent/monitoring/gateway_health_export.py:325` 用作健康指标;
+但它的 status 过滤漏了 `stalling`,于是一个正在停滞(仍占着子代理、仍占着槽)
+的批次在健康指标里**归零**——恰恰是最该报出来的那一刻。第 5 行的后果是容量门比 `active_count()` 宽松——一个正在 finalize 的记录
 不占派发额度,但它的 worker 线程还占着线程池的位子,于是新派发会**排进
 ThreadPoolExecutor 的无界队列**而不是被拒。窗口很短(一次 SQLite 写),
 但方向是错的:容量门应当比展示口径更保守,而不是更宽松。
@@ -909,7 +1042,6 @@ stateDiagram-v2
     PENDING --> RUNNING : _run() 起跑(worker 线程)
     PENDING --> CANCEL_REQUESTED : cancel() 抢在 _run() 之前
     RUNNING --> CANCEL_REQUESTED : cancel()
-    CANCEL_REQUESTED --> RUNNING : 不发生 —— _run() 只在非 CANCEL_REQUESTED 时才置 RUNNING
     RUNNING --> SUCCEEDED : raw.status == completed
     RUNNING --> INTERRUPTED : raw.status == interrupted 且未请求过取消
     RUNNING --> FAILED : 其它 status / _run 抛异常
@@ -920,9 +1052,18 @@ stateDiagram-v2
     FAILED --> [*]
     INTERRUPTED --> [*]
     CANCELLED --> [*]
-    STARTING --> STARTING : 全仓无任何写入方(死枚举值)
-    UNKNOWN --> UNKNOWN : 句柄验不过 / 记录已清 / 进程重启后
+    STARTING : 死枚举值 —— 全仓无任何写入方
+    UNKNOWN : 不是真状态 —— 句柄验不过 / 记录已清 / 进程重启后的兜底返回值
 ```
+
+图里 `CANCEL_REQUESTED` 一旦置上就**不会退回** `RUNNING`:`_run()` 只在
+状态**不是** `CANCEL_REQUESTED` 时才写 `RUNNING`。也就是说取消是**单向闩**,
+它只影响最终落在 `CANCELLED` 还是 `INTERRUPTED`,不影响子代理是否继续跑
+——真正让子代理停下来的是 `request_hard_interrupt(agent, ...)` 那一下。
+`cancel()` 即使在 `request_hard_interrupt` 返回 `False`(第三方 agent 不实现
+打断 ABI)时,也已经把状态置成了 `CANCEL_REQUESTED`,只是返回
+`accepted=False, unsupported=True` —— 状态与返回值这时是**不一致**的,
+调用方必须看返回值而不是状态。
 
 驱动迁移的是**两个**角色,分工干净:
 
@@ -1024,6 +1165,37 @@ def bind_subagent_parent(parent_agent: Any):
     finally:
         _ACTIVE_PARENT_AGENT.reset(token)
 ```
+
+服务本身在插件门面上惰性构造,构造时把这个 resolver 注入进去:
+
+`hermes_cli/plugins.py:371 @ 863e313`
+```python
+    @property
+    def subagent_lifecycle(self) -> Any:
+        """Return the public, plugin-safe subagent lifecycle service.
+
+        The service only resolves the active host-owned parent agent when a
+        child is launched. Plugins receive serializable handles and immutable
+        snapshots; they never receive a live agent or a private registry.
+        """
+        if self._subagent_lifecycle is None:
+            from agent.subagent_lifecycle import (
+                SubagentLifecycleService,
+                get_active_subagent_parent,
+            )
+            self._subagent_lifecycle = SubagentLifecycleService(
+                get_active_subagent_parent
+            )
+        return self._subagent_lifecycle
+```
+
+注意注入的是**函数**不是对象:服务实例可以缓存在插件上下文里跨轮次存活,
+而父 agent 每轮次都可能不同。这是「服务长寿 + 依赖短寿」的标准解法。
+但这句 docstring 说 "only resolves the active host-owned parent agent
+**when a child is launched**" 与代码不符——`_record()`(即 `status` / `result` /
+`wait` / `cancel` / `reconnect` 全部)也会调 resolver 做父会话比对
+(`agent/subagent_lifecycle.py:382-385`)。这是**观测路径**上的隐性依赖,
+也是下面那条推论的来源。
 
 绑定点唯一(`run_agent.py:7852`,包住 `run_conversation`)。推论:
 **插件在轮次之外调 `launch()` 会直接抛「没有活跃父会话」;更隐蔽的是,
@@ -1242,9 +1414,30 @@ cd /home/user/hermes-agent && grep -rn "subagent_lifecycle" --include=*.py . | g
 
 **设计手法值得抄**:字段留在 dataclass 里(契约稳定、跨版本可反序列化),
 但传非默认值就**显式报错**,而不是静默忽略。静默忽略一个 `timeout_seconds`
-会让插件作者以为超时生效了。同理,`allowed_toolsets` 必须是父 agent
-已启用工具集的**子集**,否则报「Requested toolsets would broaden parent permissions」——
-权限只能收窄不能放宽。
+会让插件作者以为超时生效了。同理,权限只能收窄不能放宽:
+
+`agent/subagent_lifecycle.py:526 @ 863e313`
+```python
+        if request.allowed_toolsets:
+            from toolsets import TOOLSETS
+
+            unknown = set(request.allowed_toolsets) - set(TOOLSETS)
+            if unknown:
+                raise SubagentLifecycleError(
+                    f"Unknown toolsets: {', '.join(sorted(unknown))}."
+                )
+            enabled = getattr(parent, "enabled_toolsets", None)
+            if enabled is not None and not set(request.allowed_toolsets).issubset(
+                set(enabled)
+            ):
+                raise SubagentLifecycleError(
+                    "Requested toolsets would broaden parent permissions."
+                )
+```
+
+两道检查顺序也有讲究:先拒未知工具集(拼错的名字不会被静默丢掉),
+再查子集关系。注意 `enabled is None` 时**放行**——父 agent 没声明启用集合时
+不做限制,这是向后兼容的口子,重实现时应当改成失败关闭。
 
 ---
 
@@ -1425,8 +1618,54 @@ Docker / Modal / SSH 远端后端。于是子代理自己(在沙箱里)也能读
 
 **读者有四类**:(a) 人 `tail -f`;(b) 父 agent —— 路径通过工具返回值里的
 `live_transcripts` 交给模型,并附一句 hint 让它可以读或 tail;(c) 完成事件里
-带 `live_transcripts` 字段(`tools/async_delegation.py:1111`);(d) `/agents`
-面板不读文件,它读的是 `list_async_delegations()` 的内存快照。
+带 `live_transcripts` 字段;(d) `/agents` 面板不读文件,它读的是
+`list_async_delegations()` 的内存快照。
+
+(c) 的字段在批次完成事件的构造处:
+
+`tools/async_delegation.py:1108 @ 863e313`
+```python
+        # The full per-task results list — the formatter renders a
+        # consolidated multi-task block from this.
+        "results": combined.get("results") or [],
+        # Per-task live transcript log paths (cache/delegation/live/...).
+        # They persist after completion and double as the full-fidelity
+        # operational record of each child's run.
+        "live_transcripts": combined.get("live_transcripts"),
+        "error": combined.get("error"),
+        "total_duration_seconds": combined.get("total_duration_seconds"),
+        "dispatched_at": dispatched_at,
+        "completed_at": completed_at,
+    }
+```
+
+(d) 的采样有一条重要的并发纪律——**采样必须在锁外**:
+
+`tools/async_delegation.py:1396 @ 863e313`
+```python
+    # Sample live activity OUTSIDE the lock — progress_fn reads child-agent
+    # attributes and must never run under _records_lock (a slow or broken
+    # sampler would block every dispatch/finalize in the process).
+    for item in items:
+        fn = samplers.get(item.get("delegation_id"))
+        if fn is None:
+            continue
+        try:
+            token, in_tool = fn()
+        except Exception:
+            continue
+        activity = _children_activity_from_token(token, now)
+        if activity is not None:
+            item["children_activity"] = activity
+        item["in_tool"] = bool(in_tool)
+```
+
+**可迁移**:登记处持有的是**外部注入的回调**;在持锁期间调用外部回调,
+等于把自己的全局锁交给别人的代码去持有。这里的做法是「锁内只抄快照 +
+收集 sampler 引用,锁外再调」。⚠️ 注意 `_stale_monitor_loop`(§4)**没有**
+遵守这条纪律——它在 `with _records_lock:` 里直接调 `progress_fn()`。
+两个函数对同一组回调采取了相反的策略,一个慢 sampler 会卡住整个进程的
+派发与终结。这一处未列入 §13 的独立条目,合并到 A-5 的监控线程整改里。
 
 ### 8.2 并发:一子任务一文件 + 每写一次开关文件
 
@@ -1450,6 +1689,29 @@ Docker / Modal / SSH 远端后端。于是子代理自己(在沙箱里)也能读
             self._ok = False
             logger.debug("Live transcript write failed (%s): %s", self.path, exc)
 ```
+
+事件源是子代理原有的 `tool_progress_callback`,转录用**装饰器**接进去,
+不改任何调用点:
+
+`tools/delegation_live_log.py:280 @ 863e313`
+```python
+def wrap_progress_callback(inner_cb, writer: LiveTranscriptWriter):
+    """Wrap a child's tool_progress_callback so events also land in the log.
+
+    ``inner_cb`` may be None (no parent display) — the wrapper still records.
+    Writer failures never propagate; inner callback behavior is unchanged
+    (its own exceptions are handled by callers exactly as before).
+    Preserves the ``_flush`` attribute contract used by _run_single_child.
+    """
+
+    def _cb(event_type, tool_name=None, preview=None, args=None, **kwargs):
+```
+
+「Preserves the `_flush` attribute contract」这句是重点:回调不只是一个函数,
+还带一个 `_flush` 属性(约定式接口)。包装器必须把这个属性也转发,
+否则 `_run_single_child` 在超时路径上调 `child_progress_cb._flush()` 会 AttributeError。
+**可迁移教训**:用「函数上挂属性」当接口很省事,但每一层包装都得手工转发;
+真要做,不如定义一个 Protocol/ABC。
 
 **并发问题被文件切分消解掉了**:N 个并行子代理拿到的是 `live_writers[0..N-1]`,
 各写各的 `task-<i>.log`,不存在跨子代理竞争。同一个 writer 内部有
@@ -1540,12 +1802,18 @@ PY
 ```console
 === Hermes subagent live transcript ===
 delegation: deleg_test01   task: 0
-goal: sk-pro...AAAA 已被遮蔽(见下方实际输出行)
+goal: fetch with sk-pro...AAAA
+started: 2026-08-09 03:38:10
+(append-only; streams while the subagent runs — tail -f me)
+========================================
+03:38:10 user     | kickoff: fetch with sk-pro...AAAA
+03:38:10 tool     | -> terminal({'command': "curl -H 'Authorization: Bearer ***' https://x"})
+03:38:10 result   | terminal ok: OPENAI_API_KEY=*** password: hunter2correcthorse
+03:38:10 assistant| the token is ghp_AB...6789
+03:38:10 result   | terminal ok: [REDACTED PRIVATE KEY]
 ```
 
-(上面这段 console 只是提示,真实输出见下面的逐行判定表。)
-
-实测结果逐行判定:
+逐行判定:
 
 | 输入形状 | 转录里的结果 | 判定 |
 |---|---|---|
@@ -1631,6 +1899,38 @@ docstring 说「a transcript that skipped it is the one place the operator's key
 land in plaintext」所要防的那个场景,只是漏的不是「跳过了」而是「顺序错了」。
 修法零成本:`event()` 里把 `_redact` 提到 `_one_line` 之前,或在各 typed helper
 里改成 `_one_line(_redact(x), limit)`。
+
+值得说明的是,作者对「同目录另一个文件」这个泄漏面是**有意识**的——
+manifest 里的 goal 单独脱敏了一遍,注释写得很直白:
+
+`tools/delegation_live_log.py:353 @ 863e313`
+```python
+def _write_manifest(delegation_id: str, task_list: List[Dict[str, Any]],
+                    paths: List[str]) -> None:
+    try:
+        manifest = {
+            "delegation_id": delegation_id,
+            "started": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "task_count": len(task_list),
+            "tasks": [
+                {
+                    "index": i,
+                    # manifest.json sits in the same mounted
+                    # cache/delegation/live/<id>/ directory as the .log files,
+                    # so it needs the same treatment — redacting the header
+                    # while serialising the goal verbatim here would leave the
+                    # credential exposed one file over.
+                    "goal": _redact(str(t.get("goal", ""))[:500]),
+                    "log": paths[i] if i < len(paths) else None,
+                    "status": "running",
+                }
+                for i, t in enumerate(task_list)
+            ],
+        }
+```
+
+所以 §8.3 的漏不是「忘了脱敏」,而是**脱敏与格式化的先后关系**——
+这类缺陷比「忘了调」更难被 code review 抓到,因为每一处都确实调了。
 
 ⚠️ 附带一提,截断也在脱敏之前:`_RESULT_MAX = 400` 会先砍掉长输出的尾部。
 这在多数情况下**降低**泄漏面(400 字之后的东西根本不写),但也意味着
@@ -1912,7 +2212,7 @@ Python 3.11.15。基线在测试前后均 `git status --porcelain` 为空。
 8. **容量检查与插入必须同一次持锁**;满了拒绝而不是排队,并提供同步退路。
 9. **worker 线程必须显式传播上下文**(ContextVars + 线程本地回调),
    一个漏掉的提交点就是一个安全边界的缺口(§6.3)。
-10. **「活着」的定义只写一次**,所有地方引用同一个常量集合(§5.6 的五种定义
+10. **「活着」的定义只写一次**,所有地方引用同一个常量集合(§5.6 的四套定义
     直接产出了 §5.5 的缺陷)。
 11. **脱敏必须在任何格式化之前**——压行、截断、拼接都会破坏行锚定规则(§8.3)。
 12. **每个并发实体一个日志文件**,追加模式、每次写开关句柄;并发问题用切分消解,

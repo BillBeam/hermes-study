@@ -7,7 +7,7 @@
 > **◎ = 文档成立但显著保守**。字面为真就不是 ▲。
 >
 > **本文是主线自己取证的部分**,不是子代理产出的转录。子代理的定案候选另见各自底稿,
-> 经主线复核后并入本文 §3。
+> 经主线复核后并入本文 §5。
 
 ---
 
@@ -436,6 +436,193 @@ _TERMINAL_RETENTION_SECONDS = 3_600
 
 ---
 
-## 3. 子代理定案候选(主线复核后并入)
+## 5. 子代理条目的主线复核
 
-*本节在各子代理底稿到货并经主线独立复核后填写。未经主线复核的条目不进本节。*
+**制度要求主线复核子代理条目。** 本节记录主线**独立重跑/重读**过的条目——
+每条都写明「子代理怎么说 / 主线核到什么 / 判定」。**未经主线复核的条目不进本节**,
+它们留在各自底稿里,报告引用时会标注来源。
+
+复核的规矩是:**不为背书而复核**。下面有两条的结论与子代理的表述**不完全一致**,
+主线以自己核到的为准并写明差异。
+
+### 5.1 通过(与子代理一致)
+
+| # | 子代理断言 | 主线独立核对 | 判定 |
+|---|---|---|---|
+| a | `agent/insights.py` **不属于**学习闭环,是只读 `state.db` 的用量报表 | 该文件对 `curator\|skills/\|.usage.json\|hermes_home` **零命中**;顶层 import 只有 `json` / `sqlite3` / `time` / `collections` / `datetime` / `typing` / `agent.usage_pricing` | **通过**,且影响成品章分簇 |
+| b | `agent/curator.py:1644` 是**死分支** | 判断的字面量 `"No agent-created skills"` 全仓仅出现在**判断处本身**这一行;生产方 `_render_candidate_list()`(`:1473`)返回的是 `"No curator-managed skills to review."`(`:1477`) | **通过** |
+| c | `last_run_at` 写在 daemon 线程启动**之前** | 落盘在 `:1579`,`threading.Thread(..., daemon=True, name="curator-review")` 在 `:1750` | **通过**(1579 < 1750) |
+| d | R8D 的两个锚点各差一行 | `_SECRET_SOURCES[name] = applied.source` 实际在 **`:666`** 与 **`:234`**,R8D 记的是 `:667` / `:235` | **通过**,见 §5.3 的成因分析 |
+| e | `iron_proxy` 是第三方 Go 二进制的包装层 | 模块 docstring 第 1 行 `iron-proxy (\`ironsh/iron-proxy\`) integration`,第 11 行 `TLS-intercepting egress firewall (Apache-2.0, Go binary, by` | **通过** |
+| f | 验证门只认两个工具名 | `agent/tool_result_classification.py:9` 是 `frozenset({"write_file", "patch"})`,恰好两个 | **通过** |
+| g | `skills_guard` 的威胁模式表不认内联 shell 记号 | 实跑 `grep -c` = 0,模式条数 = 123 | **通过但收窄**,见 §1.5 |
+| h | `batch_runner.py --list_distributions` **必崩** | 静态:`:51` import 了函数 `list_distributions`,`main`(`:1156`)的形参 `:1168` 同名遮蔽它,`:1237` 又去调它。动态:主线实跑得 `TypeError: 'bool' object is not callable` | **通过**,见 §5.4 |
+
+### 5.2 收窄或更正(与子代理表述不同)
+
+**(一)SSRF 守卫绕过面比子代理描述的更宽,但安全含义比它说的更窄。**
+
+子代理称 `BrowseShSource.fetch` 绕过 `_guarded_http_get`,「而 `UrlSource`/`WellKnown`/
+`ClawHub._fetch_text` 都走」。主线重数:`tools/skills_hub.py` 里守卫函数被用 **4 次**
+(`:1380` / `:1411` / `:1548` / `:1555`),裸 `httpx.get` 有 **8 处**——
+不止 `BrowseShSource` 一处不走。
+
+但**安全含义的轴不是「走不走守卫」,是「URL 从哪来」**。主线逐个核 URL 来源:
+
+| 裸调用 | 所属函数 | URL 来源 |
+|---|---|---|
+| `:817` / `:830` | `_get_repo_tree` | 硬编码 `https://api.github.com/repos/{repo}` |
+| `:894` | `_github_get` | 同上族 |
+| `:1666` | `search` | 类常量 `self.SEARCH_URL` |
+| `:1743` / `:1767` | `_sitemap_catalog` | 类常量 `self.SITEMAP_INDEX_URL` |
+| `:1817` | `_featured_skills` | 类常量 `self.BASE_URL` |
+| **`:3205`** | **`BrowseShSource.fetch`** | **远端 JSON 字段** |
+
+`tools/skills_hub.py:3197 @ 863e313`
+
+```
+        # Resolve the actual SKILL.md content URL via the per-skill detail
+        # endpoint, which returns a ``skillMdUrl`` (CDN blob). The catalog's
+        # ``sourceUrl`` is a GitHub HTML link whose underlying repo is not
+        # reliably public, so we don't use it for content.
+        md_url = self._resolve_skill_md_url(slug, item)
+        if not md_url:
+            return None
+        try:
+            resp = httpx.get(md_url, timeout=20, follow_redirects=True)
+```
+
+**所以 `:3205` 之所以是这 8 处里唯一要紧的那一处,不是因为别处都走了守卫**
+(它们也没走),**而是因为只有它的 URL 来自远端可控数据**,并且还带 `follow_redirects=True`。
+子代理的结论对,给出的理由不完全对——**照它的理由去修会修错地方**
+(给 GitHub 那几处加守卫没有意义,给 `:3205` 加才有)。
+
+**(二)`sync.base_url` 那条 ■ 与 H-R8D-e 是同一形状的**另一个实例**,主线独立坐实。**
+
+`tools/skills_sync_client.py:318 @ 863e313`
+
+```
+    env = os.getenv("HERMES_SYNC_BASE_URL")
+    if env and env.strip():
+        return env.strip().rstrip("/")
+```
+
+整个 `resolve_sync_base_url()`(`:307`–`:334`)对取到的值**只做 `strip()` 与 `rstrip("/")`**,
+没有 scheme 校验、没有主机白名单;而这个 base 上挂的是 Nous JWT bearer。
+这与 H-R8D-e 描述的 `hermes_cli/models.py` 那处**是同一类问题的不同实例**——
+说明 R8D 判断「还有多少带凭据的可控 URL 未普查」是对的,而且答案不止在 `urlopen` 那一族里
+(这一处走的是 `requests`,`urlopen` 的普查**抓不到它**)。这一点已作为交叉校验
+交给做 H-R8D-e 普查的那一路,见报告移交节。
+
+**(三)`AGENTS.md` 的 toolset 清单:子代理多点了一个,主线核出准确集合。**
+
+子代理报 ▲-3 称 `AGENTS.md:971-974` 列的 `moa` 不在 `TOOLSETS` 里,并顺带说
+「`messaging`/`rl`/`file` 也没有」。主线实测:**`file` 是有的**,子代理这一项报错了。
+
+`AGENTS.md:971 @ 863e313`
+
+> Current toolset keys: `browser`, `clarify`, `code_execution`, `cronjob`,
+
+准确集合:文档列 **30** 个键,`TOOLSETS` 实有 **58** 个,
+其中**文档有而代码无的恰好 3 个**——`messaging`、`moa`、`rl`。
+
+```verify
+cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python -c '
+import sys; sys.path.insert(0, "/home/user/hermes-agent")
+from toolsets import TOOLSETS
+doc = "browser clarify code_execution cronjob debugging delegation discord discord_admin feishu_doc feishu_drive file homeassistant image_gen kanban memory messaging moa rl safe search session_search skills spotify terminal todo tts video vision web yuanbao".split()
+ks = set(TOOLSETS)
+print("文档列出:", len(doc)); print("TOOLSETS 实有:", len(ks))
+print("文档有而代码无:", [d for d in doc if d not in ks])
+print("核对 file:", "file" in ks)
+'
+# → 文档列出: 30 / TOOLSETS 实有: 58
+#   文档有而代码无: ['messaging', 'moa', 'rl']
+#   核对 file: True
+```
+
+**▲ 成立,但范围是三个不是四个。** 这条被单独拎出来,是因为它示范了复核的必要性:
+子代理的结论方向对、锚点对,**枚举多点了一个**。若不复核就照抄,
+本轮会向后续轮传一个「`file` 不是 toolset」的错误事实——
+而 `file` 恰恰是 `subagent-lifecycle-api.md` 代码示例里用来演示
+`allowed_toolsets=("file",)` 的那个键(见 §4 引的那份文档)。
+
+*(另注:文档列 30 而代码有 58,即文档还**漏掉 28 个**。「Current toolset keys: …」
+以句号收尾、读起来像完整枚举。本轮不把这一半也判成 ▲——需要先确认那 28 个里
+有多少是对外可用的键、有多少是内部/别名,而这属于 R9D 的工具面射程。已列为移交。)*
+
+### 5.3 一条方法学收获:为什么 R8D 那两个锚点会漂
+
+R8D 的 `:667` / `:235` 各差一行,而同一份底稿里**带代码块的锚点全部正确**。成因是结构性的:
+
+那两个行号写在 R8C 底稿的**移交表格**里。`scripts/verify_citations.py` 的配对规则是
+「锚点 → **紧跟的**代码块/引用块」,而**表格行后面跟的是下一个表格行**,不是块。
+于是这两个锚点从写下的那天起就一直记 UNCHECKED,**从来没有被任何一次校验碰过**。
+
+这与 CLAUDE.md 里 R8C 记的那条「单文件 UNCHECKED ≥90% 提示」是同一个洞的两个位置:
+**校验器只能校验它配得上对的东西,而移交表格这种形态天然配不上对。**
+本轮的处理是:**移交项表格里的行号,主线一律重新核过再往下传**——
+这次核出两处各差一行,若不核就会第三轮继续传下去。
+
+*(不改 `scripts/`:本轮有子代理共享资源纪律,脚本在运行期不动。
+是否给校验器加「表格行内锚点」的处理,作为建议移交,不在本轮改。)*
+
+### 5.4 主线实跑复现的一条 ■:`--list_distributions` 必崩
+
+这一条值得单列,因为它是本轮**唯一一条主线自己动手跑出来、而不是读出来**的缺陷。
+
+`batch_runner.py:51 @ 863e313`
+
+```
+    list_distributions, 
+```
+
+模块顶部把 `list_distributions` 作为**函数**导入。但 `main` 的形参里有一个同名的 bool:
+
+`batch_runner.py:1168 @ 863e313`
+
+```
+    list_distributions: bool = False,
+```
+
+于是在 `main`(定义于 `:1156`)的作用域内,这个名字指向的是形参,不是函数。
+而分支体里又把它当函数调用:
+
+`batch_runner.py:1231 @ 863e313`
+
+```
+    if list_distributions:
+```
+
+`batch_runner.py:1237 @ 863e313`
+
+```
+        all_dists = list_distributions()
+```
+
+`:1231` 为真的**唯一**方式就是把这个标志传成 `True`,而一旦为真,`:1237` 就必然
+拿一个 `True` 去调用。**这条命令没有任何一次能成功。**
+
+主线动态复现(在 `/tmp` 下跑,`HERMES_HOME` 指向临时目录,不碰基线;跑完已删除):
+
+```verify
+cd /tmp && HERMES_HOME=/tmp/r9a-probe-home /home/user/hermes-venv/bin/python -c "
+import sys; sys.path.insert(0,'/home/user/hermes-agent')
+import batch_runner
+try:
+    batch_runner.main(list_distributions=True)
+except TypeError as e:
+    print('TypeError →', e)
+"
+# → 📊 Available Toolset Distributions
+#   ======================================================================
+#   TypeError → 'bool' object is not callable
+# (先打出表头再崩,所以从输出看像"跑了一半",不像"根本没实现")
+```
+
+复现后 `git -C /home/user/hermes-agent status --porcelain` 仍为 0 行,基线未受影响。
+
+**为什么这条能活下来**:子代理报它「被文档、docstring、测试文案三处主推,且无任何测试跑过」。
+主线不重复它的搜索面,只补一句自己观察到的:**它先打印表头再崩**——
+一个只看前两行输出的人会以为它在工作。这与本轮 §1.5 的形状是同一类:
+**部分正确的输出比完全没有输出更能掩盖故障。**

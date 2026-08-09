@@ -1222,11 +1222,21 @@ cd /home/user/hermes-agent && grep -n "_match_user_deny_rule\|detect_hardline_co
 读法:凡 `_match_user_deny_rule` / `detect_hardline_command` 的调用点都出现在同一函数中
 `_YOLO_MODE_FROZEN` 判断之前,即"用户黑名单与硬底线先于一切旁路"。
 
-**搜索面(负结论"子 agent 没有单独的审批旁路")**:对 `tools/delegate_tool.py` 全文
-`grep -nE "yolo|approv|deny|allowlist|permanent"`(不区分大小写)得到的全部命中,只有
-`_subagent_auto_deny` / `_subagent_auto_approve` / `_get_subagent_approval_callback` /
-`_set_subagent_approval_cb` 四个符号与注释;文件里**没有**任何对 `approve_session`、
-`approve_permanent`、`_YOLO_MODE_FROZEN`、`set_yolo` 的写入。
+**搜索面(负结论:"`delegate_tool.py` 里没有第二条审批旁路")**:
+
+```verify
+cd /home/user/hermes-agent && grep -niE "yolo|approv|deny|allowlist|permanent" tools/delegate_tool.py
+```
+
+实测 **31 行命中**,分四类、无第五类:
+(a) 本节讲的那套子 agent 回调(第 43、60–114、2174–2179 行);
+(b) `_blocked_toolsets_for_role` 的注释里把黑名单 toolset 叫作 "deny toolsets"(第 922、926、1297 行)
+    —— 是工具集裁剪,不是审批;
+(c) 第 3185 行 `from tools.approval import get_current_session_key`,只**读**会话 key,不改审批状态;
+(d) 第 3248、3259 行是解释"为什么不能在这里读 approval contextvar"的注释。
+文件里**没有**对 `approve_session` / `approve_permanent` / `_YOLO_MODE_FROZEN` / `set_yolo` /
+`save_permanent_allowlist` 的任何调用或赋值——即子 agent 侧不写入任何审批状态,
+它只能在既定审批链的**最后一环**回答 deny 或 once。
 
 ### 2.3 文件系统:**孩子和父 agent 在同一个容器里**
 
@@ -1709,11 +1719,23 @@ _MIN_SPAWN_DEPTH = 1
 
 ### 4.4 循环检测:**没有**基于内容的环检测
 
-**搜索面**:`tools/delegate_tool.py` 全文 `grep -nE "cycle|loop|visited|seen|dedup|fingerprint|hash"`
-(不区分大小写)的全部命中中,与"检测重复/环形委派"相关的一处也没有——命中的是
-`_heartbeat_loop`、`_rpc`/事件循环、`_LEGACY_EVENT_MAP` 之类。
-**唯一的防跑飞手段是深度上限 + 宽度上限 + 每轮生成数上限(6.5)**,没有"这个 goal 我派过了"这种判断。
-重实现时要意识到:一个模型完全可以在**不同轮**里反复派同一个任务,harness 不会拦。
+**搜索面**:
+
+```verify
+cd /home/user/hermes-agent && grep -niE "cycle|visited|seen|dedup|fingerprint|hash" tools/delegate_tool.py
+cd /home/user/hermes-agent && grep -niE "\bloop\b" tools/delegate_tool.py
+```
+
+第一条实测 25 行命中,全部落在三类里:(a) 心跳停滞检测的 `_HEARTBEAT_STALE_CYCLES_*`
+与 `_last_seen_*` 三元组(第 748–749、2013–2075 行);(b) 字面量 "lifecycle" 里含 "cycle"
+(第 400、767、1042、1603、2651、2756、2762、2957、3276、3291 行);(c) 一处 "orchestrator lifecycle events"。
+第二条只有 1 行命中,是第 2987 行注释里的 "reach the agent loop"。
+**没有任何"这个 goal / 这棵子树我派过了"的判断。**
+
+所以**唯一的防跑飞手段是深度上限 + 宽度上限 + 每轮生成数上限(6.5)**。
+重实现时要意识到:一个模型完全可以在**不同轮**里反复派同一个语义等价的任务,harness 不会拦;
+也没有任何机制阻止 A 委派 B、B(作为 orchestrator)再委派一个和 A 目标相同的任务
+——只要深度还够,树就会长下去。
 
 ### 4.5 深度事实被写进孩子的提示词(避免模型幻想自己能力)
 
@@ -1948,7 +1970,7 @@ def request_hard_interrupt(agent: Any, message: str | None = None) -> bool:
 顺序是:停心跳并 join(≤5s)→ 摘掉注册表条目 → 归还凭据租约 → 恢复进程级工具名全局 →
 从父 agent 的 `_active_children` 摘掉 → `child.close()` → 关 Relay 子会话作用域。
 
-`child.close()` 会去杀后台进程、清终端沙箱、关浏览器守护、释放 computer-use 会话、关 httpx 客户端:
+`child.close()` 的 6 步:
 
 `run_agent.py:4209-4218 @ 863e313`
 ```python
@@ -1962,6 +1984,34 @@ def request_hard_interrupt(agent: Any, message: str | None = None) -> bool:
         - Computer-use backend sessions and target/ref state
         - Active child agents (subagent delegation)
         - OpenAI/httpx client connections
+```
+
+**但这 6 步分两类,效果差别很大**(见 5.7):第 1~4 步都按 `task_id` 查表,
+而这里传的 `task_id` 是**孩子的 `session_id`**——孩子的终端资源却是记在折叠后的 `"default"` 名下的,
+所以这几步对子 agent 基本查不到东西。真正会动手的是第 5、6 步,它们操作的是**对象状态**:
+
+`run_agent.py:4256-4275 @ 863e313`
+```python
+        # 5. Close active child agents
+        try:
+            with self._active_children_lock:
+                children = list(self._active_children)
+                self._active_children.clear()
+            for child in children:
+                try:
+                    child.close()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # 6. Close the OpenAI/httpx client
+        try:
+            client = getattr(self, "client", None)
+            if client is not None:
+                self._close_openai_client(client, reason="agent_close", shared=True)
+                self.client = None
+        except Exception:
 ```
 
 **这里有一个不对称,记为 ■(见 7.3)**:紧随其后的 Relay 收尾**专门**判断了"超时的孩子可能还在
@@ -2065,12 +2115,69 @@ def _spill_summary_to_file(task_index: int, summary: str) -> Optional[str]:
 | 资源 | 谁负责回收 | 超时被抛弃时的下场 |
 |---|---|---|
 | worker 线程 | 无人 join;`shutdown(wait=False)` | **被抛弃**,但因为是 daemon,不阻塞解释器退出 |
-| 孩子的后台进程 / 沙箱 / 浏览器 | `child.close()` | 在孩子还在跑的时候就被调用(■,7.3) |
+| 孩子的后台进程(`terminal(background=True)`) | **进程退出前基本没人**(见 5.7) | 活到进程级 `kill_all()` |
+| 终端容器 / 沙箱 | 故意不回收(共享的,见 5.7) | 保留 |
+| 孩子的 httpx / OpenAI 客户端 | `child.close()` 第 6 步 | 可能在孩子仍在请求中时被关(■2,7.3) |
+| 孙子 agent | `child.close()` 第 5 步 | 递归 close |
 | 凭据租约 | `finally` 的 `release_lease` | 正常归还 |
 | `_active_subagents` 条目 | `finally` 的 `_unregister_subagent` | 正常摘除 |
 | 心跳线程 | `finally` 的 `_heartbeat_stop.set()` + join(5s) | 正常停 |
 | 实时转写文件 | `update_manifest_statuses` + 保留文件 | 保留(有 7 天清理) |
 | 父 agent 的 `_active_children` | `finally` 的 `remove` | 正常摘除 |
+
+### 5.7 一个贯穿性的键错位:`task_id` 与 `session_id`
+
+孩子的工具调用用的是 `child_task_id`(= `subagent_id`,1.6.3),而终端层又把它**折叠**成
+`"default"`(2.3),于是后台进程实际登记在 `"default"` 名下:
+
+`tools/terminal_tool.py:2692-2696 @ 863e313`
+```python
+                    proc_session = process_registry.spawn_local(
+                        command=command,
+                        cwd=effective_cwd,
+                        task_id=effective_task_id,
+                        session_key=session_key,
+```
+
+而 `AIAgent.close()` 拿去查表的键是**孩子的 `session_id`**:
+
+`run_agent.py:4225-4229 @ 863e313`
+```python
+        # 1. Kill background processes for this task
+        try:
+            from tools.process_registry import process_registry
+            process_registry.kill_all(task_id=task_id)
+        except Exception:
+```
+
+三个键(`session_id` / `subagent_id` / `"default"`)互不相等,所以 `close()` 的第 1~4 步对子 agent
+**查不到任何东西**。这不全是坏事——`cleanup_vm` 的 docstring 明说共享容器**不该**在会话关闭时被拆:
+
+`tools/terminal_tool.py:1927-1934 @ 863e313`
+```python
+    session-lifecycle semantics: this function is called from
+    ``AIAgent.close()`` (TUI session close, gateway session teardown) and the
+    per-turn cleanup branch for non-persistent envs, both of which should
+    honor the user's persist-mode preference. Stopping the container here
+    would defeat the "ONE long-lived container shared across sessions"
+    contract — exactly the bug Ben reported when the container was killed
+    on every TUI session close.
+
+```
+
+**净效果**:子 agent 起的后台进程会活到**进程级** `kill_all()`(gateway 关闭 / CLI 退出 / TUI RPC),
+而不是活到子 agent 结束。重实现时这是一个必须自己决定的问题:
+"孩子的后台进程该跟孩子一起死,还是跟容器一起活?"——这套代码选了后者,但**没有在任何文档里说**。
+搜索面:
+
+```verify
+cd /home/user/hermes-agent && grep -rn "kill_all(" --include=*.py .
+```
+
+实测全仓 13 处命中(含 4 处测试与 1 处 docstring)。其中**带 `task_id=` 参数**的生产调用只有
+`run_agent.py` 第 4228 行一处;其余生产调用——`gateway/run.py` 第 12696 行(gateway 关闭)、
+`hermes_cli/cli_commands_mixin.py` 第 467 行(CLI 退出)、`tui_gateway/methods_tools.py` 第 44 行
+与 `tui_gateway/server.py` 第 12618 行(TUI RPC)——都是**无参全杀**。
 
 ---
 
@@ -2402,10 +2509,12 @@ def list_active_subagents() -> List[Dict[str, Any]]:
 
 记号:▲ = 文档与代码矛盾;◇ = 代码有、文档无;■ = 代码缺陷;◎ = 文档成立但显著保守。
 
-### 7.1 ▲(7 条)
+### 7.1 ▲(8 条)
 
 **▲1 —— `AGENTS.md` 的 "## Delegation (`delegate_task`)" 一节说"默认父 agent 等孩子",与代码相反。**
-整段判定:该段共 4 句,第 1 句(职责)成立,第 2、3 句错。
+整段判定:该段共 3 句。第 1 句里的 "isolated context + terminal session" 一半错(容器共用,并入 ▲7);
+第 2 句"默认父 agent 等孩子"**整句错**;第 3 句描述的异步机制**真实存在**,但它给出的触发条件
+("With `background=true`")错——模型根本设不了这个参数。
 
 `AGENTS.md:985-989 @ 863e313`
 > `tools/delegate_tool.py` spawns a subagent with an isolated
@@ -2415,9 +2524,8 @@ def list_active_subagents() -> List[Dict[str, Any]]:
 > conversation later through the async-delegation completion queue.
 
 代码:顶层模型侧**一律后台**,`background` 参数被 schema 明确标为 DEPRECATED / IGNORED
-(证据见 1.2、1.3)。"默认等"只对**编排者子 agent**成立,而这一段讲的是 `delegate_task` 总体。
-同一段第 1 句里的 "isolated ... terminal session" 亦与 2.3 冲突(容器是共用的),
-合并计入 ▲7。
+(证据见 1.2、1.3)。"默认等"只对**编排者子 agent**成立(`_delegate_depth > 0`),
+而这一段讲的是 `delegate_task` 总体。
 
 **▲2 —— `AGENTS.md` 说单任务可以传 `toolsets`。**
 
@@ -2577,10 +2685,14 @@ cd /home/user/hermes-agent && grep -rn "subagent_auto_approve" website/ AGENTS.m
         _cap_result = _execute_and_aggregate()
 ```
 
-注释第一句 "children are still attached" 与它自己第二句 "we detach above" 直接冲突;
+注释的落点是 "so re-attaching isn't needed"(所以不必重新挂回去)——**这个判断是错的**:
 父 agent 侧的中断传播**只**遍历 `_active_children`(1.5.6 的 run_agent 3149–3158 块),
-孩子已不在表里,`/stop` 够不着它们。另一条取消通道 `_batch_interrupt` 只被交给异步注册表,
-而这一支恰恰是"注册表拒绝了本次派发"。
+而"内联同步执行"恰恰是这张表唯一起作用的场景。孩子已不在表里,`/stop` 够不着它们。
+另一条取消通道 `_batch_interrupt` 只交给了异步注册表,而这一支恰恰是"注册表拒绝了本次派发"。
+
+对照组:**另一条**同步回退——"这个会话根本收不了异步结果"那一条(1.7 的 3222–3236 块)——
+发生在第 3222 行、**早于**第 3278 行的摘链,所以它不受影响。两条回退只差 60 行,行为却不同,
+这也是这条 ■ 容易被漏掉的原因。
 
 后果分两种:
 
@@ -2589,8 +2701,10 @@ cd /home/user/hermes-agent && grep -rn "subagent_auto_approve" website/ AGENTS.m
 - `n_tasks == 1`:走的是"直接调用 `_run_single_child`"那一支(1.7 的 3007–3011 块),
   **完全没有中断轮询**;父 agent 这一轮会一直阻塞到孩子自己结束,`/stop` 两边都够不着。
 
-判据(可复现,纯读码):对 `delegate_task` 函数体,`_active_children.remove` 的行号
-必须小于第二次 `_execute_and_aggregate()` 的行号。
+判据(可复现,纯读码):下面这条命令的输出里,`delegate_task` 体内的两处
+`_active_children.remove`(3284 / 3286)必须**早于**容量回退处的 `_execute_and_aggregate()`(3398),
+而"会话收不了异步结果"那条回退(3227)必须**早于**摘链。两个大小关系都成立即证实本条。
+(输出里的 2598 / 2600 属于 `_run_single_child` 的 `finally`,3178 是注释,3410 是同步出口,均无关。)
 
 ```verify
 cd /home/user/hermes-agent && grep -n "_active_children.remove\|_execute_and_aggregate()" tools/delegate_tool.py
@@ -2604,24 +2718,31 @@ unwinding" 并用 `has_active_turn` 挡住(5.4 的 2613–2626 块)。
 
 而超时路径的抛弃是确定的:`request_hard_interrupt` 只是**请求**停止(协作式,下一次迭代边界才生效),
 `_timeout_executor.shutdown(wait=False)` 不等,函数随即 return 进 `finally`。
-于是 `close()` 会在孩子仍可能持有终端沙箱 / 浏览器守护 / httpx 客户端的时候把它们拆掉。
+
+**受影响的具体是哪两步**:`close()` 的第 1~4 步按 `task_id` 查表,对子 agent 查不到东西(5.7),
+所以真正会在"孩子还在跑"时动手的是——
+
+- **第 5 步**:遍历并 `close()` 孩子自己的孙子 agent(递归拆);
+- **第 6 步**:`self.client = None` 并关掉 OpenAI / httpx 客户端 —— 孩子的 worker 线程可能
+  正卡在一次未完成的 HTTP 请求上(超时的最常见形态就是"卡在某次 API 调用里",见 5.2 的
+  `after_llm_calls` 分支)。
 
 判据(可复现,纯读码):在 `_run_single_child` 的 `finally` 中,`child.close()` 的调用点
-不被任何 `has_active_turn` / `is_alive` / `join` 类判断包裹,而其后 Relay 段被包裹。
+不被任何 `has_active_turn` / `is_alive` / `join` 类判断包裹,而其后 15 行的 Relay 段被包裹。
 
 ```verify
 cd /home/user/hermes-agent && sed -n '2600,2630p' tools/delegate_tool.py
 ```
 
 严重性判断:这是**竞态窗口**而非必然故障——超时本来就默认关闭(5.1),开了才可能撞上;
-且各清理步骤各自 try/except。但它与同块内另一处的处理不一致,属于"防了一半"。
+且各清理步骤各自 try/except。但它与同一个 `finally` 块内另一处的处理不一致,属于"防了一半"。
 
-### 7.4 ◎(文档成立但显著保守)
+### 7.4 ◎(文档成立但显著保守,1 条)+ 已核对无异议项
 
-**◎1** —— `delegation.md` 第 341 行的对照表写 execute_code "7 tools via RPC",与
-`SANDBOX_ALLOWED_TOOLS` 的 7 个完全一致,不保守也不夸张(记在这里是为了说明**已核对**,不计 ◎)。
+**已核对无异议(不计任何记号)** —— `delegation.md` 第 341 行的对照表写 execute_code
+"7 tools via RPC",与 `SANDBOX_ALLOWED_TOOLS` 的 7 个完全一致,既不保守也不夸张。
 
-**◎2** —— `delegation.md` 第 24 行写 "Up to 3 concurrent subagents by default (configurable, no hard ceiling)"。
+**◎1** —— `delegation.md` 第 24 行写 "Up to 3 concurrent subagents by default (configurable, no hard ceiling)"。
 成立且准确。真正保守的是它没说"这个 3 同时也是**单次调用的任务条数上限**"——超过就直接报错,
 不是排队(1.4 闸 8)。读者容易以为可以提交 10 条任务、按 3 并发排队跑。
 
@@ -2722,8 +2843,9 @@ cd /home/user/hermes-agent && grep -n "_saved_tool_names" tools/delegate_tool.py
 
 - **H-1(■1 的处置)**:`tools/delegate_tool.py` 第 3390 行 —— 异步池满退回同步时,孩子已在第 3278–3288 行
   被从 `parent_agent._active_children` 摘除,注释却写 "children are still attached";
-  `n_tasks==1` 时该批次完全没有中断轮询。需要确认是否有测试覆盖(初查 `tests/tools/test_delegate.py`
-  的 63 个用例中无 "capacity" / "rejected" 相关命名)。
+  `n_tasks==1` 时该批次完全没有中断轮询。
+  测试覆盖初查为**零**——搜索面:`grep -rniE "capacity|rejected" tests/tools/test_delegate*.py`
+  对 7 个 delegate 测试文件命中 0 行,即容量回退这一支没有任何用例。
 - **H-2(■2 的处置)**:`tools/delegate_tool.py` 第 2607 行 —— `child.close()` 在超时抛弃路径上无条件执行,
   而同一 `finally` 块第 2613–2626 行的 Relay 收尾显式判断了 "timed-out child worker is still unwinding"。
   需要判断 `close()` 的各步骤(`process_registry.kill_all` / `cleanup_vm` / `cleanup_browser`)
@@ -2737,6 +2859,12 @@ cd /home/user/hermes-agent && grep -n "_saved_tool_names" tools/delegate_tool.py
   且与 `website/docs/user-guide/features/delegation.md` 自相矛盾;
   `configuration.md` 第 2267 行与第 2270 行各 1 条(▲4/▲5)。
   若后续轮次要统计"地图腐烂程度",本簇合计 ▲ 8 条(其中 5 条集中在两份文件的 delegation 段)。
+- **H-6(生命周期口径,需要 R9 的 terminal / process_registry 负责人确认)**:
+  `run_agent.py:4228` 用 `task_id=self.session_id` 调 `process_registry.kill_all`,
+  而子 agent 的后台进程登记在折叠后的 `"default"` 名下(`tools/terminal_tool.py:2695`),
+  两个键不相等,所以子 agent 的 `terminal(background=True)` 进程活到**进程级**全杀为止。
+  现象:一次跑完的子 agent 留下的后台进程,在同一个 CLI 会话里用 `process` 工具仍然列得出来。
+  需要确认这是有意的(与共享容器一致)还是漏网。
 - **H-5(没有查完)**:`tools/async_delegation.py`(1,515 行)是后台委派的另一半——
   停滞监视器、持久化完成事件、重启恢复、所有权认领。本轮只读到了它的容量拒绝分支(6.2)。
   `tools/delegation_live_log.py`(424 行)同理,只确认了接口形状。
@@ -2779,7 +2907,11 @@ cd /home/user/hermes-agent && grep -n "_saved_tool_names" tools/delegate_tool.py
 
 - 后台委派的另一半:`tools/async_delegation.py`、`tools/delegation_live_log.py`(本轮未精读)。
 - 插件侧的子 agent 生命周期 API:`agent/subagent_lifecycle.py`,它复用本文件的
-  `_build_child_preserving_parent_tools` 与 `_run_child_lifecycle`,是 `toolsets` 求交那一支的**唯一**实际调用方。
+  `_build_child_preserving_parent_tools` 与 `_run_child_lifecycle`。
+  **它是 `toolsets` 求交那一支(3.2)的唯一实际调用方** —— 搜索面:
+  `grep -rn "_build_child_preserving_parent_tools\|_build_child_agent" --include=*.py .` 排除 `tests/` 后
+  共 15 行命中,其中**调用**(而非定义/注释)只有两处:`tools/delegate_tool.py:2963`(硬传 `toolsets=None`)
+  与 `agent/subagent_lifecycle.py:225`(可传 `allowed_toolsets`)。
 - 行为规格参照:`tests/tools/test_delegate.py`(63 个用例)、`test_delegate_toolset_scope.py`、
   `test_delegate_kanban_isolation.py`、`test_delegate_summary_budget.py`、
   `test_delegate_subagent_timeout_diagnostic.py`、`test_delegate_composite_toolsets.py`。

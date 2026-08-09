@@ -1392,7 +1392,19 @@ aggregator 侧的装饰失败是 **warning 而不是 debug**,理由写得很清�
 
 ## 7. 隐私过滤 `moa.privacy_filter`
 
-三档:`''`(关,默认)/ `display` / `full`。
+三档:`''`(关,默认)/ `display` / `full`。模式在每次 `create()` 重新从配置读,并**记在 self 上**,
+好让稍后才跑的 `_call_prepared_aggregator` 用同一个模式脱敏 trace:
+
+`agent/moa_loop.py:1887-1893 @ 863e313`
+```python
+        # Privacy filter mode: '' (off, default) | 'display' | 'full'. See
+        # coerce_privacy_filter / the pattern block at the top of this module.
+        # Remembered on self so _call_prepared_aggregator (which may run on a
+        # later prepared-request call without re-reading config) redacts the
+        # trace's aggregator input consistently with this turn's fan-out.
+        privacy_mode = _moa_privacy_mode(_moa_raw)
+        self._privacy_mode = privacy_mode
+```
 
 `hermes_cli/moa_config.py:139-162 @ 863e313`
 ```python
@@ -1466,6 +1478,24 @@ def _redact_reference_text(text: Any) -> Any:
     text = _MOA_EMAIL_RE.sub("[redacted email]", text)
     text = _MOA_PHONE_RE.sub("[redacted phone]", text)
     return text
+```
+
+`full` 模式下连进 aggregator 的参谋文本也要脱敏,而且脱敏的是**每次调用的副本**:
+
+`agent/moa_loop.py:2188-2199 @ 863e313`
+```python
+            # 'full' privacy mode: redact the advisor text that reaches the
+            # AGGREGATOR too (issue #59959's literal ask). 'display' leaves
+            # the aggregator input raw so synthesis quality is unaffected.
+            # The redaction is applied to a per-call copy — the cache always
+            # holds raw advisor text (see the emit comment above). Failed
+            # refs are already filtered out; only successful advisor text is
+            # joined (and redacted when requested).
+            _agg_refs = (
+                _redact_reference_outputs(successful_outputs)
+                if privacy_mode == "full"
+                else successful_outputs
+            )
 ```
 
 **一条值得抄的不变量**:**缓存里永远存原文,脱敏只在消费面做**——这样会话中途改模式
@@ -2088,8 +2118,17 @@ provider/model 都非空(缺一整条丢弃 → 回落到预设默认,仍是显�
 
 ### ◇-3 代码有、文档无:`reference_timeout` / `degraded_reference_policy` 两个预设键
 
-两者都在 `_normalize_preset` 里(`hermes_cli/moa_config.py:342-345`),
-`website/docs/user-guide/features/mixture-of-agents.md` 全文没有出现过这两个键名。
+两者都在 `_normalize_preset` 里:
+
+`hermes_cli/moa_config.py:342-345 @ 863e313`
+```python
+        "reference_timeout": _coerce_reference_timeout(raw.get("reference_timeout")),
+        "degraded_reference_policy": _coerce_degraded_reference_policy(
+            raw.get("degraded_reference_policy")
+        ),
+```
+
+而 `website/docs/user-guide/features/mixture-of-agents.md` 全文没有出现过这两个键名。
 *搜索面*:该文件全文 grep `reference_timeout` 与 `degraded`,零命中。
 
 ### ■-1 `-Q`(机器可读输出)的 MoA 静默保护**接错了线**,实际未生效
@@ -2234,9 +2273,27 @@ cd /home/user/hermes-agent && grep -rn "_relay_moa_reference_event\|_moa_referen
         reference_max_tokens = preset.get("reference_max_tokens")
 ```
 
-注释里「The preset's old hardcoded 4096 default is gone — it truncated long syntheses」
-(`agent/moa_loop.py:1786-1787`)说明这个键**是被有意废弃的**,但**配置默认值、
-normalize 逻辑、Web API 载荷、文档示例四处都留着**,读配置的人无从知道它已失效。
+注释里明说这个键**是被有意废弃的**:
+
+`agent/moa_loop.py:1784-1787 @ 863e313`
+```python
+        # temperature) applies identically to it. MoA imposes no output cap:
+        # max_tokens is passed through from the caller (normally None → omitted
+        # → the model's real maximum). The preset's old hardcoded 4096 default
+        # is gone — it truncated long syntheses.
+```
+
+而 aggregator 实际拿到的 `max_tokens` 来自主循环记录的 `agent.max_tokens`:
+
+`agent/conversation_loop.py:2310-2313 @ 863e313`
+```python
+                            approx_input_tokens=approx_tokens,
+                            request_char_count=total_chars,
+                            max_tokens=agent.max_tokens,
+                            started_at=api_start_time,
+```
+
+但**配置默认值、normalize 逻辑、Web API 载荷、文档示例四处都留着**,读配置的人无从知道它已失效。
 
 *搜索面*:全仓(排除 `.git`/`__pycache__`/`tests`)检索同时含 `preset` 与 `max_tokens`
 的行,以及 `resolve_moa_preset` / `_normalize_preset` 的全部下游读取点。
@@ -2276,9 +2333,27 @@ cd /home/user/hermes-agent && grep -rn "preset" --include="*.py" --include="*.ts
             pass
 ```
 
-**来源一:显式 `moa_config=` 实参。** 三个调用点全部传入一个恒为 None 的值:
+**来源一:显式 `moa_config=` 实参。** 全仓传 `moa_config=` 的地方共 6 处
+(`cli.py:14051`、`gateway/run.py:17558`/`:24143`/`:24155`/`:24562`、`run_agent.py:7864`),
+其中后 4 处只是**逐层转发同一个形参**(`AIAgent.run_conversation` → `run_conversation`;
+网关 `_run_agent` → `TurnContext.moa_config` → `agent.run_conversation`),
+真正的**入口只有两条**,而两条注入的都恒为 None:
 
-- `cli.py:14051` 传 `_moa_cfg`,它来自 `getattr(self, "_pending_moa_config", None)`;
+- `cli.py:14051` 传 `_moa_cfg`:
+
+  `cli.py:14045-14052 @ 863e313`
+  ```python
+                      result = self.agent.run_conversation(
+                          user_message=agent_message,
+                          conversation_history=self.conversation_history[:-1],  # Exclude the message we just added
+                          stream_callback=stream_callback,
+                          task_id=self.session_id,
+                          persist_user_message=_persist_clean_user_message,
+                          moa_config=_moa_cfg,
+                      )
+  ```
+
+  它来自 `getattr(self, "_pending_moa_config", None)`;
   而 `_pending_moa_config` 在全仓**只被读取和清空,从未被赋非 None 值**。
   紧随其后的 `if _moa_cfg is None: _moa_cfg = None` 是一处**恒真 no-op**,
   正是原赋值被删除后留下的化石:

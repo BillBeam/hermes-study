@@ -2133,7 +2133,8 @@ exit=0
 `list_distributions` 是那个 bool 形参**。进入 `if` 意味着它为真(命令行传 `--list_distributions`
 时是 `True`),第 1237 行 `list_distributions()` 就是 `True()`。
 
-**判据**(纯静态,可零成本复现——只看局部变量表,不需要跑批):
+**判据一(静态,零成本)**:形参遮蔽是 Python 的确定语义——一个名字只要在函数里被赋值过
+(形参也算赋值),它在**整个函数体**里就是局部名,模块级的同名 import 完全够不着。
 
 ```verify
 cd /home/user/hermes-agent && python3 -c "
@@ -2147,14 +2148,27 @@ print('=> the call at line 1237 resolves to that parameter, not the module funct
 ```
 实测输出 `list_distributions is a parameter of main: True`。
 
+**判据二(动态,本轮实跑)**:
+
+```console
+$ HERMES_HOME=<scratch> PYTHONPATH=/home/user/hermes-agent \
+    /home/user/hermes-venv/bin/python /home/user/hermes-agent/batch_runner.py --list_distributions
+  File "/home/user/hermes-agent/batch_runner.py", line 1237, in main
+    all_dists = list_distributions()
+                ^^^^^^^^^^^^^^^^^^^^
+TypeError: 'bool' object is not callable
+EXIT=1
+```
+
+(跑完立刻复核 `git -C /home/user/hermes-agent status --porcelain` 为空,基线未被污染。
+注意这里退出码是 1 —— 因为异常**未被捕获**由 fire 抛出;这与 ■-5 说的
+"`return 1` → 退出码 0" 并不矛盾,两者恰好互为对照。)
+
 `website/docs/user-guide/features/batch-processing.md:34` 和 `:99`、
 `batch_runner.py` 自己的 docstring(1228 行)、`tests/integration/test_batch_runner.py:115`
 都在推荐这条命令。**这是本簇危害最直接的一条缺陷**:文档主推的入口点崩在第 8 行。
-
-> 移交下一轮的取证要求:本条只做了**静态判定**(形参遮蔽是 Python 的确定语义,
-> 不依赖运行环境)。若要补动态复现,需要能 import `batch_runner`(会拉起 `run_agent`,
-> 约 1.5 万行 + provider 栈),本轮已验证该 import 在 `[dev]` venv 里可完成
-> (§7 ▲-1 的 `inspect` 实测就是这么跑的),因此动态复现是可行的、只是没跑。
+而且**没有任何测试跑过这条路径**(`tests/integration/test_batch_runner.py` 零用例,
+只是在帮助文案里印出这个字符串),所以它能一直红着。
 
 **■-7 `toolset_distributions.py` 里多条注释与紧挨着的数值矛盾。**
 
@@ -2281,7 +2295,7 @@ $ cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python 
 
 | # | 锚点文件(带行号) | 一句话现象 | 建议动作 |
 |---|---|---|---|
-| H-1 | `batch_runner.py:1231-1239` | `main` 的 bool 形参 `list_distributions` 遮蔽了同名模块函数,`--list_distributions` 会 `TypeError`;文档 `batch-processing.md:34` 主推此命令 | 本轮只做静态判定(§7 ■-6),建议下一轮跑一次动态复现坐实 |
+| H-1 | `batch_runner.py:1237` | `main` 的 bool 形参 `list_distributions` 遮蔽了同名模块函数;实跑 `--list_distributions` 得 `TypeError: 'bool' object is not callable`,而文档 `batch-processing.md:34` 主推此命令 | **本轮静态 + 动态双重坐实,已闭环**(§7 ■-6),下一轮无需重做;成品章可直接引用 |
 | H-2 | `trajectory_compressor.py:114-117` + `:166-171` | `num_workers` / `skip_under_target` / `save_over_limit` 读进配置后全仓零消费点;`per_trajectory_timeout` 连读都没读 | 已在本轮定案(■-2 / ■-3),无需重做;若做「配置键全表」资产可并入 |
 | H-3 | `trajectory_compressor.py:743-889` 与 `:891-1015` | 同步版与 async 版压缩逻辑逐行重复,两份摘要 prompt 是两份相同字面量(616-631 / 685-700);实际只走 async | 若 R10+ 做「重复代码/漂移风险」盘点,这是一处高价值样本 |
 | H-4 | `mini_swe_runner.py:609-620` | 失败任务写出 `"conversations": []` 的空记录,压缩器判为 skipped_under_target 原样透传,无任何过滤 | 需确认下游(`scripts/sample_and_compress.py` / HF 上传)是否有过滤;本轮未查那一侧 |

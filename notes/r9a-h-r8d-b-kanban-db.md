@@ -17,7 +17,7 @@
 
 ## 0. 复核结论速览
 
-**这是复核,不是背书。R8D 的四个断言里,两个成立、一个行号有偏差、一个实质错误。**
+**这是复核,不是背书。R8D 的四个断言里,两个成立、一个部分成立、一个过宽;另有两处附带偏差。**
 
 ```text
 断言 1  两段合计约 3,881 行                     →  成立(1,459 + 2,422 = 3,881,口径见 §1.2)
@@ -27,7 +27,7 @@
 断言 4  两段"与任务板业务无关"                   →  **对第一段基本成立(64.4% 可整段移植),
                                                    对第二段不成立(仅 18.7% 可整段移植)**
 附带    行号标签 6757-9180                       →  偏差 2 行:真实小节是 6755–9178
-附带    "监管器 = 一段连续区间"                  →  **错**。监管器至少还有 4 处在这两段之外,
+附带    "监管器 = 一段连续区间"                  →  **错**。监管器另有 5 处在这两段之外,
                                                    最大的一处是 release_stale_claims(4454–4597,144 行)
 ```
 
@@ -63,11 +63,17 @@
 # ---------------------------------------------------------------------------
 ```
 
-复现命令(把每个横幅的**标题行**行号和标题打出来):
+复现命令(把每个横幅的**标题行**行号和标题打出来;注意用字面量 `------` 而不是
+`-{40,}` —— 本容器的 awk 是 mawk 1.3.4,**不支持区间量词**,写成 `-{40,}` 会静默输出空):
 
 ```verify
-cd /home/user/hermes-agent && awk '/^# -{40,}$/{t=NR+1} NR==t && /^# [A-Z]/{printf "%5d  %s\n", NR, substr($0,3)}' hermes_cli/kanban_db.py
+cd /home/user/hermes-agent && awk '/^# ------/{t=NR+1} NR==t && /^# [A-Z]/{printf "%5d  %s\n", NR, substr($0,3)}' hermes_cli/kanban_db.py
 ```
+
+它打出 **24 个**标题,其中本文关心的两个是 `1381 Connection helpers` 与
+`6756 Respawn guard constants`。**它打不出第 6735 行的 `# Dispatcher (one-shot pass)`** ——
+那个横幅**少了开头那条虚线**(只有"标题 + 收尾虚线"两行),所以任何按三行横幅识别小节的
+脚本都会漏掉它。这也是段 B 的调度器常量(6738–6753)看上去"无主"的原因。
 
 ### 1.2 R8D 的行号:一处口径、一处偏差
 
@@ -105,7 +111,7 @@ def run_daemon(
 ### 1.3 实质错误:进程监管器不是一段连续区间
 
 这是本次复核最重要的一条。段 B 里确实有监管器,但监管器**并不都在段 B 里**。
-至少四处在段 B 之外,而且其中一处是整个回收链上最先跑、代码量最大的那一环:
+有 5 处在段 B 之外,而且其中一处是整个回收链上最先跑、代码量最大的那一环:
 
 ```text
 监管器散落在段 B 之外的部分(实测)
@@ -1508,10 +1514,57 @@ _recent_worker_exits: "dict[int, tuple[int, float]]" = {}
 (用 `ENOSPC` 模拟磁盘满 —— 而磁盘满正是最常见的 SQLite 损坏成因之一)。
 
 ```verify
-# 完整脚本见本轮 scratchpad;要点:建库 → writable_schema 制造 index-only 损坏 →
-# 把 hermes_cli.kanban_db 里的 shutil.copy2 换成抛 OSError(28) → 调 kb.connect()
-cd /home/user/hermes-agent && PYTHONDONTWRITEBYTECODE=1 /home/user/hermes-venv/bin/python \
-    "$SCRATCH/quarantine_fail.py"
+cd /home/user/hermes-agent && PYTHONDONTWRITEBYTECODE=1 /home/user/hermes-venv/bin/python - <<'PY'
+import os, shutil, sqlite3, sys, tempfile
+from pathlib import Path
+tmp = Path(tempfile.mkdtemp(prefix="kb-quarantine-"))
+os.environ["HERMES_HOME"] = str(tmp / "home")
+sys.path.insert(0, "/home/user/hermes-agent")
+from hermes_cli import kanban_db as kb
+
+db = tmp / "kanban.db"
+kb._INITIALIZED_PATHS.discard(str(db.resolve()))
+kb.init_db(db_path=db)
+conn = kb.connect(db_path=db)
+for i in range(12):
+    kb.create_task(conn, title=f"task-{i}")
+conn.close()
+kb._INITIALIZED_PATHS.discard(str(db.resolve()))
+
+# 制造 index-only 损坏:临时把索引改写成 "WHERE 0" 的部分索引、在这个谎言下 REINDEX
+# 掏空它的 b-tree,再把 schema 改回去。integrity_check 于是只报 index-scoped 错误。
+name = "idx_tasks_status"
+c = sqlite3.connect(db, isolation_level=None)
+orig = c.execute("SELECT sql FROM sqlite_master WHERE name = ?", (name,)).fetchone()[0]
+c.execute("PRAGMA writable_schema=ON")
+c.execute("UPDATE sqlite_master SET sql = ? WHERE name = ?", (orig + " WHERE 0", name))
+c.execute("PRAGMA writable_schema=OFF"); c.close()
+c = sqlite3.connect(db, isolation_level=None)
+c.execute(f'REINDEX "{name}"')
+c.execute("PRAGMA writable_schema=ON")
+c.execute("UPDATE sqlite_master SET sql = ? WHERE name = ?", (orig, name))
+c.execute("PRAGMA writable_schema=OFF"); c.close()
+kb._INITIALIZED_PATHS.discard(str(db.resolve()))
+
+def integrity(path):
+    c = sqlite3.connect(path)
+    try:
+        return [r[0] for r in c.execute("PRAGMA integrity_check").fetchall()]
+    finally:
+        c.close()
+
+print("pre-repair integrity_check:", integrity(db)[:2])
+
+def boom(*a, **k):                      # 模拟磁盘满,恰好打在隔离拷贝上
+    raise OSError(28, "No space left on device")
+shutil.copy2 = boom
+kb.shutil.copy2 = boom
+
+conn = kb.connect(db_path=db); conn.close()   # 连接时闸门在这里跑
+
+print("quarantine files:", [q.name for q in tmp.glob("kanban.db.corrupt.*.bak")])
+print("post-repair integrity_check:", integrity(db))
+PY
 ```
 
 现象(实测输出,逐字):
@@ -1540,12 +1593,16 @@ post-repair integrity_check: ['ok']
 损坏正在抢救的库"的注释(1815–1817 行)说明作者在**那一层**已经想过这个权衡,
 只是没有在**调用层**把 `None` 接住。
 
-**搜索面(负结论)**:`grep -n "_backup_corrupt_db" hermes_cli/kanban_db.py` 全仓只有
-定义 1 处(1786)与调用 2 处(2018、2125),两处调用均无 `None` 检查;
-`grep -rn "backup failed" tests/` 0 命中 —— 该分支**没有任何测试覆盖**。
+**搜索面(负结论)**:`_backup_corrupt_db` 在非测试代码里共 5 处出现 —— 1 处定义(1786)、
+1 处**文档字符串引用**(2076,`repair_db` 的 docstring,正是那句
+"quarantined … BEFORE any mutation")、**3 处调用**(2018、2119、2125)。其中 2119 在 `repair_db` 的
+`except sqlite3.DatabaseError` 分支里,结果直接进 `RepairResult(status="corrupt")`、
+**后面不做任何修改动作**,因此无害;有害的是 2018 与 2125 这两处 ——
+它们后面紧跟 REINDEX,而**两处都不检查返回值是否为 `None`**。
+`grep -rn "backup failed" tests/` **0 命中**,即该分支没有任何测试覆盖。
 
 ```verify
-cd /home/user/hermes-agent && grep -rn "_backup_corrupt_db" hermes_cli/ && grep -rc "backup failed" tests/ -r | grep -v ":0" | wc -l
+cd /home/user/hermes-agent && grep -rn "_backup_corrupt_db" --include=*.py . | grep -v "^./tests"; echo "--- tests mentioning the failed-backup branch ---"; grep -rn "backup failed" tests/ | wc -l
 ```
 
 ### ■-2 `reap_worker_zombies()` 用 `waitpid(-1)`,会替网关进程里**别人的**子进程收尸
@@ -1613,10 +1670,26 @@ cd /home/user/hermes-agent && grep -rn "_backup_corrupt_db" hermes_cli/ && grep 
 `waitpid(-1, WNOHANG)` 抢先回收,再由属主调 `wait()`。
 
 ```verify
-cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python "$SCRATCH/reap_race.py"
+/home/user/hermes-venv/bin/python - <<'PY'
+import os, subprocess, sys, time
+p = subprocess.Popen([sys.executable, "-c", "import sys; sys.exit(42)"])
+time.sleep(1.0)                       # 让它退出并变成僵尸
+reaped = []                           # 调度器的回收循环:waitpid(-1),不区分是谁的子进程
+while True:
+    try:
+        pid, status = os.waitpid(-1, os.WNOHANG)
+    except ChildProcessError:
+        break
+    if pid == 0:
+        break
+    reaped.append((pid, os.WEXITSTATUS(status) if os.WIFEXITED(status) else None))
+print("stray reaper saw:", reaped)
+print("owner Popen.wait() ->", p.wait())
+print("real exit code was 42")
+PY
 ```
 
-现象(实测):
+现象(实测;`pid` 每次不同,退出码那两个数字是恒定的):
 
 ```console
 stray reaper saw: [(23180, 42)]
@@ -1641,8 +1714,11 @@ status")。也就是说 **一个失败的后台命令会被报成成功**。
 `grep -rn "subprocess.Popen(\|create_subprocess_" --include=*.py tools/ gateway/ agent/` 枚举。
 
 ```verify
-cd /home/user/hermes-agent && grep -rn "os.waitpid" --include=*.py . | grep -v "^./tests"
+cd /home/user/hermes-agent && grep -rn "os\.waitpid" --include=*.py . | grep -v "^./tests"
 ```
+
+实测只有三处:`scripts/profile-tui.py:458` 与 `:464` 都带具体 pid(只等自己的孩子),
+`hermes_cli/kanban_db.py:6941` 是**唯一**一处 `waitpid(-1, ...)`。
 
 **代码自己已经知道这件事**:`_classify_worker_exit` 的 `unknown` 分支注释写的正是
 "pid was not in the reap registry (either reaped by something else, …)"。
@@ -1656,8 +1732,10 @@ cd /home/user/hermes-agent && grep -rn "os.waitpid" --include=*.py . | grep -v "
 
 > - **Dispatcher** — a long-lived loop that, every N seconds (default 60): reclaims stale claims, reclaims crashed workers (PID gone but TTL not yet expired), promotes ready tasks, atomically claims, spawns assigned profiles. Runs **inside the gateway** by default (`kanban.dispatch_in_gateway: true`). One dispatcher sweeps all boards per tick; workers are spawned with `HERMES_KANBAN_BOARD` pinned so they can't see other boards. After `kanban.failure_limit` consecutive spawn failures on the same task (default: 2) the dispatcher auto-blocks it with the last error as the reason — prevents thrashing on tasks whose profile doesn't exist, workspace can't mount, etc.
 
-该句的三个断言里,前两个成立(60 秒默认 tick、`dispatch_in_gateway: true` 默认),
-**第三个不成立**:阈值数的不是 "consecutive spawn failures",而是统一计数器:
+这一条 bullet 里的断言逐条判定:tick 默认 60 秒 **成立**、
+`dispatch_in_gateway: true` 默认 **成立**、"一个 dispatcher 每 tick 扫全部 board" **成立**、
+"worker 被钉上 `HERMES_KANBAN_BOARD`" **成立**(见 §2.5 的 `_default_spawn` 摘录);
+**只有最后一句不成立** —— 阈值数的不是 "consecutive spawn failures",而是统一计数器:
 
 `hermes_cli/kanban_db.py:7800-7807 @ 863e313`
 
@@ -1696,7 +1774,36 @@ auto-block(它一次 spawn 失败也没有),按代码会被 block。`enforce_max
 ```
 
 文档句尾举的例子("profile doesn't exist, workspace can't mount")也全是 spawn 类,
-说明整句都停留在旧语义上 —— 这不是一处措辞,是一处**未跟上重构**的地图。
+说明这半句整体停留在旧语义上 —— 不是一处措辞,是一处**未跟上重构**的地图。
+
+前两个"成立"的取证(免得下一轮重做):
+
+`gateway/kanban_watchers.py:991-995 @ 863e313`
+
+```python
+        if not kanban_cfg.get("dispatch_in_gateway", True):
+            logger.info(
+                "kanban dispatcher: disabled via config kanban.dispatch_in_gateway=false"
+            )
+            return
+```
+
+`gateway/kanban_watchers.py:1029-1036 @ 863e313`
+
+```python
+            interval = float(kanban_cfg.get("dispatch_interval_seconds", 60) or 60)
+        except (ValueError, TypeError):
+            logger.warning(
+                "kanban dispatcher: invalid dispatch_interval_seconds=%r, using default 60",
+                kanban_cfg.get("dispatch_interval_seconds"),
+            )
+            interval = 60.0
+        interval = max(interval, 1.0)  # sanity floor — tighter than this is a footgun
+```
+
+**按 CLAUDE.md 的规矩把整条 bullet 判完的收益,这里正好演示了一次**:如果只挑
+"failure_limit" 那半句来判,读者会以为整条 bullet 都可疑;逐条判完之后,可疑的范围
+被压缩到确切的一句,其余四句可以放心引用。
 
 ### ▲-2 事件参考表把 `respawn_guarded` 的 reason 列成三个,代码有四个
 
@@ -1761,8 +1868,15 @@ auto-block(它一次 spawn 失败也没有),按代码会被 block。`enforce_max
 cd /home/user/hermes-agent && grep -rn -E "HERMES_KANBAN_(BUSY_TIMEOUT_MS|CRASH_GRACE_SECONDS|RATE_LIMIT_COOLDOWN_SECONDS|CLAIM_TTL_SECONDS)|HERMES_BIN|kanban repair" website/docs README.md AGENTS.md | wc -l
 ```
 
-◇-4 的搜索面:`grep -n "reclaim_deferred\|claim_extended" website/docs/user-guide/features/kanban.md`。
-`claim_extended` 同样不在表里,但它在正文别处被提到;`reclaim_deferred` 两处都没有。
+◇-4 的搜索面与实测:`reclaim_deferred` 与 `claim_extended` 在这份 1,039 行的文档里
+**各 0 命中** —— 不只是不在事件参考表里,是整份文档都没提过。
+
+```verify
+cd /home/user/hermes-agent && grep -c "reclaim_deferred\|claim_extended" website/docs/user-guide/features/kanban.md
+```
+
+这两个事件恰好是 §4.1 那条"复制风暴"事故留下的**唯一可观测痕迹**(`hermes kanban tail`
+里看到的就是它们),文档里查不到会让运维读到事件时无从解释。
 
 ### ◎-1 文档说"单主机是刻意的",代码比这更严格
 
@@ -1770,10 +1884,29 @@ cd /home/user/hermes-agent && grep -rn -E "HERMES_KANBAN_(BUSY_TIMEOUT_MS|CRASH_
 
 > Kanban is deliberately single-host. `~/.hermes/kanban.db` is a local SQLite file and the dispatcher spawns workers on the same machine. Running a shared board across two hosts is not supported — there's no coordination primitive for "worker X on host A, worker Y on host B," and the crash-detection path assumes PIDs are host-local. If you need multi-host, run an independent board per host and use `delegate_task` / a message queue to bridge them.
 
-字面为真,所以不是 ▲。记 ◎ 是因为代码比这句话**更保守**:不只"crash-detection 假设
-PID 是本机的",而是 `release_stale_claims`、`detect_stale_running`、`enforce_max_runtime`、
-`detect_crashed_workers`、`_terminate_reclaimed_worker` **五处**都各自独立做了主机前缀检查,
-非本机的 claim 一律跳过。文档说的是一条假设,代码里是五处硬门。
+字面为真,所以不是 ▲。记 ◎ 是因为代码比这句话**更保守**:不只 "crash-detection 假设
+PID 是本机的"这一处,而是 **4 处**各自独立地做了主机前缀检查:
+
+```verify
+cd /home/user/hermes-agent && grep -n "host_prefix" hermes_cli/kanban_db.py
+```
+
+```console
+4486:    host_prefix = f"{_claimer_id().split(':', 1)[0]}:"      # release_stale_claims
+4496:        host_local = lock.startswith(host_prefix)
+7036:    host_prefix = f"{_claimer_id().split(':', 1)[0]}:"      # _terminate_reclaimed_worker
+7037:    if not str(claim_lock).startswith(host_prefix):
+7207:    host_prefix = f"{_claimer_id().split(':', 1)[0]}:"      # enforce_max_runtime
+7221:        if not lock.startswith(host_prefix):
+7561:        host_prefix = f"{_claimer_id().split(':', 1)[0]}:"   # detect_crashed_workers
+7565:            if not lock.startswith(host_prefix):
+```
+
+(注释列是我加的标注,不是源码内容。)**`detect_stale_running` 刻意不在这 4 处之列** ——
+它的证据是 `last_heartbeat_at`,那是写在共享 DB 里的、与主机无关的事实,所以它对
+非本机的 claim 也照样回收;真正需要本机身份的"终止进程"那一步,它委托给
+`_terminate_reclaimed_worker`(第 7036 行那道门)。**这个区分本身就是这段代码里
+最讲究的一处:按证据的来源决定要不要做主机检查,而不是一刀切。**
 
 ---
 
@@ -1867,26 +2000,23 @@ cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python \
 我第一次是直接用 `python -m pytest <8 个文件>` 一把跑的,得到 **2 failed, 34 passed**:
 
 ```console
+=========================== short test summary info ============================
 FAILED tests/hermes_cli/test_kanban_db.py::test_rate_limit_exit_requeues_without_counting_failure
-FAILED tests/hermes_cli/test_kanban_db_repair.py 之外的
 FAILED tests/hermes_cli/test_kanban_db.py::test_connect_works_when_wal_is_silently_refused
+2 failed, 34 passed in 2.92s
 ```
 
 单独跑 `test_rate_limit_exit_requeues_without_counting_failure` 却通过。原因在
 `scripts/run_tests.sh` 的开头就写着 —— 这个仓库的测试契约是**每个文件一个独立进程**:
 
-`scripts/run_tests.sh:4-12 @ 863e313`
+`scripts/run_tests.sh:5-9 @ 863e313`
 
-```text
-#
+```bash
 # What this script enforces:
 #   * Per-file isolation via scripts/run_tests_parallel.py — each test
 #     file runs in its own freshly-spawned `python -m pytest <file>`
 #     subprocess. No xdist, no shared workers, no module-level leakage
 #     between files.
-#   * TZ=UTC, LANG=C.UTF-8, PYTHONHASHSEED=0 (deterministic)
-#   * Env vars blanked (conftest.py also does this, but this
-#     is belt-and-suspenders for anyone running pytest outside our
 ```
 
 `kanban_db` 有多个**模块级**可变状态(`_INITIALIZED_PATHS`、`_recent_worker_exits`、
@@ -1977,7 +2107,9 @@ kanban.db (kanban.db): linked SQLite 3.45.1 is vulnerable to the WAL-reset corru
 ## 9. 延伸
 
 - 段 A / 段 B 的结构级测绘与全文件分段表:`notes/r8d-str-kanban-and-work.md` §1;
-- 另一条 SQLite 自愈链(`state.db` 侧,与本文 §2.4 的第二实现同源):
-  `notes/r8d-raw-self-repair.md`;
-- 会话库的离线抢救(与本文互补:本文是**在线**自愈,那边是**离线**抢救):
-  同上,`hermes_cli/session_recovery.py` 一节。
+- 另一条 SQLite 自愈阶梯(`state.db` 侧,即本文 §2.4 引的那个"第二实现"):
+  `notes/r5-02-hermes-state-sessiondb.md`;
+- 会话库的**离线**抢救(与本文互补:本文讲的是**在线**自愈,那边是进程外的抢救):
+  `notes/r8d-raw-self-repair.md` 的 `hermes_cli/session_recovery.py` 一节;
+- 本文用到的两条共享 helper(`apply_wal_with_fallback` / `preflight_db_writability`)
+  都定义在 `hermes_state.py`,同见 `notes/r5-02-hermes-state-sessiondb.md`。

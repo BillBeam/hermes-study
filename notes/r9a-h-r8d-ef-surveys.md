@@ -14,8 +14,8 @@
 
 | 移交项 | 处置 | 一句话 |
 |---|---|---|
-| **H-R8D-e** 带凭据的裸 `urlopen` | **关闭并加重** | 个例属实但**不是最严重的那个**;普查在 99 个非测试裸 `urlopen` 里找出 **44 个带凭据**、其中 **21 个 URL 可控**;最重的一处是 `gateway/relay/media.py:174`——URL 来自**入站事件**,门禁是一次 `in` 子串判断,任何含 `/relay/media/` 的 URL 都会拿到网关 bearer |
-| **H-R8D-f** 挂在 `PYTEST_CURRENT_TEST` 上的安全判断 | **关闭**(结论收窄,不加重) | 全仓非测试代码命中 **10 处**,同类惯用法(`sys.modules` 探 pytest / `PYTEST_ADDOPTS` / `sys.argv` 嗅探 / CI 变量)**零命中**;10 处里只有 `managed_scope.py:49` 一处**移除安全控制**,其余 9 处要么 fail-closed(拒绝写真实凭据库)、要么纯可用性(看门狗不上膛) |
+| **H-R8D-e** 带凭据的裸 `urlopen` | **关闭并加重** | 个例属实但**不是最严重的那个**;普查在 99 个非测试裸 `urlopen` 里找出 **44 个带凭据**、其中 **21 个 URL 可控**;最重的一处是 `gateway/relay/media.py` 的 `download()`(§1.5 发现 1)——URL 来自**入站事件**,门禁是一次 `in` 子串判断,任何含 `/relay/media/` 的 URL 都会拿到网关 bearer |
+| **H-R8D-f** 挂在 `PYTEST_CURRENT_TEST` 上的安全判断 | **关闭**(结论收窄,不加重) | 全仓非测试代码命中 **10 处**,同类惯用法(`sys.modules` 探 pytest / `PYTEST_ADDOPTS` / `sys.argv` 嗅探 / CI 变量)**零命中**;10 处里只有 `hermes_cli/managed_scope.py` 的 `_under_pytest()` 一处**移除安全控制**,其余 9 处要么 fail-closed(拒绝写真实凭据库)、要么纯可用性(看门狗不上膛) |
 
 ---
 
@@ -136,10 +136,20 @@ def _urlopen_model_catalog_request(req: urllib.request.Request, *, timeout: floa
     return open_credentialed_url(req, timeout=timeout)
 ```
 
-这就让 §1.2 的个例格外扎眼:**同一个文件里有 13 处 `Request(` 构造、11 处走了这个出口,
-唯独 3 处没走,而没走的那 3 处里恰好有唯一一处带 Bearer 的**。
+这就让 §1.2 的个例格外扎眼:**同一个文件里 13 处 `Request(` 构造,10 处走了这个出口,
+3 处没走;而没走的那 3 处里恰好有唯一一处带 Bearer 的**。
 
-## 1.2 复核个例:`hermes_cli/models.py:4612`(行号无漂移)
+```verify
+cd /home/user/hermes-agent && printf 'Request( 构造: '; grep -c "urllib\.request\.Request(" hermes_cli/models.py; printf '走出口(排除 def 行): '; grep -n "_urlopen_model_catalog_request(" hermes_cli/models.py | grep -vc "^39:def"; printf '裸 urlopen: '; grep -c "urllib\.request\.urlopen(" hermes_cli/models.py
+```
+
+```console
+Request( 构造: 13
+走出口(排除 def 行): 10
+裸 urlopen: 3
+```
+
+## 1.2 复核个例:`_fetch_ai_gateway_models`(移交锚点行号无漂移)
 
 移交项给的行号**准确**。完整函数如下(注意它是私有的 `_fetch_ai_gateway_models`,
 与同文件 1620 行那个公开的 `fetch_ai_gateway_models` 同名不同体):
@@ -186,7 +196,7 @@ def _fetch_ai_gateway_models(timeout: float = 5.0) -> Optional[list[str]]:
 > | `AI_GATEWAY_BASE_URL` | Override AI Gateway base URL (default: `https://ai-gateway.vercel.sh/v1`) |
 
 而 hermes 的"环境变量"并不只是 shell 里的东西——`~/.hermes/.env` 在启动时被加载,
-并且仓库自己提供了写这个文件的 API(`hermes_cli/config.py:3865` 的 `save_env_value`、
+并且仓库自己提供了写这个文件的 API(`hermes_cli/config.py` 的 `save_env_value`,§2.1(c) 有原文、
 web 控制台的 `set_env_var`)。所以"改 base_url"等价于"能写 `~/.hermes/.env` 或能改进程环境"。
 
 **(b) 凭据被附在同一个请求上。** `Authorization: Bearer {api_key}`,`api_key` 来自
@@ -199,7 +209,7 @@ web 控制台的 `set_env_var`)。所以"改 base_url"等价于"能写 `~/.herme
 (同一份 `.env` / 同一个进程环境)。能改 base_url 的人通常也能直接读 api_key,所以"把 key 引到攻击者
 主机"这一步并不额外增加多少能力。**这一处真正的、无法靠信任域论证消掉的残余风险是重定向**:
 配置指向的合法网关(或任何中间设备)返回一次 30x,Bearer 就跟着走——见 §1.1 的 stdlib 行为。
-换句话说,`models.py:4612` 是一个**真问题、但不是最重的那类**;真正危险的是 URL 来自
+换句话说,这一处是一个**真问题、但不是最重的那类**;真正危险的是 URL 来自
 **运行时数据**而凭据来自配置的那一类(§1.5)。
 
 ## 1.3 搜索面(完备性声明)
@@ -241,16 +251,25 @@ nontest-call-lines: 100
 wrapper-lines: 6
 ```
 
-从 100 行减到 **99 个真实调用点**的两处扣除,都点名列出以便复核:
-`hermes_cli/nous_billing.py:462` 是注释行(`# urlopen() wraps CONNECT-phase timeouts…`),
-`hermes_cli/models.py:39` 是 `def _urlopen_model_catalog_request(` 的定义行。
-封装 6 行里 1 行是 `hermes_cli/urllib_security.py:112` 的 `def`,故**实际调用点 5 个**。
+从 100 行减到 **99 个真实调用点**的两处扣除,都点名列出以便复核。第一处是注释行:
+
+`hermes_cli/nous_billing.py:462-464` @ 863e313
+
+```python
+        # urlopen() wraps CONNECT-phase timeouts in URLError, but a timeout
+        # during resp.read() surfaces as a bare TimeoutError — normalize it so
+        # transport failures always honor the typed-BillingError contract.
+```
+
+第二处是 `def _urlopen_model_catalog_request(` 的定义行(原文见 §1.1 末尾的代码块)。
+同理,封装那 6 行里有 1 行是 `open_credentialed_url` 的 `def`(原文见 §1.1),
+故**实际调用点 5 个**。
 99 + 5 = **104 个非测试 HTTP 出口**,分布在 **66 个文件**。
 
 **排除了什么、为什么可以排除**:
 
 1. `tests/` 与 `*/tests/`(41 个调用点)——测试代码不是产品行为;但**其中 4 个反而是证据**
-   (`tests/hermes_cli/test_urllib_security.py` 的 4 个用例证明封装确实在网线上剥头),§1.6 引用。
+   (`tests/hermes_cli/test_urllib_security.py` 的 10 个用例证明封装确实在网线上剥头),§1.7 引用。
 2. **非 `urlopen` 的 HTTP 出口**:`urlretrieve`、`build_opener().open()`、`http.client`。
    这一类**没有排除,单独查过**,结果见下(它们是移交项措辞之外的补充面,不查会漏掉三处独立的
    重定向硬化实现):
@@ -274,9 +293,6 @@ optional-skills/finance/stocks/scripts/stocks_client.py:159:        with _opener
 optional-skills/finance/stocks/scripts/stocks_client.py:168:        with _opener.open(req, timeout=10) as resp:
 scripts/ci/live_comment.py:316:    opener = urllib.request.build_opener(_NoRedirectHandler)
 scripts/ci/live_comment.py:319:        opener.open(urllib.request.Request(archive_download_url, headers={
-scripts/ci/timings_report.py:74:            with urllib.request.urlopen(req) as resp:
-scripts/iso-certify.py:369:            with urllib.request.urlopen(rest_url, timeout=30) as fh:
-scripts/iso-certify.py:411:            with urllib.request.urlopen(rest_url, timeout=30) as fh:
 scripts/install_psutil_android.py:85:        urllib.request.urlretrieve(PSUTIL_URL, archive)
 skills/creative/comfyui/scripts/_common.py:602:    opener = urllib.request.build_opener(_RedirectHandler(original_host, follow_redirects))
 skills/creative/comfyui/scripts/_common.py:605:        resp = opener.open(req, timeout=timeout)
@@ -389,18 +405,21 @@ skills/productivity/google-workspace/scripts/setup.py:470:                f"http
 16  plugins/platforms/a2a/tools.py:83   Bearer / peer url(config a2a_agents)
 17  plugins/platforms/a2a/tools.py:91   同上(POST)
 18  agent/proxy_sources/iron_proxy.py:959 Bearer / host:port ← proxy.yaml 管理监听器
-19  hermes_cli/copilot_auth.py:219      device_code 流 / host 形参(GHE 自建域名)
-20  hermes_cli/copilot_auth.py:265      同上(轮询,携带 device_code)
-21  skills/.../google-workspace/scripts/gws_bridge.py:54
+19  skills/.../google-workspace/scripts/gws_bridge.py:54
                                         client_secret+refresh_token 在 body /
                                         URL = google_token.json 里的 token_uri
-22  optional-skills/mcp/.../diagnose-oauth-mcp.py:56  Bearer / --mcp-url 或 token JSON
+20  optional-skills/mcp/.../diagnose-oauth-mcp.py:56  Bearer / --mcp-url 或 token JSON
+21  hermes_cli/webhook.py:302           X-Hub-Signature-256 / URL = webhook.host:port(config)
+                                        —— 本档最弱的一条:HMAC 与 body 绑定,泄露不可复用
 
 ═══ A 档:URL 硬编码或白名单 + 带凭据 + 未走封装 ══════════════════ 23 处 ═══
     (唯一残余风险 = 30x 重定向带走头;按 §1.1 这是真实的,但需要上游合谋/被攻陷)
-23  hermes_cli/copilot_auth.py:553      Bearer / _TOKEN_EXCHANGE_URL 常量
-24  hermes_cli/web_server.py:4466       xi-api-key / api.elevenlabs.io 常量
-25  hermes_cli/webhook.py:302           X-Hub-Signature-256(HMAC,非可复用凭据)/ 用户给的 url
+22  hermes_cli/copilot_auth.py:553      Bearer / _TOKEN_EXCHANGE_URL 常量
+23  hermes_cli/copilot_auth.py:219      device_code 流 / host 形参,但**唯一调用方不传它**
+24  hermes_cli/copilot_auth.py:265      同上(轮询,携带 device_code)
+                                        ◇ 23/24 的 host 形参是 latent:签名支持 GHE 自建域名,
+                                        现实里恒为默认值 "github.com"(下方 verify)
+25  hermes_cli/web_server.py:4466       xi-api-key / api.elevenlabs.io 常量
 26  optional-skills/devops/watchers/scripts/watch_github.py:127 Bearer GITHUB_TOKEN /
                                         api.github.com 常量
 27  plugins/platforms/feishu/adapter.py:5480  app_secret 在 body / _ONBOARD_OPEN_URLS 白名单
@@ -446,9 +465,9 @@ skills/productivity/google-workspace/scripts/setup.py:470:                f"http
   paste 上传(debug.py 的 3 处);managed-node 下载(hermes_constants.py:399/414)。
 ```
 
-## 1.5 三个比移交锚点更重的发现
+## 1.5 四个超出移交锚点的发现(2 个 ■ + 2 个 ◇)
 
-### ■ 发现 1:`gateway/relay/media.py:174` —— 子串门禁 + 入站事件 URL + 网关 bearer
+### ■ 发现 1:relay 媒体下载 —— 子串门禁 + 入站事件 URL + 网关 bearer
 
 这是本次普查里唯一一处**攻击者不需要任何本地权限**的凭据外泄原语。
 
@@ -512,6 +531,54 @@ skills/productivity/google-workspace/scripts/setup.py:470:                f"http
 对照 §1.1 的封装:`url_origin()` 做的正是"scheme + host + 有效端口"三元组比对,
 如果这一处用 `open_credentialed_url` 或先做 origin 比对,该原语不成立。
 
+### ■ 发现 1b:OSINT 翻页把**服务器给的 URL** 喂给带 `Authorization` 的裸 `urlopen`
+
+同一形状的第二例。凭据由调用方以 `headers` 形参传进通用 helper:
+
+`optional-skills/research/osint-investigation/scripts/fetch_courtlistener.py:67-73` @ 863e313
+
+```python
+    headers = {"Authorization": f"Token {token}"} if token else None
+
+    rows: list[dict[str, str]] = []
+    next_url: str | None = f"{BASE}?{urllib.parse.urlencode(params)}"
+    while next_url and len(rows) < limit:
+        try:
+            payload = get_json(next_url, headers=headers)
+```
+
+helper 本身就是裸 `urlopen`(第 47-49 行构造并打开,`h` 即调用方传入的 `headers`):
+
+`optional-skills/research/osint-investigation/scripts/_http.py:45-50` @ 863e313
+
+```python
+    last_err: Exception | None = None
+    for attempt in range(max_retries + 1):
+        req = urllib.request.Request(url, headers=h)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return resp.read()
+```
+
+而循环的下一轮 URL 直接取自**上一轮响应体**,头不变:
+
+`optional-skills/research/osint-investigation/scripts/fetch_courtlistener.py:101` @ 863e313
+
+```python
+        next_url = payload.get("next")
+```
+
+`fetch_senate_ld.py` 是同一份代码形状:
+
+`optional-skills/research/osint-investigation/scripts/fetch_senate_ld.py:107` @ 863e313
+
+```python
+        next_url = payload.get("next")
+```
+
+比起 relay 那处,这里的攻击面窄一些(要先能左右 CourtListener / Senate LDA 的响应),
+但它示范了同一个反模式:**"起点 URL 是常量"不等于"整条请求链的 URL 是常量"**。
+
 ### ◇ 发现 2:同一个基类,一个覆写走封装、一个覆写丢了封装
 
 基类 `providers/base.py` 的默认 `fetch_models` 明确走封装:
@@ -571,9 +638,11 @@ skills/productivity/google-workspace/scripts/setup.py:470:                f"http
                 data = json.loads(resp.read().decode())
 ```
 
-八个 `plugins/model-providers/*` 覆写 `fetch_models`,只有 `actual` 与 `anthropic` 真正发网络请求
-(其余 6 个 `bedrock` / `copilot-acp` / `copilot`? 见下方 verify:它们的覆写体内根本没有 HTTP 出口),
-而这两个里一个走封装、一个不走:
+八个 `plugins/model-providers/*` 覆写了 `fetch_models`,它们分成三类:
+**自己发请求**的 2 个(`actual` 裸 `urlopen`、`anthropic` 走封装)、
+**`super()` 回基类**的 3 个(`custom` / `kimi-coding` / `openrouter`——安全属性被继承)、
+**覆写体内根本没有 HTTP 出口**的 3 个(`bedrock` / `copilot-acp` / `vertex`)。
+八个里唯一把封装弄丢的就是 `actual`:
 
 ```verify
 cd /home/user/hermes-agent && for f in actual anthropic bedrock copilot-acp custom kimi-coding openrouter vertex; do printf '%-14s ' "$f"; git grep -c "urlopen(\|open_credentialed_url(" -- "plugins/model-providers/$f/__init__.py" | awk -F: '{printf "http-out=%s ", $NF}'; git grep -c "super().fetch_models" -- "plugins/model-providers/$f/__init__.py" | awk -F: '{printf "super=%s", $NF}'; echo; done 2>/dev/null; echo "(空白 = 0)"
@@ -585,8 +654,8 @@ anthropic      http-out=1
 bedrock        
 copilot-acp    
 custom         super=1
-kimi-coding    
-openrouter     
+kimi-coding    super=1
+openrouter     super=1
 vertex         
 (空白 = 0)
 ```
@@ -637,52 +706,153 @@ _opener = urlrequest.build_opener(_NoRedirectHandler)
 
 三套的策略各不相同:`urllib_security` 是**跨源剥非白名单头**(允许跟随),
 `outbound_webhooks` 是**一律不跟随**,comfyui 是**跨主机剥三个硬编码头名**
-(`x-api-key`/`authorization`/`cookie`)——正是 `urllib_security.py:11-14` 注释里
+(`x-api-key`/`authorization`/`cookie`)——正是 §1.1 第一个代码块的注释里
 明确否掉的"猜凭据头名字"做法。三者对"同主机不同端口"的判定也不同:
 `urllib_security.url_origin` 把端口算进 origin,comfyui 只比 hostname。
 
-## 1.6 仓库自己的行为规格:封装确实在网线上剥头
-
-这不是我推断的,仓库有 4 个用例直接断言"网线上看不到那个头":
+表里两条"latent"的判定,取证如下——`copilot_device_code_login` 的 `host` 形参
+在非测试代码里**没有任何调用方传值**,所以它今天恒为 `"github.com"`:
 
 ```verify
-cd /home/user/hermes-agent && grep -n "def test_" tests/hermes_cli/test_urllib_security.py
+cd /home/user/hermes-agent && git grep -n "copilot_device_code_login(" -- '*.py' ':!tests/' ':!*/tests/*'
 ```
 
 ```console
-102:    def test_cross_host_redirect_drops_arbitrary_credentials_on_wire(self):
-132:    def test_same_host_different_port_drops_credentials_on_wire(self):
-181:    def test_explicit_opener_factory_is_instrumentable_without_security_bypass(self):
-214:    def test_installed_request_processor_cannot_resurrect_cross_origin_secret(self):
+hermes_cli/copilot_auth.py:183:def copilot_device_code_login(
+hermes_cli/model_setup_flows.py:1750:                token = copilot_device_code_login()
+```
+
+## 1.6 三处取证补充(判定表里最容易被质疑的几行)
+
+判定表第 11 行说 `gateway/relay/__init__.py:557` 的 `token_url` 由环境变量或
+`gateway.idp.token_url` 决定——原文:
+
+`gateway/relay/__init__.py:509-518` @ 863e313
+
+```python
+    token_url = os.environ.get("GATEWAY_RELAY_IDP_TOKEN_URL", "").strip()
+    client_id = os.environ.get("GATEWAY_RELAY_IDP_CLIENT_ID", "").strip()
+    client_secret = os.environ.get("GATEWAY_RELAY_IDP_CLIENT_SECRET", "").strip()
+    scope = os.environ.get("GATEWAY_RELAY_IDP_SCOPE", "").strip()
+    if not token_url:
+        try:
+            from gateway.run import _load_gateway_config  # late import to avoid cycle
+
+            idp = ((_load_gateway_config().get("gateway") or {}).get("idp") or {})
+            token_url = str(idp.get("token_url", "") or "").strip()
+```
+
+判定表第 6 行说 `nous_billing` 的 base URL 由"环境 → auth.json → 默认"三级解析——原文:
+
+`hermes_cli/nous_billing.py:173-186` @ 863e313
+
+```python
+def resolve_portal_base_url(state: Optional[dict[str, Any]] = None) -> str:
+    """Resolve the portal base URL with login-time precedence.
+
+    ``HERMES_PORTAL_BASE_URL`` → ``NOUS_PORTAL_BASE_URL`` → stored auth-state
+    ``portal_base_url`` → registry default. Trailing slash stripped.
+    """
+    env = os.getenv("HERMES_PORTAL_BASE_URL") or os.getenv("NOUS_PORTAL_BASE_URL")
+    if env and env.strip():
+        return env.strip().rstrip("/")
+    if state:
+        stored = state.get("portal_base_url")
+        if isinstance(stored, str) and stored.strip():
+            return stored.strip().rstrip("/")
+    return DEFAULT_PORTAL_BASE_URL
+```
+
+判定表第 31 行给 `tools/tirith_security.py:290` 记了 ◇ latent:函数签名收任意 `url`,
+却无条件把 `GITHUB_TOKEN` 挂上去;今天安全只是因为**现有的 4 个调用方**传的都是
+`https://github.com/<repo>/releases/latest/download/...` 常量拼接:
+
+`tools/tirith_security.py:283-291` @ 863e313
+
+```python
+def _download_file(url: str, dest: str, timeout: int = 10):
+    """Download a URL to a local file."""
+    req = urllib.request.Request(url)
+    from agent.secret_scope import get_secret
+    token = get_secret("GITHUB_TOKEN")
+    if token:
+        req.add_header("Authorization", f"token {token}")
+    with urllib.request.urlopen(req, timeout=timeout) as resp, open(dest, "wb") as f:
+        shutil.copyfileobj(resp, f)
+```
+
+## 1.7 仓库自己的行为规格:封装确实在网线上剥头
+
+这不是我推断的,仓库有 **10 个用例**、其中 7 个的名字里直接写着
+`drops_..._on_wire` / `never_resurrect` ——断言的是"网线上看不到那个头":
+
+```verify
+cd /home/user/hermes-agent && grep -n "^def test_" tests/hermes_cli/test_urllib_security.py
+```
+
+```console
+91:def test_cross_host_redirect_drops_arbitrary_credentials_on_wire():
+121:def test_same_host_different_port_drops_credentials_on_wire():
+147:def test_post_307_remains_rejected_by_urllib():
+166:def test_explicit_opener_factory_is_instrumentable_without_security_bypass():
+190:def test_installed_request_processor_cannot_resurrect_cross_origin_secret(
+226:def test_multihop_redirects_never_resurrect_credentials():
+277:def test_probe_api_models_drops_custom_credentials_on_wire():
+319:def test_anthropic_profile_drops_x_api_key_on_redirect(monkeypatch):
+354:def test_azure_catalog_probe_drops_api_key_and_bearer_on_redirect():
+377:def test_azure_anthropic_probe_drops_api_key_and_bearer_on_redirect():
 ```
 
 `test_same_host_different_port_...` 这一条尤其值得记:**同主机不同端口也算跨源**,
-这正是 comfyui 那套实现漏掉的。
+这正是 comfyui 那套实现漏掉的(它只比 hostname)。
+`test_multihop_redirects_never_resurrect_credentials` 则钉住了多跳重定向——
+"A→B→回到 A"不能把凭据还回来。
+顺带修正 §1.3 的排除说明:测试里与本封装直接相关的是这 10 个,不是 4 个。
 
-## 1.7 结论:H-R8D-e **关闭并加重**
+## 1.8 结论:H-R8D-e **关闭并加重**
 
 - 移交项的个例**属实、行号无漂移**,但它的严重度**低于移交项原文的暗示**:`base_url` 与
   `api_key` 同信任域,残余风险主要是重定向。
 - 普查把"还有多少带凭据"这个问题答完了:**99 个非测试裸 `urlopen` 里 44 个带凭据**,
   其中 **21 个 URL 可控**(C 档 3 + B 档 18),**23 个 URL 硬编码**(仅重定向暴露)。
   走封装的只有 **5 个**。
-- **加重的理由**是发现 1:`gateway/relay/media.py:174` 的门禁是子串判断、URL 来自入站事件、
+- **加重的理由**是 §1.5 发现 1:relay 媒体下载的门禁是子串判断、URL 来自入站事件、
   凭据是网关身份令牌,构成**无需本地权限的凭据外泄原语**——比移交锚点严重一个量级。
-- 记号:■ `gateway/relay/media.py:94` 子串门禁;◇ `plugins/model-providers/actual/__init__.py:65`
-  覆写丢封装;◇ 三套并行的重定向硬化实现。
+- 记号:■ `is_relay_media_url` 子串门禁;■ OSINT 翻页跟随响应 URL;
+  ◇ `actual` provider 覆写丢封装;◇ 三套并行的重定向硬化实现。
 
 **向后续轮移交**(带锚点 + 一句话现象):
 
-- **H-R9A-a**:`gateway/relay/media.py:94` —— `is_relay_media_url` 用
-  `"/relay/media/" in url` 做门禁,`media.py:174` 据此给**任意主机**挂上网关 bearer,
-  URL 来自 `gateway/relay/adapter.py:461` 的入站 `event.media_urls`。需确认 connector
-  侧是否另有约束(本轮只看了 Python 侧,connector 是 TS 实现,不在本仓库)。
-- **H-R9A-b**:`optional-skills/research/osint-investigation/scripts/fetch_courtlistener.py:101` ——
-  `next_url = payload.get("next")` 把服务器响应里的 URL 直接喂给带 `Authorization` 头的
-  `_http.get()`,翻页循环内头不变;`fetch_senate_ld.py:107` 同形。
-- **H-R9A-c**:`plugins/model-providers/actual/__init__.py:65` —— 覆写 `fetch_models` 时
-  丢掉了基类 `providers/base.py:232` 的 `open_credentialed_url`;需要一条"覆写必须保留
-  封装"的机制(而不是靠人记得),否则每个新 provider 插件都是一次重来。
+**H-R9A-a** —— 一句话现象:门禁是子串判断,任何含 `/relay/media/` 的 URL 都会拿到网关 bearer;
+URL 来自入站事件(`gateway/relay/adapter.py` 的 `_localize_inbound_media`,原文见 §1.5)。
+待办:确认 connector 侧(TS 实现,不在本仓库)是否另有约束。
+
+`gateway/relay/media.py:94` @ 863e313
+
+```python
+        return "/relay/media/" in (url or "")
+```
+
+**H-R9A-b** —— 一句话现象:翻页 URL 取自上一轮响应体,而 `Authorization` 头在整个循环里不变;
+`fetch_senate_ld.py` 同形(原文见 §1.5 发现 1b)。
+
+`optional-skills/research/osint-investigation/scripts/fetch_courtlistener.py:101` @ 863e313
+
+```python
+        next_url = payload.get("next")
+```
+
+**H-R9A-c** —— 一句话现象:覆写 `fetch_models` 时把基类的 `open_credentialed_url` 换成了裸
+`urlopen`,而 `base_url` 来自 `ACTUAL_BASE_URL`;需要一条"覆写必须保留封装"的机制
+(而不是靠人记得),否则每个新 provider 插件都是一次重来。
+
+`plugins/model-providers/actual/__init__.py:64-66` @ 863e313
+
+```python
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode())
+```
 
 ---
 
@@ -695,7 +865,7 @@ cd /home/user/hermes-agent && grep -n "def test_" tests/hermes_cli/test_urllib_s
 > (上一轮已判定:这个个例是**写明了意图的测试接缝**,不是疏忽,但仍记 ■,
 >  归类为「测试接缝具备生产后果」。)
 
-## 2.1 复核个例:`hermes_cli/managed_scope.py:49`(行号无漂移)
+## 2.1 复核个例:`managed_scope._under_pytest()`(移交锚点行号无漂移)
 
 移交项给的行号**准确**。函数与它的 docstring:
 
@@ -743,8 +913,9 @@ def get_managed_dir() -> Optional[Path]:
 **攻击者若能设置这个环境变量会得到什么?** 完整答案是"managed scope 这一整层消失",
 而这一层不是某个孤立开关,它是**全局配置叠加层**。三条后果,逐条取证:
 
-**(a) 管理员钉住的任何配置键不再生效。** `apply_managed_overlay` 被套在配置加载的所有入口上
-(CLI、gateway、cron):
+**(a) 管理员钉住的任何配置键不再生效。** `apply_managed_overlay` 被套在**所有**配置加载入口上——
+CLI、gateway、cron、doctor、`hermes send`、日志、时区、TUI 网关,一共 14 个调用点
+(下面输出里另有 1 行是它自己的 `def`、1 行是 `hermes_cli/config.py:2993` 的 docstring):
 
 ```verify
 cd /home/user/hermes-agent && git grep -n "apply_managed_overlay" -- '*.py' ':!tests/' | cat
@@ -759,6 +930,14 @@ gateway/run.py:1880:            cfg = managed_scope.apply_managed_overlay(cfg)
 gateway/run.py:2054:            _cfg = managed_scope.apply_managed_overlay(_cfg)
 gateway/run.py:3188:        raw = managed_scope.apply_managed_overlay(raw if isinstance(raw, dict) else {})
 gateway/run.py:8442:                cfg = managed_scope.apply_managed_overlay(cfg)
+hermes_cli/config.py:2993:        ``managed_scope.apply_managed_overlay`` + ``_expand_env_vars``
+hermes_cli/doctor.py:2615:                _raw_cfg = managed_scope.apply_managed_overlay(_raw_cfg)
+hermes_cli/main.py:726:            _early_cfg_raw = managed_scope.apply_managed_overlay(_early_cfg_raw)
+hermes_cli/managed_scope.py:137:def apply_managed_overlay(config: dict) -> dict:
+hermes_cli/send_cmd.py:301:        raw = managed_scope.apply_managed_overlay(raw if isinstance(raw, dict) else {})
+hermes_logging.py:788:                cfg = managed_scope.apply_managed_overlay(cfg)
+hermes_time.py:70:                cfg = managed_scope.apply_managed_overlay(cfg)
+tui_gateway/server.py:3003:        return managed_scope.apply_managed_overlay(cfg if isinstance(cfg, dict) else {})
 ```
 
 `load_managed_config()` 一旦拿到 `None` 就返回 `{}`,叠加层变成空操作:
@@ -887,12 +1066,13 @@ hermes_cli/auth.py:5
 hermes_cli/main.py:1
 hermes_cli/managed_scope.py:1
 tests/cli/test_exit_watchdog_signal_arm.py:1
-tests/hermes_cli/test_config_loader_e2e.py:1
 tests/hermes_cli/test_checkout_mutation_guards.py:2
+tests/hermes_cli/test_config_loader_e2e.py:1
 ```
 
 全仓 16 行、10 个文件;非测试 12 行、7 个文件。12 行里 2 行是注释/docstring
-(`hermes_cli/_early_recovery.py:179`、`hermes_cli/auth.py:1006`),**实际判断点 10 处**。
+(`_early_recovery.py` 的 docstring、`auth.py` 的行内注释,两处原文都在 §2.4 的取证块里),
+**实际判断点 10 处**。
 
 第 2、3、4、6、7 族——**全部零命中**,命令与输出如下(这是本节所有否定结论的全部依据):
 
@@ -942,15 +1122,16 @@ PYTEST_CURRENT_TEST
 (`MATRIX_E2EE_MODE` 是 Matrix 端到端**加密**,被 `e2e` 误命中,不是测试开关——
 写出来是因为按"shell 命令即证据"的规矩,命令输出必须与结论一致,不能悄悄删行。)
 
-`HERMES_TEST_{WORKERS,PATHS,SLICE,FILE_TIMEOUT,FILE_RETRIES}` 五个只被
-`scripts/run_tests_parallel.py` 与 `scripts/run_tests.sh` 读——它们是**测试运行器自己的参数**,
-不改被测代码的任何行为:
+`HERMES_TEST_{WORKERS,PATHS,SLICE,FILE_TIMEOUT,FILE_RETRIES}` 五个只出现在测试运行器
+(`scripts/run_tests.sh` / `scripts/run_tests_parallel.py`)和仓库根 `AGENTS.md` 的说明文字里
+——它们是**测试运行器自己的参数**,不改被测代码的任何行为:
 
 ```verify
 cd /home/user/hermes-agent && git grep -l "HERMES_TEST_WORKERS\|HERMES_TEST_SLICE\|HERMES_TEST_FILE_TIMEOUT\|HERMES_TEST_FILE_RETRIES\|HERMES_TEST_PATHS" -- . ':!tests/'
 ```
 
 ```console
+AGENTS.md
 scripts/run_tests.sh
 scripts/run_tests_parallel.py
 ```
@@ -1105,19 +1286,24 @@ def _auth_file_path() -> Path:
   本轮把"生产后果"具体化为三条(配置叠加层失效 / 批量写配置不再被剥 / 管理员钉住的 env 可被覆写)。
 - "全仓还有多少安全判断挂在这个变量上"这个问题答完了:**非测试代码 10 处判断点**,
   其中**安全相关 6 处**,但 6 处里 **5 处方向是 fail-closed**(设了变量只会更保守),
-  **只有 `managed_scope.py:49` 一处是 fail-open**——也就是移交项已经点到的那一处。
+  **只有 `_under_pytest()` 一处是 fail-open**——也就是移交项已经点到的那一处。
 - 同类惯用法**七族全部搜过**:族 2/3/4/6/7 **零命中**;族 5 枚举出 6 个项目自有开关,
   5 个是测试运行器参数、1 个(`HERMES_DDGS_ALLOW_TEST_HOOKS`)是 default-deny 的正面样板。
 - 所以**不加重**:上一轮的个例就是这一类里唯一的 fail-open 点,不存在"还有一批没发现的"。
-- 记号:■ `hermes_cli/managed_scope.py:49`(维持上一轮判定,不新增)。
+- 记号:■ `managed_scope._under_pytest()`(维持上一轮判定,不新增)。
 
 **向后续轮移交**(带锚点 + 一句话现象):
 
-- **H-R9A-d**:`hermes_cli/managed_scope.py:49` —— `_under_pytest()` 只看
-  `"PYTEST_CURRENT_TEST" in os.environ`,而 `hermes_cli/config.py:3874` 的
-  `is_env_managed()` 和 `hermes_cli/config.py:3537` 的 `managed_config_keys()` 都建立在它之上;
-  需要评估的是"这一层是否应当改用 `sys.modules` 里有没有 `_pytest` 之类**不可由外部环境伪造**
-  的信号",本轮只取证、未评估替代方案的代价。
+**H-R9A-d** —— 一句话现象:整个 managed scope 的开关是一次环境变量存在性判断,
+而 `config.py` 的 `is_env_managed()` / `managed_config_keys()` 都建立在它之上(原文见 §2.1);
+需要评估的是"这一层是否应当改用 `sys.modules` 里有没有 `_pytest` 之类**不可由外部环境伪造**
+的信号",本轮只取证、未评估替代方案的代价。
+
+`hermes_cli/managed_scope.py:49` @ 863e313
+
+```python
+    return "PYTEST_CURRENT_TEST" in os.environ
+```
 
 ---
 
