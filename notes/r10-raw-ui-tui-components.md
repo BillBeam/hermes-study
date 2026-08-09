@@ -30,33 +30,42 @@ Python 侧(`tui_gateway/`)负责会话、工具、模型调用。两者之间是
 顶层编排(`app.tsx`、`src/app/`)、协议客户端(`gatewayClient.ts`)与分叉渲染器
 (`packages/hermes-ink/`)——那些在别的片。因此本片的定位是:
 
-- `src/components/`(36 文件,14,232 行):**所有屏幕内容的产出方**。全屏 overlay、
+- `src/components/`(36 文件,**15,317** 行):**所有屏幕内容的产出方**。全屏 overlay、
   状态栏、输入框、Markdown 渲染、思考/工具活动树、组件级原语(手风琴、滚动条、菜单行)。
-- `src/lib/`(45 文件,6,441 行):**无 React 或轻 React 的纯工具层**。终端能力探测、
+- `src/lib/`(45 文件,**7,152** 行):**无 React 或轻 React 的纯工具层**。终端能力探测、
   颜色数学、宽度/换行度量、剪贴板、滚轮加速、V8 堆快照、LaTeX→Unicode……
   组件层的“物理学”都在这里,大部分是纯函数,所以也是这一片里被单测覆盖最多的部分。
-- `scripts/`(9 文件,1,472 行):**一个生产构建脚本 + 四类开发期行为规格**
+- `scripts/`(9 文件,**1,622** 行):**一个生产构建脚本 + 四类开发期行为规格**
   (虚拟滚动基准、流式 Markdown 策略基准、账单 overlay 视觉夹具、主题×背景视觉回归)。
-- 根配置(6 文件,101 行):`package.json` / 两个 tsconfig / eslint / vitest / `.gitignore`。
+- 根配置 + README(7 文件,**590** 行):`package.json` / 两个 tsconfig / eslint /
+  vitest / `.gitignore` / `README.md`(492 行,§6 的 ▲◇ 全部出自它)。
+
+四组相加 15,317 + 7,152 + 1,622 + 590 = **24,681**,与 `wc -l` 全片合计一致。
 
 行数口径:`wc -l` 得 **24,681**,台账口径 **24,682**,差 1 行来自
 `ui-tui/.gitignore` **没有结尾换行**(`scripts/inventory.py` 的规则是
 “`\n` 个数 + 非空且不以 `\n` 结尾则 +1”)。已逐文件核对,只有这一个文件如此。
 
 ```verify
-# 行数与“唯一无结尾换行的文件”复核(在 /home/user/hermes-agent 下跑)
+# 行数、分组行数、以及“唯一无结尾换行的文件”复核
 cd /home/user/hermes-agent
-wc -l $(cat /home/user/hermes-study/data/r10/slices/E.txt | tr '\n' ' ') | tail -1
+wc -l $(cat /home/user/hermes-study/data/r10/slices/E.txt | tr '\n' ' ') | tail -1   # 24681 total
 for f in $(cat /home/user/hermes-study/data/r10/slices/E.txt); do
   [ -n "$(tail -c 1 "$f")" ] && echo "NO-TRAILING-NEWLINE: $f"
 done
+cd /home/user/hermes-agent/ui-tui
+cat src/components/*.tsx | wc -l                                                     # 15317
+ls src/lib/*.ts src/lib/*.tsx | grep -v '\.test\.' | xargs cat | wc -l               # 7152
+find scripts -type f | xargs cat | wc -l                                             # 1622
+for f in package.json tsconfig.json tsconfig.build.json eslint.config.mjs \
+         vitest.config.ts .gitignore README.md; do wc -l < "$f"; done | paste -sd+ | bc  # 590
 ```
 
 ---
 
 ## §2 文件清单(97 个,逐个全路径 + 一句话角色)
 
-### §2.1 根配置(6)
+### §2.1 根配置 + README(7)
 
 | 全路径 | 行 | 角色 |
 |---|---|---|
@@ -68,7 +77,7 @@ done
 | ui-tui/.gitignore | 3(台账 4) | 忽略 `dist/`、`node_modules/`、`src/*.js`、`docs/`。`src/*.js` 说明历史上有过就地编译产物。 |
 | ui-tui/README.md | 492 | 作者自绘地图:运行方式、App 模型、热键表、事件表、命令表、File map。§6 的 ▲/◇ 全部出自它。 |
 
-（README.md 计入本组,故本组实为 7 个文件。）
+（`README.md` 计入本组,故本组 7 个文件、590 行。)
 
 ### §2.2 `src/components/`(36)
 
@@ -985,7 +994,7 @@ ui-tui/scripts/build.mjs:38 @ 863e313
 这个脚本的“判据”是外部的、真实的:Nix 构建直接调它,`hermes_cli` 会检查
 `ui-tui/dist/entry.js` 是否比源文件旧:
 
-nix/tui.nix:10 @ 863e313
+nix/tui.nix:11 @ 863e313
 
 ```nix
   buildPhase = ''
@@ -994,6 +1003,9 @@ nix/tui.nix:10 @ 863e313
     node ui-tui/scripts/build.mjs
   '';
 ```
+
+（同上:`.nix` 也不在校验器的可识别后缀表里,这个块是 `sed -n '11,15p' nix/tui.nix`
+取出后原样粘贴的**未被机械校验**的逐字摘录。）
 
 #### `bench-history-scroll.tsx` —— 虚拟滚动的性能**与正确性**双规格
 
@@ -1475,11 +1487,29 @@ U+0001/U+0002 哨兵标出后渲染成反显)、脚注(`FOOTNOTE_RE`)、定义�
 
 | # | 判据 | 自评 | 说明 |
 |---|---|---|---|
-| 1 | 片内每个文件至少出现一次全路径 + 一句话角色 | ✅ **97/97** | §2 四张表按 7 组 + 36 + 45 + 9 逐个列全路径,每个一句话角色。同型薄文件也各自单列(如 `todo.ts` 9 行、`paths.mjs` 11 行)。 |
+| 1 | 片内每个文件至少出现一次全路径 + 一句话角色 | ✅ **97/97** | §2 四张表按 7 + 36 + 45 + 9 逐个列全路径,每个一句话角色。同型薄文件也各自单列(如 `todo.ts` 9 行、`paths.mjs` 11 行)。机械核查见本节末。 |
 | 2 | 每个对外接缝逐项列全 + 机械枚举命令 + 条数 | ✅ | S1 RPC 方法 **17 个 / 20 处**、S2 npm 脚本 **13** 条、S3 依赖 **8+7+1**、S4 环境变量 **52**、S5 账单夹具 **16**、S6 视觉场景 **4**、S7 导出面 **158/239**。每项都给了 ```verify``` 命令。两条负结论(无第三种协议出口、bench 脚本无调用方)都写了搜索面。 |
 | 3 | 一条端到端链逐跳带锚点 | ✅ | §4 `/pet list` 八跳,含 Python 侧两个 handler 与线程池白名单;明确标出上游端在 `src/app/slash/`、下游端在 `tui_gateway/`,本片负责第 ②③⑥⑧ 跳。 |
-| 4 | 至少 2 个围栏块是逐字源码摘录 | ✅ | 共 **20** 个逐字围栏块(全部用 `sed -n 'A,Bp'` 取出后原样粘贴,未手抄)。其中 `.mjs` 那 2 个(build.mjs、nix/tui.nix 除外)因扩展名不在校验器识别表内不被机械校验,已在正文声明。 |
+| 4 | 至少 2 个围栏块是逐字源码摘录 | ✅ | 共 **23** 个逐字源码围栏(4 个 `ts`、14 个 `tsx`、3 个 `python`、1 个 `nix`、1 个无标记的 `.mjs`),外加 6 个 `>` 文档摘录块;另有 10 个 ```` ```verify ```` 声明式非源码块。全部用 `sed -n 'A,Bp'` 取出后原样粘贴,未手抄。其中 2 个(`ui-tui/scripts/build.mjs` 与 `nix/tui.nix`)的锚点扩展名 `.mjs` / `.nix` **不在 `verify_citations.py` 的识别表内**,因此**未被机械校验**——已在正文就地声明,不当成已验证。 |
 | 5 | 至少一条 ■/▲/◇/◎ | ✅ | **■1 + ▲5 + ◇4 = 10 条**,全部带锚点与逐字代码/引用块。无 ◎。 |
+
+判据 1 的机械核查(逐条拿清单里的路径回查底稿,期望 `missing=0 / 97`):
+
+```verify
+cd /home/user/hermes-study
+miss=0
+while read -r p; do
+  grep -qF "$p" notes/r10-raw-ui-tui-components.md || { echo "MISSING: $p"; miss=$((miss+1)); }
+done < data/r10/slices/E.txt
+echo "missing=$miss / $(wc -l < data/r10/slices/E.txt)"
+```
+
+引用校验读数(交付前实跑):`citations=39 OK=32 UNCHECKED=7`,
+可校验比例 **82.1%**(下限 70%),`MISMATCH=0`、`BLOCK-DRIFT=0`;
+表格行内锚点 `table_anchors=24 OK=24`(`TABLE-DRIFT=0`、`TABLE-OUT-OF-RANGE=0`),
+退出码 0 且输出 `OK: every code-block-backed citation matches the baseline`。
+那 7 条 UNCHECKED 全是散文里顺带提到、后面不接代码块的锚点(单测文件、
+提示行行号之类),不是"块后 + 散文隔开"那种无声排版违规。
 
 **没做到的部分**(与 §7 呼应,不重复):判据 2 的"每个接缝"我按**协议/配置/枚举表**
 理解并穷举;但如果把"组件的 props 契约"也算接缝,那我**没有**穷举——
@@ -1497,4 +1527,4 @@ U+0001/U+0002 哨兵标出后渲染成反显)、脚注(`FOOTNOTE_RE`)、定义�
 | H-R10E-c | `ui-tui/src/components/appLayout.tsx:2`:`import '../sdk/apps/index.js'` —— `src/sdk/`(11 文件)是 widget app SDK,本片只见到它被"为副作用而 import"这一个接触点,SDK 本体不在本片清单里。 | 请确认 `src/sdk/` 已被 R10 的某一片覆盖;若未覆盖,它是本轮的一个黑洞(它含 `host.tsx`、`registry.ts`、`userWidgets.ts` 与 5 个参考 app)。 |
 | H-R10E-d | `ui-tui/src/lib/model-search-text.ts:8` 的 `Keep in sync with web/src/lib/model-search-text.ts and` —— 该文件自述要与 web 端和 `hermes_cli/model_search.py` 三处同步,本片未做三方比对。 | 交给覆盖 `web/` 或 `hermes_cli/` 的片做一次三方一致性核对;不一致就是一条 ■。 |
 | H-R10E-e | `ui-tui/src/lib/inputMetrics.ts:41`:`const wrapped = wrapAnsi(value, width, { hard: true, trim: false })` —— 光标定位的正确性**完全依赖**分叉 Ink 导出的 `wrapAnsi` 与 `<Text wrap="wrap">` 内部用的是同一份实现/同一组选项;本片无法验证这一点。 | 交给覆盖 `ui-tui/packages/hermes-ink/` 的片确认:`entry-exports.ts` 导出的 `wrapAnsi` 与 Text 渲染路径调用的是否同一个函数、选项是否一致。这是"光标漂移"整类 bug 的根。 |
-| H-R10E-f | `ui-tui/src/components/textInput.tsx:474`:`export function canFastBackspaceShape(current: string, cursor: number, columns?: number): boolean {` —— `columns` 可选,注释明写"新调用方不许省略",但类型系统不强制。 | 若 R11 要做"可迁移设计原则"一节,这是一个好例子:注释里的契约 vs 类型里的契约。当前唯一生产调用方 `ui-tui/src/components/textInput.tsx:848` 确实传了 `columns`。 |
+| H-R10E-f | `ui-tui/src/components/textInput.tsx:474`:`export function canFastBackspaceShape(current: string, cursor: number, columns?: number): boolean {` —— `columns` 可选,注释明写"新调用方不许省略",但类型系统不强制。 | 若 R11 要做"可迁移设计原则"一节,这是一个好例子:注释里的契约 vs 类型里的契约。当前唯一生产调用方 `ui-tui/src/components/textInput.tsx:848`:`canFastBackspaceShape(current, cursor, columns)` 确实传了宽度。 |

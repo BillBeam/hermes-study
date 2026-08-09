@@ -722,9 +722,11 @@ cd /home/user/hermes-agent && grep -rn --binary-files=without-match -I \
    探测编译的是 `#include <sqlite3ext.h>`,而编译真正需要的是 `sqlite3.h` 里的
    `fts5_api` / `fts5_tokenizer`。理论上存在「系统有 `sqlite3ext.h` 但 `sqlite3.h` 无 fts5 段」
    的机器,此时探测通过、`-Ivendor` 不加、编译在 `fts5_tokenizer` 处失败。我做过一次
-   受控复现(把系统头截断后编译,确实报 `unknown type name 'fts5_tokenizer'`),
-   但**那是我造出来的环境,不是自然出现的**,而现实触发条件(sqlite3.h 老于 3.9,
-   即 fts5.h 出现之前)在 2026 年基本绝迹。**故不记 ■**,只作为设计教训记在这里:
+   受控复现(把系统头在 fts5 段之前截断后编译,确实报 `unknown type name 'fts5_tokenizer'`),
+   但要如实说两点:**(i)** 那是我造出来的环境,不是自然出现的;**(ii)** 我的截断做得很粗,
+   同一次编译还附带报了一个 `#endif without #if`,所以那次复现只说明了方向,
+   **不能当干净证据**。而现实触发条件(sqlite3.h 老于 3.9,即 fts5.h 出现之前)
+   在 2026 年基本绝迹。**故不记 ■**,只作为设计教训记在这里:
    能力探测应当探测所需能力本身,而不是它的代理物。
 4. **没有读 13,775 行 `sqlite3.h` 的正文。** 这是本片的**设计**(见 §5.3 判断 2),
    不是欠账。实读的是:版本宏段、amalgamation 分节横幅、文件尾、`fts5_api` 结构全文
@@ -732,10 +734,11 @@ cd /home/user/hermes-agent && grep -rn --binary-files=without-match -I \
    未逐 hunk 阅读正文)。
 5. **`sqlite3ext.h` 读全了**(723 行里,`sqlite3_api_routines` 结构与 `#define`
    重定向区是通过与 3.45.1 的全量 diff 逐行核过的:2 hunk / 4 行差异,已在 §3.3 列全)。
-6. **没有跑 `tests/test_fts_cjk_bigram.py`**。铁律 3 禁止装包;该文件所需的
-   `gcc` + 扩展加载在本容器都可用,但跑它会改动共享 venv 的报数口径之外的东西
-   (session 级 fixture 编译到 tmp),风险不高但收益低 —— §4 末的受控复现已经把
-   同一条路(vendor 头 → gcc → load_extension → 双字命中)走通了。
+6. **没有跑 `tests/test_fts_cjk_bigram.py`** —— 这是一个如实的缺项,不是做不到:
+   它需要的 `gcc` 与扩展加载在本容器都可用,跑它也不需要装任何包。没跑的原因是
+   §4 末的受控复现已经把同一条路(vendor 头 → gcc → `load_extension` → 双字命中)
+   走通了,本片的四问都不依赖该用例的通过与否。**所以本底稿不报任何测试通过数**
+   (按项目规则,报测试数必须同时记环境;本片没有测试数可报)。
 
 ---
 

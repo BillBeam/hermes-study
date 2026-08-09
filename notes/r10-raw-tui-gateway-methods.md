@@ -146,18 +146,20 @@ cd /home/user/hermes-agent && grep -n '^@method("' tui_gateway/methods_session.p
 `projects.project_sessions`(135)、`config.get`(161)、`setup.status`(340)、
 `setup.runtime_check`(350)。
 
-`config.get` 是一个方法里的二级分派表,**18 个 key**:
+`config.get` 是一个方法里的二级分派表,**20 个分支 / 21 个 key**:
 
 ```verify
 cd /home/user/hermes-agent && awk 'NR>=161 && NR<=337' tui_gateway/methods_config.py \
   | grep -oE 'if key (==|in) [^:]*' | sed 's/^/  /'
 ```
 
-实测 17 行输出(`approval_mode` 与 `approvals.mode` 同一分支,故 key 数为 18):
+实测 **20** 行输出(其中 `{approval_mode, approvals.mode}` 一个分支管两个 key,故 key 数为 21):
 `provider` / `profile` / `project` / `full` / `prompt` / `skin` / `indicator` /
 `personality` / `reasoning` / `fast` / `busy` / `{approval_mode, approvals.mode}` /
-`details_mode` / `thinking_mode` / `density` / `theme` / `statusbar` / `focus` / `mtime`,
-其余落到 `4002 unknown config key`。
+`details_mode` / `thinking_mode` / `density` / `theme` / `statusbar` / `focus` /
+`mouse` / `mtime`,其余落到 `4002 unknown config key`。
+*(自我更正:本节初稿写"18 个 key、17 行输出",是我目视点数漏了 `mouse` 并少算了一行;
+按上面那条命令重跑得 20 行 / 21 key —— 这正是"shell 命令即证据"要抓的形态。)*
 
 > **注意(◇,§6-4)**:模块顶部注释声明 `config.set` **没有**搬过来。
 > `tui_gateway/methods_config.py:3` 的 `NOTE: ``config.set`` stays in server.py for now`。
@@ -212,14 +214,14 @@ cd /home/user/hermes-agent && grep -n -B1 '^@_profile_scoped' tui_gateway/method
 **(a) `MUTATOR_ROUTE_TABLE` —— 13 条**,是"哪些会改状态的操作允许穿过进程边界、
 以及按什么并发策略穿"的**白名单**。不在表里的 `route_name` 直接抛异常。
 
-`tui_gateway/host_supervisor.py:290`
+`tui_gateway/host_supervisor.py:290 @ 863e313`
 
 ```python
         if route_name not in MUTATOR_ROUTE_TABLE:
             raise ValueError(f"unclassified host mutator route: {route_name}")
 ```
 
-`tui_gateway/host_supervisor.py:31`
+`tui_gateway/host_supervisor.py:31 @ 863e313`
 
 ```python
 MUTATOR_ROUTE_TABLE: dict[str, str] = {
@@ -242,7 +244,7 @@ MUTATOR_ROUTE_TABLE: dict[str, str] = {
 三种策略的含义:`turn-path` = 走正常回合通道;`run-concurrent` = 可与在跑的回合并发;
 `idle-gated` = 子进程侧会先查这个会话是否有回合在跑,忙则回 `control.error`。
 
-`tui_gateway/compute_host.py:654`
+`tui_gateway/compute_host.py:654 @ 863e313`
 
 ```python
             if route == "idle-gated" and session.get("running"):
@@ -293,11 +295,31 @@ echo "--- handled by supervisor ---" && sed -n '415,452p' tui_gateway/host_super
 
 ### §3.4 `project_tree.py` 的公开 API 与它铸造的 id 形状
 
-公开(无下划线)名字共 **6** 个,其余 26 个均为下划线私有:
+模块层名字共 36 个:公开(无下划线)**8** 个,私有 **28** 个。
+8 个公开名里 2 个是类型别名(`Resolve` / `Exists`,给注入的两个回调标注签名),
+其余 6 个是下表这 6 个真正被外部用到的名字:
 
 ```verify
-cd /home/user/hermes-agent && grep -nE '^(def|class) [a-zA-Z]|^[A-Z_]+ = ' tui_gateway/project_tree.py
+cd /home/user/hermes-agent && python3 - <<'EOF'
+import ast
+t = ast.parse(open('tui_gateway/project_tree.py', encoding='utf-8').read())
+pub, priv = [], []
+for n in t.body:
+    names = []
+    if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        names = [n.name]
+    elif isinstance(n, ast.Assign):
+        names = [x.id for x in n.targets if isinstance(x, ast.Name)]
+    elif isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name):
+        names = [n.target.id]
+    for nm in names:
+        (priv if nm.startswith('_') else pub).append(nm)
+print("public", len(pub), pub)
+print("private", len(priv), priv)
+EOF
 ```
+
+实测 `public 8 [...]` / `private 28 [...]`。
 
 | 名字 | 锚点 + 摘录 | 作用 |
 |---|---|---|
@@ -311,7 +333,7 @@ cd /home/user/hermes-agent && grep -nE '^(def|class) [a-zA-Z]|^[A-Z_]+ = ' tui_g
 它铸造的 **6 种 id 形状**在模块 docstring 里被声明为"与渲染器持久化状态字节兼容"
 (改一个字就会让用户的置顶/排序/忽略状态失配):
 
-`tui_gateway/project_tree.py:13`
+`tui_gateway/project_tree.py:13 @ 863e313`
 
 ```python
   - explicit project id .......... ``p_<hex>`` (from projects.db)
@@ -323,17 +345,18 @@ cd /home/user/hermes-agent && grep -nE '^(def|class) [a-zA-Z]|^[A-Z_]+ = ' tui_g
   - linked worktree lane id ...... the worktree path
 ```
 
-### §3.5 `git_probe.py` 的公开 API —— 6 个函数
+### §3.5 `git_probe.py` 的公开 API —— 7 个函数 + 1 个私有缓存类
 
 ```verify
 cd /home/user/hermes-agent && grep -nE '^def ' tui_gateway/git_probe.py
 ```
 
 `run_git`(45)、`branch`(58)、`invalidate`(125)、`repo_root`(130)、
-`common_repo_root`(137)、`resolve`(159)、`warm_roots`(172) —— 7 个 `def`,其中
-`run_git` 是底座。server.py 侧把它们全部起了别名:
+`common_repo_root`(137)、`resolve`(159)、`warm_roots`(172) —— 7 个模块层 `def`,
+其中 `run_git` 是底座,`_RootCache`(62)是唯一的私有类。
+`tui_gateway/server.py` 侧把其中 5 个起了别名:
 
-`tui_gateway/server.py:2371`
+`tui_gateway/server.py:2371 @ 863e313`
 
 ```python
 _git = git_probe.run_git
@@ -349,11 +372,11 @@ _resolve_cwd_git = git_probe.resolve
 |---|---|
 | argv | `--session-key`(必填)、`--model`(可选);`tui_gateway/slash_worker.py:130`:`p.add_argument("--session-key", required=True)` |
 | stdin | 每行一个 `{"id": <任意>, "command": "<斜杠命令>"}` |
-| stdout | 成功 `{"id", "ok": true, "output"}`,失败 `{"id", "ok": false, "error"}` |
+| stdout | 成功 `{"id", "ok": true, "output"}`,失败 `{"id", "ok": false, "error"}`(输出前统一 `strip_ansi`) |
 | env 旋钮 | `HERMES_SLASH_WATCHDOG_POLL_S`(默认 2.0)、`HERMES_SLASH_WATCHDOG_GRACE_S`(默认 5.0);`tui_gateway/slash_worker.py:49`:`_WATCHDOG_POLL_S = max(0.05, _env_float("HERMES_SLASH_WATCHDOG_POLL_S", 2.0))` |
 | 进程内 env | 自己设两个变量:`tui_gateway/slash_worker.py:134`:`os.environ["HERMES_SESSION_KEY"] = args.session_key` |
 
-`tui_gateway/slash_worker.py:166`
+`tui_gateway/slash_worker.py:166 @ 863e313`
 
 ```python
         rid = None
@@ -369,7 +392,7 @@ _resolve_cwd_git = git_probe.resolve
 
 导出共 3 个。
 
-`tui_gateway/synthetic_turn.py:227`
+`tui_gateway/synthetic_turn.py:227 @ 863e313`
 
 ```python
 __all__ = [
@@ -445,7 +468,7 @@ cd /home/user/hermes-agent && awk 'NR>=432 && NR<=1071' tui_gateway/methods_tool
 
 **跳 2 —— `prompt.submit` 决定走不走隔离。**
 
-`tui_gateway/methods_prompt.py:67`
+`tui_gateway/methods_prompt.py:67 @ 863e313`
 
 ```python
 @method("prompt.submit")
@@ -455,7 +478,7 @@ def _(rid, params: dict) -> dict:
 
 先做输入净化与"打字版语音停止短语"检查,再取会话、抢活跃会话名额,然后:
 
-`tui_gateway/methods_prompt.py:124`
+`tui_gateway/methods_prompt.py:124 @ 863e313`
 
 ```python
     isolation_cfg = _load_dashboard_process_isolation_config()
@@ -465,7 +488,7 @@ def _(rid, params: dict) -> dict:
 判据是:开关打开、且(这个会话之前已被宿主接管 `_compute_host_active`,
 或者它还没建 agent 但注册了 `agent_ready` 事件)。
 
-`tui_gateway/server.py:1604`
+`tui_gateway/server.py:1604 @ 863e313`
 
 ```python
 def _session_uses_compute_host(session: dict, cfg: dict | None = None) -> bool:
@@ -477,7 +500,7 @@ def _session_uses_compute_host(session: dict, cfg: dict | None = None) -> bool:
 
 **跳 3 —— 抢下"我在跑"标记并派给宿主。** 抢标记与派发是分开的两步:
 
-`tui_gateway/methods_prompt.py:241`
+`tui_gateway/methods_prompt.py:241 @ 863e313`
 
 ```python
         session["running"] = True
@@ -497,7 +520,7 @@ def _session_uses_compute_host(session: dict, cfg: dict | None = None) -> bool:
 然后 `_get_compute_host_supervisor(cfg).submit_turn(frame, on_complete=_complete)`。
 **注意 `rpc_sink=write_json`** —— 监工把子进程转发上来的事件直接写回客户端:
 
-`tui_gateway/server.py:1620`
+`tui_gateway/server.py:1620 @ 863e313`
 
 ```python
             from tui_gateway.host_supervisor import HostSupervisor
@@ -511,7 +534,7 @@ def _session_uses_compute_host(session: dict, cfg: dict | None = None) -> bool:
 
 **跳 4 —— 监工登记 + 写管道。**
 
-`tui_gateway/host_supervisor.py:238`
+`tui_gateway/host_supervisor.py:238 @ 863e313`
 
 ```python
     def submit_turn(
@@ -525,7 +548,7 @@ def _session_uses_compute_host(session: dict, cfg: dict | None = None) -> bool:
 它先 `self.start()`(必要时拉起子进程,见 §5.2),把 `request_id → (sid, on_complete)`
 记进 `_pending_turns`,再 `_send_frame`:
 
-`tui_gateway/host_supervisor.py:388`
+`tui_gateway/host_supervisor.py:388 @ 863e313`
 
 ```python
     def _send_frame(self, frame: dict[str, Any]) -> None:
@@ -541,7 +564,7 @@ def _session_uses_compute_host(session: dict, cfg: dict | None = None) -> bool:
 `compute-host-control-reader` 线程逐行读 stdin(`tui_gateway/compute_host.py` 第 844 行),
 交给同文件第 266 行的 `handle_frame` → `_handle_turn_start`:
 
-`tui_gateway/compute_host.py:321`
+`tui_gateway/compute_host.py:321 @ 863e313`
 
 ```python
     def _handle_turn_start(self, frame: dict[str, Any]) -> None:
@@ -564,7 +587,7 @@ def _session_uses_compute_host(session: dict, cfg: dict | None = None) -> bool:
 `SessionDB`,再 `server._make_agent(...)`,最后把会话的 `transport` 换成 `_HostTransport`。
 然后:
 
-`tui_gateway/compute_host.py:485`
+`tui_gateway/compute_host.py:485 @ 863e313`
 
 ```python
             text = frame.get("text") if "text" in frame else frame.get("prompt", "")
@@ -578,7 +601,7 @@ def _session_uses_compute_host(session: dict, cfg: dict | None = None) -> bool:
 子进程里的 agent 照常调 `transport.write({jsonrpc, method:"event", params:{...}})`,
 但这个 transport 是:
 
-`tui_gateway/compute_host.py:90`
+`tui_gateway/compute_host.py:90 @ 863e313`
 
 ```python
 class _HostTransport:
@@ -598,7 +621,7 @@ class _HostTransport:
 
 `emit` 加上 `host_ns` 时间戳,`json.dumps` 后在 `_write_lock` 保护下写 stdout。
 
-`tui_gateway/compute_host.py:170`
+`tui_gateway/compute_host.py:170 @ 863e313`
 
 ```python
     def emit(self, frame: dict[str, Any]) -> None:
@@ -611,7 +634,7 @@ class _HostTransport:
 **跳 8 —— 监工拆包、原样喂回客户端。** 父进程的 `compute-host-stdout` 线程逐行
 `json.loads`,交 `_handle_host_frame`。
 
-`tui_gateway/host_supervisor.py:396`
+`tui_gateway/host_supervisor.py:396 @ 863e313`
 
 ```python
     def _drain_stdout(self, proc: subprocess.Popen[str]) -> None:
@@ -621,7 +644,7 @@ class _HostTransport:
                 frame = json.loads(raw)
 ```
 
-`tui_gateway/host_supervisor.py:425`
+`tui_gateway/host_supervisor.py:425 @ 863e313`
 
 ```python
         if ftype == "rpc":
@@ -645,7 +668,7 @@ class _HostTransport:
 **降级路径(重要)**:如果跳 3 返回带 `error` 的响应,`prompt.submit` **不报错**,
 而是打一条 warning 后继续走进程内老路:
 
-`tui_gateway/methods_prompt.py:250`
+`tui_gateway/methods_prompt.py:250 @ 863e313`
 
 ```python
         logger.warning(
@@ -672,7 +695,7 @@ hermes 的做法是 `tui_gateway/method_ctx.py`(54 行,不在本片但是本片�
 server.py 在**自己 import 的最后一行**(等所有全局都存在了)调用 `install`,
 用 `types.FunctionType` 把每个函数的 `__globals__` **重绑到 server.py 的命名空间**:
 
-`tui_gateway/method_ctx.py:43`
+`tui_gateway/method_ctx.py:43 @ 863e313`
 
 ```python
         g = vars(server)
@@ -692,7 +715,7 @@ server.py 在**自己 import 的最后一行**(等所有全局都存在了)调�
 反向 import 环的规避方式是:`methods_*` **在模块层从不 import server**,
 是 server 在自己文件末尾 import 它们并把自己传进 `register()`:
 
-`tui_gateway/server.py:13990`
+`tui_gateway/server.py:13990 @ 863e313`
 
 ```python
 from . import (  # noqa: E402
@@ -719,7 +742,7 @@ del _m
 (每个 `_(rid, params)` 里的自由变量都得回 server.py 查)。`methods_prompt.py`
 的 `register()` 甚至要为一个**非 `@method`** 的辅助函数手工重复一遍同样的重绑:
 
-`tui_gateway/methods_prompt.py:943`
+`tui_gateway/methods_prompt.py:943 @ 863e313`
 
 ```python
     server._pending_reaction_notes = types.FunctionType(
@@ -738,7 +761,7 @@ del _m
 
 **管什么进程。** 恰好一个持久子进程:
 
-`tui_gateway/host_supervisor.py:148`
+`tui_gateway/host_supervisor.py:148 @ 863e313`
 
 ```python
         self.registry_path = Path(registry_path) if registry_path is not None else _default_registry_path()
@@ -777,7 +800,7 @@ start_new_session=True)`。`errors="replace"` 有事故背书(#52649:locale 不�
 还在跑的 compute host,新 dashboard 启动时要杀掉它 —— 但登记文件里的 PID 可能已经被
 操作系统分配给了**别的无关进程**,直接 `SIGTERM` 就是杀错人:
 
-`tui_gateway/host_supervisor.py:226`
+`tui_gateway/host_supervisor.py:226 @ 863e313`
 
 ```python
         if pid <= 0 or not _pid_alive(pid):
@@ -796,7 +819,7 @@ start_new_session=True)`。`errors="replace"` 有事故背书(#52649:locale 不�
 身份验证不靠猜,靠**直接读 `/proc/<pid>/cmdline`**(Linux 快路径),
 不行再退回 `ps -p <pid> -o command=`:
 
-`tui_gateway/host_supervisor.py:126`
+`tui_gateway/host_supervisor.py:126 @ 863e313`
 
 ```python
 def is_compute_host_identity(pid: int) -> bool:
@@ -806,7 +829,7 @@ def is_compute_host_identity(pid: int) -> bool:
 
 有测试钉住这条。
 
-`tests/tui_gateway/test_compute_host_phase1.py:96`
+`tests/tui_gateway/test_compute_host_phase1.py:96 @ 863e313`
 
 ```python
     result = supervisor.reconcile_startup_orphan()
@@ -816,7 +839,7 @@ def is_compute_host_identity(pid: int) -> bool:
 
 **怎么重启 + 失败上限。** 上限是 **5 分钟窗口内最多 `respawn_max` 次(默认 3)**:
 
-`tui_gateway/host_supervisor.py:507`
+`tui_gateway/host_supervisor.py:507 @ 863e313`
 
 ```python
     def _maybe_respawn_after_crash(self) -> None:
@@ -849,7 +872,7 @@ def is_compute_host_identity(pid: int) -> bool:
 **反向监管:子进程也在盯父进程。** compute host 每秒查一次 `getppid()`,
 父进程换人(被 init 收养,或 ppid 变了)就发遗言、冲刷会话、`os._exit(0)`:
 
-`tui_gateway/compute_host.py:790`
+`tui_gateway/compute_host.py:790 @ 863e313`
 
 ```python
     def _parent_guard_loop(self) -> None:
@@ -881,7 +904,7 @@ def is_compute_host_identity(pid: int) -> bool:
 6 个并发的 100K+ 上下文真实模型调用 —— 烧真金白银,而且不确定。
 但**不能用睡眠或网络桩代替**:
 
-`tui_gateway/synthetic_turn.py:13`
+`tui_gateway/synthetic_turn.py:13 @ 863e313`
 
 ```python
 A network/sleep stub is WRONG here — it would release the GIL during I/O and
@@ -891,7 +914,7 @@ green (the spec says so explicitly).
 
 所以它的回合是一段**紧凑整数循环**,一条字节码一步,永不释放 GIL:
 
-`tui_gateway/synthetic_turn.py:165`
+`tui_gateway/synthetic_turn.py:165 @ 863e313`
 
 ```python
         while True:
@@ -915,7 +938,7 @@ green (the spec says so explicitly).
 
 **接缝点选得很讲究**:它挂在 `_make_agent` 上 ——
 
-`tui_gateway/server.py:6304`
+`tui_gateway/server.py:6304 @ 863e313`
 
 ```python
     # AC-4 test seam: dead unless explicitly armed by the isolated certify
@@ -938,7 +961,7 @@ green (the spec says so explicitly).
 
 被谁用:认证脚本在起子进程前武装它。
 
-`scripts/iso-certify.py:174`
+`scripts/iso-certify.py:174 @ 863e313`
 
 ```python
         env["HERMES_ISO_CERTIFY_SYNTH_TURN"] = "1"
@@ -962,14 +985,14 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 \
 **同一套的证据。** `slash_worker` 的整个"执行"就是构造一个真 `HermesCLI`
 并调它的 `process_command`:
 
-`tui_gateway/slash_worker.py:143`
+`tui_gateway/slash_worker.py:143 @ 863e313`
 
 ```python
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
         cli = HermesCLI(model=args.model or None, compact=True, resume=args.session_key, verbose=False)
 ```
 
-`tui_gateway/slash_worker.py:111`
+`tui_gateway/slash_worker.py:111 @ 863e313`
 
 ```python
     try:
@@ -983,7 +1006,7 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 \
 它连 Rich(Python 的终端富文本库)的 `Console` 都换成写进 buffer 的版本 ——
 因为 `Console` 在构造时就捕获了文件句柄,`redirect_stdout` 对它无效。
 
-`tui_gateway/slash_worker.py:102`
+`tui_gateway/slash_worker.py:102 @ 863e313`
 
 ```python
     # Rich Console captures its file handle at construction time, so
@@ -996,7 +1019,7 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 \
 
 **第二实现之一:`_live_slash_command_output`。**
 
-`tui_gateway/server.py:12427`
+`tui_gateway/server.py:12427 @ 863e313`
 
 ```python
 def _live_slash_command_output(sid: str, session: Optional[dict], name: str, arg: str) -> Optional[str]:
@@ -1011,7 +1034,7 @@ worker 是**另一个进程**,它的 `HermesCLI` 有自己的 agent 快照,
 
 **第二实现之二:`command.dispatch`。**
 
-`tui_gateway/methods_tools.py:432`
+`tui_gateway/methods_tools.py:432 @ 863e313`
 
 ```python
 @method("command.dispatch")
@@ -1023,7 +1046,7 @@ def _(rid, params: dict) -> dict:
 `/queue` `/learn` `/init` `/moa` `/focus` `/retry` `/steer` `/goal` `/undo`
 `/snapshot` `/compress`。触发理由写在代码里:
 
-`tui_gateway/methods_tools.py:571`
+`tui_gateway/methods_tools.py:571 @ 863e313`
 
 ```python
     # ── Commands that queue messages onto _pending_input in the CLI ───
@@ -1037,7 +1060,7 @@ def _(rid, params: dict) -> dict:
 
 **第二实现之三:`_mirror_slash_side_effects`。**
 
-`tui_gateway/server.py:12487`
+`tui_gateway/server.py:12487 @ 863e313`
 
 ```python
 def _mirror_slash_side_effects(sid: str, session: dict, command: str) -> str:
@@ -1069,7 +1092,7 @@ slash.exec(command)
 `slash_worker=None` 各 fork 一个"完整 MCP 舰队"的 worker,输掉 `_attach_worker`
 竞争的那个会泄漏。
 
-`tui_gateway/methods_tools.py:1180`
+`tui_gateway/methods_tools.py:1180 @ 863e313`
 
 ```python
         # MCP-fleet worker (the loser of the _attach_worker race would leak
@@ -1086,7 +1109,7 @@ slash.exec(command)
 `command.dispatch` 在 12 个硬编码分支**之前**先查了技能表,所以它在那里被解析成
 `{"type": "skill", ...}`。
 
-`tui_gateway/methods_tools.py:550`
+`tui_gateway/methods_tools.py:550 @ 863e313`
 
 ```python
         cmds = scan_skill_commands()
@@ -1100,7 +1123,7 @@ slash.exec(command)
 **守卫只装在其中一处 —— 这就是本片最重的一条 ■(详见 §6-1)。**
 "回合进行中不许原地换模型"这条不变式,项目自己的测试写得斩钉截铁:
 
-`tests/test_tui_gateway_server.py:10160`
+`tests/test_tui_gateway_server.py:10160 @ 863e313`
 
 ```python
 # /model switch and other agent-mutating commands must reject while the
@@ -1148,7 +1171,7 @@ Tier 0  Home 桶 —— 上面都放不下的会话("__no_project__"),插在列�
 **(1) `project_tree.py` 自己:没有,而且它唯一的包含性判定是死代码。**
 模块里有一个专门写来判断"target 是不是在 folder 底下"的函数:
 
-`tui_gateway/project_tree.py:131`
+`tui_gateway/project_tree.py:131 @ 863e313`
 
 ```python
 def _is_path_under(folder: str, target: str) -> bool:
@@ -1179,7 +1202,7 @@ cd /home/user/hermes-agent && grep -nE 'commonpath|commonprefix|realpath|relativ
 
 **(2) `git_probe.py`:没有边界,`cwd` 给什么就在什么目录跑 git。**
 
-`tui_gateway/git_probe.py:45`
+`tui_gateway/git_probe.py:45 @ 863e313`
 
 ```python
 def run_git(cwd: str, *args: str) -> str:
@@ -1207,7 +1230,7 @@ def run_git(cwd: str, *args: str) -> str:
 **(3) gateway 侧的过滤器:只有"垃圾根"黑名单,不是"工作区"白名单。**
 `build_tree` 接受三个注入的谓词,server.py 传的是:
 
-`tui_gateway/server.py:11646`
+`tui_gateway/server.py:11646 @ 863e313`
 
 ```python
         preview_limit=preview_limit,
@@ -1227,7 +1250,7 @@ def run_git(cwd: str, *args: str) -> str:
 `complete.path`(`tui_gateway/methods_complete.py:41`)的 `root = _completion_cwd(params)`
 本意是"会话工作区",但显式路径分支直接接受绝对路径:
 
-`tui_gateway/methods_complete.py:166`
+`tui_gateway/methods_complete.py:166 @ 863e313`
 
 ```python
         search_dir = (
@@ -1265,7 +1288,7 @@ cd /home/user/hermes-agent && grep -nE 'commonpath|commonprefix|startswith\(root
 12 个 pet 方法带 `@_profile_scoped`,4 个不带,其中两个是**写盘**方法。
 装饰器自己的 docstring 就点名了它要解决的场景:
 
-`tui_gateway/server.py:1406`
+`tui_gateway/server.py:1406 @ 863e313`
 
 ```python
 def _profile_scoped(handler):
@@ -1281,7 +1304,7 @@ def _profile_scoped(handler):
 
 对照两个装饰器的实际位置:
 
-`tui_gateway/methods_session.py:1326`
+`tui_gateway/methods_session.py:1326 @ 863e313`
 
 ```python
 @method("pet.info")
@@ -1289,7 +1312,7 @@ def _profile_scoped(handler):
 def _(rid, params: dict) -> dict:
 ```
 
-`tui_gateway/methods_session.py:1800`
+`tui_gateway/methods_session.py:1800 @ 863e313`
 
 ```python
 @method("pet.generate")
@@ -1298,7 +1321,7 @@ def _(rid, params: dict) -> dict:
 
 而 `pet.generate` 的落盘目录与 `pet.hatch` 的安装目录都走 `get_hermes_home()`:
 
-`tui_gateway/server.py:8182`
+`tui_gateway/server.py:8182 @ 863e313`
 
 ```python
 def _pet_gen_root():
@@ -1310,7 +1333,7 @@ def _pet_gen_root():
     return root
 ```
 
-`agent/pet/store.py:56`
+`agent/pet/store.py:56 @ 863e313`
 
 ```python
 def pets_dir() -> Path:
@@ -1344,7 +1367,7 @@ cd /home/user/hermes-agent && grep -rn "_stopped_respawning" --include=*.py .
 **没有任何一处把它复位。**(搜索面:全仓所有 `*.py`,含 `tests/`;
 未搜 `.ts`/`.md` —— 这是个 Python 进程内状态,跨语言不可能复位它。)
 
-`tui_gateway/host_supervisor.py:313`
+`tui_gateway/host_supervisor.py:313 @ 863e313`
 
 ```python
     def _spawn_locked(self, *, reason: str) -> None:
@@ -1362,7 +1385,7 @@ cd /home/user/hermes-agent && grep -rn "_stopped_respawning" --include=*.py .
 
 两个不相关的安全设施挂在同一个 `if` 上:
 
-`tui_gateway/compute_host.py:161`
+`tui_gateway/compute_host.py:161 @ 863e313`
 
 ```python
         self._heartbeat_secs = (
@@ -1404,14 +1427,14 @@ cd /home/user/hermes-agent && grep -rn "_is_path_under" --include=*.py .
 
 ### ▲5 `AGENTS.md` 的"Slash Command Flow" 把 `command.dispatch` 说成 worker 之后的 fallback,代码里它是 worker **之前**的抢先路由
 
-`AGENTS.md:463` 标题 `### Slash Command Flow` 下的第 2 条:
+`AGENTS.md:463 @ 863e313` 标题 `### Slash Command Flow` 下的第 2 条:
 
 > 2. Everything else → `slash.exec` (runs in persistent `_SlashWorker` subprocess) → `command.dispatch` fallback
 
 整句判定:"Everything else" 与 "→ command.dispatch fallback" 两处都与代码不符。
 `slash.exec` 里有 **12 个命令名**在碰到 worker **之前**就被改派给 `command.dispatch`:
 
-`tui_gateway/methods_tools.py:1099`
+`tui_gateway/methods_tools.py:1099 @ 863e313`
 
 ```python
     if _cmd_base in _PENDING_INPUT_COMMANDS:
@@ -1430,7 +1453,7 @@ to retry` 正好说明:文档描述的那个"worker 先跑、再 fallback"的旧
 
 ### ▲6 `SECURITY.md` 把 tui_gateway 描述成 "reached over local IPC",而本片代码显式为跨机客户端设计
 
-`SECURITY.md:192` 在 "surfaces that cross a trust boundary" 列表下:
+`SECURITY.md:192 @ 863e313` 在 "surfaces that cross a trust boundary" 列表下:
 
 > - **The TUI gateway (`tui_gateway/`).** JSON-RPC backend for the
 >   Ink terminal UI, reached over local IPC.
@@ -1438,7 +1461,7 @@ to retry` 正好说明:文档描述的那个"worker 先跑、再 fallback"的旧
 同一段的 Uniform rule 1 把 TUI gateway 归入 "editor and local-IPC surfaces",
 授权 = 依赖 OS 级访问控制。但本片代码有两处第一方声明与之矛盾:
 
-`tui_gateway/methods_prompt.py:421`
+`tui_gateway/methods_prompt.py:421 @ 863e313`
 
 ```python
     """Attach an image to the session from base64 bytes (remote-client path).
@@ -1450,7 +1473,7 @@ to retry` 正好说明:文档描述的那个"worker 先跑、再 fallback"的旧
     client treats both identically.
 ```
 
-`tui_gateway/methods_prompt.py:613`
+`tui_gateway/methods_prompt.py:613 @ 863e313`
 
 ```python
     remote-gateway case where the desktop passes a path that only exists on the
@@ -1471,7 +1494,7 @@ to retry` 正好说明:文档描述的那个"worker 先跑、再 fallback"的旧
 
 见 §3.3(c) 的表。`_handle_host_frame` 的最后一个分支之后**没有 else、没有兜底日志**:
 
-`tui_gateway/host_supervisor.py:443`
+`tui_gateway/host_supervisor.py:443 @ 863e313`
 
 ```python
         if ftype == "error" and frame.get("request_id"):
@@ -1493,7 +1516,7 @@ to retry` 正好说明:文档描述的那个"worker 先跑、再 fallback"的旧
 
 ### ◇8 `config.set` 没有随 `config.get` 一起搬出来,读写配置分居两个文件
 
-`tui_gateway/methods_config.py:1`
+`tui_gateway/methods_config.py:1 @ 863e313`
 
 ```python
 """Config / projects / setup JSON-RPC handlers (moved verbatim from server.py).
@@ -1502,14 +1525,14 @@ NOTE: ``config.set`` stays in server.py for now — the in-flight
 opt/model-resolution-core PR touches it; move it in a follow-up once merged.
 ```
 
-这是一条**代码里有、任何文档都没有**的接缝断裂:`config.get` 的 18 个 key
+这是一条**代码里有、任何文档都没有**的接缝断裂:`config.get` 的 21 个 key
 在 `methods_config.py`,与之配对的 `config.set` 在 server.py
 (`tui_gateway/server.py:10482` 的 `@method`)。§5.4 的 `/focus` 分支正好跨这条缝调用:
 `tui_gateway/methods_tools.py:681` 的 `_res = _methods["config.set"](`。
 
 ### ◎9 `AGENTS.md` 说 server.py 是 "the full method/event catalog",这在运行期为真、在阅读期已严重偏窄
 
-`AGENTS.md:445`:
+`AGENTS.md:445 @ 863e313`:
 
 > Newline-delimited JSON-RPC over stdio. Requests from Ink, events from Python. See `tui_gateway/server.py` for the full method/event catalog.
 
@@ -1526,7 +1549,7 @@ cd /home/user/hermes-agent && printf 'server.py=%s methods_*=%s\n' \
 
 ### ◇10 `dashboard.turn_isolation` 默认关闭,整套 compute host 机制在默认安装下是死的
 
-`tui_gateway/server.py:2882`
+`tui_gateway/server.py:2882 @ 863e313`
 
 ```python
 _DASHBOARD_TURN_ISOLATION_DEFAULT = False
@@ -1608,7 +1631,7 @@ ls -d /home/user/hermes-agent/docs/desktop 2>&1 | tail -1
 | 判据 | 达成 | 说明 |
 |---|---|---|
 | **1. 点名到位**(片内每个文件至少一次全路径 + 一句话角色) | ✓ | §2 表格 11 行,11 个全路径逐个列出并各给角色;正文里每个文件都被再次全路径引用过 |
-| **2. 接缝穷举**(逐项列全 + 机械枚举命令 + 条数) | ✓(有一处如实打折) | 穷举了 8 张接缝:123 个 JSON-RPC 方法(逐个列名,5 条枚举命令)、12 个 `@_profile_scoped`、13 条 `MUTATOR_ROUTE_TABLE`、6 种父→子帧、14 种子→父帧(含监工处理/丢弃标注)、`project_tree` 6 个公开名 + 6 种 id 形状、`git_probe` 7 个 `def`、`slash_worker` 协议 4 面、`synthetic_turn` 3 导出 + 5 env、7 张斜杠路由集合。**打折处**:`config.get` 的 18 个 key 我用一条 `grep -oE` 枚举并给了名字,但没逐个说明每个 key 的返回体形状 |
+| **2. 接缝穷举**(逐项列全 + 机械枚举命令 + 条数) | ✓(有一处如实打折) | 穷举了 8 张接缝:123 个 JSON-RPC 方法(逐个列名,5 条枚举命令)、12 个 `@_profile_scoped`、13 条 `MUTATOR_ROUTE_TABLE`、6 种父→子帧、14 种子→父帧(含监工处理/丢弃标注)、`project_tree` 8 个模块层公开名(其中 6 个真被外部用)+ 6 种 id 形状、`git_probe` 7 个 `def`、`slash_worker` 协议 4 面、`synthetic_turn` 3 导出 + 5 env、7 张斜杠路由集合。**打折处**:`config.get` 的 21 个 key 我用一条 `grep -oE` 枚举并给了名字,但没逐个说明每个 key 的返回体形状 |
 | **3. 一条端到端链走通** | ✓ | §4 共 9 跳 + 1 条降级路径,每跳带锚点;两端写清了接到谁(跳 1 接 `requestGateway`/`handle_request`,跳 8 接 `write_json` → 客户端 transport)。跨出本片的部分(server.py / cli.py)也逐一给了锚点 |
 | **4. 两处以上逐字取证** | ✓ | 逐字源码围栏块共 **61** 个(全部 ```` ```python ````,逐行受 BLOCK-DRIFT 校验):`tui_gateway/host_supervisor.py` 12、`tui_gateway/server.py` 11、`tui_gateway/compute_host.py` 7、`tui_gateway/methods_prompt.py` 7、`tui_gateway/methods_tools.py` 5、`tui_gateway/slash_worker.py` 4、`tui_gateway/synthetic_turn.py` 3、`tui_gateway/project_tree.py` 2、`tui_gateway/methods_session.py` 2、其余 9 个文件各 1(`method_ctx.py` / `git_probe.py` / `methods_complete.py` / `methods_config.py` / `agent/pet/store.py` / `scripts/iso-certify.py` / 两个测试文件)。另有 3 个 `>` 文档引用块(`AGENTS.md` × 2、`SECURITY.md` × 1)、23 个 ```` ```verify ````、3 个 ```` ```text ````。全部源码块用 `sed -n 'A,Bp'` 取出后粘贴,未手抄 |
 | **5. 至少一条记号** | ✓ | 10 条:■4(1 中高 + 3 低)、▲2、◇3(编号 7/8/10)、◎1,逐条带锚点与代码块 |
@@ -1628,7 +1651,7 @@ ls -d /home/user/hermes-agent/docs/desktop 2>&1 | tail -1
 | H-R10B-d | `tui_gateway/methods_tools.py:623`:`_apply_model_switch(` | 这条调用在 `command.dispatch` 的 `/moa` 分支里,**上游没有任何** `session.get("running")` 检查;而同一操作的另外两个入口(`config.set model`、`_mirror_slash_side_effects`)都有守卫,项目自己的测试注释把该不变式写成 `tests/test_tui_gateway_server.py:10160`:`# /model switch and other agent-mutating commands must reject while the` | 顺着 `session["moa_one_shot_restore"]` 查回合结束后的还原路径,确认中途换模型会留下什么残留状态 |
 | H-R10B-e | `tui_gateway/project_tree.py:131`:`def _is_path_under(folder: str, target: str) -> bool:` | 该模块唯一的路径包含性判定,全仓零调用(`grep -rn "_is_path_under" --include=*.py .` 只命中定义行);真正做归属的是 `_FolderIndex.match`(`:471`) | 顺手确认桌面 TS 侧(`apps/desktop/src/lib/`)有没有自己那份 `isPathUnder` —— 若有,这是"同一判定两处实现"的又一例 |
 | H-R10B-f | `tui_gateway/methods_complete.py:167`:`search_dir if os.path.isabs(search_dir) else os.path.join(root, search_dir)` | 显式路径分支直通绝对路径、无 `..`/`commonpath` 拦截,而同一处理函数的模糊搜索分支走 `_list_repo_files(root)` 且其 docstring 明确"root 之外的文件被排除" —— 边界只装在两个分支中的一个 | 结合 `tui_gateway/ws.py` 的 bind/token 策略判定这是"本地便利"还是"远程枚举面";这是 ▲6 落地与否的关键 |
-| H-R10B-g | `tui_gateway/methods_config.py:3`:`NOTE: ``config.set`` stays in server.py for now — the in-flight` | 读配置(`config.get`,18 key)已搬进 `methods_config.py`,写配置(`config.set`)仍在 `tui_gateway/server.py` 第 10482 行;`/focus` 分支跨这条缝调用 —— `tui_gateway/methods_tools.py:681`:`_res = _methods["config.set"](` | 若后续轮次要讲"大文件拆分怎么收尾",这是现成的"拆了一半"标本 |
+| H-R10B-g | `tui_gateway/methods_config.py:3`:`NOTE: ``config.set`` stays in server.py for now — the in-flight` | 读配置(`config.get`,21 key)已搬进 `methods_config.py`,写配置(`config.set`)仍在 `tui_gateway/server.py` 第 10482 行;`/focus` 分支跨这条缝调用 —— `tui_gateway/methods_tools.py:681`:`_res = _methods["config.set"](` | 若后续轮次要讲"大文件拆分怎么收尾",这是现成的"拆了一半"标本 |
 | H-R10B-h | `tui_gateway/synthetic_turn.py:3`:`Mechanism B (the class ``docs/desktop/2026-07-04-dashboard-process-isolation-PRD.md``` | 这份 PRD 被 2 个文件引用(另一处 `scripts/iso-certify.py:5`),但 `docs/desktop/` 目录在基线里**不存在** | 整套回合隔离机制(1,457 行)在全仓 `*.md` 里零提及,是"◇ 代码有、文档无"的最大一块;R12 蓝图里值得单开一节 |
 
 ---

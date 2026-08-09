@@ -144,8 +144,8 @@ cd /home/user/hermes-agent && grep -nE '(conn|_conn)\.session_update\(' acp_adap
 cd /home/user/hermes-agent && grep -nE 'conn\.request_permission,?$|conn\.request_permission,' acp_adapter/server.py   # 期望 2 行(1804 / 1809)
 ```
 
-10 处 `session_update` 的分布:`events.py:97`(唯一的工作线程侧出口,所有 agent 事件都从这里出去)、
-`server.py:884`(usage)、`:956`(session_info)、`:1357`(历史回放)、`:1717`(斜杠命令回执)、
+10 处 `session_update` 的分布:`acp_adapter/events.py:97`(唯一的工作线程侧出口,所有 agent 事件都从这里出去)、
+`acp_adapter/server.py:884`(usage)、`:956`(session_info)、`:1357`(历史回放)、`:1717`(斜杠命令回执)、
 `:1760`(重定向回执)、`:1767`(排队回执)、`:2052`(最终答复)、`:2067`(排队 prompt 的回显)、
 `:2115`(命令表 advertise)。
 
@@ -155,9 +155,9 @@ cd /home/user/hermes-agent && grep -nE 'conn\.request_permission,?$|conn\.reques
 
 ```verify
 cd /home/user/hermes-agent && grep -rnoE 'session_update="[a-z_]+"' acp_adapter/*.py | sort -u
-# plan(events.py:60,84) / user_message_chunk(server.py:1294) / agent_message_chunk(server.py:1300)
-# / usage_update(server.py:871) / session_info_update(server.py:950)
-# / available_commands_update(server.py:2118)  → 去重后 6 种
+# plan(acp_adapter/events.py:60,84) / user_message_chunk(acp_adapter/server.py:1294) / agent_message_chunk(acp_adapter/server.py:1300)
+# / usage_update(acp_adapter/server.py:871) / session_info_update(acp_adapter/server.py:950)
+# / available_commands_update(acp_adapter/server.py:2118)  → 去重后 6 种
 ```
 
 另 3 种经 SDK 帮助函数产生,负载类型在本仓库有类型标注、**变体字符串在 SDK 里**(未取证):
@@ -169,7 +169,7 @@ cd /home/user/hermes-agent && grep -rnoE 'session_update="[a-z_]+"' acp_adapter/
 | `acp.update_agent_thought_text` | `acp_adapter/server.py:1307`:`    def _history_thought_update(text: str) -> AgentThoughtChunk:` | `agent_thought_chunk` |
 
 合计 **9 种**。`acp.update_agent_message_text` / `acp.update_user_message_text` 分别对应上面已计入的
-`agent_message_chunk` / `user_message_chunk`(server.py:1293-1303 用显式构造器造了同样两种,带 `field_meta`)。
+`agent_message_chunk` / `user_message_chunk`(acp_adapter/server.py:1293-1303 用显式构造器造了同样两种,带 `field_meta`)。
 
 ### §3.4 斜杠命令:9 个,三张表一致
 
@@ -239,7 +239,7 @@ AUTO_APPROVE_WORKSPACE = "workspace_session"
 AUTO_APPROVE_SESSION = "session"
 ```
 
-**两档自动放行都不覆盖敏感路径**:`should_auto_approve_edit`(edit_approval.py:200)先查
+**两档自动放行都不覆盖敏感路径**:`should_auto_approve_edit`(acp_adapter/edit_approval.py:200)先查
 `_is_sensitive_auto_approve_path`(:192),路径里含 `.git` / `.ssh` 目录段、或文件名在上面那 5 个里,
 一律返回 False(照旧问)。
 
@@ -272,15 +272,15 @@ _OPTION_ID_TO_HERMES = {
 | `deny` | `reject_once` | Deny | 恒有 | `deny` |
 | `deny_always` | `reject_always` | Deny always | `not smart_denied` 且 SDK 支持该 kind | **`deny`**(见 ■1) |
 
-`allow_session` 的 kind 错配是代码里自己声明的取舍(permissions.py:51-52 注释:
+`allow_session` 的 kind 错配是代码里自己声明的取舍(acp_adapter/permissions.py:51-52 注释:
 "ACP has no session-scoped kind, so use the closest persistent hint while keeping Hermes semantics
 in the option id"),不是缺陷。
 
-**SDK 能力探测**:`_permission_option_supports_kind`(permissions.py:32)用一次
+**SDK 能力探测**:`_permission_option_supports_kind`(acp_adapter/permissions.py:32)用一次
 `PermissionOption(option_id="__probe__", kind=kind, name="probe")` 构造试探当前 SDK 是否接受
 `reject_always`,失败就不发 `deny_always`。这是「探针式向下兼容」的一个干净样本。
 
-编辑面只有 2 个选项(edit_approval.py:308-311):`allow_once` / `deny`,**没有 session 档、没有 always 档**。
+编辑面只有 2 个选项(acp_adapter/edit_approval.py:308-311):`allow_once` / `deny`,**没有 session 档、没有 always 档**。
 
 ```verify
 cd /home/user/hermes-agent && grep -oE 'option_id="[a-z_]+"' acp_adapter/permissions.py | sort -u   # 含 __probe__ 共 6 行
@@ -318,7 +318,7 @@ print("kinds:", dict(Counter(d.values())))
 PY
 ```
 
-`get_tool_kind`(tools.py:84)对表外的一切返回 `"other"` —— **没有报错、没有日志**。
+`get_tool_kind`(acp_adapter/tools.py:84)对表外的一切返回 `"other"` —— **没有报错、没有日志**。
 
 ### §3.9 三张工具表的四向差集(本片最有信息量的一张)
 
@@ -371,9 +371,9 @@ D) 美化表里 ACP 不可见(28): clarify cronjob discord discord_admin
 1. **没有改名。一个都没有。** ACP 侧不存在「ACP 工具名」这个概念 —— hermes 不向编辑器暴露工具
    *清单*(那是 MCP 干的事),它只在工具**跑起来的时候**发一条 `ToolCallStart` 通知。
    这条通知里根本没有「工具名」字段:只有 `tool_call_id`、`title`(人读的字符串)、`kind`、
-   `content`、`locations`、`raw_input`(`acp.start_tool_call(...)` 的实参,tools.py:1067-1070 / 1098-1100 等 16 处)。
+   `content`、`locations`、`raw_input`(`acp.start_tool_call(...)` 的实参,acp_adapter/tools.py:1067-1070 / 1098-1100 等 16 处)。
    内核工具名只被用来**选** kind 和**拼** title;对不认识的工具名,title 就是名字本身
-   (`build_tool_title` 的最后一行 `return tool_name`,tools.py:188)。
+   (`build_tool_title` 的最后一行 `return tool_name`,acp_adapter/tools.py:188)。
    **相关性靠 id,不靠名字。** 因此「名字对不上」这种错在本片结构上不可能发生。
 
 2. **但三张表之间的错位是真实的、可枚举的**,而且各有后果:
@@ -383,12 +383,12 @@ D) 美化表里 ACP 不可见(28): clarify cronjob discord discord_admin
    - **B 组(3 个)** 说明 kind 表是照「全仓工具」写的,不是照 ACP 面写的;
      `_thinking` 更是个伪工具名(kind `think`)。
    - **C 组(2 个)**:`browser_cdp` / `browser_dialog` 是三张表都漏掉的两个 —— 它们走
-     `_build_tool_start` 的**通用兜底**分支(tools.py:1289-1298),把整个 arguments dump 成 JSON 文本,
+     `_build_tool_start` 的**通用兜底**分支(acp_adapter/tools.py:1289-1298),把整个 arguments dump 成 JSON 文本,
      并且是唯一会带 `raw_input=arguments` 的路径(见 ■3:那个三元表达式其实是死分支)。
    - **D 组(28 个)** 说明 `_POLISHED_TOOLS` 是「全仓所有值得美化的工具」的集合,
      被 ACP 面**复用**而非**为 ACP 面裁剪**:它包含 28 个 ACP 面根本看不见的工具
      (Home Assistant、kanban、飞书、Discord、yb……),其中 `cronjob` 甚至有专门的
-     title 分支(tools.py:184-187)和结果美化器(tools.py:923)——**这些代码在 ACP 通道上不可达**。
+     title 分支(acp_adapter/tools.py:184-187)和结果美化器(acp_adapter/tools.py:923)——**这些代码在 ACP 通道上不可达**。
 
 3. **有没有内核工具在 ACP 面上不可见?有,而且是绝大多数。** ACP 面固定就是
    `hermes-acp` 这一个 composite toolset(+ 每个已配置 MCP 服务器一个 `mcp-<name>` toolset),
@@ -418,9 +418,9 @@ D) 美化表里 ACP 不可见(28): clarify cronjob discord discord_admin
 
 | 表 | 条数 | 位置 | 兜底 |
 |---|---|---|---|
-| `build_tool_title` 的逐工具分支 | 23 | tools.py:94-188 | `return tool_name` |
-| `_build_tool_start` 的逐工具分支 | 16(15 个 `==` + 1 个 `in _POLISHED_TOOLS`) | tools.py:1073-1298 | 通用 JSON dump |
-| `_build_polished_completion_content` 的美化器 | 21 | tools.py:902-924 | `_format_generic_structured_result` |
+| `build_tool_title` 的逐工具分支 | 23 | acp_adapter/tools.py:94-188 | `return tool_name` |
+| `_build_tool_start` 的逐工具分支 | 16(15 个 `==` + 1 个 `in _POLISHED_TOOLS`) | acp_adapter/tools.py:1073-1298 | 通用 JSON dump |
+| `_build_polished_completion_content` 的美化器 | 21 | acp_adapter/tools.py:902-924 | `_format_generic_structured_result` |
 
 ```verify
 cd /home/user/hermes-agent && sed -n '94,188p'   acp_adapter/tools.py | grep -cE '^\s+if tool_name == '        # 23
@@ -434,22 +434,22 @@ cd /home/user/hermes-agent && sed -n '902,924p'  acp_adapter/tools.py | grep -oE
 
 ### §3.11 ACP 输入内容块 → OpenAI 内容部件:5 种块,3 条转换路径
 
-`_content_blocks_to_openai_user_content`(server.py:515)处理的块类型与产物:
+`_content_blocks_to_openai_user_content`(acp_adapter/server.py:515)处理的块类型与产物:
 
 | ACP 块类型 | 处理分支 | 产物 |
 |---|---|---|
-| `TextContentBlock` | server.py:529 | `{"type":"text",...}` |
-| `ImageContentBlock` | server.py:534 | `{"type":"image_url",...}`,data 或 uri,data 无 `data:` 前缀时补 `data:<mime>;base64,` |
-| `ResourceContentBlock`(resource_link) | server.py:539 | 读本地文件:图片 → 文本头 + `image_url` data URL;文本 → 内联正文;二进制 → 「omitted」说明 |
-| `EmbeddedResourceContentBlock` | server.py:546 | `TextResourceContents` → 直接内联;`BlobResourceContents` → base64 解码后同上 |
-| `AudioContentBlock` | **无分支** | 静默丢弃(只出现在类型标注里,server.py:483/518) |
+| `TextContentBlock` | acp_adapter/server.py:529 | `{"type":"text",...}` |
+| `ImageContentBlock` | acp_adapter/server.py:534 | `{"type":"image_url",...}`,data 或 uri,data 无 `data:` 前缀时补 `data:<mime>;base64,` |
+| `ResourceContentBlock`(resource_link) | acp_adapter/server.py:539 | 读本地文件:图片 → 文本头 + `image_url` data URL;文本 → 内联正文;二进制 → 「omitted」说明 |
+| `EmbeddedResourceContentBlock` | acp_adapter/server.py:546 | `TextResourceContents` → 直接内联;`BlobResourceContents` → base64 解码后同上 |
+| `AudioContentBlock` | **无分支** | 静默丢弃(只出现在类型标注里,acp_adapter/server.py:483/518) |
 
 三条不变量,都是「为了不破坏旧路径」:
-- 上限 `_MAX_ACP_RESOURCE_BYTES = 512 * 1024`(server.py:212),超了截断并在正文里注明;
-- **全是文本部件时退回成一个字符串**(server.py:560-561),这样斜杠命令解析与纯文本 provider 走原路径;
-- 一个非文本块都没有时,退回 `_extract_text(prompt)`(server.py:554-555)。
+- 上限 `_MAX_ACP_RESOURCE_BYTES = 512 * 1024`(acp_adapter/server.py:212),超了截断并在正文里注明;
+- **全是文本部件时退回成一个字符串**(acp_adapter/server.py:560-561),这样斜杠命令解析与纯文本 provider 走原路径;
+- 一个非文本块都没有时,退回 `_extract_text(prompt)`(acp_adapter/server.py:554-555)。
 
-Windows/WSL 路径互译是 `_path_from_file_uri`(server.py:270):`file:///C:/x` 与 `C:\x` 都译成 `/mnt/c/x`。
+Windows/WSL 路径互译是 `_path_from_file_uri`(acp_adapter/server.py:270):`file:///C:/x` 与 `C:\x` 都译成 `/mnt/c/x`。
 
 ---
 
@@ -510,11 +510,11 @@ ContextVar 的 interactive 标志(`:1899`)。
 ```
 
 **跳 7** 回到本片:`acp_adapter/events.py:134` 的 `_tool_progress` 只认 `"tool.started"`(`:136`),
-铸一个 `tc-<uuid12>` id(`:146`,来自 `tools.py:89`),按**工具名**压进 FIFO 队列(`:148`-`:154`),
+铸一个 `tc-<uuid12>` id(`:146`,来自 `acp_adapter/tools.py:89`),按**工具名**压进 FIFO 队列(`:148`-`:154`),
 存 args + 编辑快照(`:156`-`:164`),按当前策略试算「会不会被自动放行」以决定要不要提前把 diff 塞进
 start 通知(`:166`-`:177`),然后 `build_tool_start` → `_send_update`(`:179`-`:180`)。
 
-**跳 8** `_send_update`(`events.py:87`)是**唯一的跨线程出口**:
+**跳 8** `_send_update`(`acp_adapter/events.py:87`)是**唯一的跨线程出口**:
 `safe_schedule_threadsafe(conn.session_update(...), loop, ...)`(`:96`)+ `future.result(timeout=5)`(`:105`)。
 编辑器此刻画出一个 `edit` 类型的工具卡片。
 
@@ -536,7 +536,7 @@ start 通知(`:166`-`:177`),然后 `build_tool_start` → `_send_update`(`:179`-
 **注意这一跳的位置**:闸不在 ACP adapter 里,在**全仓共享的工具派发器**里,靠 ContextVar 是否绑定来开关。
 这是本片最重要的一个结构选择,§5.9 单独展开。
 
-**跳 10** `maybe_require_edit_approval`(`edit_approval.py:233`)取出 requester(非 None),
+**跳 10** `maybe_require_edit_approval`(`acp_adapter/edit_approval.py:233`)取出 requester(非 None),
 `build_edit_proposal("write_file", args)`(`:245` → `:181`)读现有文件内容当 `old_text`(`:92` → `:73`),
 造 `EditProposal`。`_requester`(`:295`)先问自动放行策略(`:299`-`:306`),`ask` 档不放行,
 于是 `build_acp_edit_tool_call`(`:312` → `:264`)造一个 `kind="edit"`、内容是
@@ -564,9 +564,9 @@ start 通知(`:166`-`:177`),然后 `build_tool_start` → `_send_update`(`:179`-
 
 **跳 13** 结果回流:`agent` 在下一步调用 `step_callback` →
 `acp_adapter/events.py:223` 的 `_step` 从 FIFO 队列 popleft 拿回 `tc_id`(`:242`),
-`build_tool_complete`(`:244` → `tools.py:1305`)算出 `status="completed"`(或 `"failed"`,
-判据 `_tool_result_failed`,`tools.py:213`)与美化内容,再走 `_send_update`。
-回合结束后 `prompt()` 回到事件循环线程:落历史(`server.py:1965`-`:1968`)、
+`build_tool_complete`(`:244` → `acp_adapter/tools.py:1305`)算出 `status="completed"`(或 `"failed"`,
+判据 `_tool_result_failed`,`acp_adapter/tools.py:213`)与美化内容,再走 `_send_update`。
+回合结束后 `prompt()` 回到事件循环线程:落历史(`acp_adapter/server.py:1965`-`:1968`)、
 检测压缩换 id 并补发 provenance(`:1974`-`:1992`)、必要时补发最终答复(`:2041`-`:2052`)、
 排空队列(`:2061`-`:2074`)、发 usage(`:2086`)、最后 `return PromptResponse(...)`(`:2089`)
 —— SDK 把它序列化成 `session/prompt` 的响应帧写回 stdout,**编辑器的转圈停下**。
@@ -579,7 +579,7 @@ start 通知(`:166`-`:177`),然后 `build_tool_start` → `_send_update`(`:179`-
 
 三件事的顺序不能换:
 
-1. **`import hermes_bootstrap` 必须是第一个 import**(entry.py:18),为的是 Windows 上的 UTF-8 stdio;
+1. **`import hermes_bootstrap` 必须是第一个 import**(acp_adapter/entry.py:18),为的是 Windows 上的 UTF-8 stdio;
    随后 `hermes_bootstrap.harden_import_path()`(:30)防止**启动目录**里的 `utils/` / `proxy/` / `ui/`
    包遮蔽 hermes 自己的模块 —— `hermes acp` 可以从任意项目目录被编辑器拉起,这是真实风险。
    `ModuleNotFoundError` 时**静默降级**(:20-25),理由写在注释里:`hermes update` 半途而废时
@@ -609,9 +609,9 @@ ACP 官方注册表要求 agent 在握手时至少 advertise 一个可用的认�
   这是一个「鸭子类型的凭据」在类型判定上留下的坑,值得记住。
 - `build_auth_methods()`(:41)**恒发**一个 `TerminalAuthMethod(id="hermes-setup", args=["--setup"])`,
   有凭据时**追加**一个 `AuthMethodAgent(id=<provider>)`。所以列表长度是 1 或 2,不会是 0。
-- `authenticate`(server.py:1173)反过来收窄:`method_id` 必须**等于**当前探到的 provider
+- `authenticate`(acp_adapter/server.py:1173)反过来收窄:`method_id` 必须**等于**当前探到的 provider
   (小写比较),或者等于 `hermes-setup` 且此刻**已经**有 provider(终端设置流走完了)。
-  注释(server.py:1174-1179)自陈这是 API 卫生而非安全边界:「ACP is stdio-only, local-trust」。
+  注释(acp_adapter/server.py:1174-1179)自陈这是 API 卫生而非安全边界:「ACP is stdio-only, local-trust」。
 
 ### §5.3 `session.py`:会话管理与三层身份
 
@@ -619,14 +619,14 @@ ACP 官方注册表要求 agent 在握手时至少 advertise 一个可用的认�
 
 | 名字 | 谁给的 | 会变吗 | 用途 |
 |---|---|---|---|
-| ACP `session_id` | `SessionManager.create_session` 的 `uuid4()`(session.py:204) | **不变**,是对编辑器的稳定句柄 | 协议里的会话标识、`task_id`、`HERMES_SESSION_ID` |
+| ACP `session_id` | `SessionManager.create_session` 的 `uuid4()`(acp_adapter/session.py:204) | **不变**,是对编辑器的稳定句柄 | 协议里的会话标识、`task_id`、`HERMES_SESSION_ID` |
 | 内部 hermes `agent.session_id` | 建 agent 时传入,但**压缩会换** | 会变 | SessionDB 的行主键 |
-| `tool_call_id` | `tc-<uuid12>`(tools.py:89);历史回放时改用 provider 的原 id(server.py:1328) | 每次调用一个 | 关联 start / complete 通知 |
+| `tool_call_id` | `tc-<uuid12>`(acp_adapter/tools.py:89);历史回放时改用 provider 的原 id(acp_adapter/server.py:1328) | 每次调用一个 | 关联 start / complete 通知 |
 
 **持久化**:落 SessionDB(`source="acp"`),`_restore`(:497)在内存里找不到时**透明地**从 DB 重建
 ——包括重建 `AIAgent`。所以 ACP 会话**跨进程重启存活**,并出现在 `session_search` 里。
 `get_session`(:220)先查内存再回落 `_restore`,这意味着一次「查一下在不在」可能有**建一个新 agent**
-的副作用 —— `_schedule_mcp_late_refresh` 里专门为此只查内存字典(server.py:1087-1093 的注释点名了这件事)。
+的副作用 —— `_schedule_mcp_late_refresh` 里专门为此只查内存字典(acp_adapter/server.py:1087-1093 的注释点名了这件事)。
 
 **`_persist` 里最精细的一段**(:453-493)值得完整理解,它是三次事故的沉积:
 agent 自己往同一个 DB 增量 flush 时,再调 `replace_messages()` 就是二次写,而且会 DELETE 掉
@@ -661,7 +661,7 @@ agent 自己往同一个 DB 增量 flush 时,再调 `replace_messages()` 就是�
   掉到「非交互自动放行」路径上。改成 contextvar + `copy_context()` 包住 executor 调用后,
   每个 worker 只看见自己的值。
 
-**每会话的并发不变量**由 `SessionState.runtime_lock` 守着(session.py:170)。
+**每会话的并发不变量**由 `SessionState.runtime_lock` 守着(acp_adapter/session.py:170)。
 `is_running` 的翻转、`queued_prompts` 的进出、`interrupted_prompt_text` 的交接,全在锁内。
 两个非平凡场景:
 
@@ -735,7 +735,7 @@ cd /home/user/hermes-agent && grep -rn 'read_text_file\|write_text_file\|create_
 3. **`_json_loads_maybe_prefix`**(:28):hermes 的工具有时在 JSON 后面追加人读的提示
    (`{...}\n\n[Hint: ...]`),所以用 `JSONDecoder().raw_decode` 解第一个 JSON 值。
 
-`thinking_callback` 被显式设成 `None`(server.py:1828),`reasoning_callback` 才接
+`thinking_callback` 被显式设成 `None`(acp_adapter/server.py:1828),`reasoning_callback` 才接
 `make_thinking_cb` 的产物(:1829)。理由在注释 :1825-1827:ACP 的思考面板不该收 hermes 本地的
 「kawaii 等待/状态」文案;provider 不出 reasoning 时,Zed 不该看到一个假的 thinking 折叠块。
 
@@ -785,8 +785,8 @@ ACP 的 diff 内容块;只在 `skill_manage` 上用(:1014-1027),因为 `skill_ma
 `reason`、`creatorKind`。
 
 发出时机三处:`new_session` / `load_session` / `resume_session` 的响应 `field_meta`
-(server.py:1451、:1499、:1535),以及回合内检测到换 id 后补一条 `session_info_update`
-(server.py:1974-1992)。
+(acp_adapter/server.py:1451、:1499、:1535),以及回合内检测到换 id 后补一条 `session_info_update`
+(acp_adapter/server.py:1974-1992)。
 
 ### §5.8 权限模型:`permissions.py` 与 `edit_approval.py` 各自的判据面
 
@@ -796,7 +796,7 @@ ACP 的 diff 内容块;只在 `skill_manage` 上用(:1014-1027),因为 `skill_ma
 |---|---|---|
 | 拦什么 | 危险**命令**(terminal 家族) | 文件**编辑**(`write_file` / `patch`) |
 | 判据在哪 | **不在本文件**。判据是 `tools/approval.py` 的命令文本模式匹配;本文件只做选项映射 | **在本文件**:`build_edit_proposal` 按**工具名**决定「这算不算一次编辑」 |
-| 装配方式 | `tools/terminal_tool.set_approval_callback`,**线程本地**(server.py:1885) | `set_edit_approval_requester`,**ContextVar**(server.py:1892) |
+| 装配方式 | `tools/terminal_tool.set_approval_callback`,**线程本地**(acp_adapter/server.py:1885) | `set_edit_approval_requester`,**ContextVar**(acp_adapter/server.py:1892) |
 | 触发点 | 内核 `check_all_command_guards` 内部,只有走 `terminal_tool` 的调用会到 | 共享派发器 `model_tools.py:1356`,**每个工具调用都会到** |
 | 选项数 | 5(§3.7) | 2:`allow_once` / `deny` |
 | 自动放行 | 有,但在内核:session/permanent allowlist 按 `pattern_key` 缓存 | 有,在本文件:`should_auto_approve_edit` 按**模式 + 路径** |
@@ -847,15 +847,15 @@ CLI, gateway, and other sessions leave it unset and therefore bypass this guard.
 
 | 通道 | 判据 | 装配 | 谁用 |
 |---|---|---|---|
-| ① 交互回调 | `_is_interactive_cli()`(approval.py:85,先看 ContextVar,回落 `HERMES_INTERACTIVE`) | `tools/terminal_tool.set_approval_callback`,线程本地 | **CLI 与 ACP** |
-| ② gateway 队列 | `_is_gateway_approval_context()`(approval.py:244)或 `HERMES_EXEC_ASK` | `register_gateway_notify(session_key, cb)`,按会话键 | **tui_gateway** 与各聊天平台 |
+| ① 交互回调 | `_is_interactive_cli()`(tools/approval.py:85,先看 ContextVar,回落 `HERMES_INTERACTIVE`) | `tools/terminal_tool.set_approval_callback`,线程本地 | **CLI 与 ACP** |
+| ② gateway 队列 | `_is_gateway_approval_context()`(tools/approval.py:244)或 `HERMES_EXEC_ASK` | `register_gateway_notify(session_key, cb)`,按会话键 | **tui_gateway** 与各聊天平台 |
 | ③ 无人兜底 | 都不成立 | 无 | cron 按 `approvals.cron_mode`;其余**自动放行**(命令路径的历史 fail-open 默认) |
 
 tui_gateway 走的确实是通道 ②:`tui_gateway/server.py:3098` 设
 `os.environ["HERMES_GATEWAY_SESSION"] = "1"`,`:2193` / `:4818` / `:6570` 三处
 `register_gateway_notify`,答复入口是 `tui_gateway/methods_prompt.py:915` 的
 `@method("approval.respond")` → `resolve_gateway_approval`。
-ACP 走通道 ①:`server.py:1885` 装线程本地回调、`:1899` 置 interactive ContextVar。
+ACP 走通道 ①:`acp_adapter/server.py:1885` 装线程本地回调、`:1899` 置 interactive ContextVar。
 `tools/terminal_tool.py:257` 的注释把这个分工写死了:「Gateway mode resolves approvals via the
 per-session queue in tools.approval, not through these callbacks」。
 
@@ -919,7 +919,7 @@ def build_edit_proposal(tool_name: str, arguments: dict[str, Any]) -> EditPropos
 守卫层不认它(上面 `build_edit_proposal` 只有两个名字)。它自己那个闸(闸 4)**默认是关的**:
 `tools/write_approval.py:274` 的 `if not write_approval_enabled(subsystem): return GateDecision(allow=True)`,
 而 `write_approval_enabled` 的默认值是 `False`(:74-90)。
-于是:**ACP 的 `Default` 模式描述是 "Ask before edits."(server.py:668),但在默认配置下,
+于是:**ACP 的 `Default` 模式描述是 "Ask before edits."(acp_adapter/server.py:668),但在默认配置下,
 `skill_manage` 改 `~/.hermes/skills/` 下的文件,一个提示都不会有** —— 同时编辑器会把它画成一个带 diff 的
 `edit` 卡片。见 ■4。
 
@@ -982,7 +982,7 @@ ACP 把层次做**对**了,这一点要给足信用。闸 5 **不在 ACP adapter
   甚至 hermes 把自己工具当 MCP 服务器暴露那条路(`agent/transports/hermes_tools_mcp_server.py:214`)。
   换句话说:**它覆盖的是调用点,而不是 ACP 这个界面。**
 - **它对别人零影响**:CLI / gateway 不绑那个 ContextVar,`requester is None` 直接返回
-  (edit_approval.py:240-242)。这是「装深一层但不影响其他通道」的标准做法:
+  (acp_adapter/edit_approval.py:240-242)。这是「装深一层但不影响其他通道」的标准做法:
   把钩子装在最深的公共点,把**开关**放在最外层的会话上下文里。
 - 失败模式也被想过:`model_tools.py:1372-1389` 里,闸本身抛异常时,
   **只有** `write_file` / `patch` 会被 fail-closed 拦掉,其余工具继续 —— 又一次按名字。
@@ -1046,7 +1046,7 @@ ACP 把层次做**对**了,这一点要给足信用。闸 5 **不在 ACP adapter
                 state.current_prompt_text = user_text or "[Image attachment]"
 ```
 
-`queued_prompts` 是 `List[str]`(session.py:169),排队时只留文本。排空时:
+`queued_prompts` 是 `List[str]`(acp_adapter/session.py:169),排队时只留文本。排空时:
 
 `acp_adapter/server.py:2071 @ 863e313`
 
@@ -1062,7 +1062,7 @@ ACP 把层次做**对**了,这一点要给足信用。闸 5 **不在 ACP adapter
 回执反而是 `"Queued for the next turn. (N queued)"`(:1765),读起来像「收到了,排上了」。
 `initialize` 又 advertise 了 `PromptCapabilities(image=True)`(:1163),所以客户端有充分理由这么发。
 
-**■3 `tools.py:1297` 的三元表达式是死分支。**
+**■3 `acp_adapter/tools.py:1297` 的三元表达式是死分支。**
 
 `acp_adapter/tools.py:1274 @ 863e313`
 
@@ -1110,55 +1110,158 @@ ACP 把层次做**对**了,这一点要给足信用。闸 5 **不在 ACP adapter
 
 ### ▲ 文档与代码矛盾(6 条)
 
-**▲1 `website/docs/developer-guide/acp-internals.md:79`** —— 整句是
-「`thinking_callback` (currently set to `None` in the ACP bridge — reasoning is forwarded through
-`step_callback` instead)」。前半为真(`server.py:1828` `agent.thinking_callback = None`),
-**后半为假**:reasoning 走的是 `reasoning_callback`(`server.py:1829`
-`agent.reasoning_callback = reasoning_cb`,值是 `make_thinking_cb` 的产物,`:1794`)。
-`step_callback` 干的是别的事 —— 用 FIFO 队列补发工具完成通知(`events.py:209`)。
+**▲1 reasoning 不是经 `step_callback` 转发的。** 文档侧整句:
+
+`website/docs/developer-guide/acp-internals.md:79 @ 863e313`
+
+> - `thinking_callback` (currently set to `None` in the ACP bridge — reasoning is forwarded through `step_callback` instead)
+
+前半为真、**后半为假**,代码侧:
+
+`acp_adapter/server.py:1825 @ 863e313`
+
+```python
+        # ACP thought panes should not receive Hermes' local kawaii waiting/status
+        # updates. Route provider/model reasoning deltas instead; if the provider
+        # emits no reasoning, Zed should not get a fake "thinking" accordion.
+        agent.thinking_callback = None
+        agent.reasoning_callback = reasoning_cb
+        agent.step_callback = step_cb
+        agent.stream_delta_callback = stream_delta_cb
+```
+
+reasoning 走 `agent.reasoning_callback`(值是 `make_thinking_cb` 的产物,`acp_adapter/server.py:1794`);
+`step_callback` 干的是完全另一件事 —— 用 FIFO 队列补发工具完成通知(`acp_adapter/events.py:209`)。
 按「整句一并判定」的规矩,这一句判 ▲。
 
-**▲2 `website/docs/developer-guide/acp-internals.md:173`** —— 在 `## Current limitations` 标题下写
-「non-text prompt blocks are currently ignored for request text extraction」。
-代码里非文本块**不被忽略**:`ImageContentBlock` → `image_url` 部件(`server.py:534-538`)、
+**▲2 「非文本块被忽略」被列为当前限制,而代码已经实现了它们。** 文档侧,在
+`## Current limitations` 标题下:
+
+`website/docs/developer-guide/acp-internals.md:173 @ 863e313`
+
+> - non-text prompt blocks are currently ignored for request text extraction
+
+代码里非文本块**不被忽略**:`ImageContentBlock` → `image_url` 部件(`acp_adapter/server.py:534-538`)、
 `ResourceContentBlock` → 读盘内联(`:539-545`)、`EmbeddedResourceContentBlock` → 解码内联(`:546-552`),
-而 `initialize` 还 advertise 了 `PromptCapabilities(image=True)`(`:1163`),
+而 `initialize` 还 advertise 了图片能力:
+
+`acp_adapter/server.py:1161 @ 863e313`
+
+```python
+            agent_capabilities=AgentCapabilities(
+                load_session=True,
+                prompt_capabilities=PromptCapabilities(image=True),
+                session_capabilities=SessionCapabilities(
+                    fork=SessionForkCapabilities(),
+                    list=SessionListCapabilities(),
+                    resume=SessionResumeCapabilities(),
+                ),
+            ),
+```
+
 基线测试 `tests/acp_adapter/test_acp_images.py:16` / `:39` / `:65` 三个用例正是钉这三件事。
 标题「Current limitations」是断言的一部分:把已实现的能力列为当前限制,判 ▲。
 (唯一为真的读法是「`_extract_text` 这一个函数不取非文本块的文本」——
-但发给模型的是 `_content_blocks_to_openai_user_content` 的产物,`server.py:1647`。)
+但发给模型的是 `_content_blocks_to_openai_user_content` 的产物,`acp_adapter/server.py:1647`。)
 
-**▲3 `website/docs/developer-guide/acp-internals.md:132`** —— 「calls `agent.interrupt()` when available」。
-代码调的是 `request_hard_interrupt(state.agent)`(`server.py:1552`),
-而 `agent/interrupt_compat.py:22-28` 优先用**静态查找**确认 `hard_interrupt` 存在并调它,
-只有第三方 agent / 老测试替身才回落 `interrupt()`。真正的 `AIAgent` 两个都有
+**▲3 cancel 调的不是 `agent.interrupt()`。** 文档侧(注意真实行号是 `:133` 而非 `:132`,
+`:132` 是同一列表的上一项「sets the session cancel event」):
+
+`website/docs/developer-guide/acp-internals.md:133 @ 863e313`
+
+> - calls `agent.interrupt()` when available
+
+代码调的是 `request_hard_interrupt(state.agent)`(`acp_adapter/server.py:1552`),而它优先用
+**静态查找**确认 `hard_interrupt` 存在并调它:
+
+`agent/interrupt_compat.py:21 @ 863e313`
+
+```python
+    try:
+        inspect.getattr_static(agent, "hard_interrupt")
+    except AttributeError:
+        interrupt = None
+    else:
+        interrupt = getattr(agent, "hard_interrupt", None)
+    if not callable(interrupt):
+        interrupt = getattr(agent, "interrupt", None)
+    if not callable(interrupt):
+        return False
+```
+
+`interrupt()` 只是给第三方 agent / 老测试替身的回落。真正的 `AIAgent` 两个都有
 (`run_agent.py:3028` `interrupt`、`:3163` `hard_interrupt`),所以生产路径调的是 `hard_interrupt`。
 
-**▲4 `website/docs/user-guide/features/acp.md:316` 与 `:326`** —— 分别写
-「ACP sessions are tracked by the ACP adapter's in-memory session manager while the server is running」
-与「ACP `list/load/resume/fork` are scoped to the currently running ACP server process」。
-代码相反:`acp_adapter/session.py:1-8` 的模块 docstring 就说会话落 SessionDB、跨重启存活、
-出现在 `session_search`;`_restore`(`:497`)在内存里找不到时从 DB 重建整个 agent;
-`list_sessions`(`:280`)把 `db.list_sessions_rich(source="acp", limit=1000)` 的行并进结果;
-`get_session`(`:220`)明确「If the session is not in memory but exists in the database
-(e.g. after a process restart), it is transparently restored」。
-**同仓库的另一份文档站在代码这边**:`acp-internals.md:172` 写
-「ACP sessions are persisted to the shared `~/.hermes/state.db` (SessionDB) and transparently
-restored across process restarts; they appear in `session_search`」。两份文档互相矛盾,代码为准。
+**▲4 「ACP 会话只活在进程里」与代码相反,而且与同仓库另一份文档互相矛盾。** 文档侧两句:
 
-**▲5 `website/docs/user-guide/features/acp.md:334`** —— 整段是「Dangerous terminal commands can be
-routed back to the editor as approval prompts. ACP approval options are simpler than the CLI flow:」
-后接三项 `allow once` / `allow always` / `deny`。代码最多发 **5** 个选项(§3.7),
-`allow_session` 与 `deny_always` 都不在这三项里。同一页 `:351-357` 的表格自己列到了 4 项(补了 `allow_session`),
-所以这是页内自相矛盾 + 与代码矛盾。
+`website/docs/user-guide/features/acp.md:316 @ 863e313`
 
-**▲6 `website/docs/user-guide/features/acp.md:347` 的小标题 `### Session-scoped edit auto-approval`
-管着一段讲**危险命令**审批选项的内容。** 该节的表格(`:351-357`)四行全是
-`permissions.py` 的命令审批 option id,`:354` 还把 `allow_session` 的作用域写成
-「All matching calls in this ACP session」。而**编辑**审批面(`edit_approval.py:308-311`)只发
-`allow_once` / `deny` 两个选项,**没有 session 档**;编辑的会话级自动放行走的是完全另一套东西 ——
-ACP 会话模式(`_MODE_TO_EDIT_APPROVAL_POLICY`,`server.py:628`,§3.6)。
-标题层级本身就是断言:一个叫「编辑自动放行」的小节里一个字都没讲编辑审批,判 ▲。
+> ACP sessions are tracked by the ACP adapter's in-memory session manager while the server is running.
+
+`website/docs/user-guide/features/acp.md:326 @ 863e313`
+
+> The underlying `AIAgent` still uses Hermes' normal persistence/logging paths, but ACP `list/load/resume/fork` are scoped to the currently running ACP server process.
+
+代码相反,而且是模块 docstring 的第一段就写着:
+
+`acp_adapter/session.py:1 @ 863e313`
+
+```python
+"""ACP session manager — maps ACP sessions to Hermes AIAgent instances.
+
+Sessions are persisted to the shared SessionDB (``~/.hermes/state.db``) so they
+survive process restarts and appear in ``session_search``.  When the editor
+reconnects after idle/restart, the ``load_session`` / ``resume_session`` calls
+find the persisted session in the database and restore the full conversation
+history.
+"""
+```
+
+配套实现:`_restore`(`acp_adapter/session.py:497`)在内存里找不到时从 DB 重建整个 agent;
+`list_sessions`(`acp_adapter/session.py:280`)把 `db.list_sessions_rich(source="acp", limit=1000)`
+的行并进结果;`get_session`(`acp_adapter/session.py:220`)的 docstring 明确写「If the session is not
+in memory but exists in the database (e.g. after a process restart), it is transparently restored」。
+**同仓库的另一份文档站在代码这边:**
+
+`website/docs/developer-guide/acp-internals.md:172 @ 863e313`
+
+> - ACP sessions are persisted to the shared `~/.hermes/state.db` (SessionDB) and transparently restored across process restarts; they appear in `session_search`
+
+两份文档互相矛盾,代码为准。**这个形态(文档 A ▲、文档 B 正确)在本片首次出现**,
+比单纯的「文档过时」更值得记:读者随机翻到哪一份决定他信什么。
+
+**▲5 审批选项数说 3,代码最多发 5。** 文档侧整段的第一句:
+
+`website/docs/user-guide/features/acp.md:334 @ 863e313`
+
+> Dangerous terminal commands can be routed back to the editor as approval prompts. ACP approval options are simpler than the CLI flow:
+
+后接三项 `allow once` / `allow always` / `deny`。代码最多发 **5** 个选项(§3.7 的逐字块),
+`allow_session` 与 `deny_always` 都不在这三项里。同一页 `:351-357` 的表格自己列到了 4 项
+(补了 `allow_session`),所以这是**页内自相矛盾 + 与代码矛盾**。
+
+**▲6 一个叫「编辑自动放行」的小节里一个字都没讲编辑审批。** 文档侧的小标题:
+
+`website/docs/user-guide/features/acp.md:347 @ 863e313`
+
+> ### Session-scoped edit auto-approval
+
+该节的表格(`website/docs/user-guide/features/acp.md:351-357`)四行全是
+`acp_adapter/permissions.py` 的**命令**审批 option id,`:354` 还把 `allow_session` 的作用域写成
+「All matching calls in this ACP session」。而**编辑**审批面只发两个选项、没有 session 档:
+
+`acp_adapter/edit_approval.py:308 @ 863e313`
+
+```python
+        options = [
+            PermissionOption(option_id="allow_once", kind="allow_once", name="Allow edit"),
+            PermissionOption(option_id="deny", kind="reject_once", name="Deny"),
+        ]
+```
+
+编辑的会话级自动放行走的是完全另一套东西 —— ACP 会话模式
+(`_MODE_TO_EDIT_APPROVAL_POLICY`,`acp_adapter/server.py:628`,§3.6)。
+标题层级本身就是断言,判 ▲。
 
 ### ◇ 代码有、文档无(7 条)
 
@@ -1167,16 +1270,16 @@ ACP 会话模式(`_MODE_TO_EDIT_APPROVAL_POLICY`,`server.py:628`,§3.6)。
 该页 frontmatter(`:4`)自称覆盖 "approvals",但只有一个 `### Permission bridge` 小节(`:88-98`),
 讲的全是命令审批。ACP 的**两个审批面里有一个**在开发者文档里不存在。
 
-**◇2 三档会话模式与三个协议方法无文档。** `set_session_mode`(`server.py:2474`)、
+**◇2 三档会话模式与三个协议方法无文档。** `set_session_mode`(`acp_adapter/server.py:2474`)、
 `set_config_option`(`:2490`)、以及 Default / Accept Edits / Don't Ask 三档
-(`:665-680`)在 `acp-internals.md:44` 的方法清单(「new/load/resume/fork/list/cancel」)
+(`:665-680`)在 `website/docs/developer-guide/acp-internals.md:44` 的方法清单(「new/load/resume/fork/list/cancel」)
 与 `acp.md` 全文都不出现。这是 ACP 用户唯一能调节编辑审批强度的旋钮。
-`server.py:650-657` 的注释还记录了一个非平凡的产品判断:Zed 把 `config_options` 渲染在
+`acp_adapter/server.py:650-657` 的注释还记录了一个非平凡的产品判断:Zed 把 `config_options` 渲染在
 「模型选择器原来的位置」,所以 hermes 故意把编辑策略映射到 **modes** 而不是 config options。
 
 **◇3 两个审批面的脱敏不对称,且同走一条 stdio 通道。** 命令面在渲染前过
 `redact_sensitive_text`(`tools/approval.py:2764-2766`);编辑面把文件当前内容原样放进
-`acp.tool_diff_content(path=..., old_text=..., new_text=...)`(`edit_approval.py:276-280`)。
+`acp.tool_diff_content(path=..., old_text=..., new_text=...)`(`acp_adapter/edit_approval.py:276-280`)。
 后果具体:模式为 `ask`(Default)时,模型对 `~/.ssh/config` 或某个 `.env` 发起 `patch` ——
 `_is_sensitive_auto_approve_path`(`:192`)正确地不自动放行,于是**弹审批框**,
 而框里的 diff 就是那个文件的**完整明文**。这在本地可信的 stdio 模型下是可辩护的
@@ -1194,7 +1297,7 @@ ACP 会话模式(`_MODE_TO_EDIT_APPROVAL_POLICY`,`server.py:628`,§3.6)。
 在覆盖面上并不相等。
 
 **◇5 代码处理 resource_link 与 embedded resource,但能力位只 advertise 了 image。**
-`initialize` 里是 `prompt_capabilities=PromptCapabilities(image=True)`(`server.py:1163`),
+`initialize` 里是 `prompt_capabilities=PromptCapabilities(image=True)`(`acp_adapter/server.py:1163`),
 而 `_resource_link_to_parts`(`:332`,含图片内联、512 KiB 上限、二进制说明、WSL 路径互译)
 与 `_embedded_resource_to_parts`(`:431`)是**近 150 行**的实现。
 守规矩的客户端不会发它没被告知服务端能收的块类型,所以这段代码在标准客户端上可能长期不可达。
@@ -1205,7 +1308,7 @@ ACP 会话模式(`_MODE_TO_EDIT_APPROVAL_POLICY`,`server.py:628`,§3.6)。
 却既不在 `TOOL_KIND_MAP`(→ 图标 `other`)也不在 `_POLISHED_TOOLS`(→ 走通用 JSON dump 兜底)。
 `browser_console` 半漏:在 `_POLISHED_TOOLS` 里、不在 kind 表里。
 `memory` 与 `session_search` 同样漏在 kind 表外,而它们有专属 title 分支
-(`tools.py:135-141`)和专属结果美化器(`tools.py:911-912`)—— 说明是登记遗漏,不是有意归到 `other`。
+(`acp_adapter/tools.py:135-141`)和专属结果美化器(`acp_adapter/tools.py:911-912`)—— 说明是登记遗漏,不是有意归到 `other`。
 
 **◇7 `acp_adapter/__init__.py` 把 ACP 展开成错的全称。**
 
@@ -1301,12 +1404,12 @@ should appear in TOOL_KIND_MAP」,但它遍历的 `COMMON_HERMES_TOOLS`(`:28`)�
 我**没有**实跑一次 delegate 下的 ACP 编辑,也没有逐跳确认 `delegate_task` 的执行路径一定经过这两处。
 
 **推定-2(未验):`_executor` 是模块级的 4 线程池,故并发 ACP 会话上限 4。**
-`server.py:199` 的 `ThreadPoolExecutor(max_workers=4, thread_name_prefix="acp-agent")` 是字面量,
+`acp_adapter/server.py:199` 的 `ThreadPoolExecutor(max_workers=4, thread_name_prefix="acp-agent")` 是字面量,
 但我没验证是否存在别的执行路径(例如 `/compress` 之类同步斜杠命令直接在事件循环线程上跑,
 确实如此 —— `_handle_slash_command` 在事件循环线程执行,`:2163-2171` 的注释就是为此写的)。
 所以「上限 4」只对**回合**成立,不对全部工作成立。
 
-**推定-3(未验):`prompt()` 排空队列用的是递归(`server.py:2071` 里 `await self.prompt(...)`),
+**推定-3(未验):`prompt()` 排空队列用的是递归(`acp_adapter/server.py:2071` 里 `await self.prompt(...)`),
 N 个排队 prompt 会产生 N 层协程栈,且第一个 `session/prompt` 的响应要等到全部排空才返回。**
 我读出了这个形状,但没构造 N 大的场景验证栈深或客户端超时行为。
 
@@ -1323,7 +1426,7 @@ N 个排队 prompt 会产生 N 层协程栈,且第一个 `session/prompt` 的响
 与 `hermes_cli/config.py:2262`(迁移期校验)、`hermes_cli/nous_subscription.py:125`、
 `hermes_cli/plugins_cmd.py:1877`;**`acp_adapter/`、`model_tools.py`、`agent/agent_init.py`、
 `toolsets.py` 四处零命中**(`agent/agent_init.py:2583` 只在注释里提到)。
-ACP 的实际链路是 `session.py:625` 字面量 `["hermes-acp"]` → `AIAgent(enabled_toolsets=...)` →
+ACP 的实际链路是 `acp_adapter/session.py:625` 字面量 `["hermes-acp"]` → `AIAgent(enabled_toolsets=...)` →
 `model_tools.get_tool_definitions(enabled_toolsets=...)`。
 
 ```verify
@@ -1346,7 +1449,7 @@ cd /home/user/hermes-agent && grep -rn 'platform_toolsets' acp_adapter/ model_to
 | **1. 点名到位** | ✅ 做到 | §2 表格逐行给出 11 个全路径 + 一句话角色,与 `slices/C.txt` 逐条对齐;行数合计 5,831 有 ```verify 命令 |
 | **2. 接缝穷举** | ✅ 做到(11 个接缝) | §3.1 方法 12 / §3.2 客户端调用 10+2 / §3.3 通知 9 / §3.4 斜杠命令 9 / §3.5 CLI 开关 5 / §3.6 模式 3 + 策略 3 / §3.7 选项 5+2 / §3.8 kind 表 27×7 / §3.9 toolset 29 与四向差集 5+3+2+28 / §3.10 分支表 23+16+21 / §3.11 内容块 5。**每一项都给了 ```verify 机械枚举命令与条数,无抽样。** 唯一不完备处已声明:§3.1 的 12 个**线上**方法名里只有 2 个有仓库内取证、4 个有间接取证,余 8 个因 SDK 未安装不下断言(§7 未取证-1) |
 | **3. 一条端到端链** | ✅ 做到 | §4:编辑器 `session/prompt` → 12 跳 → `PromptResponse` 写回 stdout,**每跳带锚点**;跳 0 与跳 6/9/12 明确标注「片外」并写清接到谁(`hermes_cli/main.py:11050`、`agent/tool_executor.py:701`、`model_tools.py:1350`、`tools/file_tools.py:1768`) |
-| **4. 两处以上逐字取证** | ✅ 做到(15 个围栏块) | 逐字源码块 15 个:`edit_approval.py:1/45/178/332`、`permissions.py:18`、`events.py:156`、`server.py:626/1745/1806/2071`、`session.py:623`、`tools.py:24/1274/1289`、`model_tools.py:1350`、`tools/approval.py:279/4292`、`agent/tool_executor.py:701`、`acp_adapter/__init__.py:1`、`tests/acp/test_server.py:377` |
+| **4. 两处以上逐字取证** | ✅ 做到(15 个围栏块) | 逐字源码块 15 个:`acp_adapter/edit_approval.py:1/45/178/332`、`acp_adapter/permissions.py:18`、`acp_adapter/events.py:156`、`acp_adapter/server.py:626/1745/1806/2071`、`acp_adapter/session.py:623`、`acp_adapter/tools.py:24/1274/1289`、`model_tools.py:1350`、`tools/approval.py:279/4292`、`agent/tool_executor.py:701`、`acp_adapter/__init__.py:1`、`tests/acp/test_server.py:377` |
 | **5. 至少一条记号** | ✅ 做到(18 条) | ■4 / ▲6 / ◇7 / ◎1,逐条带锚点 |
 
 **核心比较题**:§5.9 给出结论 + 三条改述 + 三条取证(A `skill_manage`、B `execute_code`、
@@ -1365,10 +1468,10 @@ C 内核自陈「unpaired theater」),并明确判定原结论「被支持但需
 | 编号 | 锚点 + 摘录 | 一句话现象 | 建议 |
 |---|---|---|---|
 | H-R10C-a | `acp_adapter/permissions.py:26`:`    "deny_always": "deny",` | ACP 发出的「Deny always」选项被映射成一次性 `deny`;`tools/approval.py` 里没有持久拒绝这一档,`approvals.deny` 配置规则不会被写入 | 若要修:或者摘掉这个选项,或者让它写 `approvals.deny`。附带查一遍 `tools/approval.py:542` 的 `_match_user_deny_rule` 有没有写入入口 |
-| H-R10C-b | `acp_adapter/server.py:1748`:`                    queued_text = user_text or "[Image attachment]"` | 回合进行中收到的图片被丢弃,只把字面串 `"[Image attachment]"` 排进 `List[str]` 队列,排空时当纯文本重放(`:2072`);回执却是「Queued for the next turn」 | 需要把 `queued_prompts` 的元素类型从 `str` 升级成内容块列表(`session.py:169`),或至少在回执里说明图片未入队 |
+| H-R10C-b | `acp_adapter/server.py:1748`:`                    queued_text = user_text or "[Image attachment]"` | 回合进行中收到的图片被丢弃,只把字面串 `"[Image attachment]"` 排进 `List[str]` 队列,排空时当纯文本重放(`:2072`);回执却是「Queued for the next turn」 | 需要把 `queued_prompts` 的元素类型从 `str` 升级成内容块列表(`acp_adapter/session.py:169`),或至少在回执里说明图片未入队 |
 | H-R10C-c | `acp_adapter/edit_approval.py:181`:`    if tool_name == "write_file":` | ACP 编辑审批只认 `write_file` / `patch` 两个名字;`skill_manage`(同一对文件里被渲染成带 diff 的 `edit`,见 `acp_adapter/events.py:157`:`        if name in {"write_file", "patch", "skill_manage"}:`)不进这个闸,而它自己的闸默认关 | 这是「守卫认工具名」结论的最强单点取证,建议进成品章。若要修,方向是把 `build_edit_proposal` 扩到 `skill_manage` 的 create/edit/patch/write_file 动作 |
-| H-R10C-d | `tools/approval.py:4297`:`    if not is_gateway and not is_ask:` | `check_execute_code_guard` 只在 gateway / `HERMES_EXEC_ASK` 上下文生效;ACP 走的是 interactive 分支,于是 `execute_code`(在 `hermes-acp` toolset 里)在 ACP 会话中直接放行 | 需要判定这是否可接受:同函数 docstring `tools/approval.py:4234`:`    execute_code runs arbitrary local Python — the script can call` 自陈脚本可绕过 `terminal()` 的全部模式匹配 |
+| H-R10C-d | `tools/approval.py:4297`:`    if not is_gateway and not is_ask:` | `check_execute_code_guard` 只在 gateway / `HERMES_EXEC_ASK` 上下文生效;ACP 走的是 interactive 分支,于是 `execute_code`(在 `hermes-acp` toolset 里)在 ACP 会话中直接放行 | 需要判定这是否可接受:同函数 docstring `tools/approval.py:4233`:`    execute_code runs arbitrary local Python — the script can call` 自陈脚本可绕过 `terminal()` 的全部模式匹配 |
 | H-R10C-e | `acp_adapter/tools.py:1297`:`        raw_input=None if tool_name in _POLISHED_TOOLS else arguments,` | 该三元表达式恒取 `arguments` 分支(`:1274` 的 `if tool_name in _POLISHED_TOOLS:` 已提前 return),是死逻辑;落到这条路径的正是 `browser_cdp` / `browser_dialog` 两个三表全漏的工具 | 低优先级清理。同时建议把 `memory` / `session_search` / `browser_console` / `browser_cdp` / `browser_dialog` 补进 `TOOL_KIND_MAP` |
 | H-R10C-f | `website/docs/developer-guide/acp-internals.md:79`:`- \`thinking_callback\` (currently set to \`None\` in the ACP bridge — reasoning is forwarded through \`step_callback\` instead)` | 该句后半为假:reasoning 走 `reasoning_callback`(`acp_adapter/server.py:1829`:`        agent.reasoning_callback = reasoning_cb`),`step_callback` 补发的是工具完成通知 | ▲1,已定案,供跨轮 ▲ 计数 |
-| H-R10C-g | `website/docs/user-guide/features/acp.md:326`:`The underlying \`AIAgent\` still uses Hermes' normal persistence/logging paths, but ACP \`list/load/resume/fork\` are scoped to the currently running ACP server process.` | 与代码相反(`acp_adapter/session.py:497` 的 `_restore` 从 SessionDB 重建会话与 agent),且与同仓库 `acp-internals.md:172` 互相矛盾 | ▲4,已定案。**两份文档互相矛盾**这个形态在本片首次出现,值得在成品章里作为「地图腐烂」的一个类型单列 |
+| H-R10C-g | `website/docs/user-guide/features/acp.md:326`:`The underlying \`AIAgent\` still uses Hermes' normal persistence/logging paths, but ACP \`list/load/resume/fork\` are scoped to the currently running ACP server process.` | 与代码相反(`acp_adapter/session.py:497` 的 `_restore` 从 SessionDB 重建会话与 agent),且与同仓库 `website/docs/developer-guide/acp-internals.md:172` 互相矛盾 | ▲4,已定案。**两份文档互相矛盾**这个形态在本片首次出现,值得在成品章里作为「地图腐烂」的一个类型单列 |
 | H-R10C-h | `acp_adapter/server.py:1163`:`                prompt_capabilities=PromptCapabilities(image=True),` | `initialize` 只 advertise `image`,但代码有近 150 行的 resource_link / embedded-resource 处理(`:332`、`:431`);守规矩的客户端可能永远不发这两类块 | 需要 SDK 或 ACP 规范才能判定「是否存在对应能力位」。下一轮若装得上 `agent-client-protocol==0.9.0`(在**基线之外**的副本里),这是第一个该查的问题 |

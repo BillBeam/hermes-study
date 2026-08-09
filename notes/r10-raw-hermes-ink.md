@@ -474,7 +474,7 @@ cd /home/user/hermes-agent/ui-tui/packages/hermes-ink && \
   grep -cE "^  (readonly |async |get )?[a-zA-Z][a-zA-Z0-9]*\s*[(:=]"
 ```
 
-`ui-tui/packages/hermes-ink/src/ink/ink.tsx:172` 起。分组列全:
+`ui-tui/packages/hermes-ink/src/ink/ink.tsx` 里 `class Ink` 的第 172 行起。分组列全:
 
 ```text
 字段/回调 (6): focusManager  selection  resolveExitPromise  rejectExitPromise
@@ -511,9 +511,22 @@ cd /home/user/hermes-agent/ui-tui/packages/hermes-ink && \
 ```
 
 **搜索面说明**(负结论纪律):模式同时覆盖 `process.env.X`、`process.env['X']`、
-以及**形参名也叫 `env`** 的 `env.X` 形式 —— `src/ink/termio/osc.ts:87` 的
-`shouldEmitClipboardSequence(env = process.env)` 就是这一形,它读的三个
-`HERMES_TUI_*_OSC52` 用只匹配 `process.env` 的模式**会全部漏掉**。排除项:
+以及**形参名也叫 `env`** 的 `env.X` 形式 —— 下面这个函数就是这一形,它读的三个 `HERMES_TUI_*_OSC52` 用只匹配 `process.env`
+的模式**会全部漏掉**:
+
+`ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:86`
+
+```
+export function shouldEmitClipboardSequence(env: NodeJS.ProcessEnv = process.env): boolean {
+  const override = (
+    env.HERMES_TUI_FORCE_OSC52 ??
+    env.HERMES_TUI_CLIPBOARD_OSC52 ??
+    env.HERMES_TUI_COPY_OSC52 ??
+    ''
+  ).trim()
+```
+
+排除项:
 `terminal`(是 `env.terminal` 这个自有单例对象的字段,不是环境变量)、
 `js`/`ts`(来自 `from '../utils/env.js'` 这类 import 路径的误命中)。
 **未覆盖**:动态键 `process.env[someVar]`(实测无此形,`grep -n "env\[[a-z]"` 零命中)。
@@ -651,12 +664,27 @@ export const createNode = (nodeName: ElementNames): DOMElement => {
         this.rootNode.yogaNode.calculateLayout(this.terminalColumns)
 ```
 
-`calculateLayout` 落到纯 TS yoga(`src/native-ts/yoga-layout/index.ts:841`),**同步返回**。
+`calculateLayout` 落到纯 TS yoga,**同步返回**(没有 `await`,没有 WASM 实例化):
+
+`ui-tui/packages/hermes-ink/src/native-ts/yoga-layout/index.ts:841`
+
+```
+  calculateLayout(ownerWidth: number | undefined, ownerHeight: number | undefined, _direction?: Direction): void {
+    _yogaNodesVisited = 0
+    _yogaMeasureCalls = 0
+```
 
 ### 跳 3 · 排帧:节流 + 微任务延后
 
-紧接着 `resetAfterCommit` 调 `rootNode.onRender?.()`(`reconciler.ts:206`),
-而它被装的是 `scheduleRender`:
+紧接着同一个 `resetAfterCommit` 的末尾:
+
+`ui-tui/packages/hermes-ink/src/ink/reconciler.ts:206`
+
+```
+    rootNode.onRender?.()
+```
+
+而 `onRender` 这个字段被装的是 `scheduleRender`:
 
 `ui-tui/packages/hermes-ink/src/ink/ink.tsx:374`
 
@@ -674,7 +702,18 @@ export const createNode = (nodeName: ElementNames): DOMElement => {
 
 ### 跳 4 · `onRender()` 上半场:树 → 操作队列 → 屏幕缓冲
 
-`Ink.onRender()`(`ink.tsx:687`)先做四件闸门判断:已卸载/已暂停 → 直接返回;
+`Ink.onRender()` 先做四件闸门判断:
+
+`ui-tui/packages/hermes-ink/src/ink/ink.tsx:687`
+
+```
+  onRender() {
+    if (this.isUnmounted || this.isPaused) {
+      return
+    }
+```
+
+已卸载/已暂停 → 直接返回;
 正在渲染 → 只记 `immediateRerenderRequested`;上一帧 `stdout.write` 还没 drain →
 **合并本帧**(背压合并,上限 10 帧);然后:
 
@@ -757,7 +796,16 @@ export const createNode = (nodeName: ElementNames): DOMElement => {
     )
 ```
 
-`LogUpdate.render`(`log-update.ts:136`)先走一串"能不能增量"的判据
+`ui-tui/packages/hermes-ink/src/ink/log-update.ts:136`
+
+```
+  render(prev: Frame, next: Frame, altScreen = false, decstbmSafe = true): Diff {
+    if (!this.options.isTTY) {
+      return this.renderFullFrame(next)
+    }
+```
+
+`LogUpdate.render` 先走一串"能不能增量"的判据
 (视口变了 → 整屏重画;从超屏收缩到屏内 → 整屏重画;改动落在已滚出回滚区的行 →
 整屏重画),否则用 `diffEach` 逐单元格比较,把差异翻成 `Patch[]`;
 备用屏 + 有 `scrollHint` + 支持 BSU/ESU 时,先发一条 DECSTBM 硬件滚动补丁,
@@ -793,7 +841,18 @@ export const createNode = (nodeName: ElementNames): DOMElement => {
       trackDrain
 ```
 
-`writeDiffToTerminal`(`terminal.ts:338`)把所有补丁**拼成一个字符串**,
+`ui-tui/packages/hermes-ink/src/ink/terminal.ts:338`
+
+```
+export function writeDiffToTerminal(
+  terminal: Terminal,
+  diff: Diff,
+  skipSyncMarkers = false,
+  onDrain?: () => void
+): { bytes: number; backpressure: boolean } {
+```
+
+它把所有补丁**拼成一个字符串**,
 可选地用 BSU/ESU(DEC 2026 同步输出)包起来,然后 **一次** `stdout.write`,
 并把 write 的 drain 回调时间记下来 —— 这就是跳 4 里那个背压合并判据的数据来源。
 
@@ -804,7 +863,18 @@ export const createNode = (nodeName: ElementNames): DOMElement => {
 
 ### 反向:输入怎么回来(同一片内的另一段)
 
-`App.tsx` 的 `handleReadable`(`components/App.tsx:559`)从 stdin 读原始字节 →
+`ui-tui/packages/hermes-ink/src/ink/components/App.tsx:559`
+
+```
+  handleReadable = (): void => {
+    // Detect long stdin gaps (tmux attach, ssh reconnect, laptop wake).
+    // The terminal may have reset DEC private modes; re-assert mouse
+    // tracking. Checked before the read loop so one Date.now() covers
+    // all chunks in this readable event.
+    const now = Date.now()
+```
+
+`App.tsx` 的 `handleReadable` 从 stdin 读原始字节 →
 `parseMultipleKeypresses`(`parse-keypress.ts`)→ 分成 `ParsedKey` / `ParsedMouse` /
 终端查询响应三类 → 键走 `inputEmitter.emit('input')`(老式 `useInput`)**并且**
 `ink.dispatchKeyboardEvent()`(新式捕获/冒泡)→ 鼠标走 `handleMouseEvent` →
@@ -836,7 +906,7 @@ cd /home/user/hermes-agent && grep -rn -i "vadim\|demedes" --include="*.ts" --in
 | 位置 | 内容 |
 |---|---|
 | `src/ink/components/App.tsx:300` / `:304` | 两条 raw-mode 报错文案原样保留,连**指向上游 README 的链接** `https://github.com/vadimdemedes/ink/#israwmodesupported` 都在 |
-| `src/ink/events/input-event.ts:54` / `:92` | 两条 `TODO(vadimdemedes)`(署上游作者名的 TODO) |
+| `ui-tui/packages/hermes-ink/src/ink/events/input-event.ts:54` / `:92` | 两条 `TODO(vadimdemedes)`(署上游作者名的 TODO) |
 | `src/ink/reconciler.ts:28` | `// See https://github.com/vadimdemedes/ink/issues/384`(devtools 条件导入的原因) |
 
 再加两处"指向上游文件名"的化石注释:
@@ -876,7 +946,22 @@ export default instances
 翻译:yoga 量叶子节点要两趟 —— **AtMost 趟**(“最多这么宽”)定宽,
 **Exactly 趟**(“就这么宽”)定高。`getComputedWidth()` 返回的是**宽的那一趟**的结果,
 在 `flexDirection: column` + `alignItems: stretch` 下它可以**超过父容器**(这是标准
-CSS 行为,`get-max-width.ts:3` 的 docstring 专门警告过)。上游 Ink 直接拿这个宽度去换行,
+CSS 行为,`get-max-width` 自己的 docstring 专门警告过):
+
+`ui-tui/packages/hermes-ink/src/ink/get-max-width.ts:7`
+
+```
+ * Warning: can return a value WIDER than the parent container. In a
+ * column-direction flex parent, width is the cross axis — align-items:
+ * stretch never shrinks children below their intrinsic size, so the text
+ * node overflows (standard CSS behavior). Yoga measures leaf nodes in two
+ * passes: the AtMost pass determines width, the Exactly pass determines
+ * height. getComputedWidth() reflects the wider AtMost result while
+ * getComputedHeight() reflects the narrower Exactly result. Callers that
+ * use this for wrapping should clamp to actual available screen space so
+ * the rendered line count stays consistent with the layout height.
+```
+上游 Ink 直接拿这个宽度去换行,
 于是换出来的行数和布局算出来的高度不一致,超出屏幕的字符被 `setCellAt` 的边界检查
 悄悄丢掉。这个 fork 加了一次 `Math.min(getMaxWidth(yogaNode), output.width - x)`。
 
@@ -905,7 +990,16 @@ function packWord1(styleId: number, hyperlinkId: number, width: number): number 
 ```
 
 一个 200×120 的屏幕因此是一块 `Int32Array`(外加同缓冲的 `BigInt64Array` 视图用于批量清零),
-而不是 24,000 个对象 —— `screen.ts:399` 的 docstring 就是这么算的。
+而不是 24,000 个对象:
+
+`ui-tui/packages/hermes-ink/src/ink/screen.ts:400`
+
+```
+/**
+ * Screen uses a packed Int32Array instead of Cell objects to eliminate GC
+ * pressure. For a 200x120 screen, this avoids allocating 24,000 objects.
+```
+
 字符串本体进 `CharPool`(带 ASCII 直查表)、样式进 `StylePool`、超链接进 `HyperlinkPool`,
 单元格里只存整数 id。于是:
 
@@ -936,8 +1030,16 @@ function packWord1(styleId: number, hyperlinkId: number, width: number): number 
 - **DOM 式事件系统**:`events/` 13 个文件 + `focus.ts`(activeElement + 焦点栈 + tabIndex),
   外加 `dispatcher.ts` 把终端事件映射到 React 的三档更新优先级
   (`DiscreteEventPriority` / `ContinuousEventPriority` / `DefaultEventPriority`)。
-- **自己的语义化 ANSI 解析器 termio**(10 个文件,2,810 行),`termio.ts:2` 自称
-  "inspired by ghostty, tmux, and iTerm2"。它同时服务三件事:解析**输入**
+- **自己的语义化 ANSI 解析器 termio**(10 个文件,2,810 行),桶文件顶部自陈来源:
+
+`ui-tui/packages/hermes-ink/src/ink/termio.ts:2`
+
+```
+ * ANSI Parser Module
+ *
+ * A semantic ANSI escape sequence parser inspired by ghostty, tmux, and iTerm2.
+```
+它同时服务三件事:解析**输入**
   (按键、鼠标报告、终端查询响应)、解析 `<Ansi>` 的**内容**、构造**输出**序列。
 
 #### (v) `ink` 这个包名被整体重定向
@@ -991,8 +1093,16 @@ const wrappedRender = async (node: ReactNode, options?: NodeJS.WriteStream | Ren
 }
 ```
 
-`createRoot` 里也留了同一句(`root.ts:160`:`// See wrappedRender — preserve microtask
-boundary from the old WASM await.`)。**`render` 之所以还是 async 函数,唯一原因是
+`createRoot` 里也留了同一句:
+
+`ui-tui/packages/hermes-ink/src/ink/root.ts:159`
+
+```
+}: RenderOptions = {}): Promise<Root> {
+  // See wrappedRender — preserve microtask boundary from the old WASM await.
+  await Promise.resolve()
+```
+**`render` 之所以还是 async 函数,唯一原因是
 兼容那次已经不存在的 `await`** —— 里面只剩一个 `await Promise.resolve()`。
 
 还有一处更明白的化石:
@@ -1018,7 +1128,8 @@ const cleanupYogaNode = (node: DOMElement | TextNode): void => {
 
 #### 收益 1:启动时间(一次 WASM 编译 + 实例化)
 
-`root.ts:140` 那行日志(`[render] first ink render: Nms since process start`)说明启动延迟
+`root.ts` 那行启动日志(`[render] first ink render: Nms since process start`,
+在 §5.2 上面引的 `wrappedRender` 块里)说明启动延迟
 是被度量的目标。WASM 路径要 fetch/read `.wasm`、编译、实例化,再 `await` 一次微任务;
 TS 路径是 `import` 时就有一个普通 JS 对象。**这条我没有测到具体毫秒数**(见 §7-3)。
 
@@ -1092,8 +1203,18 @@ baseline 对齐、absolute 定位、`Display.None`/`Contents`、gap、auto margi
 **为什么这个代价是有界的**:这些方法一个都不在 `LayoutNode`(S7,49 个方法)里,
 而包内**所有**布局调用都必须经 `LayoutNode`;并且 `Styles`(S8,67 个键)里
 没有 `aspectRatio` / `boxSizing` / `alignContent` / `direction`。
-`calculateLayout` 还把方向硬钉成 LTR(`layout/yoga.ts:82`:
-`this.yoga.calculateLayout(width, undefined, Direction.LTR)`)。
+适配层的 `calculateLayout` 还把方向硬钉成 LTR:
+
+`ui-tui/packages/hermes-ink/src/ink/layout/yoga.ts:82`
+
+```
+  // Layout
+
+  calculateLayout(width?: number, _height?: number): void {
+    this.yoga.calculateLayout(width, undefined, Direction.LTR)
+  }
+```
+
 换句话说:**能被 React 组件表达的样式集合,恰好是纯 TS yoga 完整实现了的那个子集**。
 这不是巧合,是那层适配接口的作用。
 
@@ -1126,10 +1247,18 @@ export function getYogaCounters(): {
 }
 ```
 
-`ink.tsx:419` 每帧读一次,塞进 `FrameEvent.phases` 的
-`yogaVisited/yogaMeasured/yogaCacheHits/yogaLive`。`frame.ts:67` 对最后一项的注释是
-`total yoga Node instances alive (create - free). Growth = leak.` —— 布局节点泄漏
-变成了一个可以画在性能面板上的数。
+`onComputeLayout` 每帧读一次(见 §4 跳 2 那个块的 `getYogaCounters()` 调用),
+塞进 `FrameEvent.phases` 的 `yogaVisited/yogaMeasured/yogaCacheHits/yogaLive`:
+
+`ui-tui/packages/hermes-ink/src/ink/frame.ts:66`
+
+```
+    yogaCacheHits: number
+    /** total yoga Node instances alive (create - free). Growth = leak. */
+    yogaLive: number
+```
+
+布局节点泄漏于是变成了一个可以画在性能面板上的数。
 
 ### 5.3 `src/ink/` 108 个文件的模块结构(题目 (c))
 
@@ -1185,7 +1314,7 @@ flowchart TB
 ```
 
 依赖纪律上有一处值得记:`utils/env.ts` 里放着 `OSC52_CAPABLE_TERMINALS` 白名单,
-`src/utils/env.ts:57` 的注释说明了原因 —— 放在 `ink/terminal.ts` 会成环,
+`ui-tui/packages/hermes-ink/src/utils/env.ts:57` 的注释说明了原因 —— 放在 `ink/terminal.ts` 会成环,
 因为 `ink/terminal.ts` 已经从 `ink/termio/osc.ts` 里 import 了 `link`。
 
 ### 5.4 帧管线的并发与生命周期模型
@@ -1204,17 +1333,17 @@ L2 要求讲清并发模型。这一片是**单线程 + 事件循环**,没有 wo
 
 节流器只有一个:`throttle(deferredRender, 16ms, {leading:true, trailing:true})`。
 另有两处**故意不用它**:`scrollDrainPending` 与背压重试都用裸 `setTimeout`,
-`ink.tsx:1170` 的注释解释了原因 —— lodash throttle 的 leading 边会在 trailing 调用
+`ui-tui/packages/hermes-ink/src/ink/ink.tsx:1159` 的注释解释了原因 —— lodash throttle 的 leading 边会在 trailing 调用
 内部再触发一次,变成双渲染。
 
 **渲染时机的三条路**:
 1. 正常:React commit → `resetAfterCommit` → `onComputeLayout()`(同步 yoga)→
    `scheduleRender()`(节流 + 微任务)→ `onRender()`;
-2. 测试环境(`NODE_ENV=test`):`reconciler.ts:201` 走 `onImmediateRender?.()`,
+2. 测试环境(`NODE_ENV=test`):`ui-tui/packages/hermes-ink/src/ink/reconciler.ts:201` 走 `onImmediateRender?.()`,
    直接同步 `onRender`,不节流 —— 老的 `lastFrame()` 同步断言才成立;
 3. 无 React 提交的帧:滚动 drain、背压重试、resize、SIGCONT 恢复,都是直接调 `onRender()`。
 
-**尺寸事件**:`stdout.on('resize')` → `handleResize`(`ink.tsx:493`),
+**尺寸事件**:`stdout.on('resize')` → `handleResize`(`ui-tui/packages/hermes-ink/src/ink/ink.tsx:493`),
 备用屏下还要走 `prepareAltScreenResizeRepaint()` 打上"下一帧先清屏"的标志
 (`needsEraseBeforePaint`),因为差分只写变化的单元格,而物理终端上宽度变化留下的旧行尾
 在缓冲里两帧都是空白、差分看不见。
@@ -1238,9 +1367,9 @@ L2 要求讲清并发模型。这一片是**单线程 + 事件循环**,没有 wo
     }
 ```
 
-`resetPools()`(`ink.tsx:2539`)新建 `CharPool`/`HyperlinkPool`,再对两个帧缓冲调
-`migrateScreenPools`(`screen.ts:616`)把旧 id 翻译成新 id。`StylePool` **不重置**
-(`output.ts:31` 的注释:`styleId is safe to cache: StylePool is session-lived (never reset)`),
+`resetPools()`(`ui-tui/packages/hermes-ink/src/ink/ink.tsx:2539`)新建 `CharPool`/`HyperlinkPool`,再对两个帧缓冲调
+`migrateScreenPools`(`ui-tui/packages/hermes-ink/src/ink/screen.ts:616`)把旧 id 翻译成新 id。`StylePool` **不重置**
+(`ui-tui/packages/hermes-ink/src/ink/output.ts:31` 的注释:`styleId is safe to cache: StylePool is session-lived (never reset)`),
 因为 `log-update` 缓存了按 (fromId,toId) 键的样式跃迁串。
 
 另有一条外部驱动的驱逐口:`evictInkCaches('all' | 'half')`(公开导出),
@@ -1320,11 +1449,11 @@ timer 只做两件事:给**直接子进程**发 SIGTERM;并且**只在 `resolveO
 **我判它是 ■(代码缺陷),但严重度低,且作者对现象是完全知情的。** 分三层说清:
 
 1. **"用 `'exit'` 而不是 `'close'`"这个选项本身是有意设计,且设计得很好。**
-   `resolveOnExit` 的 docstring(`execFileNoThrow.ts:7`)把守护进程场景、
+   `resolveOnExit` 的 docstring(`ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.ts:7`)把守护进程场景、
    为什么要把 stdout/stderr 设成 `'ignore'`(不让守护进程继承管道 fd)、
    以及"此模式下 stdout/stderr 恒为空串"这三件事都写清了。
    `termio/osc.ts` 的五处剪贴板 spawn 全部带上了它,并且各自注释了原因
-   (`osc.ts:329`、`osc.ts:365`)。这部分无可指摘。
+   (`ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:327`、`ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:366`)。这部分无可指摘。
 
 2. **缺陷在于 `timeout` 这个选项在默认路径下不是一个真的超时。** 它的契约看起来是
    "最多等这么久",实际是"最多这么久之后给子进程发个 SIGTERM,然后**继续等
@@ -1361,7 +1490,7 @@ export async function tmuxLoadBuffer(text: string): Promise<boolean> {
 
    `tmux load-buffer` 是把数据经 socket 交给**已经在跑的** tmux server,自己不 fork
    持有 stdio 的后代,所以实践中 `'close'` 会来。但这条推理**依赖 tmux 的实现细节**,
-   而调用方 `setClipboard()`(`osc.ts:296`)是 `await tmuxLoadBuffer(text)` ——
+   而调用方 `setClipboard()`(`ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:289`)是 `await tmuxLoadBuffer(text)` ——
    一旦这个假设不成立,挂住的是**用户按下复制键那条交互路径**,不是一个后台任务。
    把 `settle` 提出来的成本是一行;继续依赖 tmux 不 fork,是把一个可以消除的假设留在原地。
 
@@ -1373,7 +1502,7 @@ cd /home/user/hermes-agent && grep -rn "execFileNoThrow" --include="*.ts" --incl
 
 全仓 `ui-tui/` 下 17 处命中:1 处定义、1 处 import、8 处调用(`osc.ts`)、7 处在测试文件里。
 8 处调用中 **7 处带 `resolveOnExit: true`**(`probeLinuxCopy` 3 处共用一个 `opts`,
-`copyNative` 4 处共用一个 `opts`),**只有 `osc.ts:201` 的 `tmuxLoadBuffer` 不带**。
+`copyNative` 4 处共用一个 `opts`),**只有 `ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:201` 的 `tmuxLoadBuffer` 不带**。
 `ui-tui/` 之外无调用方(本文件是包私有的 `src/utils/`,未从 `entry-exports.ts` 导出;
 `grep -rn "execFileNoThrow" --include="*.ts" --include="*.tsx" .` 在仓库根的命中集与上面相同)。
 
@@ -1488,12 +1617,12 @@ cd /tmp && printf 'console.log("typeof require in ESM =", typeof require)\n' > e
 
 **可达性分析(诚实版,这条不该被夸大)**:
 
-- `utils/semver.ts` 唯一被 `src/ink/terminal.ts:6` 引入(只用了 `gte`)。
-- `gte` 只在 `isProgressReportingAvailable()`(`terminal.ts:28`)里被调,
+- `utils/semver.ts` 唯一被 `ui-tui/packages/hermes-ink/src/ink/terminal.ts:6` 引入(只用了 `gte`)。
+- `gte` 只在 `isProgressReportingAvailable()`(`ui-tui/packages/hermes-ink/src/ink/terminal.ts:28`)里被调,
   且只有当 `TERM_PROGRAM` 是 `ghostty` 或 `iTerm.app` 且 `TERM_PROGRAM_VERSION`
   能被 `coerce` 解析时才走到。
 - `isProgressReportingAvailable()` 只有一个调用方:`useTerminalNotification()` 里的
-  `progress()`(`useTerminalNotification.ts:65`)。
+  `progress()`(`ui-tui/packages/hermes-ink/src/ink/useTerminalNotification.ts:65`)。
 - 而 **`useTerminalNotification` 这个 hook 全仓没有任何调用方**,也**没有**出现在
   `entry-exports.ts` / `index.d.ts` 的导出面里。搜索面:
   `grep -rn "useTerminalNotification\|TerminalWriteContext" --include="*.ts" --include="*.tsx" ui-tui/`
@@ -1503,12 +1632,12 @@ cd /tmp && printf 'console.log("typeof require in ESM =", typeof require)\n' > e
 - 即使被调到:TUI 的实际打包器 `ui-tui/scripts/build.mjs:50` 注入了
   `banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" }`,
   于是在 TUI bundle 里 `require` 是有定义的。**但包自己的 `build` 脚本
-  (`package.json:7`)没有这个 banner** —— 走 `index.js` → `dist/entry-exports.js`
+  (`ui-tui/packages/hermes-ink/package.json:7`)没有这个 banner** —— 走 `index.js` → `dist/entry-exports.js`
   这条路(库消费者、vitest 默认解析)时,esbuild 会把外部 `require()` 包进
   `__require` 垫片,ESM 下取不到宿主 `require` 就抛
   `Dynamic require of "semver" is not supported`。
 
-同一个文件里 `terminal.ts:3` 已经 `import { coerce } from 'semver'`(静态 ESM 导入),
+同一个文件里 `ui-tui/packages/hermes-ink/src/ink/terminal.ts:3` 已经 `import { coerce } from 'semver'`(静态 ESM 导入),
 所以这个惰性 `require` 想省的那次加载**本来就省不掉**。**判定:■,但是潜伏 + 无收益**。
 
 ### ■4 · 三份彼此独立的导出清单,靠人手同步
@@ -1525,7 +1654,7 @@ cd /tmp && printf 'console.log("typeof require in ESM =", typeof require)\n' > e
 node_modules 解析)。于是 `index.d.ts` 对包的主消费者 `ui-tui/src` 实际上是死的。
 已经漂了的两处:
 
-- **`Key` 类型不一致**。包内 `src/ink/events/input-event.ts:7` 的 `Key` 有 21 个字段,
+- **`Key` 类型不一致**。包内 `ui-tui/packages/hermes-ink/src/ink/events/input-event.ts:7` 的 `Key` 有 21 个字段,
   含 `fn`,**没有 `alt`**;消费者声明 `ui-tui/src/types/hermes-ink.d.ts:4` 的 `Key`
   有 `alt`、**没有 `fn`**,还带一条 `readonly [key: string]: boolean` 索引签名
   —— 这条索引签名让**任何**键名拼写都能通过类型检查,把这个类型的价值抹平了。
@@ -1577,10 +1706,10 @@ export function logForDebugging(
 ): void {}
 ```
 
-而 `renderer.ts:62` 那条"Invalid yoga dimensions: …"的诊断日志、
-`renderer.ts:91` 的"something is rendering outside `<AlternateScreen>`"警告、
-`log-update.ts:223` 的"Full reset (shrink->below)"、`warn.ts:8` 的非整数样式警告,
-统统走它。`renderer.ts:60` 的注释还写着 `// Log to help diagnose root cause (visible
+而 `ui-tui/packages/hermes-ink/src/ink/renderer.ts:62` 那条"Invalid yoga dimensions: …"的诊断日志、
+`ui-tui/packages/hermes-ink/src/ink/renderer.ts:91` 的"something is rendering outside `<AlternateScreen>`"警告、
+`ui-tui/packages/hermes-ink/src/ink/log-update.ts:223` 的"Full reset (shrink->below)"、`ui-tui/packages/hermes-ink/src/ink/warn.ts:12` 的非整数样式警告,
+统统走它。`ui-tui/packages/hermes-ink/src/ink/renderer.ts:60` 的注释还写着 `// Log to help diagnose root cause (visible
 with --debug flag)` —— **在这个包里,`--debug` 什么也看不到**。
 调用面:`grep -rc "logForDebugging" src/` 命中 8 个文件。
 唯一真会输出的日志口是 `utils/log.ts` 的 `logError`,且要 `HERMES_INK_DEBUG_ERRORS`。
@@ -1602,14 +1731,14 @@ export function getIsInteractive(): boolean {
 }
 ```
 
-`ink.tsx:745` 每帧调 `flushInteractionTime()`,并配了 4 行注释解释"这样每帧只调一次
+`ui-tui/packages/hermes-ink/src/ink/ink.tsx:745` 每帧调 `flushInteractionTime()`,并配了 4 行注释解释"这样每帧只调一次
 `Date.now()` 而不是每次按键调一次" —— 而函数体是空的。这是 fork 时**为了不改调用点
 而保留的接缝**:上游宿主(hermes CLI 本体)有真实实现,这个包里只留桩。
 写下来是因为读 `ink.tsx` 时很容易被那 4 行注释误导成"这里有节流逻辑"。
 
 ### ◇3 · 三条"native Yoga / WASM"的化石注释
 
-除 §5.2 引的 `reconciler.ts:93`("freed WASM memory")之外:
+除 §5.2 引的 `ui-tui/packages/hermes-ink/src/ink/reconciler.ts:93`("freed WASM memory")之外:
 
 | 位置 | 化石文字 | 实情 |
 |---|---|---|
@@ -1671,7 +1800,7 @@ export function getIsInteractive(): boolean {
 8. **`■5` 我只查了文件名**(`LICENSE*`/`NOTICE*`/`COPYING*`/`*THIRD*PARTY*`)。
    没有全文 grep 每个 `.md` 找"内文形式的第三方声明"。如果哪份文档正文里写了
    Ink 的许可声明,我会漏掉它 —— 这是这条负结论的完备性边界。
-9. **`■2` 我没有核 lint/CI 是否对这 15 个文件有豁免**。`package.json:10` 的
+9. **`■2` 我没有核 lint/CI 是否对这 15 个文件有豁免**。`ui-tui/packages/hermes-ink/package.json:10` 的
    `"lint": "echo 'ok!'"` 说明**这个包的 lint 是空操作**,但 `ui-tui/package.json`
    的 `"lint": "eslint src/ packages/"` 会扫到它;我没读 `ui-tui/eslint.config.mjs`
    看是否有 ignore 规则。
@@ -1690,8 +1819,8 @@ export function getIsInteractive(): boolean {
 |---|---|---|
 | 1 · 点名到位 | ✅ | 131 个文件全部以**全路径**出现在 §2 的表格里,各带一句话角色。分组是显式命名的(组 A~N),组内逐个列全。核对方式:§2 末尾的"点名核对"行 + 组内计数(7+4+6+11+9+11+4+10+15+20+14+8+3+10,其中 `Ansi.tsx` 计在组 J、`src/utils/debug.ts` 在组 M/N 各现一次计一次)。 |
 | 2 · 接缝穷举 | ✅(12 个接缝全部列全,附机械枚举命令) | S1 exports 3 条 / S2 运行时导出 47 / S3 类型导出 46 / S4 元素名 7 / S5 Patch 10 / S6 事件 15+9 / S7 LayoutNode 49 / S8 Styles 67 / S9 Ink 成员 55 / S10 环境变量 28 / S11 termio Action 12 / S12 ScrollBoxHandle 15。每条都给了 ```verify 命令。**唯一不足**:S8 的 67 个键、S9 的 55 个成员我按分类列全但没逐个配行号锚点(L2 判据只要求列全,不要求逐项取证)。**S10 表格里的分类小计我写错了一次并在表下标注了"以命令输出为准"** —— 命令输出是 28 行,表格分类加总我没算干净,如实留在原处。 |
-| 3 · 一条端到端链走通 | ✅ | §4 走通"React setState → stdout 字节"共 9 跳,逐跳带锚点(`entry.tsx:167` → `dom.ts:106` → `reconciler.ts:184` → `ink.tsx:405` → `ink.tsx:374` → `ink.tsx:750` → `renderer.ts:122` → `render-node-to-output.ts:717` → `ink.tsx:913/943/956/980/1134` → `terminal.ts:338`)。两端接到谁写明了:上游 `ui-tui/src/entry.tsx`(片外),下游 `process.stdout`。反向输入链另给了一段(片内)。 |
-| 4 · 两处以上逐字取证 | ✅ | 逐字源码围栏共 20 处:`dom.ts:19`、`dom.ts:106`、`reconciler.ts:88`、`reconciler.ts:184`、`ink.tsx:374`、`ink.tsx:405`、`ink.tsx:750`、`ink.tsx:913`、`ink.tsx:943`、`ink.tsx:956`、`ink.tsx:962`、`ink.tsx:980`、`ink.tsx:1134`、`renderer.ts:122`、`render-node-to-output.ts:653`、`render-node-to-output.ts:717`、`screen.ts:383`、`log-update.ts:50`、`layout/yoga.ts:305`、`root.ts:133`、`instances.ts:1`、`entry-exports.ts:41`、`termio/types.ts:214`、`termio/osc.ts:193`、`execFileNoThrow.ts:67`、`execFileNoThrow.ts:91`、`native-ts/yoga-layout/index.ts:733`、`native-ts/yoga-layout/index.ts:928`、`Spacer.tsx:10`、`utils/semver.ts:1`、`utils/debug.ts:1`、`bootstrap/state.ts:1`、`ui-tui/package.json:31`(实际 33 处,均以 `sed -n 'A,Bp'` 取出后粘贴,未手抄)。 |
+| 3 · 一条端到端链走通 | ✅ | §4 走通"React setState → stdout 字节"共 9 跳,逐跳带锚点(`entry.tsx:167` → `ui-tui/packages/hermes-ink/src/ink/dom.ts:106` → `ui-tui/packages/hermes-ink/src/ink/reconciler.ts:184` → `ui-tui/packages/hermes-ink/src/ink/ink.tsx:405` → `ui-tui/packages/hermes-ink/src/ink/ink.tsx:374` → `ui-tui/packages/hermes-ink/src/ink/ink.tsx:750` → `ui-tui/packages/hermes-ink/src/ink/renderer.ts:122` → `ui-tui/packages/hermes-ink/src/ink/render-node-to-output.ts:717` → `ui-tui/packages/hermes-ink/src/ink/ink.tsx:913/943/956/980/1134` → `ui-tui/packages/hermes-ink/src/ink/terminal.ts:338`)。两端接到谁写明了:上游 `ui-tui/src/entry.tsx`(片外),下游 `process.stdout`。反向输入链另给了一段(片内)。 |
+| 4 · 两处以上逐字取证 | ✅ | 逐字源码围栏共 20 处:`ui-tui/packages/hermes-ink/src/ink/dom.ts:19`、`ui-tui/packages/hermes-ink/src/ink/dom.ts:106`、`ui-tui/packages/hermes-ink/src/ink/reconciler.ts:88`、`ui-tui/packages/hermes-ink/src/ink/reconciler.ts:184`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:374`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:405`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:750`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:913`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:943`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:956`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:962`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:980`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:1134`、`ui-tui/packages/hermes-ink/src/ink/renderer.ts:122`、`ui-tui/packages/hermes-ink/src/ink/render-node-to-output.ts:653`、`ui-tui/packages/hermes-ink/src/ink/render-node-to-output.ts:717`、`ui-tui/packages/hermes-ink/src/ink/screen.ts:383`、`ui-tui/packages/hermes-ink/src/ink/log-update.ts:50`、`ui-tui/packages/hermes-ink/src/ink/layout/yoga.ts:305`、`ui-tui/packages/hermes-ink/src/ink/root.ts:133`、`ui-tui/packages/hermes-ink/src/ink/instances.ts:1`、`ui-tui/packages/hermes-ink/src/entry-exports.ts:41`、`ui-tui/packages/hermes-ink/src/ink/termio/types.ts:214`、`ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:193`、`ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.ts:67`、`ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.ts:91`、`ui-tui/packages/hermes-ink/src/native-ts/yoga-layout/index.ts:733`、`ui-tui/packages/hermes-ink/src/native-ts/yoga-layout/index.ts:928`、`ui-tui/packages/hermes-ink/src/ink/components/Spacer.tsx:10`、`ui-tui/packages/hermes-ink/src/utils/semver.ts:1`、`ui-tui/packages/hermes-ink/src/utils/debug.ts:1`、`ui-tui/packages/hermes-ink/src/bootstrap/state.ts:1`、`ui-tui/package.json:31`(实际 33 处,均以 `sed -n 'A,Bp'` 取出后粘贴,未手抄)。 |
 | 5 · 至少一条记号 | ✅ | ■5 条(■1 promise 泄漏 / ■2 构建产物入库 / ■3 ESM 里的 `require` / ■4 三份导出清单 / ■5 无许可声明)、◇3 条、◎1 条,共 9 条,逐条带锚点。**▲ 0 条** —— 我没找到文档与代码**矛盾**的地方,README 那条是"字面为真但保守",按 CLAUDE.md 的规矩判 ◎。 |
 
 **明确没做到 / 不确定的**:见 §7 全部 10 条,其中最重要的三条是
@@ -1705,7 +1834,7 @@ export function getIsInteractive(): boolean {
 
 | 编号 | 锚点 + 现象 | 建议下一轮做什么 |
 |---|---|---|
-| H-R10F-a | `ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.ts:75`:`if (options.resolveOnExit) {` —— timer 里的 `settle(124)` 被这个条件挡住,于是不带 `resolveOnExit` 时 `timeout` 只发 SIGTERM、不结算 promise;唯一被 `await` 的这类调用点是 `termio/osc.ts:201` 的 `tmuxLoadBuffer` | 若 R11/R12 要在成品章里讲"子进程超时该怎么写",这是最好的一个反例。**不要**把它写成"作者疏忽" —— 作者知道现象(测试自陈),缺的是把已有的 settle 提出条件。 |
+| H-R10F-a | `ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.ts:75`:`if (options.resolveOnExit) {` —— timer 里的 `settle(124)` 被这个条件挡住,于是不带 `resolveOnExit` 时 `timeout` 只发 SIGTERM、不结算 promise;唯一被 `await` 的这类调用点是 `ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:201` 的 `tmuxLoadBuffer` | 若 R11/R12 要在成品章里讲"子进程超时该怎么写",这是最好的一个反例。**不要**把它写成"作者疏忽" —— 作者知道现象(测试自陈),缺的是把已有的 settle 提出条件。 |
 | H-R10F-b | `ui-tui/packages/hermes-ink/src/ink/components/Spacer.tsx:11`:`const $ = _c(1)` —— React Compiler 产物入库;15 个 `.tsx` 带内嵌 base64 sourcemap,其 `sourcesContent` 是人写原版 | 值得单独做一次:全仓扫一遍还有多少目录有同样形态(`grep -rl "sourceMappingURL" --include="*.ts*"`,排除 node_modules 与 dist)。本轮只扫了 hermes-ink 一个包。 |
 | H-R10F-c | `ui-tui/src/types/hermes-ink.d.ts:109`:`export const TextInput: React.ComponentType<any>` —— 消费者侧 ambient 声明说 `@hermes/ink` 导出 `TextInput`,运行时导出面没有它 | 这是 #31227 的残留风险面。核一下 `ui-tui/src/types/` 下还有几个 `declare module` 在盖包自带的 `.d.ts`。 |
 | H-R10F-d | `ui-tui/packages/hermes-ink/src/utils/debug.ts:6`:`): void {}` —— `logForDebugging` 空函数体,包内 8 个文件的诊断日志全部静默 | 若后续轮次要在这个包里排查渲染问题,先知道"日志口是死的"。宿主侧(`hermes_cli` / TUI 本体)是否有同名真实现,本轮没查。 |
