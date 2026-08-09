@@ -389,8 +389,53 @@ _root_python 返回: /tmp/lsp-mtl8vndc/outer
 而这个差一层让它在"父目录恰好也是个 Python 项目"时失效——
 这在 monorepo 与 `~/projects/pyproject.toml` 这类布局下并不罕见。
 
-### 4.4 复核结论
+### 4.4 B 片 · `patch` 完全绕过读禁清单,把明文密钥交给模型
 
-**抽验三条,三条全部复现,无一需要下调强度。** 这三条分属两片、两种性质
-(shell 引号错误 / 文档-代码矛盾 / 路径边界差一层),覆盖面上算是有代表性的抽样;
-但**抽验不是全验**——各片其余断言以其底稿自证为准,主线未逐条重跑,如实记在这里。
+这是 B 片自评「最强的一条」,主线独立复现。写侧判定装了,**读侧一步没有**:
+
+`tools/file_operations.py:1674-1680 @ 863e313`
+
+```python
+        # Block writes to sensitive paths
+        denied = get_write_denied_error(path)
+        if denied:
+            return PatchResult(error=denied)
+
+        # Read current content
+        read_cmd = f"cat {self._escape_shell_arg(path)} 2>/dev/null"
+```
+
+`get_write_denied_error` 之后紧跟的是**无条件 `cat`** —— 没有对应的 `get_read_denied_error`。
+旧内容读出来后与新内容做成 unified diff 返回给模型,中间不经脱敏。
+
+主线实跑(临时 HERMES_HOME,假密钥):
+
+```text
+read_file  -> {"error": "Access denied: <HH>/auth.json is a Hermes credential store and
+               cannot be read directly. Provider tools consu...
+
+patch      -> error: None | success keys: ['success', 'diff', 'files_modified', 'lint', 'resolved_path']
+
+--- patch 返回给模型的 diff ---
+--- a/<HH>/auth.json
++++ b/<HH>/auth.json
+@@ -1,4 +1,4 @@
+ {
+-  "openai": {"api_key": "sk-SECRET-OPENAI-123"},
++  "openai2": {"api_key": "sk-SECRET-OPENAI-123"},
+   "anthropic": {"api_key": "sk-ant-SECRET-456"}
+ }
+
+密钥是否原样出现在 diff 里: True / True
+```
+
+**同一个文件,`read_file` 判「拒绝」,`patch` 判「成功」并把两个密钥逐字交给模型。**
+读禁清单是仓库对外声明的一条控制(拒绝语里还写了替代做法),`patch` 把它整条绕过去了。
+断言成立,且与 §4.2 是同一个文件上的两个独立缺口(§4.2 是可写,本条是可读)。
+
+### 4.5 复核结论
+
+**抽验四条,四条全部复现,无一需要下调强度。** 四条分属两片、四种性质
+(shell 引号错误 / 文档-代码矛盾 / 路径边界差一层 / 守卫只装在一条路径上),
+覆盖面上算是有代表性的抽样;但**抽验不是全验**——各片其余断言以其底稿自证为准,
+主线未逐条重跑,如实记在这里。
