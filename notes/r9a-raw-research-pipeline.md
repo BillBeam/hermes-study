@@ -66,9 +66,8 @@ cd /home/user/hermes-agent && grep -rn "batch_runner\|batch-runner\|datagen\|tra
 实测输出为 `env_loader.py:47`、`env_loader.py:609`(两条注释里举例说"这些根脚本也会 import 我")、
 `tips.py:245`、`tips.py:411`(两条给用户看的小贴士文案)。
 
-`hermes_cli/tips.py:243-245 @ 863e313`
+`hermes_cli/tips.py:244-245 @ 863e313`
 ```python
-
     # --- Batch & Data ---
     "batch_runner.py processes hundreds of prompts in parallel for training data generation.",
 ```
@@ -1305,7 +1304,7 @@ Write only the summary, starting with "[CONTEXT SUMMARY]:" prefix."""
 
 ### 4.7 provider 路由:两条路
 
-`trajectory_compressor.py:430-457 @ 863e313`
+`trajectory_compressor.py:430-451 @ 863e313`
 ```python
     def _detect_provider(self) -> str:
         """Detect the provider name from the configured base_url."""
@@ -1327,7 +1326,8 @@ Write only the summary, starting with "[CONTEXT SUMMARY]:" prefix."""
             or base_url_host_matches(url, "api.kimi.com")
         ):
             return "kimi-coding"
-        if base_url_host_matches(url, "arcee.ai")
+        if base_url_host_matches(url, "arcee.ai"):
+            return "arcee"
 ```
 
 认识的域名 → 走 `agent.auxiliary_client` 的 `call_llm` / `async_call_llm`(带完整鉴权、
@@ -1504,11 +1504,14 @@ from agent.trajectory import has_incomplete_scratchpad
 
 **链 3 —— `has_incomplete_scratchpad`:运行时的截断检测端。**
 
-`agent/conversation_loop.py:5794-5796 @ 863e313`
+`agent/conversation_loop.py:5794-5799 @ 863e313`
 ```python
-            # Detect truncated reasoning: opening <REASONING_SCRATCHPAD> tag
-            # without a closing tag means the model was cut off mid-thought.
+            # Check for incomplete <REASONING_SCRATCHPAD> (opened but never closed)
+            # This means the model ran out of output tokens mid-reasoning — retry up to 2 times
             if has_incomplete_scratchpad(assistant_message.content or ""):
+                agent._incomplete_scratchpad_retries += 1
+                
+                agent._buffer_vprint("⚠️  Incomplete <REASONING_SCRATCHPAD> detected (opened but never closed)")
 ```
 
 这一条**不是**轨迹落盘链,而是**回合循环里的截断检测**:只有开标签没有闭标签 = 模型被
@@ -1742,12 +1745,10 @@ token 数 0,判为 skipped_under_target),然后进入训练集。**没有任何�
 
 归属标题:该文件本身(YAML 顶层注释块 + 全部键)。
 
-`datagen-config-examples/web_research.yaml:1:11 @ 863e313`
-> ```
+`datagen-config-examples/web_research.yaml:1-3 @ 863e313`
 > # datagen-config-examples/web_research.yaml
 > #
 > # Batch data generation config for WebResearchEnv.
-> ```
 
 判据三条,每条独立成立:
 
@@ -1781,10 +1782,8 @@ token 数 0,判为 skipped_under_target),然后进入训练集。**没有任何�
 
 归属标题:该脚本头部注释块的 "Distribution:" 一行。
 
-`datagen-config-examples/run_browser_tasks.sh:11 @ 863e313`
-> ```
+`datagen-config-examples/run_browser_tasks.sh:10 @ 863e313`
 > # Distribution: browser 97%, web 20%, vision 12%, terminal 15%
-> ```
 
 而 `browser_tasks` 分布**只有三个键**,没有 `web`:
 
@@ -1810,7 +1809,6 @@ token 数 0,判为 skipped_under_target),然后进入训练集。**没有任何�
 归属标题:`## Output Format` → `### Trajectory Format`。
 
 `website/docs/user-guide/features/batch-processing.md:124-130 @ 863e313`
-> ```
 >   "conversations": [
 >     {"from": "human", "value": "Write a function..."},
 >     {"from": "gpt", "value": "I'll create that function...",
@@ -1818,7 +1816,6 @@ token 数 0,判为 skipped_under_target),然后进入训练集。**没有任何�
 >     {"from": "tool", "value": "..."},
 >     {"from": "gpt", "value": "Here's the completed function..."}
 >   ],
-> ```
 
 代码侧:轨迹里的每个 turn **只有 `from` 和 `value` 两个键**,工具调用是内嵌在 `value` 里的
 XML,不是并列字段;而且**第一个 turn 一定是 system**:
@@ -1837,7 +1834,7 @@ XML,不是并列字段;而且**第一个 turn 一定是 system**:
     })
 ```
 
-`agent/agent_runtime_helpers.py:198-208 @ 863e313`
+`agent/agent_runtime_helpers.py:200-210 @ 863e313`
 ```python
                     content += f"<tool_call>\n{json.dumps(tool_call_json, ensure_ascii=False)}\n</tool_call>\n"
                 
@@ -1862,10 +1859,8 @@ XML,不是并列字段;而且**第一个 turn 一定是 system**:
 归属标题:`## File Naming Convention`(第一句)与 `### Batch Runner Format (from batch_runner.py)`。
 
 `website/docs/developer-guide/trajectory-format.md:18-19 @ 863e313`
-> ```
 > The batch runner (`batch_runner.py`) writes to a custom output file per batch
 > (e.g., `batch_001_output.jsonl`) with additional metadata fields.
-> ```
 
 整句判定:后半句"with additional metadata fields"**成立**;前半句的文件名**不成立**。
 实际命名无零填充、无 `_output` 后缀:

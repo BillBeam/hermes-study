@@ -662,9 +662,15 @@ cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python \
 默认调度下 300 轮 × 3000 键 **0 命中**(§5.4)。危险在写与写之间的时间窗,不在单次写。
 
 **最小修法**:把 `_apply_external_secret_sources` 与 `reset_secret_source_cache`
-一并纳入同一把 `_SECRET_SOURCE_CACHE_LOCK`(与 R8C ■-R8C-01 的修法合并,是同一处修改);
-并把第 667-668 行的取值来源从 `os.environ` 换成 `apply_all` 返回的 `report` 自身携带的值,
-与有锁孪生的 `local_env` 语义对齐。
+一并纳入同一把 `_SECRET_SOURCE_CACHE_LOCK`(与 R8C ■-R8C-01 的修法合并,是同一处修改)。
+
+**注意不要顺手把第 667-668 行的 `os.environ` 换成 `report` 自带的值** —— 那个读点读
+`os.environ` 是有理由的:紧邻的第 659 行 `_sanitize_loaded_credentials()` 会**就地改写**
+`os.environ` 里的凭据(第 319 行 `os.environ[key] = cleaned`,剥掉非 ASCII 字符),
+所以这里读到的是**净化后**的值,而 `report` 里是净化前的原值。
+换源会静默丢掉这次净化。**正确的修法只有加锁**:锁一旦覆盖
+「apply_all → 净化 → 读 os.environ 构造快照」这整段,另一个档位就插不进来,
+读共享 `os.environ` 也就安全了(这正是有锁孪生免疫的原因之一,见 §5.2)。
 
 ### ■-R9A-02(结构性,**不需要并发**;本轮新发现,不在任何移交项里)
 

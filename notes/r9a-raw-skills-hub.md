@@ -74,10 +74,15 @@ ALLOWED_SUBDIRS = {"references", "templates", "scripts", "assets"}
 ```
 
 后果(可复现判据):hub 从 GitHub 下载一个含 `examples/foo.md` 的 skill 会**一并装进来**
-(`_referenced_support_paths` 允许 `examples/`),但装完之后模型**无法用 `skill_manage` 改它**
-——`_validate_file_path` 只放行四个目录,`examples/foo.md` 直接被拒:
-"File must be under one of: assets, references, scripts, templates"。
-同一份文件,读得到、装得进、改不了。这是三份常量各自演进的产物,不是设计。
+(`_referenced_support_paths` 允许 `examples/`),但装完之后模型**无法用 `skill_manage` 改它**:
+
+```console
+examples/foo.md   -> "File must be under one of: assets, references, scripts, templates. Got: 'examples/foo.md'"
+references/foo.md -> None
+```
+
+同一份文件,读得到(`skill_view(name, "examples/foo.md")` 的路径校验只查穿越、不查白名单)、
+装得进、改不了。这是三份常量各自演进的产物,不是设计。
 
 ### 1.2 frontmatter:模型看得见的元数据
 
@@ -486,9 +491,16 @@ scan 3 (after adding topcat/third at depth 1): ['demo-skill', 'first', 'orgskill
                     continue
 ```
 
-推论:**frontmatter 超过 4000 字节的 skill 在列表里会退化**(解析不到闭合 `---`,
-`name` 回落成目录名、`description` 回落成正文首行)。1024 字符的 description 上限
-留了余量,但一个塞满 `metadata` 的 skill 有可能撞线。
+**实测的退化形态**(frontmatter 超过 4000 字节 → 截断后找不到闭合 `---`):
+
+```console
+truncated frontmatter -> {} | body starts: '---\nname: big\ndescription: x\nm'
+```
+
+`parse_frontmatter` 返回空 dict 且把**原文整体**当 body,于是 `name` 回落成目录名、
+`description` 的"首行非 `#` 行"回落逻辑取到的是那行 `---` 本身 ——
+这条 skill 会以 `{"name": "<目录名>", "description": "---"}` 出现在列表里。
+1024 字符的 description 上限留了余量,但一个塞满 `metadata` 的 skill 有可能撞线。
 
 ### 3.3 `skill_view` 的候选收集:三种策略 + 冲突拒绝
 
@@ -1929,9 +1941,12 @@ def _guarded_http_get(url: str, *, timeout: int = 20) -> Optional[httpx.Response
 `{"skillMdUrl": "http://169.254.169.254/latest/meta-data/iam/security-credentials/"}`
 → `httpx.get` 直连该地址(无 `is_safe_url`、无 `check_website_access`、且
 `follow_redirects=True` 让后续跳转也不再校验)→ 响应体成为 bundle 的 `SKILL.md`
-→ 进隔离区 → 被扫描器当 markdown 扫(9 类威胁模式对一段凭据 JSON 基本无感)
+→ 进隔离区 → 被扫描器当 markdown 扫(六类威胁模式 exfiltration / injection / destructive / persistence / network / obfuscation,对一段凭据 JSON 基本无感)
 → 装进 `skills/` → 下一次 `skill_view` 把它喂给模型。
-唯一的把关是 `should_allow_install`,而 browse-sh 是 `community` + 大概率 `safe` 裁定 → 放行。
+唯一的把关是 `should_allow_install`,browse-sh 的信任级恒为 `community`
+(`skills_hub.py:3111`),而 community 行的策略是 `("allow","block","block")` ——
+也就是说**只要扫描器给出 `safe`,它就放行**;扫描器的六类正则是针对 shell/脚本写的,
+一段 IAM 凭据 JSON 命中不了任何一条。
 
 同类但更弱的两处(URL 是常量、只有重定向不受控):
 `ClawHubSource._download_zip`(`skills_hub.py:2867`)与

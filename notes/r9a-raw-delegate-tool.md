@@ -484,15 +484,7 @@ def _inherit_parent_base_url(parent_agent, fallback_base_url: Optional[str]) -> 
 逐项读:
 
 - `quiet_mode=True` / `log_prefix="[subagent-N]"` / `platform="subagent"` —— 孩子不抢父 agent 的显示。
-- `ephemeral_system_prompt=child_prompt` —— **注意这不是"替换"系统提示词,是"追加"**:
-
-  `agent/conversation_loop.py:989-990 @ 863e313`
-```python
-        if agent.ephemeral_system_prompt:
-            effective = (effective + "\n\n" + agent.ephemeral_system_prompt).strip()
-```
-
-  所以孩子拿到的是「Hermes 完整基座提示词 + 那段聚焦任务说明」,不是一份精简提示词。
+- `ephemeral_system_prompt=child_prompt` —— **注意这不是"替换"系统提示词,是"追加"**(证据见本节末尾的补注)。
 - `skip_context_files=True` / `skip_memory=True` —— 不注入项目上下文文件、不装载 memory 提供方。
 - `clarify_callback=None` —— 孩子物理上没有问用户的通道。
 - `session_db=parent._session_db` + `parent_session_id=parent.session_id` —— **会话库是共享的**,
@@ -500,6 +492,18 @@ def _inherit_parent_base_url(parent_agent, fallback_base_url: Optional[str]) -> 
 - `iteration_budget=None` —— 注释写得很直白:**每个子 agent 一份全新预算**。
   于是"父 + 全部子"的总迭代数可以超过父 agent 自己的 `max_iterations`。**没有全局迭代预算。**
 - `fallback_model=parent_fallback` —— 继承父 agent 的降级链,孩子也能在限流时换 provider。
+
+**补注:`ephemeral_system_prompt` 是"追加"不是"替换"。** 会话循环把它拼在有效系统提示词后面:
+
+`agent/conversation_loop.py:989-990 @ 863e313`
+```python
+        if agent.ephemeral_system_prompt:
+            effective = (effective + "\n\n" + agent.ephemeral_system_prompt).strip()
+```
+
+所以孩子拿到的是「Hermes 完整基座提示词 + 那段聚焦任务说明」,不是一份精简提示词。
+这一点在重实现时很容易搞反:如果真的换成精简提示词,孩子会丢掉基座里关于工具用法、
+安全约束、输出规范的全部约定。
 
 出生后再补打一批标记:
 
@@ -750,9 +754,12 @@ DEFAULT_TOOLSETS = ["terminal", "file", "web"]
    必须跟过去,否则孩子的审批请求会找不到会话队列。
 2. **`DaemonThreadPoolExecutor`**:标准库的 `ThreadPoolExecutor` 会在 `atexit` 里**无条件 join**
    所有 worker,一个卡死的孩子就能让解释器永远退不出去。这个子类把 worker 设为 daemon 且不注册进
-   `_threads_queues`。
+   `_threads_queues`(证据见紧接本列表后的引文)。
+3. **`result(timeout=child_timeout)`**,而 `child_timeout` 默认是 `None`,即**默认无墙钟超时**。
 
-   `tools/daemon_pool.py:1-10 @ 863e313`
+守护池的理由,原文写得比任何转述都清楚:
+
+`tools/daemon_pool.py:1-10 @ 863e313`
 ```python
 """Shared daemon-thread ThreadPoolExecutor.
 
@@ -765,8 +772,6 @@ exit forever.  This is the root cause of multi-minute CLI exits on long
 sessions: every abandoned concurrent-tool batch leaves workers that the
 exit hook insists on joining.
 ```
-
-3. **`result(timeout=child_timeout)`**,而 `child_timeout` 默认是 `None`,即**默认无墙钟超时**。
 
 #### 1.6.5 结果整形
 
@@ -908,20 +913,21 @@ def _finalize_child_results(
                     parent_agent.session_cost_source = "subagent"
 ```
 
-最后:
+最后分两条出口。
 
-- **同步路径**:直接把合并 dict 序列化成 JSON 字符串返回给工具执行器。
+**出口一:同步路径。** 直接把合并 dict 序列化成 JSON 字符串返回给工具执行器。
 
-  `tools/delegate_tool.py:3409-3410 @ 863e313`
+`tools/delegate_tool.py:3409-3410 @ 863e313`
 ```python
     # ----- Synchronous path -----
     return json.dumps(_execute_and_aggregate(), ensure_ascii=False)
 ```
 
-- **后台路径**:把 `_execute_and_aggregate` 当作 runner 交给异步派发,立刻返回一个句柄。
-  注意 `note` 字段是写给模型看的行为指令("别等、别轮询,继续干活")。
+**出口二:后台路径。** 把 `_execute_and_aggregate` 当作 runner 交给异步派发,立刻返回一个句柄。
+注意 `note` 字段是写给模型看的**行为指令**("别等、别轮询,继续干活")——harness 用工具返回值
+直接管教模型的行为,这一手很值得抄。
 
-  `tools/delegate_tool.py:3358-3379 @ 863e313`
+`tools/delegate_tool.py:3358-3379 @ 863e313`
 ```python
         if dispatch.get("status") == "dispatched":
             n = len(_goals)
@@ -947,12 +953,12 @@ def _finalize_child_results(
             }
 ```
 
-后台路径还有两处降级,都很务实:
+后台路径还有两处降级,都很务实。
 
-1. **会话本身收不了异步结果**(无状态 HTTP 请求、一次性 Kanban worker)→ 改为同步执行,
-   并在结果里附一句"你要的后台在这个会话里不可用,已经同步跑完了"。
+**降级一:会话本身收不了异步结果**(无状态 HTTP 请求、一次性 Kanban worker)→ 改为同步执行,
+并在结果里附一句"你要的后台在这个会话里不可用,已经同步跑完了"。
 
-   `tools/delegate_tool.py:3222-3236 @ 863e313`
+`tools/delegate_tool.py:3222-3236 @ 863e313`
 ```python
         if not _async_ok:
             logger.info(
@@ -971,9 +977,9 @@ def _finalize_child_results(
             return json.dumps(_sync_result, ensure_ascii=False)
 ```
 
-2. **异步池满** → 同样退回同步。
+**降级二:异步池满** → 同样退回同步(这条正是 7.3 ■1 的现场)。
 
-   `tools/delegate_tool.py:3390-3407 @ 863e313`
+`tools/delegate_tool.py:3390-3407 @ 863e313`
 ```python
         # Pool at capacity / schedule failure — children are still attached
         # (we detach above only on the parent list, but the async unit was

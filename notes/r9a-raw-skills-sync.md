@@ -715,15 +715,24 @@ Authorization header -> Bearer eyJ-FAKE-NOUS-BEARER
                 ):
    ```
    注释(`hermes_cli/auth.py L6238-6241`)写的正是「一个被污染的值不能把 bearer 泄露出去」。
-   **消费侧没有等价物**——搜索面:对 `tools/skills_sync_client.py` 全文
-   `grep -nE "ALLOWED_HOST|allowlist|urlparse|hostname|scheme"` 零命中(见下),
-   `SyncClient.__init__` 除 `rstrip("/")` 外不做任何 URL 检查。
+   **消费侧没有等价物。** 搜索面:对 `tools/skills_sync_client.py` 全文抓
+   `ALLOWED_HOST|allowlist|urlparse|hostname|scheme` —— 7 处命中,**没有一处是 URL 校验**:
    ```verify
-   cd /home/user/hermes-agent && grep -cnE "ALLOWED_HOST|allowlist|urlparse|hostname|scheme" tools/skills_sync_client.py
+   cd /home/user/hermes-agent && grep -nE "ALLOWED_HOST|allowlist|urlparse|hostname|scheme" tools/skills_sync_client.py
    ```
    ```console
-   0
+   207:# cross-process file lock + portal host allowlist and refreshes as needed --
+   657:    """A human-friendly default device label: the short hostname plus a short
+   658:    random suffix for uniqueness (two machines can share a hostname). Falls back
+   659:    to a bare uuid if the hostname is unavailable/unusable."""
+   665:        host = socket.gethostname() or ""
+   668:    # Short hostname (drop domain), strip to a tidy slug; keep it readable.
+   680:    New devices are seeded with a HUMAN-FRIENDLY default (short hostname + a
    ```
+   逐条读:`L207` 是一句**转述 auth 层**已有白名单的注释(不是本文件在做检查),
+   其余 6 条全部属于 `_default_device_label()` 里取本机 hostname 当设备标签。
+   也就是说 `SyncClient.__init__` 除 `rstrip("/")` 外不做任何 URL 检查——
+   这条命令重跑给出的正是这个结论,而不是「零命中」。
 3. **可达性**:`sync.base_url` 是 `config.yaml` 的根键,而 `sync` **不在** `DEFAULT_CONFIG`、
    也不在 `_EXTRA_KNOWN_ROOT_KEYS` 里;配置校验对未知根键**故意不告警**:
    `hermes_cli/config.py:2036 @ 863e313`
@@ -1089,7 +1098,26 @@ deepest on disk: <skills>/_org/org-42/_org/org-42/_org/org-42/devops/shared/SKIL
 (b) 打开 `sync.org_auto_propose` 后,agent 对组织 skill 的**每一次编辑**都自动走 `propose_skill`
 (`tools/skill_manager_tool.py L683`);
 (c) `_find_skill_dir` 按**排序后的完整路径**取第一个匹配,`_org`(`0x5F`)排在任何小写字母类别名之前,
-所以只要镜像拉下来过,同名解析**总是**命中镜像而不是个人副本。
+所以只要镜像拉下来过,同名解析**总是**命中镜像而不是个人副本——个人副本同时存在也一样:
+
+```verify
+cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python -c "
+import os, sys, tempfile, pathlib
+home = pathlib.Path(tempfile.mkdtemp()); os.environ['HERMES_HOME'] = str(home)
+sys.path.insert(0, '/home/user/hermes-agent')
+def mk(d, n):
+    d.mkdir(parents=True, exist_ok=True)
+    (d/'SKILL.md').write_text('---\nname: %s\ndescription: x\n---\nbody\n' % n, encoding='utf-8')
+mk(home/'skills'/'devops'/'shared', 'shared')
+mk(home/'skills'/'_org'/'org-42'/'devops'/'shared', 'shared')
+(home/'skills'/'_org'/'.active_org').write_text('org-42', encoding='utf-8')
+from tools.skill_usage import _find_skill_dir
+print(str(_find_skill_dir('shared')).replace(str(home/'skills'), '<skills>'))"
+```
+
+```console
+<skills>/_org/org-42/devops/shared
+```
 
 顺带一条**内部注释与代码矛盾**(不计入 ▲,因为 ▲ 按 CLAUDE.md 限定为 README / 根 AGENTS.md / website/docs):
 `pull_org_skills` 的 docstring 说本地编辑会被覆盖、fork 应放在个人技能里
@@ -1504,12 +1532,13 @@ cd /home/user/hermes-agent && grep -rn "export_blueprint" . 2>/dev/null | grep -
 ```
 
 ```console
-./tests/tools/test_blueprints.py:17:    export_blueprint,
+./tests/tools/test_blueprints.py:18:    export_blueprint,
 ./tests/tools/test_blueprints.py:137:        md = export_blueprint(job, "# Morning Brief\n\nDoes the morning digest.")
 ./tests/tools/test_blueprints.py:156:        md = export_blueprint(job, "body")
 ./tests/tools/test_blueprints.py:162:        spec = parse_blueprint(export_blueprint(job, "body"))
 ./tools/blueprints.py:25:  * ``export_blueprint(job, body)``      -> a shareable SKILL.md string
-./tools/blueprints.py:25 lines omitted for brevity in this listing
+./tools/blueprints.py:48:    "export_blueprint",
+./tools/blueprints.py:246:def export_blueprint(job: Dict[str, Any], body: str, *, blueprint_name: Optional[str] = None) -> str:
 ```
 
 (命中只有:定义处 `tools/blueprints.py`、`__all__` 与 docstring、以及 `tests/tools/test_blueprints.py`。

@@ -1552,8 +1552,20 @@ status = passed kind = ad_hoc scope = targeted
 nudge  = None
 ```
 
-这是 §4.5 的 nudge 文案主动教给模型的路径,`tests/agent/test_verification_stop.py:170`
-把它钉成了规格(`test_ad_hoc_pass_satisfies_no_suite_stop_loop`)。
+这是 §4.5 的 nudge 文案主动教给模型的路径,而且它被钉成了规格:
+
+`tests/agent/test_verification_stop.py:170 @ 863e313`
+
+```python
+def test_ad_hoc_pass_satisfies_no_suite_stop_loop(tmp_path, monkeypatch):
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / ".hermes"))
+    (tmp_path / "package.json").write_text("{}", encoding="utf-8")
+    changed = str(tmp_path / "src" / "app.ts")
+    script = Path(tempfile.gettempdir()) / f"hermes-ad-hoc-stop-{tmp_path.name}.py"
+    script.write_text("print('ok')\n", encoding="utf-8")
+```
+
+脚本内容就是 `print('ok')` —— 测试**明确接受**一个零断言脚本作为放行凭据。
 设计意图明确(有胜于无、且如实标 `ad_hoc`/`targeted`),但要清楚:
 **这一支的「证据」完全由被审查方自己出题、自己交卷。**
 
@@ -1601,8 +1613,18 @@ env unset, config False -> False
   `file_tools` 侧的 `session_id or task_id` **不完全相同**。当 `session_id` 为空、
   `task_id` 也为空而 `effective_task_id` 非空时,两侧会写到不同的 `session_id` 分区,
   台账对不上(表现为「明明跑过测试却还是 unverified」)。这是一个真实但窄的错位面;
-  `tests/agent/test_verification_evidence.py:120` 反过来把「session_id 分区隔离」
-  当成正确行为钉住了(`conversation` 分区 stale、`turn` 分区 unverified)。
+  分区隔离本身被当成正确行为钉住了:
+
+  `tests/agent/test_verification_evidence.py:145 @ 863e313`
+
+```python
+    assert result["files_modified"] == [str(target.resolve())]
+    assert verification_status(session_id="conversation", cwd=tmp_path)["status"] == "stale"
+    assert verification_status(session_id="turn", cwd=tmp_path)["status"] == "unverified"
+```
+
+  同一次 `write_file` 传了 `task_id="turn"` 与 `session_id="conversation"`,
+  只有 `conversation` 那个分区变 stale。所以「哪个 id 被写进台账」直接决定门禁看不看得见这次编辑。
 - `cwd=command_cwd` 是**宿主机路径语义**。当终端后端是 Docker/SSH/远程时,
   `command_cwd` 是容器内路径,`project_facts_for` 却在宿主机文件系统上解析它。
   这条路上要么解析失败(→ 不记账,收紧)、要么误命中同名宿主目录(→ 记到错工作区)。
@@ -1696,8 +1718,19 @@ $ cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python -m pytest -p n
         config["agent"] = raw_agent
 ```
 
-而 `tests/agent/test_verification_stop.py:91` 那条 E2E 在一个**空 HERMES_HOME** 上跑
-`load_config()`,断言 `merged["agent"]["verify_on_stop"] == "auto"` 且 cli 面为 True ——
+而这条 E2E 在一个**空 HERMES_HOME** 上跑真实的 `load_config()`:
+
+`tests/agent/test_verification_stop.py:100 @ 863e313`
+
+```python
+    merged = load_config()
+    assert merged["agent"]["verify_on_stop"] == "auto"
+
+    # Interactive surface resolves ON through the real loader.
+    clear_verify_env.setenv("HERMES_SESSION_SOURCE", "cli")
+    assert verify_on_stop_enabled() is True
+```
+
 即新装机上门是**开的**。归 ▲ 而非 ◎:文档给出的是一个会让读者对新装机做出错误判断的口径。
 
 ### ▲2 —— `max_verify_nudges` 并不管内建 verify-on-stop,注释里的「built-in +」为假

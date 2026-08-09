@@ -316,6 +316,26 @@ vs 代码 `# Default tool-calling iterations (shared with subagents)`),说明文
 **抄完之后数字漂了而注释没漂**——这正是「作者自绘地图」最典型的腐烂方式:
 形状还对,数值已经不对,而形状对会让读者更信任它。
 
+**同段其余默认值我逐个核过,全部正确**——这才是这条 ▲ 真正的杀伤力所在。
+文档 322–339 行列出的 15 个带默认值的参数里,除 `max_iterations` 外的 14 个与代码完全一致:
+
+| 文档参数 | 文档默认值 | 代码位置(`run_agent.py`) | 一致? |
+|---|---|---|---|
+| `base_url` / `api_key` / `provider` / `api_mode` | `None` | 437–440 | ✓ |
+| `model` | `""` | 445 | ✓ |
+| **`max_iterations`** | **`500`** | **446 是 `90`** | **✗** |
+| `enabled_toolsets` / `disabled_toolsets` | `None` | 448–449 | ✓(注解 `list` vs `List[str]`,默认值同) |
+| `save_trajectories` / `quiet_mode` | `False` | 450 / 452 | ✓ |
+| `platform` | `None` | 487 | ✓ |
+| `session_id` | `None` | 464 | ✓ |
+| `skip_context_files` / `skip_memory` | `False` | 496 / 498 | ✓ |
+| `credential_pool` | `None` | 503 | ✓ |
+
+**14 对 1。** 一个读者核对前三个参数发现都对,就不会再核第六个——
+**高准确率的文档让其中唯一的错误更难被发现,而不是更容易。**
+这也是本项目「文档与代码冲突时以代码为准」这条规矩存在的理由:
+它不是因为文档普遍不可信,而是因为**可信度无法逐条继承**。
+
 **为什么这条落在 R9A 而不是 R2**:`max_iterations` 的注释自己写着 **shared with subagents**,
 它是委派簇的迭代预算上限。R2 读回合主循环时这一行在射程内但未被判定;本轮因为读委派而撞上。
 
