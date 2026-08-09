@@ -148,8 +148,19 @@ RULES = [
     ("agent/memory_manager.py", "L1", "R5"),
     ("agent/memory_provider.py", "L1", "R5"),
     ("agent/session_activity.py", "L1", "R5"),
-    ("agent/*.py", "L1", "R3-R7"),          # 其余 agent/ 文件在后续轮次开工时显式定轮
-    ("agent/**/*.py", "L1", "R3-R7"),
+    # R8D 补记:这两个当年被 R4/R5 顺手读了(status 是 R4/R5-deep-read),
+    # 但规则表没跟着改,round 列一直挂在兜底桶里。补上,让计划列与事实列对齐。
+    ("agent/runtime_cwd.py", "L1", "R4"),
+    ("agent/shell_hooks.py", "L1", "R5"),
+    # R8D 改名:原为 ("agent/*.py", "L1", "R3-R7") —— 一个**区间占位符**。
+    # 它把"没有任何一轮认领过"伪装成了"已经计划好了":注释写着"其余 agent/ 文件在
+    # 后续轮次开工时显式定轮",而那件事从 R5 之后一次也没发生。R8D 复核发现,
+    # 这两个兜底桶里合计压着 171 个 L1 文件 / 104,656 行从未开工——比 R8D 自己
+    # 的 L1 量还大一倍半,其中包括 R6 计划里点名的"skills 全链"与"学习闭环"全部。
+    # 改成显式的 UNCLAIMED,于是任何一轮按 round 列报数时它都会自己跳出来。
+    # 依据与逐文件清单见 notes/r8d-02-coverage-audit.md。
+    ("agent/*.py", "L1", "UNCLAIMED"),
+    ("agent/**/*.py", "L1", "UNCLAIMED"),
     # R3 机制簇:工具基础设施与安全(显式列举,R3 轮定稿)
     ("tools/registry.py", "L1", "R3"),
     ("tools/schema_sanitizer.py", "L1", "R3"),
@@ -207,8 +218,9 @@ RULES = [
     ("tools/session_search_tool.py", "L1", "R5"),
     ("tools/checkpoint_manager.py", "L1", "R5"),
     ("tools/memory_tool.py", "L1", "R5"),
-    ("tools/*.py", "L1", "R3-R4"),
-    ("tools/**/*.py", "L1", "R3-R4"),
+    # R8D 改名,理由同 agent/ 的兜底桶(见上,以及 notes/r8d-02-coverage-audit.md)。
+    ("tools/*.py", "L1", "UNCLAIMED"),
+    ("tools/**/*.py", "L1", "UNCLAIMED"),
     # R7 机制簇:网关会话核心与多路复用(显式列举,R7 轮定稿)。
     # 切片理由:原方案 R7=整个 gateway+cron(110k 行)超单轮预算,按 R1 方案
     # 允许的拆分条款切三片——R7 会话核心引擎(session_key 路由/会话状态/看门狗/
