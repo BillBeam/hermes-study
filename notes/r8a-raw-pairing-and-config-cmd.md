@@ -1228,7 +1228,7 @@ store 层那条 `test_stale_request_id_never_locks_out_the_code_path`
 | ▲2 | `website/docs/reference/faq.md:96` "DM pairing（first user to message claims access）" | 同上 | **文档错**（同一处错误的第二次出现） |
 | ◇3 | `gateway/pairing.py:18` 模块 docstring "Storage: ~/.hermes/pairing/" | 新装实际是 `~/.hermes/platforms/pairing/`（`gateway/pairing.py:59` + `hermes_constants.py:280`） | **源码内自述过时**，只对老装成立 |
 | ◇4 | `website/docs/reference/cli-commands.md:1119` "`approve <platform> <code>` \| Approve a pairing code." | 还接受 request-id（`hermes_cli/pairing.py:71`），且这是 `pairing list` 推荐的方式（`hermes_cli/pairing.py:49`） | **文档不全** |
-| ◇5 | `hermes_cli/subcommands/config.py:45-47` `--force` help 只说"跳过未知键提示" | 还授权标量覆盖整个 mapping 段（`hermes_cli/config.py:4830-4834`） | **help 漏了破坏性语义**（§5.3） |
+| ◇5 | `hermes_cli/subcommands/config.py:44-47` `--force` help 只说"跳过未知键提示" | 还授权标量覆盖整个 mapping 段（`hermes_cli/config.py:4830-4834`） | **help 漏了破坏性语义**（§5.3） |
 | ◇6 | `hermes_cli/pairing.py:97` 硬编码恢复路径 `~/.hermes/platforms/pairing/_rate_limits.json` | 老装在 `~/.hermes/pairing/`（§1.3） | **提示路径对老装是错的** |
 
 `website/docs/user-guide/security.md:390-401` 的「Security features」表（8 行）**逐条核对全部属实**：

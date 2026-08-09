@@ -1332,7 +1332,7 @@ quit/exit(340)。
 |---|---|---|---|
 | ◇-G | DM 的 `user_allowed_commands` 缺省时回退到 `group_user_allowed_commands` | `gateway/slash_access.py:183-186` | `telegram.md:1105-1113` 的 Behavior 列表 6 条,**没有这一条**。而 admin 不回退那条写了(:1112) |
 | ◇-H | `/status` `/context` 在 agent 忙时绕过闸门 | `gateway/run.py:14768-14772` | 任何文档均未提 |
-| ◇-I | Slack 有 10 条命令**只能**通过 `/hermes <cmd>` 触发 | `hermes_cli/commands.py:1276`:`_SLACK_VIA_HERMES_ONLY = frozenset({"topup", "moa", "debug", "egress", "init", "version", "diff", "update", "heartbeat", "refine"})` | `slash-commands.md` 的 messaging 表把这 10 条与其它命令并列,只在 `:218-219` 提了 `!` 前缀的**另一个**问题。`slack.md` 未在本次核查范围 |
+| ◇-I | Slack 有 10 条命令**只能**通过 `/hermes <cmd>` 触发 | `hermes_cli/commands.py:1275`:`_SLACK_VIA_HERMES_ONLY = frozenset({"topup", "moa", "debug", "egress", "init", "version", "diff", "update", "heartbeat", "refine"})` | `slash-commands.md` 的 messaging 表把这 10 条与其它命令并列,只在 `:218-219` 提了 `!` 前缀的**另一个**问题。`slack.md` 未在本次核查范围 |
 | ◇-J | Slack 保留词导致 `/status` `/topic` `/join` 等**永远不会**注册为原生 Slack slash | `hermes_cli/commands.py:1222-1229` `_SLACK_RESERVED_COMMANDS`(含 `status`、`topic`、`join`、`leave`、`search`、`remind`…),命中即 `return`(`hermes_cli/commands.py:1327-1328`) | 文档未提 |
 | ◇-K | Telegram 命令菜单默认只放 60 条 | `hermes_cli/commands.py:638`:`_DEFAULT_TELEGRAM_MENU_MAX_COMMANDS = 60`(上限 100) | 文档未提 |
 | ◇-L | `/curator` 在 messaging 上无实现 | 见 ◇-15 | `slash-commands.md:267` 把 `/curator [status\|run\|pin\|archive]` **列进了 messaging 表** —— 这条其实是 ▲(文档列了、代码 gateway 侧没实现) |

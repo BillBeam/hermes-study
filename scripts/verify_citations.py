@@ -47,6 +47,64 @@ not a heuristic sniff: the alternative considered (guessing "this doesn't look l
 code") would quietly weaken the gate, which is the one thing a blocking gate must
 not do.
 
+Table-row anchors (R9B, closes H-R9A-h)
+---------------------------------------
+The pairing rule above is "citation, then the block that FOLLOWS it". A Markdown
+table row cannot be followed by a block — the next line is the next row — so every
+anchor written inside a table was recorded UNCHECKED and *never compared to
+anything*. That is 1,569 anchors, 10.1% of the corpus, including the handoff
+tables every round hands its successor. The two one-line drifts R8D shipped
+(`hermes_cli/env_loader.py:667`, real line 666) survived exactly here, and so had
+R9A's own handoff row for H-R9A-d.
+
+A table row carries its excerpt INLINE instead, and it does so in one recognisable
+shape: the anchor, then the excerpt right after it —
+
+    `hermes_cli/commands.py:1275`:`_SLACK_VIA_HERMES_ONLY = frozenset({...})`
+    `gateway/relay/media.py:92` 的 `is_relay_media_url`
+
+`declared_excerpt()` pairs an anchor with that following span and nothing else.
+The first draft of this check compared the anchor against EVERY backticked span
+in the row; on this corpus that produced 55 hits of which roughly three quarters
+were a cell naming a symbol that merely occurs elsewhere in the file. Guessing
+which mention an anchor "meant" is how a gate turns into noise, and NON_SOURCE_LANGS
+above already settled the principle for this script: declared, not sniffed.
+
+Given a declared excerpt, the verdict follows the blockquote philosophy — fail only
+when the text is found verbatim somewhere else nearby, which proves a real excerpt
+that is merely mis-anchored:
+
+  - text found in [start, max(end, start+TABLE_BAND)]         -> TABLE-OK
+  - text is on a def/class header the anchor sits inside      -> TABLE-OK
+  - text found within +/- WINDOW but neither of the above     -> TABLE-DRIFT (fatal)
+  - line number past EOF                                      -> TABLE-OUT-OF-RANGE (fatal)
+  - text found nowhere near, or no declared excerpt           -> TABLE-UNCHECKED
+
+The two TABLE-OK routes are the two honest ways a cell points at code. TABLE_BAND
+covers `path:N` naming a construct whose body the excerpt is a few lines into;
+`enclosing_headers()` covers the reverse — the cell names the *enclosing* function
+while the anchor points inside its body (`hermes_cli/mcp_config.py:95` annotated
+`_save_mcp_server`, whose `def` is at :88). Neither can mask the shape this check
+exists for, because a drifted anchor's true line is an ordinary statement, not a
+header above it: the self-test in the R9B report drifts an anchor by 1 line and by
+20 lines inside the same function, and both are still caught.
+
+Unlike the two earlier gates (citations R7C->R8A, BLOCK-DRIFT R8C->R8D) this one is
+blocking from the round it lands, because its backlog was cleaned in the same
+round it was written — the phased rollout those two needed exists to avoid a gate
+that shouts about a pre-existing mess, and there is no mess left to shout about.
+
+What this does NOT cover: an anchor written as bare prose in a cell (no declared
+excerpt) is still UNCHECKED, and that is most of them — 1,623 of 1,710. The gate
+raises the floor from "no table anchor is ever checked" to "a table anchor that
+declares what it points at is checked"; CLAUDE.md makes the declared shape
+mandatory for handoff tables, which is where the drift actually costs a round.
+
+Table anchors are tallied and reported SEPARATELY from the block-backed citations.
+Folding ~1,700 mostly-prose table cells into the main total would move 可校验比例
+by ~30 points for reasons that have nothing to do with evidence quality, and that
+number is a cross-round metric.
+
 With --fix, a MISMATCH whose block is found at exactly one nearby line is
 rewritten in place to the true line number (a `N-M` range is shifted by the same
 delta, preserving its length). Ambiguous or not-found cases are never touched —
@@ -82,6 +140,13 @@ from pathlib import Path
 
 WINDOW = 40  # how far to search for the real location when a citation misses
 STUDY_ROOT = Path(__file__).resolve().parent.parent  # this study repo
+
+# How far past a table anchor an inline token may sit and still count as "at" it.
+# Covers the cell-names-the-construct shape (anchor inside a body whose header the
+# cell names). See "Table-row anchors" in the module docstring.
+TABLE_BAND = 12
+TABLE_MIN_TOKEN = 4  # shorter backticked spans are too common to prove anything
+TABLE_MAX_HITS = 2   # a token matching more lines than this identifies nothing
 
 # Per-file UNCHECKED-ratio hint (see module docstring). Non-blocking.
 UNCHECKED_HINT_RATIO = 0.90
@@ -202,6 +267,196 @@ def block_drift(block, src, start):
     )
 
 
+TABLE_ROW = re.compile(r"^\s*\|.*\|")
+BACKTICKED = re.compile(r"`([^`]+)`")
+HEADER = re.compile(r"^(?P<indent>\s*)(?:async\s+def|def|class)\s")
+BARE_PATH = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_./-]*\.[A-Za-z0-9]{1,4}")
+CODEISH = re.compile(r"[_/(){}\[\]=<>.\"'|:-]|[A-Z]")
+
+
+def is_table_row(line: str) -> bool:
+    s = line.strip()
+    return s.startswith("|") and s.count("|") >= 2
+
+
+def table_cells(line: str):
+    s = line.strip().strip("|")
+    return s.split("|")
+
+
+def cell_tokens(cell: str):
+    """Backticked spans in a cell that could be a source excerpt.
+
+    Drops the anchors themselves, spans too short to prove anything, and spans
+    with no word characters (`-`, `->`, `...` are table filler, not evidence).
+    """
+    out = []
+    for raw in BACKTICKED.findall(cell):
+        if CITE.search(raw):
+            continue
+        t = norm(raw)
+        if len(t) < TABLE_MIN_TOKEN or re.fullmatch(r"[\d\W_]+", t):
+            continue
+        # A bare filename is a pointer, not an excerpt: `cli.py` "found" at some
+        # line of cli.py proves nothing about the anchor.
+        if BARE_PATH.fullmatch(t):
+            continue
+        # A plain lowercase word in backticks is a *term* the prose is naming
+        # (`private`, `anthropic`), not a source excerpt. Finding it somewhere in
+        # the file says nothing about where the anchor should point. Require a
+        # shape only code has: punctuation that identifiers/paths/calls carry, or
+        # a capital letter.
+        if not CODEISH.search(t):
+            continue
+        out.append(t)
+    return out
+
+
+def declared_excerpt(cell: str, cite):
+    """The backticked span the cell puts right after its anchor, if any.
+
+    `hermes_cli/commands.py:1276`:`_SLACK_VIA_HERMES_ONLY = frozenset(...)` and
+    `gateway/relay/media.py:92` 的 `is_relay_media_url` both declare "this text
+    lives at that line". A symbol named in some other column does not.
+    """
+    tail = cell[cite.end():]
+    # skip the citation's own ` @ 863e313` suffix and closing backtick, then allow
+    # a short connector (":", " 的 ", "->", "**:**") before the excerpt itself
+    m = re.match(r"[\s,]*(?:@\s*[0-9a-f]{7,40})?[^`]{0,3}`?[^`]{0,8}`([^`]+)`", tail)
+    if not m:
+        return []
+    return cell_tokens(f"`{m.group(1)}`")
+
+
+
+def enclosing_headers(src, start: int):
+    """1-based lines of the def/class headers whose bodies contain *start*.
+
+    Innermost first, e.g. [def test_..., class TestUnreadable...]. The
+    cell-names-the-construct shape looks exactly like drift from outside: the
+    token is real, it is in the file, and it is not on the cited line. What
+    separates it is that the line it IS on is a header the cited line sits
+    under — and that can be the class two levels up, not just the nearest def.
+    """
+    if not (1 <= start <= len(src)):
+        return []
+    body = src[start - 1]
+    if not body.strip():
+        return []
+    indent = len(body) - len(body.lstrip())
+    found = []
+    for n in range(start - 2, -1, -1):
+        line = src[n]
+        if not line.strip():
+            continue
+        cur = len(line) - len(line.lstrip())
+        if cur >= indent:
+            continue
+        # Walk outward through every enclosing scope. A `for`/`if`/`with` line at
+        # a lower indent is still *inside* the function, so it must not stop the
+        # walk — doing so was hiding the `def` that the cell was naming.
+        if HEADER.match(line):
+            found.append(n + 1)
+        indent = cur
+        if cur == 0:
+            break
+    return found
+
+
+def enclosing_header(src, start: int):
+    heads = enclosing_headers(src, start)
+    return heads[0] if heads else None
+
+
+def check_table_row(repo, note, lineno: int, line: str, resolve):
+    """Verify anchors written inside a Markdown table row. See module docstring."""
+    results = []
+    for cell in table_cells(line):
+        cites = list(CITE.finditer(cell))
+        if not cites:
+            continue
+        tag = f"{note.name}:{lineno}"
+        # The declared inline excerpt is the backticked span that FOLLOWS the
+        # anchor in the cell -- `path:N`:`text` or `path:N` 的 `text`. Anything
+        # else in the row is prose that merely mentions a symbol, and guessing
+        # which mention the anchor "meant" is how a gate quietly turns into
+        # noise. Same principle as NON_SOURCE_LANGS: declared, not sniffed.
+        if not any(declared_excerpt(cell, c) for c in cites):
+            results.append(("TABLE-UNCHECKED", f"{tag}  {cites[0].group(0)} (table cell, no declared inline excerpt)"))
+            continue
+
+        verdict, detail = None, None
+        for cm in cites:
+            tokens = declared_excerpt(cell, cm)
+            if not tokens:
+                continue
+            target = resolve(cm.group("path"))
+            if not target.is_file():
+                continue  # bare filenames are legal in notes; chapters have their own rule
+            src = source_lines(target)
+            start = int(cm.group("start"))
+            end = int(cm.group("end") or start)
+            if not 1 <= start <= len(src):
+                verdict = "TABLE-OUT-OF-RANGE"
+                detail = f"{tag}  {cm.group(0)} (file has {len(src)} lines)"
+                break
+            band = " ".join(norm(x) for x in src[start - 1:min(len(src), max(end, start + TABLE_BAND))])
+            if any(t in band for t in tokens):
+                verdict = "TABLE-OK"
+                break
+            # `web_server.py:12296` (`_pairing_store` 的 docstring) is not drift:
+            # the cell names the construct the anchor sits inside, and its name
+            # is on that construct's header. Legitimate and common, so it counts
+            # as anchored rather than merely being excluded from the hit list.
+            heads = enclosing_headers(src, start)
+            # Indent-walking alone is fooled by a multi-line signature whose
+            # closing `) -> T:` sits at column 0 (hermes_cli/debug.py:648), so
+            # also take the nearest def/class header above the anchor outright.
+            near = next((n + 1 for n in range(start - 2, max(-1, start - 2 - WINDOW), -1)
+                         if HEADER.match(src[n])), None)
+            if near and near not in heads:
+                heads = heads + [near]
+            if any(t in norm(src[h - 1]) for h in heads for t in tokens):
+                verdict = "TABLE-OK"
+                break
+
+            lo, hi = max(0, start - 1 - WINDOW), min(len(src), start - 1 + WINDOW)
+            head = enclosing_header(src, start)
+            # Only a token that identifies ONE place can testify that the anchor
+            # points at the wrong one. `anthropic` matching four lines in the
+            # window says the token is common, not that the anchor drifted.
+            def counts_as_drift(h):
+                if h == head:
+                    return False  # the cell names the construct the anchor is in
+                if h in heads:
+                    return False  # a header the anchor sits under
+                return True
+
+            probe = None
+            for t in tokens:
+                hits = [n + 1 for n in range(lo, hi) if t in norm(src[n])]
+                hits = [h for h in hits if counts_as_drift(h)]
+                if 1 <= len(hits) <= TABLE_MAX_HITS:
+                    probe, shown = hits, t
+                    break
+            if probe and verdict is None:
+                hits = probe
+                verdict = "TABLE-DRIFT"
+                detail = (
+                    f"{tag}  {cm.group(0)} -> 实际在 {hits[:4]}\n"
+                    f"      表格内联 token: {shown[:100]}\n"
+                    f"      锚点那一行:   {norm(src[start-1])[:100]}"
+                )
+        if verdict == "TABLE-OK":
+            results.append(("TABLE-OK", ""))
+        else:
+            results.append((
+                verdict or "TABLE-UNCHECKED",
+                detail or f"{tag}  {cites[0].group(0)} (table cell, token not near anchor)",
+            ))
+    return results
+
+
 def read_block(lines, j):
     """Read the excerpt block that starts at line index *j*.
 
@@ -238,6 +493,15 @@ def check_note(repo: Path, note: Path, fix: bool = False):
     lines = raw.splitlines()
     results = []  # (status, detail)
     fixes = []  # (note_line_index, old_cite, new_cite)
+
+    def resolve(pth):
+        t = repo / pth
+        # A note may legitimately cite this study repo's own files (prior-round
+        # reports, chapters). Resolve against the baseline first, then locally.
+        if not t.is_file() and (STUDY_ROOT / pth).is_file():
+            t = STUDY_ROOT / pth
+        return t
+
     i = 0
     while i < len(lines):
         line = lines[i]
@@ -257,6 +521,14 @@ def check_note(repo: Path, note: Path, fix: bool = False):
         if QUOTE.match(line):
             while i < len(lines) and QUOTE.match(lines[i]):
                 i += 1
+            continue
+
+        # A table row cannot be followed by a block — the next line is the next
+        # row — so the pairing rule below would record every anchor in every
+        # table UNCHECKED forever. Its excerpt is inline instead (H-R9A-h).
+        if is_table_row(line):
+            results.extend(check_table_row(repo, note, i + 1, line, resolve))
+            i += 1
             continue
 
         cands = list(CITE.finditer(line))
@@ -287,14 +559,6 @@ def check_note(repo: Path, note: Path, fix: bool = False):
             continue
 
         first = first_source_line(block)
-
-        def resolve(pth):
-            t = repo / pth
-            # A note may legitimately cite this study repo's own files (prior-round
-            # reports, chapters). Resolve against the baseline first, then locally.
-            if not t.is_file() and (STUDY_ROOT / pth).is_file():
-                t = STUDY_ROOT / pth
-            return t
 
         # A `>` excerpt of a prose doc is routinely re-wrapped to the note's own
         # column width, so "quote line 1 == source line N" is too strict: the
@@ -421,13 +685,21 @@ def main() -> None:
         for status, detail in check_note(repo, note, fix=fix):
             tally[status] = tally.get(status, 0) + 1
             seen[status] = seen.get(status, 0) + 1
-            if status not in ("OK", "UNCHECKED"):
+            if status not in ("OK", "UNCHECKED", "TABLE-OK", "TABLE-UNCHECKED"):
                 problems.append(f"[{status}] {detail}")
     # BLOCK-DRIFT rides along on a citation that already counted as OK, so it
     # must not inflate the citation total or dilute the verifiable ratio.
     drift = tally.pop("BLOCK-DRIFT", 0)
     for counts in per_file.values():
         counts.pop("BLOCK-DRIFT", None)
+
+    # Table anchors are a separate population with a separate contract; folding
+    # them in would swing 可校验比例 for reasons unrelated to evidence quality,
+    # and that number is compared across rounds. See module docstring.
+    table = {k[len("TABLE-"):]: tally.pop(k) for k in list(tally) if k.startswith("TABLE-")}
+    for counts in per_file.values():
+        for k in [k for k in counts if k.startswith("TABLE-")]:
+            counts.pop(k)
 
     for p in problems:
         print(p)
@@ -469,11 +741,19 @@ def main() -> None:
             f"BLOCK-DRIFT={drift}  (代码块首行之后的行与基线不符;**阻断**,"
             f"见脚本 block_drift() 的说明)"
         )
+    table_bad = table.get("DRIFT", 0) + table.get("OUT-OF-RANGE", 0)
+    if table:
+        t_total = sum(table.values())
+        print(
+            f"table_anchors={t_total}  "
+            + "  ".join(f"{k}={v}" for k, v in sorted(table.items()))
+            + "   (表格行内锚点,单独计数;DRIFT/OUT-OF-RANGE **阻断**,见 H-R9A-h)"
+        )
     bad = total - tally.get("OK", 0) - tally.get("UNCHECKED", 0) - tally.get("FIXED", 0)
     # BLOCK-DRIFT rides along on a citation already tallied OK, so it stays out
     # of `total` (above) to keep the verifiable ratio honest — but it is a
     # failure, so it counts here. R8D promotion; see block_drift().
-    bad += drift
+    bad += drift + table_bad
     if bad:
         print(f"FAIL: {bad} citation(s) need fixing")
         sys.exit(1)
