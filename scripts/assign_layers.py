@@ -305,10 +305,72 @@ RULES = [
     ("hermes_cli/dashboard_auth/**", "L2", "R8C"),
 
     # R8D:其余(体量最大、内聚度最低;开轮时按同样方法再核一遍是否继续拆)
-    ("mcp_serve.py", "L2", "R8D"),
-    ("hermes_logging.py", "L2", "R8D"),
-    ("hermes_time.py", "L2", "R8D"),
-    ("utils.py", "L2", "R8D"),
+    #
+    # R8D 开轮定稿(理由见 reports/round-8d-*.md §1):**不再拆轮,改拆深度**。
+    # 复核结论:这 177 文件 / 125,634 行之所以最大,是因为它是"其余"这个收容桶,
+    # 文件彼此独立(一个 CLI 子命令一个文件),再切一刀只会切出任意边界,
+    # 切不出"必须同时摆在眼前才讲得清"的簇——而那正是 R8A 定下的切片判据。
+    # 于是按 R8C 先例(计划层与完成状态分开记)分深度:
+    #   L1 促升 —— 承载"别处学不到的 harness 机制"的 52 个文件 / 42,284 行;
+    #   L2 保留 —— 其余 125 个文件 / 83,350 行,多是"把已学机制包一层 CLI"的子命令,
+    #              以及 kanban(任务板产品功能)、setup/wizard(交互向导)、皮肤与横幅。
+    # 体量与 R8B(50 文件 / 43,539 行)同级,是单轮真能读到 L1 标准的量。
+    #
+    # (A) 自我更新与自愈:harness 自己升级自己、自己修自己的 venv、
+    #     在自己的 import 跑起来之前先自救。全仓独此一份,别的轮次没有对应物。
+    ("hermes_cli/update_cmd.py", "L1", "R8D"),
+    ("hermes_cli/update_lock.py", "L1", "R8D"),
+    ("hermes_cli/managed_uv.py", "L1", "R8D"),
+    ("hermes_cli/_early_recovery.py", "L1", "R8D"),
+    ("hermes_cli/_scan_venv_blockers.py", "L1", "R8D"),
+    ("hermes_cli/_startup_fast.py", "L1", "R8D"),
+    ("hermes_cli/dep_ensure.py", "L1", "R8D"),
+    ("hermes_cli/npm_engine.py", "L1", "R8D"),
+    ("hermes_cli/psutil_android.py", "L1", "R8D"),
+    ("hermes_cli/relaunch.py", "L1", "R8D"),
+    ("hermes_cli/sqlite_runtime.py", "L1", "R8D"),
+    ("hermes_cli/doctor.py", "L1", "R8D"),
+    ("hermes_cli/session_recovery.py", "L1", "R8D"),
+    # (B) provider / 模型的身份与路由substrate。R2 学的是"怎么调用一个模型",
+    #     这里是"先认定这是哪个 provider、哪个模型、该走哪个 URL"——上游的那半。
+    ("hermes_cli/providers.py", "L1", "R8D"),
+    ("hermes_cli/provider_catalog.py", "L1", "R8D"),
+    ("hermes_cli/runtime_provider.py", "L1", "R8D"),
+    ("hermes_cli/model_normalize.py", "L1", "R8D"),
+    ("hermes_cli/route_identity.py", "L1", "R8D"),
+    ("hermes_cli/model_catalog.py", "L1", "R8D"),
+    ("hermes_cli/models.py", "L1", "R8D"),
+    ("hermes_cli/model_switch.py", "L1", "R8D"),
+    ("hermes_cli/codex_models.py", "L1", "R8D"),
+    # (C) 凭据生命周期与供应链安全:凭据散在多个存储里,谁负责统一它们的生老病死;
+    #     以及 harness 对"自己装进来的东西"做什么审计。
+    ("hermes_cli/credential_lifecycle.py", "L1", "R8D"),
+    ("hermes_cli/secrets_cli.py", "L1", "R8D"),
+    ("hermes_cli/onepassword_secrets_cli.py", "L1", "R8D"),
+    ("hermes_cli/copilot_auth.py", "L1", "R8D"),
+    ("hermes_cli/security_audit.py", "L1", "R8D"),
+    ("hermes_cli/security_audit_startup.py", "L1", "R8D"),
+    ("hermes_cli/security_advisories.py", "L1", "R8D"),
+    ("hermes_cli/mcp_security.py", "L1", "R8D"),
+    ("hermes_cli/urllib_security.py", "L1", "R8D"),
+    ("hermes_cli/managed_scope.py", "L1", "R8D"),
+    # (D) 扩展与分发:第三方代码怎么进到这个进程里来,以及进来之后挂在哪。
+    ("hermes_cli/plugins.py", "L1", "R8D"),
+    ("hermes_cli/middleware.py", "L1", "R8D"),
+    ("hermes_cli/lifecycle.py", "L1", "R8D"),
+    ("hermes_cli/profile_distribution.py", "L1", "R8D"),
+    ("hermes_cli/mcp_catalog.py", "L1", "R8D"),
+    ("hermes_cli/skills_hub.py", "L1", "R8D"),
+    ("hermes_cli/agent_import.py", "L1", "R8D"),
+    # (E) 根模块与进程边界:被全仓 import 的四个根文件,加上本地代理与跨进程租约。
+    ("hermes_logging.py", "L1", "R8D"),
+    ("hermes_time.py", "L1", "R8D"),
+    ("utils.py", "L1", "R8D"),
+    ("mcp_serve.py", "L1", "R8D"),
+    ("hermes_cli/active_sessions.py", "L1", "R8D"),
+    ("hermes_cli/mem_trim.py", "L1", "R8D"),
+    ("hermes_cli/proxy/**", "L1", "R8D"),
+    # 其余(kanban 任务板、setup/model 向导、皮肤横幅、各子命令包装层)留 L2。
     ("hermes_cli/**", "L2", "R8D"),
     ("gateway/platforms/**", "L2", "R7B"),  # adapter docs (ADDING_A_PLATFORM.md)
     ("gateway/**", "L2", "R7C"),            # assets (status_phrases.yaml)
