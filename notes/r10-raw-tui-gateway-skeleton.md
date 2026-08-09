@@ -663,7 +663,7 @@ stderr 可能还没冲刷,常规手段留不下任何痕迹:
 
 | 层 | 锚点 + 摘录 | 作用 |
 |---|---|---|
-| 问题声明 | `tui_gateway/entry.py:100` 的 `Termination semantics: ``sys.exit(0)`` here used to race the worker` | docstring 自陈这条竞争 |
+| 问题声明 | `tui_gateway/entry.py:101` 的 `interpreter shutdown indefinitely.  We now log the stack, give the` | `_log_signal` 的 docstring 自陈这条竞争 |
 | 硬退出兜底 | `tui_gateway/entry.py:145` 的 `timer = _threading.Timer(_shutdown_grace_seconds(), _hard_exit)` | 守护 `Timer`,默认 1s(`HERMES_TUI_GATEWAY_SHUTDOWN_GRACE_S` 可调)后 `os._exit(0)` |
 | 显式落盘 | `tui_gateway/entry.py:158` 的 `_shutdown_sessions()` | 不等 atexit,直接把未落盘消息写进 state.db |
 
@@ -672,8 +672,16 @@ stderr 可能还没冲刷,常规手段留不下任何痕迹:
 `from tui_gateway.entry import ensure_mcp_discovery_started` —— 这是该进程里 `entry` 的**首次导入**,
 于是模块级的信号安装在非主线程执行,原来会抛
 `ValueError: signal only works in main thread` 把 MCP 发现整个搞崩。
-现在非主线程直接静默跳过(`tui_gateway/entry.py:209` 的
-`if threading.current_thread() is not threading.main_thread():`):
+现在非主线程直接静默跳过。`tui_gateway/entry.py:209 @ 863e313`
+
+```
+    if threading.current_thread() is not threading.main_thread():
+        return
+    sig = getattr(signal, signame, None)
+    if sig is None:
+        return  # Windows: SIGPIPE/SIGHUP absent
+```
+
 信号处理器是进程全局的,任何一次主线程导入都已经替所有人装好了。
 
 **MCP 发现的三个函数有个共同结构:两个独立的发现线程 owner。**
@@ -690,9 +698,21 @@ stdio 的 `hermes --tui` 在本模块起自己的线程,桌面 App + dashboard �
 
 **抽象只有两个方法**:`write(obj) -> bool` 与 `close()`。`write` 的返回值是**协议级信号**,
 不是「成功/失败」:`False` **只**表示「对端没了」。
-`Transport` 是 `typing.Protocol` + `@runtime_checkable`(`tui_gateway/transport.py:66` 的
-`@runtime_checkable`),即结构化子类型——`StdioTransport`、`TeeTransport`、`WSTransport`、
-`WsPublisherTransport`、`_DropTransport` 谁都不继承它。
+`Transport` 是结构化子类型(`typing.Protocol`,即「长得对就算数」的鸭子类型接口):
+`StdioTransport`、`TeeTransport`、`WSTransport`、`WsPublisherTransport`、`_DropTransport`
+谁都不继承它。`tui_gateway/transport.py:66 @ 863e313`
+
+```
+@runtime_checkable
+class Transport(Protocol):
+    """Minimal interface every transport implements."""
+
+    def write(self, obj: dict) -> bool:
+        """Emit one JSON frame. Return ``False`` when the peer is gone."""
+
+    def close(self) -> None:
+        """Release any resources owned by this transport."""
+```
 
 **「对端没了」与「主机 I/O 真出问题」的分诊**,这是本文件的核心设计。
 `tui_gateway/transport.py:36 @ 863e313`

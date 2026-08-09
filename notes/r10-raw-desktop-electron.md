@@ -1794,9 +1794,10 @@ cd /home/user/hermes-agent && cmp apps/desktop/electron/entitlements.mac.plist a
 1. **本片的 490 个桌面测试一个都没跑。** `apps/desktop` 的 vitest/playwright 套件需要
    Electron 运行时,本容器装不动,派工书也禁止 `npm install` / `vitest`。
    **所以本文全部结论都建立在静态阅读上,没有任何一条经过运行时验证。**
-   唯一一次真实执行是 §6 ■-1 里那条 `node -e`,它验证的只是 Node 的 URL 解析行为,
-   不是 hermes-agent 的运行时行为。测试文件我读了文件名与部分用例名当行为规格参照,
-   但没有声称跑过。
+   本文里 19 个 ```verify 块我全部重跑过,但它们只是**对源码做只读检索**(grep/sed/python 读文件),
+   不执行 hermes-agent 的任何代码。唯一一次真正的代码执行是 §6 ■-1 里那条 `node -e`,
+   它验证的是 **Node 自己的 URL 解析行为**,不是 hermes-agent 的运行时行为。
+   测试文件我读了文件名与部分用例名当行为规格参照,但没有声称跑过。
 2. **渲染层 `apps/desktop/src/`(816 个文件)按派工书明确不读。** 凡本文提到渲染层的地方
    (■-4 的 UI 分支、§4 跳 0、"渲染层每 60s touch 一次"),证据强度只有 grep 级或代码注释级,
    不是精读级。
@@ -1824,10 +1825,10 @@ cd /home/user/hermes-agent && cmp apps/desktop/electron/entitlements.mac.plist a
 
 | 判据 | 自评 | 说明 |
 |---|---|---|
-| 1. 点名到位:每个文件全路径 + 一句话角色 | **达成 80/80** | §2 分 11 组,组内逐个列出全路径与角色。可机械核对:`grep -c 'apps/desktop/electron/' notes/r10-raw-desktop-electron.md` 覆盖全部 80 条清单路径。 |
+| 1. 点名到位:每个文件全路径 + 一句话角色 | **达成 80/80** | §2 分 11 组,组内逐个列出全路径与角色。可机械核对(实测 0 缺):`while read -r f; do grep -qF "$f" notes/r10-raw-desktop-electron.md || echo "MISSING: $f"; done < data/r10/slices/H.txt`。 |
 | 2. 接缝穷举:逐项列全 + 机械枚举命令 + 条数 | **达成** | 8 个接缝全部列全:126 条渲染→主 IPC(§3.1 逐条 126 行表)、23 条主→渲染(§3.2 逐条)、2 个动态通道族(§3.3)、152 个 preload 叶函数(§3.4,给了枚举脚本;正文没有逐条列 152 行,而是给了分类 + 可复现的枚举命令 + 13 个命名空间的逐个计数——**这一项是"给了可复现枚举命令"而不是"正文逐行抄了 152 行"**)、8 个 bootstrap 事件(§3.5 逐条)、12 个 boot phase(§3.6 逐条)、28 个环境变量(§3.7 逐条)、15 个 userData 条目(§3.8 逐条)。每个接缝都有 ```verify 枚举命令与条数。 |
 | 3. 一条端到端链走通,逐跳带锚点 | **达成** | §4,10 跳,从 preload 到 FastAPI 路由再回来。跨出本片的两端(渲染层入口、Python 路由)都点名了接到谁并给了 Python 侧锚点。 |
-| 4. 两处以上逐字取证 | **达成,远超** | 全文 **53 个逐字摘录围栏块**(43 `ts` / 6 `python` / 2 `bash` / 1 `markdown` / 1 `json`)+ **4 处逐字文档引用块**,合计 57 条引用,校验器读数 `citations=57 OK=57`、可校验比例 100%。分布在 main.ts / preload.ts / active-runtime-state.ts / backend-child.ts / backend-command.ts / backend-health.ts / backend-probes.ts / backend-ready.ts / backend-start-failure.ts / bootstrap-repair-guard.ts / dashboard-token.ts / hardening.ts / quick-entry.ts / remote-liveness.ts / session-windows.ts / package.json,Python 侧 host_supervisor.py / web_server.py / web_routers/sessions.py,以及文档侧 apps/desktop/README.md / website/docs/user-guide/desktop.md。另有 18 个 ```verify 声明式非源码块(机械枚举命令),按制度记 UNCHECKED。 |
+| 4. 两处以上逐字取证 | **达成,远超** | 全文 **53 个逐字摘录围栏块**(43 `ts` / 6 `python` / 2 `bash` / 1 `markdown` / 1 `json`)+ **4 处逐字文档引用块**,合计 57 条引用,校验器读数 `citations=57 OK=57`、可校验比例 100%。分布在 main.ts / preload.ts / active-runtime-state.ts / backend-child.ts / backend-command.ts / backend-health.ts / backend-probes.ts / backend-ready.ts / backend-start-failure.ts / bootstrap-repair-guard.ts / dashboard-token.ts / hardening.ts / quick-entry.ts / remote-liveness.ts / session-windows.ts / package.json,Python 侧 host_supervisor.py / web_server.py / web_routers/sessions.py,以及文档侧 apps/desktop/README.md / website/docs/user-guide/desktop.md。另有 19 个 ```verify 声明式非源码块(机械枚举命令),按制度记 UNCHECKED;这 19 条我逐条重跑过,输出与正文声称一致。 |
 | 5. 至少一条记号 | **达成** | 5 条 ■、3 条 ▲、3 条 ◇、1 条 ◎,共 12 条,逐条带锚点与(负结论的)搜索面。 |
 
 **没做到的部分,如实写:**
@@ -1846,7 +1847,7 @@ cd /home/user/hermes-agent && cmp apps/desktop/electron/entitlements.mac.plist a
 
 | 编号 | 锚点与摘录 | 现象 | 建议下一轮 |
 |---|---|---|---|
-| H-R10H-a | `apps/desktop/electron/main.ts:10274`:`const url = ` | `hermes:api` 用模板串把渲染层给的 `request.path` 直接拼在 baseUrl 后,`path` 以 `@host` 开头即可把带凭据的请求发到任意主机 | R10B 读渲染层时确认调用侧是否有约束;若无,这是一条应上报的安全项 |
+| H-R10H-a | `apps/desktop/electron/main.ts:10274`:`const url =` | `hermes:api` 用模板串把渲染层给的 `request.path` 直接拼在 baseUrl 后,`path` 以 `@host` 开头即可把带凭据的请求发到任意主机 | R10B 读渲染层时确认调用侧是否有约束;若无,这是一条应上报的安全项 |
 | H-R10H-b | `apps/desktop/electron/main.ts:11204`:`ipcMain.handle('hermes:fs:trash', async (_event, targetPath) => {` | 与 `fs:reveal`/`fs:openDir`/`fs:rename` 一样,渲染层给的路径不过 `hardening.ts` 的守卫,而同组其余 6 条通道都过 | 判断这 4 条是"故意豁免"还是"加固时漏掉的" |
 | H-R10H-c | `apps/desktop/electron/main.ts:11176`:`// this never creates directory trees or escapes the allowed roots, and content` | 注释宣称有 "allowed roots" 约束,`hardening.ts` 里没有任何根白名单实现 | 若确认无根白名单,该注释应改;它会让下一个读者以为路径已被围栏 |
 | H-R10H-d | `apps/desktop/electron/main.ts:1548`:`} else if (ev.type === 'unsupported-platform') {` | 这个 bootstrap 事件分支在 `apps/desktop/electron/` 内没有任何发送者;渲染层却有对应 UI 与类型 | R10B 读 `apps/desktop/src/components/desktop-install-overlay.tsx` 时确认这条 UI 是否已成死路 |
