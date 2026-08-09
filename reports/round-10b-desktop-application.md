@@ -720,3 +720,32 @@ HEAD 全程 `863e31318553cda8ad61df681d08175364d4164b`。
 3. **L2 已收口**:`R1-inventoried` 里还剩 6,203 文件 / 1,556,454 行,其中 L3 占 1,878 / 584,490,
    其余主要是 LT(测试)与 L4。**下一个大块是 L3,不是 L2。**
 4. **R12 装订时**,本章是第十九章;第十八章(R10)与本章合起来才是完整的「界面层」。
+
+---
+
+## 勘误(R11A 补记,正文不改)
+
+制度规定 `reports/` 正文不静默改写,修正以文末勘误节呈现。以下一处由 R11A 在
+**引用本轮结论作为自己的基线时**发现,记在这里以免错值继续被引用。
+
+**§(L3/L2 单位成本表)四个比值中有三个与本轮自己的脚本对不上。** 报告表里写
+每片 token **48%** / 每行 token **56%** / 每片工具调用 **64%** / 每片墙钟 **79%**;
+而本轮指定的可复现来源 `data/r10b/probes/capacity_analysis.py` 重跑打印的是
+**48% / 54% / 61% / 75%**。R11A 从原始账 `data/r10b/measurements/slice-cost.tsv`
+独立复算,两种聚合口径都与脚本一致(每行 token:按总量汇总 53.9%,按各片比值取均值 53.6%),
+**没有任何口径能得出 56% / 64% / 79%**。
+
+```verify
+python3 data/r10b/probes/capacity_analysis.py | sed -n '/^L3 as a fraction/,/wall-clock per slice/p'
+```
+
+```text
+L3 as a fraction of L2 (the number R11B needs):
+  tokens per slice         48%
+  tokens per LINE          54%
+  tool calls per slice     61%
+  wall-clock per slice     75%
+```
+
+**以脚本为准。** 只有 48% 那一格是对的。
+本条不改正文,仅在此声明;R11A 的排期推算用的是脚本值,不是表里的值。

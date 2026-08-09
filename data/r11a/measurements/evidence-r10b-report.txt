@@ -1,0 +1,36 @@
+
+[EVIDENCE-DIFF] reports/round-10b-desktop-application.md
+  command: python3 scripts/verify_citations.py /home/user/hermes-agent \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,4 +1,4 @@
+      -citations=1139  OK=788  UNCHECKED=351
+      -可校验比例 OK/1139 = 69.2%  << 低于 70% 下限
+      -table_anchors=494  OK=409  UNCHECKED=85   (表格行内锚点,单独计数;DRIFT/OUT-OF-RANGE **阻断**,见 H-R9A-h)
+      +citations=1143  OK=789  UNCHECKED=354
+      +可校验比例 OK/1143 = 69.0%  << 低于 70% 下限
+      +table_anchors=495  OK=410  UNCHECKED=85   (表格行内锚点,单独计数;DRIFT/OUT-OF-RANGE **阻断**,见 H-R9A-h)
+       OK: every code-block-backed citation matches the baseline
+
+[EVIDENCE-DIFF] reports/round-10b-desktop-application.md
+  command: cd /home/user/hermes-study && bash data/r10b/probes/run_h_r10f_probe.sh 2>&1 | grep -E "^H-R10-f|Tests  |Test 
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,4 +0,0 @@
+      -H-R10-f events seen after restart: ["before.restart"]
+      -H-R10-f exit events after restart: []
+      - Test Files  1 passed (1)
+      -      Tests  3 passed (3)
+
+[EVIDENCE-DIFF] reports/round-10b-desktop-application.md
+  command: cd /home/user/hermes-study && printf "Claude-Session: only   -> %s\n" \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,2 +1,2 @@
+      -Claude-Session: only   -> 148
+      -either trailer         -> 160
+      +Claude-Session: only   -> 175
+      +either trailer         -> 187
+
+verify-blocks paired=13  unpaired=0  differing=3
+FAIL: a ```verify command does not reproduce the output pasted under it
