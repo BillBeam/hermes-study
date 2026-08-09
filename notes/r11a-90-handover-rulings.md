@@ -415,3 +415,5 @@ find /opt/pw-browsers -maxdepth 4 -type f -name chrome | wc -l
 | **H-R11A-c** | R11 复盘 | `pyproject.toml:330`:`# Removed from [all] on 2026-05-12 (covered by lazy-install):` | ▲-R11A-01:四份 README 仍以"`[all]` 拉语音依赖"为由解释 Termux 特例,该理由已作废 |
 | **H-R11A-d** | 需装 extra 的轮次 | `tests/gateway/test_teams.py:173`:`assert _teams_mod.check_teams_requirements() is True` | H-R8D-j 的运行期集合仍未确定;要真装一遍全量跑,本轮为守共享环境纪律有意未做 |
 | **H-R11A-e** | R11 复盘 | `scripts/verify_evidence_commands.py:46`:`TIMEOUT = 900` | 关卡不捕 `subprocess.TimeoutExpired`,一条超时命令会让整轮扫描**中途崩掉**,其后文件一个没查;本轮靠 `data/r11a/probes/evidence_backlog_sweep.sh` 逐文件外部限时绕开 |
+| **H-R11A-f** | 接手 `plugins/` 的那一轮 | `scripts/assign_layers.py:612`:`("plugins/**", "L2", "R6"),` | `round=R6` 名下另有 243 个 L2 文件 / 116,078 行 `status` 从未动过,与本轮修掉的 L3 侧同形态;本轮**有意未改**——它分散在一条兜底规则与两条显式点名规则之间,只改兜底会留 16 个不一致,而"显式点名却没做"与"兜底桶没人认领"是两种不同的失败 |
+| **H-R11A-g** | R11 复盘 | `data/r11a/dispatch-brief.md:71` 的 `**R11A 新增**:无扩展名文件也能当锚点了` | 派工书说 `scripts/hermes-gateway` 不受引用校验保护,**说错了**:它在 `EXTLESS_NAMES` 名单里且路径含 `/`,实测受保护;真正不受保护的是 `.ps1` / `.cmd`。片 A 自己发现并纠正,但派工书是下一轮会复制的模板 |

@@ -629,9 +629,24 @@ RULES = [
     ("cron/**", "L2", "R7C"),
 
     # ---- L3: cataloged content ----
-    ("skills/**", "L3", "R6"),
-    ("optional-skills/**", "L3", "R6"),
-    ("optional-mcps/**", "L3", "R6"),
+    # R11A 改判:这三条原本写的是 R6 —— 一个**已经收官的轮次**。
+    # 与 R8D 在 L1 侧修掉的是同一个形态,而且更隐蔽:R8D 那边是区间占位符
+    # ("R3-R7"),一眼看得出没定;这边写的是一个**真实存在、且已经完成**的轮次,
+    # 于是按 round 列扫过去,它看起来不是"没排期",而是"早就做完了"。
+    #
+    # 事实(R11A 复核):R6 名下 1,347 个文件里,只有 24 个 L1 的 status 是
+    # R6-deep-read;另外 1,080 个 L3(315,887 行)与 243 个 L2(116,078 行)
+    # 自 R6 起 status 一直是 R1-inventoried,**八轮无人动过**。
+    # 而 R6 是"记忆-技能-学习闭环",R1 称 skills/ 是"本仓库最独特的卖点"。
+    #
+    # 沿用 R8D 立的语义:**round 列只写"还在钩上"的轮次**;已经读到位的用
+    # status 列表示(R11A 校准片 118 个文件 = R11A-aware)。UNCLAIMED 会在
+    # 任何一轮按 round 报数时自己跳出来,这正是它存在的理由。
+    # 依据见 reports/round-11a-ops-and-delivery.md §11 与
+    # data/r11a/probes/skills_bucket_profile.py。
+    ("skills/**", "L3", "UNCLAIMED"),
+    ("optional-skills/**", "L3", "UNCLAIMED"),
+    ("optional-mcps/**", "L3", "UNCLAIMED"),
     ("locales/**", "L3", "R11"),
     ("datagen-config-examples/**", "L3", "R9A"),
     ("website/**", "L3", "R11"),
