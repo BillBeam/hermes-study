@@ -195,6 +195,102 @@ import 覆盖凭据与配置,来源校验仅"zip 里出现过某个 basename")�
 
 ---
 
-## 2. 台账口径:本轮 46 个文件全部由 R1-inventoried 转 R9B-deep-read
+## 2. H-R9A-a 结清:网关 bearer 的判定用子串,而正确的比较值就在同一个对象上
+
+移交项把这条标为「R9C(网关/传输片)**或立即**」。本轮取它,因为它与 §1 是**同一种病的两个标本**
+——「凭据发往哪里,由一个不做主机比对的判断决定」——放在一起讲教训才完整。
+**结论:现象属实,且比 §1 严重一个量级,因为触发者是入站消息而不是本机配置。**
+
+### 2.1 判断本体:子串,不是主机
+
+`gateway/relay/media.py:92-94 @ 863e313`
+
+```python
+    def is_relay_media_url(self, url: str) -> bool:
+        """Is ``url`` a connector re-host reference (needs our bearer to GET)?"""
+        return "/relay/media/" in (url or "")
+```
+
+**任何**含有 `/relay/media/` 这个子串的 URL 都算数,主机是谁完全不看。
+`https://attacker.example/relay/media/x` 满足它。
+
+### 2.2 判断为真就挂 bearer 并 GET 出去
+
+`gateway/relay/media.py:154-169 @ 863e313`
+
+```python
+    async def download(self, url: str, *, suggested_name: Optional[str] = None) -> Optional[str]:
+        """GET a re-hosted attachment to a local temp file; return its path.
+
+        Presents the per-gateway bearer for connector re-host URLs; plain
+        public URLs (e.g. a Discord CDN pass-through) are fetched without it.
+        Returns None on any failure (the event then keeps the remote URL, and
+        downstream consumers that need a local file skip it — best-effort).
+        """
+        if not url:
+            return None
+        needs_auth = self.is_relay_media_url(url)
+        if needs_auth and not self.enabled:
+            return None
+        headers = {}
+        if needs_auth:
+            headers["Authorization"] = f"Bearer {self._bearer()}"
+```
+
+**注意 docstring 自己把契约写成了主机级的**:"Presents the per-gateway bearer for
+**connector re-host URLs**; plain public URLs (e.g. a Discord CDN pass-through) are
+fetched without it." —— 作者想表达的是"只发给 relay 自己的 re-host 端点",
+而 `:94` 那行子串判断**不足以实现这句话**。这是一处「文档(docstring)说的是对的、
+代码没做到」,记 ■ 而非 ▲(▲ 留给作者自绘地图与代码矛盾的情形)。
+
+### 2.3 url 来自入站帧,不是本机配置 —— 这是它比 §1 重的原因
+
+`gateway/relay/ws_transport.py:268 @ 863e313`
+
+```python
+        media_urls=raw.get("media_urls") or [],
+```
+
+`raw` 是 relay WebSocket 帧的原始载荷,`media_urls` **未经任何校验**直接成为
+事件字段。它随后被 `gateway/relay/adapter.py:474` 的 `await client.download(url)` 取用
+(该处 `urls` 取自 `event.media_urls`,见 `gateway/relay/adapter.py:461`)。
+
+**完整链条**:入站帧里的 `media_urls` → `event.media_urls` → `download(url)` →
+子串命中 → `Authorization: Bearer <make_upgrade_token(gateway_id, secret)>` →
+`urllib.request.urlopen` 发往攻击者主机(`gateway/relay/media.py:172-174`)。
+
+### 2.4 最刺眼的一点:正确的比较值就在同一个对象的字段里
+
+`gateway/relay/media.py:76-82 @ 863e313`
+
+```python
+        base_url: str,
+        gateway_id: Optional[str],
+        secret: Optional[str],
+    ) -> None:
+        self._base_url = base_url.rstrip("/")
+        self._gateway_id = gateway_id or ""
+        self._secret = secret or ""
+```
+
+`self._base_url` 就是这个客户端**自己**的 relay base。正确写法是
+「解析 URL,比对 host 是否等于 `self._base_url` 的 host」——所需的值
+**已经是同一个类的实例字段**,不需要新增配置、不需要新增依赖。
+移交项建议的修法(「比对配置的 connector host,而非放宽/收紧子串」)本轮复核**同意**。
+
+### 2.5 诚实边界
+
+- **已取证**:子串判定、bearer 挂载、`media_urls` 取自原始帧、单一调用点、
+  `self._base_url` 可用 —— 以上每条都有上面的行号与原文。
+- **未取证**:本轮**没有**构造入站帧实跑一次,也**没有**逐平台确认
+  哪些适配器会把终端用户提供的 URL 放进 `media_urls`。
+  因此「终端用户可直接触发」这一步**是推定,不是实测**;
+  已确证的是「**能在入站帧里放 `media_urls` 的一方**可以触发」。
+- `urlopen` 跟随重定向时是否保留 `Authorization` 头,依 Python 版本而异,
+  本轮**未测**,不作为论据。
+
+---
+
+## 3. 台账口径:本轮 46 个文件全部由 R1-inventoried 转 R9B-deep-read
 
 见报告 §台账报数。
