@@ -1,0 +1,973 @@
+
+[EVIDENCE-DIFF] notes/r10-90-handover-rulings.md
+  command: cd /home/user/hermes-study && python3 scripts/verify_citations.py /home/user/hermes-agent notes/*.md 2>&1 | ta
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,4 +1,4 @@
+      -citations=15003  MISMATCH=125  MISSING-FILE=189  OK=9620  UNCHECKED=5069
+      -可校验比例 OK/15003 = 64.1%  << 低于 70% 下限
+      -table_anchors=2230  OK=531  UNCHECKED=1699   (表格行内锚点,单独计数;DRIFT/OUT-OF-RANGE **阻断**,见 H-R9A-h)
+      +citations=16401  MISMATCH=125  MISSING-FILE=189  OK=10654  UNCHECKED=5433
+      +可校验比例 OK/16401 = 65.0%  << 低于 70% 下限
+      +table_anchors=3355  OK=1287  UNCHECKED=2068   (表格行内锚点,单独计数;DRIFT/OUT-OF-RANGE **阻断**,见 H-R9A-h)
+       FAIL: 314 citation(s) need fixing
+
+[EVIDENCE-DIFF] notes/r10-90-handover-rulings.md
+  command: cd /home/user/hermes-study && python3 scripts/verify_citations.py /home/user/hermes-agent notes/*.md 2>&1 \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,12 +1,12 @@
+      -     29 MISSING-FILE r2-22-credential-pool.md
+      +     25 MISSING-FILE r2-22-credential-pool.md
+            24 MISSING-FILE r6-40-mem0-holographic.md
+            23 MISSING-FILE r6-30-hindsight-supermemory-retaindb.md
+            20 MISSING-FILE r4-40-computer-use.md
+            18 MISSING-FILE r3-20-schema-output-toolsearch.md
+      -     14 MISSING-FILE r6-20-openviking-byterover.md
+      -     13 MISSING-FILE r5-20-context-compression.md
+      -     11 MISMATCH r7-raw-run-03-turnrunner.md
+      -      9 MISSING-FILE r2-13-turn-finalizer.md
+      -      8 MISSING-FILE r6-01-loader-query-rewrite-optimize.md
+      -      7 MISMATCH r7-raw-run-10-agent-turn.md
+      -      7 MISSING-FILE r7-raw-session-b.md
+      +     16 MISSING-FILE r3-30-execute-code-mcp-client.md
+      +     15 MISSING-FILE r6-10-honcho.md
+      +     15 MISSING-FILE r3-10-approval-security.md
+      +     12 MISMATCH r5-02-hermes-state-sessiondb.md
+      +     11 MISMATCH r4-30-browser-automation.md
+      +     10 MISSING-FILE r4-20-remote-backends-serverless.md
+      +      7 MISMATCH r7-raw-run-12-watch-lease-cache.md
+
+[EVIDENCE-DIFF] notes/r10-96-ts-suites.md
+  command: bash data/r10/probes/ts_test_env.sh run
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,5 +1,2 @@
+      - Test Files  138 passed (138)
+      -      Tests  1530 passed | 1 skipped (1531)
+      +########## vitest: ui-tui ##########
+       ########## vitest: web ##########
+      - Test Files  27 passed (27)
+      -      Tests  191 passed (191)
+      stderr: data/r10/probes/ts_test_env.sh: line 56: cd: /home/user/r10-ts/hermes-agent/web: No such file or directory
+
+[EVIDENCE-DIFF] notes/r10-96-ts-suites.md
+  command: cd /home/user/r10-ts/hermes-agent/ui-tui && npx vitest run --reporter=json --outputFile=/tmp/ui-tui-vitest.jso
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,3 +0,0 @@
+      -skipped | ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.test.ts
+      -        | execFileNoThrow with daemon-style children (documented hang)
+      -          without resolveOnExit, await never resolves when daemon inherits stdio
+      stderr: bash: line 1: cd: /home/user/r10-ts/hermes-agent/ui-tui: No such file or directory
+
+[EVIDENCE-DIFF] notes/r10-raw-hermes-ink.md
+  command: cd /home/user/hermes-agent/ui-tui/packages/hermes-ink && \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,13 +1 @@
+      -弹性布局:  display flexDirection flexGrow flexShrink flexBasis flexWrap
+      -           alignItems alignSelf justifyContent gap columnGap rowGap
+      -尺寸:      width height minWidth minHeight maxWidth maxHeight
+      -盒模型:    margin marginX marginY marginTop marginBottom marginLeft marginRight
+      -           padding paddingX paddingY paddingTop paddingBottom paddingLeft paddingRight
+      -定位:      position top bottom left right
+      -溢出:      overflow overflowX overflowY
+      -边框:      borderStyle borderText borderColor borderDimColor
+      -           borderTop borderBottom borderLeft borderRight
+      -           borderTopColor borderBottomColor borderLeftColor borderRightColor
+      -           borderTopDimColor borderBottomDimColor borderLeftDimColor borderRightDimColor
+      -文本:      color backgroundColor bold italic underline strikethrough inverse dim textWrap
+      -渲染扩展:  opaque noSelect
+      +67
+
+[EVIDENCE-DIFF] notes/r10-raw-hermes-ink.md
+  command: cd /home/user/hermes-agent && grep -rn -i "hermes-ink\|hermes/ink\|yoga" --include="*.md" . | grep -v node_mod
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,5 +1,5 @@
+      -ui-tui/README.md:332      packages/hermes-ink/   forked Ink renderer (local dep)
+      -ui-tui/README.md:479      hermes-ink.d.ts            type declarations for @hermes/ink
+      -AGENTS.md:470             npm run dev       # watch mode (rebuilds hermes-ink + tsx --watch)
+      -AGENTS.md:472             npm run build     # full build (hermes-ink + tsc)
+      -optional-skills/health/neuroskill-bci/references/protocols.md:274   ### NSDR (... Yoga Nidra)
+      +./ui-tui/README.md:332:  packages/hermes-ink/   forked Ink renderer (local dep)
+      +./ui-tui/README.md:479:      hermes-ink.d.ts            type declarations for @hermes/ink
+      +./AGENTS.md:470:npm run dev       # watch mode (rebuilds hermes-ink + tsx --watch)
+      +./AGENTS.md:472:npm run build     # full build (hermes-ink + tsc)
+      +./optional-skills/health/neuroskill-bci/references/protocols.md:274:### NSDR (Non-Sleep Deep Rest / Yoga Nidra)
+
+[EVIDENCE-DIFF] notes/r10-raw-web-dashboard.md
+  command: cd /home/user/hermes-agent && \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,3 +1,4 @@
+      +
+       literal call sites : 167
+       distinct endpoints : 166
+       not-a-path strings : 1
+
+[EVIDENCE-DIFF] notes/r10b-90-handover-rulings.md
+  command: cd /home/user/hermes-study && bash data/r10b/probes/run_h_r10f_probe.sh 2>&1 | grep -E "^H-R10-f|Tests  |Test 
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,4 +0,0 @@
+      -H-R10-f events seen after restart: ["before.restart"]
+      -H-R10-f exit events after restart: []
+      - Test Files  1 passed (1)
+      -      Tests  3 passed (3)
+
+[EVIDENCE-DIFF] notes/r10b-92-mainline-crosschecks.md
+  command: cd /home/user/hermes-study && bash data/r10b/probes/run_i18n_leafkeys.sh 2>&1 | head -8
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,7 +1 @@
+      -file            authoring        leaves  opaque  call-subtrees  spreads
+      -en.ts           literal            2763       0              2        0
+      -zh.ts           literal            2762       0              2        0
+      -ja.ts           defineLocale()     2335       0              2        0
+      -zh-hant.ts      defineLocale()     2335       0              2        0
+      -ar.ts           defineLocale()     2181       0              0        0
+      -types.ts        interface Translations   2251       0              0        0
+      +need a checkout with typescript installed; run data/r10b/probes/ts_test_env.sh
+
+[EVIDENCE-DIFF] notes/r10b-92-mainline-crosschecks.md
+  command: cd /home/user/hermes-study && bash data/r10b/probes/run_i18n_parity.sh 2>&1 | grep -E "LEAF_COUNTS|DIFF_VS_EN"
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,5 +0,0 @@
+      -LEAF_COUNTS en=2763 zh=2762 zh-hant=2763 ja=2763 ar=2769
+      -DIFF_VS_EN zh missing=20 extra=19 firstMissing=keybinds.actions.view.closeTerminal,keybinds.actions.view.newTerminal,keybinds.actions.view.nextTerminal firstExtra=messaging.platformIntro.api_server,messaging.platformIntro.bluebubbles,messaging.platformIntro.dingtalk
+      -DIFF_VS_EN zh-hant missing=0 extra=0
+      -DIFF_VS_EN ja missing=0 extra=0
+      -DIFF_VS_EN ar missing=0 extra=6 firstExtra=keybinds.actions.view.closePreviewTab,onboarding.flowSubtitles.loopback,sidebar.nav.agents
+
+[EVIDENCE-DIFF] notes/r10b-92-mainline-crosschecks.md
+  command: cd /home/user/hermes-study && bash data/r10b/probes/run_i18n_parity.sh 2>&1 | grep "LOCALE_OPTIONS="
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1 +0,0 @@
+      -LOCALE_OPTIONS=[ar,en,ja,zh,zh-hant] TRANSLATIONS=[ar,en,ja,zh,zh-hant] equal=true
+
+[EVIDENCE-DIFF] notes/r10b-raw-capability-panels.md
+  command: cd /home/user/hermes-study && python3 scripts/verify_citations.py /home/user/hermes-agent notes/r10b-raw-capab
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,4 +1,5 @@
+      +
+       citations=58  OK=46  UNCHECKED=12
+       可校验比例 OK/58 = 79.3%
+      -table_anchors=119  OK=112  UNCHECKED=7
+      +table_anchors=119  OK=112  UNCHECKED=7   (表格行内锚点,单独计数;DRIFT/OUT-OF-RANGE **阻断**,见 H-R9A-h)
+       OK: every code-block-backed citation matches the baseline
+
+[EVIDENCE-DIFF] notes/r10b-raw-chat-composer.md
+  command: cd /home/user/hermes-study
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,4 +1,5 @@
+      +
+       citations=81  OK=60  UNCHECKED=21
+       可校验比例 OK/81 = 74.1%
+      -table_anchors=31  OK=13  UNCHECKED=18
+      +table_anchors=31  OK=14  UNCHECKED=17   (表格行内锚点,单独计数;DRIFT/OUT-OF-RANGE **阻断**,见 H-R9A-h)
+       OK: every code-block-backed citation matches the baseline
+
+[EVIDENCE-DIFF] notes/r10b-raw-lib-themes.md
+  command: python3 /home/user/hermes-study/data/r10b/probes/probe_e_slash_table.py /home/user/hermes-agent
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,3 +1,45 @@
+      +== DESKTOP_COMMAND_SPECS ==
+      +  /new             action  aliases=['/reset']
+      +  /branch          action  aliases=['/fork']
+      +  /yolo            action
+      +  /wake            action
+      +  /handoff         action
+      +  /profile         action
+      +  /skin            action
+      +  /title           action
+      +  /help            action  aliases=['/commands']
+      +  /browser         action
+      +  /journey         action  aliases=['/learning', '/memory-graph']
+      +  /model           picker
+      +  /resume          picker  aliases=['/sessions', '/switch']
+      +  /approvals       exec
+      +  /agents          exec  aliases=['/tasks']
+      +  /background      exec  aliases=['/bg', '/btw']
+      +  /compress        action  aliases=['/compact']
+      +  /debug           exec
+      +  /goal            exec
+      +  /personality     exec
+      +  /pet             action
+      +  /hatch           action  aliases=['/generate-pet']
+      +  /queue           exec  aliases=['/q']
+      +  /retry           exec
+      +  /rollback        exec
+      +  /save            rpc
+      ... (18 more diff lines)
+
+[EVIDENCE-DIFF] notes/r10b-raw-lib-themes.md
+  command: cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project ui src/lib src/themes src/debug
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,3 +0,0 @@
+      - Test Files  1 failed | 75 passed (76)
+      -      Tests  1 failed | 689 passed (690)
+      -   Duration  128.07s
+      stderr: bash: line 1: cd: /home/user/r10b-ts/hermes-agent/apps/desktop: No such file or directory
+
+[EVIDENCE-DIFF] notes/r10b-raw-settings-billing.md
+  command: cd /home/user/hermes-study
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,3 +1,37 @@
+      +KnownBillingRefusalCode  : 24
+      +BILLING_REFUSAL_POLICY   : 24   identical set: True
+      +resolveRefusal switch    : 18 arms (incl. non-wire 'timeout'/'transport')
+      +
+      +code                            policy.recovery   desktop copy?
+      +  auto_top_up_disabled_failures portal            NO -> generic default
+      +  cli_billing_disabled          portal            yes
+      +  consent_required              portal            yes
+      +  endpoint_unavailable          retry             yes
+      +  idempotency_conflict          none              yes
+      +  idempotency_key_required      none              NO -> generic default
+      +  insufficient_scope            step_up           yes
+      +  internal_error                retry             NO -> generic default
+      +  invalid_charge_id             none              NO -> generic default
+      +  invalid_request               none              NO -> generic default
+      +  monthly_cap_exceeded          portal            yes
+      +  network_error                 retry             NO -> generic default
+      +  no_payment_method             portal            yes
+      +  org_access_denied             portal            yes
+      +  preview_rejected              none              NO -> generic default
+      +  rate_limited                  retry             yes
+      +  remote_spending_disabled      portal            yes
+      +  remote_spending_revoked       reconnect         yes
+      +  role_required                 portal            yes
+      +  session_revoked               login             yes
+      +  stripe_unavailable            retry             yes
+      +  temporarily_unavailable       retry             yes
+      ... (10 more diff lines)
+
+[EVIDENCE-DIFF] notes/r8d-raw-provider-identity.md
+  command: cd /home/user/hermes-agent && HERMES_HOME=$(mktemp -d) /home/user/hermes-venv/bin/python -c "
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -5,4 +5,4 @@
+       opencode     models→providers=opencode         providers→models=opencode-zen     复合幂等=True
+       vercel       models→providers=vercel           providers→models=ai-gateway       复合幂等=True
+       ai-gateway   models→providers=vercel           providers→models=ai-gateway       复合幂等=True
+      -kimi         models→providers=kimi-for-coding  providers→models=kimi-coding      复合幂等=True
+      +kimi         models→providers=kimi-for-coding  providers→models=kimi-for-coding  复合幂等=True
+
+[EVIDENCE-DIFF] notes/r8d-raw-provider-identity.md
+  command: cd /home/user/hermes-agent && HERMES_HOME=$(mktemp -d) /home/user/hermes-venv/bin/python -c "
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -5,6 +5,6 @@
+       or         models=or           providers=or           auth=openrouter     runtime=or
+       azure      models=azure        providers=azure        auth=azure-foundry  runtime=azure
+       codex      models=codex        providers=codex        auth=openai-codex   runtime=codex
+      -github     models=copilot      providers=github-copilot auth=copilot      runtime=github
+      +github     models=copilot      providers=github-copilot auth=copilot        runtime=github
+       vercel     models=ai-gateway   providers=vercel       auth=ai-gateway     runtime=vercel
+       kilo       models=kilocode     providers=kilo         auth=kilocode       runtime=kilo
+
+[EVIDENCE-DIFF] notes/r8d-raw-provider-identity.md
+  command: cd /home/user/hermes-agent && HERMES_HOME=$(mktemp -d) /home/user/hermes-venv/bin/python -c "
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,2 +1,2 @@
+       qwen -> AuthError: Qwen CLI credentials not found. Run 'qwen auth qwen-oauth' first.
+      -nim  -> AuthError: Unknown provider 'nim'. Check 'hermes model' for available providers, ...
+      +nim -> AuthError: Unknown provider 'nim'. Check 'hermes model' for available providers, or run 'hermes doctor' to diagnose config issues.
+
+[EVIDENCE-DIFF] notes/r8d-raw-provider-identity.md
+  command: cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python -c "
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,11 +1,11 @@
+      -'https://API.OpenAI.com/v1/'  -> 'https://api.openai.com/v1'      # scheme+host 小写、去尾斜杠
+      -'https://api.openai.com:443/v1' -> 'https://api.openai.com/v1'    # 去默认端口
+      -'http://x.test:80/v1'         -> 'http://x.test/v1'               # 去默认端口(按 scheme)
+      -'https://api.x.ai/v1/?'       -> 'https://api.x.ai/v1/?'          # 有裸 '?' 就不去尾斜杠
+      -'https://u:p@API.Test/v1/'    -> 'https://u:p@api.test/v1'        # userinfo 大小写保留,host 小写
+      -'https://[2001:DB8::1]:8443/v1/' -> 'https://[2001:db8::1]:8443/v1'  # IPv6 保方括号
+      -'not a url'                   -> 'not a url'                      # 无 scheme → 原样
+      -''                            -> ''
+      -'  https://a.test/v1  '       -> '  https://a.test/v1  '          # 含空格 → 原样(≤0x20 短路)
+      -'https://a.test/v1#frag'      -> 'https://a.test/v1'              # fragment 丢弃
+      -'moa://local'                 -> 'moa://local'                    # 自造 scheme 也能归一
+      +'https://API.OpenAI.com/v1/' -> 'https://api.openai.com/v1'
+      +'https://api.openai.com:443/v1' -> 'https://api.openai.com/v1'
+      +'http://x.test:80/v1' -> 'http://x.test/v1'
+      +'https://api.x.ai/v1/?' -> 'https://api.x.ai/v1/?'
+      +'https://u:p@API.Test/v1/' -> 'https://u:p@api.test/v1'
+      +'https://[2001:DB8::1]:8443/v1/' -> 'https://[2001:db8::1]:8443/v1'
+      +'not a url' -> 'not a url'
+      +'' -> ''
+      +'  https://a.test/v1  ' -> '  https://a.test/v1  '
+      +'https://a.test/v1#frag' -> 'https://a.test/v1'
+      +'moa://local' -> 'moa://local'
+
+[EVIDENCE-DIFF] notes/r8d-raw-provider-identity.md
+  command: cd /home/user/hermes-agent && HERMES_HOME=$(mktemp -d) /home/user/hermes-venv/bin/python -c "
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,6 +1,6 @@
+      -https://api.x.ai/v1                     providers=None              runtime=codex_responses
+      -https://api.actual.inc/v1               providers=None              runtime=codex_responses
+      -https://bedrock-runtime.us-east-1...    providers=bedrock_converse  runtime=None
+      -https://proxy.test/anthropic/v1         providers=None              runtime=anthropic_messages
+      -https://api.openai.com/v1               providers=codex_responses   runtime=codex_responses
+      -https://api.anthropic.com               providers=anthropic_messages runtime=anthropic_messages
+      +https://api.x.ai/v1                                  providers=None                 runtime=codex_responses
+      +https://api.actual.inc/v1                            providers=None                 runtime=codex_responses
+      +https://bedrock-runtime.us-east-1.amazonaws.com      providers=bedrock_converse     runtime=None
+      +https://proxy.test/anthropic/v1                      providers=None                 runtime=anthropic_messages
+      +https://api.openai.com/v1                            providers=codex_responses      runtime=codex_responses
+      +https://api.anthropic.com                            providers=anthropic_messages   runtime=anthropic_messages
+
+[EVIDENCE-DIFF] notes/r8d-raw-provider-identity.md
+  command: cd /home/user/hermes-agent && HERMES_HOME=$(mktemp -d) /home/user/hermes-venv/bin/python -c "
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -12,6 +12,6 @@
+       novita-ai        models=novita       auth=ok:novita
+       novitaai         models=novita       auth=ok:novita
+       nvidia-nim       models=nvidia       auth=ok:nvidia
+      -qwen             models=alibaba      auth=ok:qwen-oauth   <- 不是 FAIL,是解成了另一个 provider(■-1)
+      +qwen             models=alibaba      auth=ok:qwen-oauth
+       vertex-ai        models=vertex       auth=ok:vertex
+       vertexai         models=vertex       auth=FAIL
+
+[EVIDENCE-DIFF] notes/r9b-raw-image.md
+  command: cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python bash scripts/run_tests.sh \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,3 +1,388 @@
+      -=== Summary: 8 files, 105 tests passed, 2 failed (100% complete) in 2.2s (8 workers) ===
+      +▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+      +▶ running per-file parallel test suite via run_tests_parallel.py
+      +  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+      +▶ pre-compiling bytecode cache
+      +▶ launching test runner
+      +Discovered 8 test files (~107 tests) under ['tests/tools/test_image_generation.py', 'tests/tools/test_image_generation_image_to_image.py', 'tests/tools/test_image_generation_plugin_dispatch.py', 'tests/tools/test_image_generation_artifacts.py', 'tests/tools/test_image_generation_env.py', 'tests/tools/test_image_source.py', 'tests/agent/test_image_routing.py', 'tests/agent/test_image_gen_registry.py']; running with -j 8
+      +[  2.8% |     3/~107 | ✓3 | ✗0] ✓ tests/tools/test_image_generation_plugin_dispatch.py (3✓, 2.3s)
+      +[  6.5% |     7/~107 | ✓7 | ✗0] ✓ tests/agent/test_image_gen_registry.py (4✓, 2.3s)
+      +[  8.4% |     9/~107 | ✓9 | ✗0] ✓ tests/tools/test_image_generation_env.py (2✓, 2.3s)
+      +[ 21.5% |    23/~107 | ✓23 | ✗ 0] ✓ tests/tools/test_image_source.py (14✓, 2.6s)
+      +[ 57.0% |    61/~107 | ✓61 | ✗ 0] ✓ tests/agent/test_image_routing.py (38✓, 2.8s)
+      +[ 66.4% |    71/~107 | ✓71 | ✗ 0] ✓ tests/tools/test_image_generation_image_to_image.py (10✓, 3.3s)
+      +[ 69.2% |    74/~107 | ✓74 | ✗ 0] ✓ tests/tools/test_image_generation_artifacts.py (3✓, 3.3s)
+      +[100.0% |   107/~107 | ✓105 | ✗  2] ✗ tests/tools/test_image_generation.py (31✓ 2✗, 3.8s)
+      +
+      +  ╔╍ Failed: tests/tools/test_image_generation.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+      +  ║ tools/image_generation_tool.py:55: in _load_fal_client
+      +  ║     fal_client = import_fal_client()
+      +  ║                  ^^^^^^^^^^^^^^^^^^^
+      +  ║ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+      +  ║ 
+      +  ║     def import_fal_client() -> Any:
+      +  ║         """Import ``fal_client`` (via ``lazy_deps`` when available) and return
+      +  ║         the module reference.
+      +  ║     
+      +  ║         Callers are responsible for caching the result on their own module
+      ... (362 more diff lines)
+
+[EVIDENCE-DIFF] notes/r9b-raw-image.md
+  command: cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python bash scripts/run_tests.sh \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,2 +1,240 @@
+      -=== Summary: 10 files, 139 tests passed, 1 failed (100% complete) in 3.1s (8 workers) ===
+      +▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+      +▶ running per-file parallel test suite via run_tests_parallel.py
+      +  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+      +▶ pre-compiling bytecode cache
+      +▶ launching test runner
+      +Discovered 10 test files (~136 tests) under ['tests/plugins/image_gen', 'tests/tools/test_managed_media_gateways.py', 'tests/gateway/test_image_input_routing_runtime.py', 'tests/agent/test_custom_providers_vision.py']; running with -j 8
+      +[  5.9% |     8/~136 | ✓8 | ✗0] ✓ tests/plugins/image_gen/test_fal_provider.py (8✓, 1.7s)
+      +[  9.6% |    13/~136 | ✓13 | ✗ 0] ✓ tests/agent/test_custom_providers_vision.py (5✓, 1.9s)
+      +[ 26.5% |    36/~136 | ✓36 | ✗ 0] ✓ tests/plugins/image_gen/test_openrouter_compat_provider.py (23✓, 2.0s)
+      +[ 28.7% |    39/~136 | ✓39 | ✗ 0] ✓ tests/plugins/image_gen/test_deepinfra_provider.py (3✓, 2.0s)
+      +[ 44.9% |    61/~136 | ✓61 | ✗ 0] ✓ tests/plugins/image_gen/test_openai_codex_provider.py (22✓, 2.0s)
+      +[ 65.4% |    89/~136 | ✓89 | ✗ 0] ✓ tests/plugins/image_gen/test_krea_provider.py (28✓, 2.3s)
+      +[ 66.9% |    91/~136 | ✓91 | ✗ 0] ✓ tests/gateway/test_image_input_routing_runtime.py (2✓, 2.3s)
+      +[ 79.4% |   108/~136 | ✓112 | ✗  0] ✓ tests/plugins/image_gen/test_openai_provider.py (21✓, 2.8s)
+      +[ 96.3% |   131/~136 | ✓135 | ✗  0] ✓ tests/plugins/image_gen/test_xai_provider.py (23✓, 1.5s)
+      +[100.0% |   136/~136 | ✓139 | ✗  1] ✗ tests/tools/test_managed_media_gateways.py (4✓ 1✗, 2.0s)
+      +
+      +  ╔╍ Failed: tests/tools/test_managed_media_gateways.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+      +  ║     _load_fal_client()
+      +  ║ tools/image_generation_tool.py:55: in _load_fal_client
+      +  ║     fal_client = import_fal_client()
+      +  ║                  ^^^^^^^^^^^^^^^^^^^
+      +  ║ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+      +  ║ 
+      +  ║     def import_fal_client() -> Any:
+      +  ║         """Import ``fal_client`` (via ``lazy_deps`` when available) and return
+      ... (214 more diff lines)
+
+[EVIDENCE-DIFF] notes/r9b-raw-pet.md
+  command: cd /home/user/hermes-agent
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,2 +1,42 @@
+      -=== Summary: 4 files, 15 tests passed, 0 failed (100% complete) in 1.8s (8 workers) ===
+      -=== Summary: 1 files, 11 tests passed, 0 failed (100% complete) in 18.8s (8 workers) ===
+      +▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+      +▶ running per-file parallel test suite via run_tests_parallel.py
+      +  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+      +▶ pre-compiling bytecode cache
+      +▶ launching test runner
+      +Discovered 4 test files (~15 tests) under ['tests/agent/test_pet_engine.py', 'tests/hermes_cli/test_pet_toggle.py', 'tests/cli/test_cli_pet_pane.py', 'tests/tui_gateway/test_pet_generate_rpc.py']; running with -j 8
+      +[ 13.3% |     2/~15 | ✓2 | ✗0] ✓ tests/hermes_cli/test_pet_toggle.py (2✓, 0.9s)
+      +[ 20.0% |     3/~15 | ✓3 | ✗0] ✓ tests/tui_gateway/test_pet_generate_rpc.py (1✓, 1.0s)
+      +[ 53.3% |     8/~15 | ✓8 | ✗0] ✓ tests/cli/test_cli_pet_pane.py (5✓, 1.4s)
+      +[100.0% |    15/~15 | ✓15 | ✗ 0] ✓ tests/agent/test_pet_engine.py (7✓, 2.1s)
+      +
+      +=== Summary: 4 files, 15 tests passed, 0 failed (100% complete) in 2.1s (8 workers) ===
+      +  Durations cached to test_durations.json (4 files)
+      +
+      +=== Per-file subprocess time distribution ===
+      +  Files:   4
+      +  Total subprocess CPU-wall: 5.4s  (runner wall: 2.1s, parallelism: 8x)
+      +  P50: 1.41s  P90: 2.13s  P95: 2.13s  P99: 2.13s  Max: 2.13s
+      +  <1s: 2 files (50%)  <2s: 3 files (75%)
+      +  Top 10 slowest:
+      +      2.13s  tests/agent/test_pet_engine.py
+      +      1.41s  tests/cli/test_cli_pet_pane.py
+      +      0.98s  tests/tui_gateway/test_pet_generate_rpc.py
+      +      0.90s  tests/hermes_cli/test_pet_toggle.py
+      +▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+      ... (17 more diff lines)
+
+[EVIDENCE-DIFF] notes/r9c-01-scope-and-l1-closeout.md
+  command: cd /home/user/hermes-study && awk -F'\t' 'NR>1{sub(/\r$/,"",$4); sub(/\r$/,"",$6); \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1 +1 @@
+      -L1 合计 563 文件 / 522207 行;其中未开工 96 文件 / 45708 行
+      +L1 合计 563 文件 / 522207 行;其中未开工 0 文件 / 0 行
+
+[EVIDENCE-DIFF] notes/r9c-01-scope-and-l1-closeout.md
+  command: cd /home/user/hermes-study && awk -F'\t' 'NR>1{sub(/\r$/,"",$4); sub(/\r$/,"",$5); sub(/\r$/,"",$6); \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,2 +0,0 @@
+      -R9C    47 文件 / 19274 行
+      -R9D    49 文件 / 26434 行
+
+[EVIDENCE-DIFF] notes/r9c-90-handover-rulings.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,12 +0,0 @@
+      -[同主机名换端口]
+      -  URL 通过主机校验(建议修法)= True
+      -  302 目标                    = http://127.0.0.1:59303/loot
+      -  受害端收到 Host             = 127.0.0.1:59303
+      -  受害端收到 Authorization    = True
+      -  落盘内容来自受害端          = True  (b'stolen-response-body')
+      -[换主机名 localhost]
+      -  URL 通过主机校验(建议修法)= True
+      -  302 目标                    = http://localhost:59303/loot
+      -  受害端收到 Host             = localhost:59303
+      -  受害端收到 Authorization    = True
+      -  落盘内容来自受害端          = True  (b'stolen-response-body')
+      stderr: /home/user/hermes-venv/bin/python: can't open file '/path/to/redirect_probe2.py': [Errno 2] No such file or directory
+
+[EVIDENCE-DIFF] notes/r9c-90-handover-rulings.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1 +1,22 @@
+      -=== Summary: 3 files, 49 tests passed, 0 failed (100% complete) in 2.0s (8 workers) ===
+      +▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+      +▶ running per-file parallel test suite via run_tests_parallel.py
+      +  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+      +▶ pre-compiling bytecode cache
+      +▶ launching test runner
+      +Discovered 3 test files (~29 tests) under ['tests/agent/test_transcription_registry.py', 'tests/agent/test_tts_registry.py', 'tests/tools/test_tts_xai_speech_tags.py']; running with -j 8
+      +[ 27.6% |     8/~29 | ✓15 | ✗ 0] ✓ tests/agent/test_transcription_registry.py (15✓, 0.9s)
+      +[ 69.0% |    20/~29 | ✓40 | ✗ 0] ✓ tests/agent/test_tts_registry.py (25✓, 1.0s)
+      +[100.0% |    29/~29 | ✓49 | ✗ 0] ✓ tests/tools/test_tts_xai_speech_tags.py (9✓, 2.5s)
+      +
+      +=== Summary: 3 files, 49 tests passed, 0 failed (100% complete) in 2.5s (8 workers) ===
+      +  Durations cached to test_durations.json (3 files)
+      +
+      +=== Per-file subprocess time distribution ===
+      +  Files:   3
+      +  Total subprocess CPU-wall: 4.4s  (runner wall: 2.5s, parallelism: 8x)
+      +  P50: 0.98s  P90: 2.49s  P95: 2.49s  P99: 2.49s  Max: 2.49s
+      +  <1s: 2 files (67%)  <2s: 2 files (67%)
+      +  Top 10 slowest:
+      +      2.49s  tests/tools/test_tts_xai_speech_tags.py
+      +      0.98s  tests/agent/test_tts_registry.py
+      +      0.88s  tests/agent/test_transcription_registry.py
+
+[EVIDENCE-DIFF] notes/r9c-90-handover-rulings.md
+  command: cd /home/user/hermes-agent && grep -rn "native_stt_available" tests/ --include=*.py
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1 +0,0 @@
+      -(无输出,退出码 1)
+
+[EVIDENCE-DIFF] notes/r9c-90-handover-rulings.md
+  command: cd /home/user/hermes-agent && ls -l tools/image_generation_tool.py \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,3 +1,3 @@
+      --rw-r--r-- 1 root root 65414 Aug  9 05:34 tools/image_generation_tool.py
+      +-rw-r--r-- 1 root root 65414 Aug  9 15:56 tools/image_generation_tool.py
+       67
+       6
+
+[EVIDENCE-DIFF] notes/r9c-raw-transport-contract.md
+  command: cd /home/user/hermes-agent && grep -rn "\.api_mode" --include=*.py . | grep -v "^./tests/"
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,3 +1,87 @@
+      +./cli.py:4421:        self.api_mode = "chat_completions"
+      +./cli.py:6282:                if resolved_mode != self.api_mode:
+      +./cli.py:6283:                    self.api_mode = resolved_mode
+      +./cli.py:6304:                if resolved_mode != self.api_mode:
+      +./cli.py:6305:                    self.api_mode = resolved_mode
+      +./cli.py:8208:                            api_mode=_reset_result.api_mode,
+      +./cli.py:8219:                    if _reset_result.api_mode:
+      +./cli.py:8220:                        self.api_mode = _reset_result.api_mode
+      +./cli.py:8992:            "api_mode": self.api_mode,
+      +./cli.py:9134:            "api_mode": self.api_mode,
+      +./cli.py:9148:        if result.api_mode:
+      +./cli.py:9149:            self.api_mode = result.api_mode
+      +./cli.py:9158:                    api_mode=result.api_mode,
+      +./cli.py:9213:            or result.api_mode == "anthropic_messages"
+      +./cli.py:9230:            save_config_value("model.api_mode", result.api_mode or None)
+      +./cli.py:9477:            "api_mode": self.api_mode,
+      +./cli.py:9491:        if result.api_mode:
+      +./cli.py:9492:            self.api_mode = result.api_mode
+      +./cli.py:9502:                    api_mode=result.api_mode,
+      +./cli.py:9562:            or result.api_mode == "anthropic_messages"
+      +./cli.py:9579:            save_config_value("model.api_mode", result.api_mode or None)
+      +./cli.py:10338:            self.api_mode = "chat_completions"
+      +./cli.py:14306:                            "api_mode": self.api_mode,
+      +./gateway/slash_commands.py:1872:                                    api_mode=result.api_mode,
+      +./gateway/slash_commands.py:1930:                            "api_mode": result.api_mode,
+      +./gateway/slash_commands.py:2000:                                    if result.api_mode:
+      +./gateway/slash_commands.py:2001:                                        _persist_model_cfg["api_mode"] = result.api_mode
+      ... (137 more diff lines)
+
+[EVIDENCE-DIFF] notes/r9c-raw-transport-contract.md
+  command: cd /home/user/hermes-agent && grep -rn "copilot_acp" --include=*.py . | grep -v "^./tests"
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -10,3 +10,4 @@
+       ./hermes_cli/model_setup_flows.py:1896:def _model_flow_copilot_acp(config, current_model=""):
+       ./plugins/model-providers/copilot-acp/__init__.py:4:transport. api_mode="copilot_acp" is handled separately in run_agent.py.
+       ./plugins/model-providers/copilot-acp/__init__.py:26:copilot_acp = CopilotACPProfile(
+      +./plugins/model-providers/copilot-acp/__init__.py:35:register_provider(copilot_acp)
+
+[EVIDENCE-DIFF] notes/r9c-raw-transport-contract.md
+  command: cd /home/user/hermes-agent && grep -rn "supports_prompt_cache_key" . | grep -v "^\./\.git/"
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -8,6 +8,6 @@
+       ./tests/agent/transports/test_chat_completions.py:628:                name="cache-capable", supports_prompt_cache_key=True,
+       ./tests/agent/transports/test_chat_completions.py:643:            supports_prompt_cache_key=True,
+       ./tests/agent/transports/test_chat_completions.py:701:        profile = ProviderProfile(name="cache-capable", supports_prompt_cache_key=True)
+      -./tests/agent/transports/test_chat_completions.py:725:            supports_prompt_cache_key=True,
+      +./tests/agent/transports/test_chat_completions.py:725:                supports_prompt_cache_key=True,
+       ./tests/agent/transports/test_chat_completions.py:743:            supports_prompt_cache_key=True,
+       ./tests/agent/transports/test_chat_completions.py:750:            supports_prompt_cache_key=True,
+
+[EVIDENCE-DIFF] notes/r9c-raw-transport-contract.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home/user/hermes-venv/bin/python b
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1 +1,26 @@
+      -=== Summary: 5 files, 93 tests passed, 0 failed (100% complete) in 2.1s (8 workers) ===
+      +▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+      +▶ running per-file parallel test suite via run_tests_parallel.py
+      +  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+      +▶ pre-compiling bytecode cache
+      +▶ launching test runner
+      +Discovered 5 test files (~88 tests) under ['tests/agent/transports/test_transport.py', 'tests/agent/transports/test_types.py', 'tests/agent/transports/test_chat_completions.py', 'tests/agent/transports/test_bedrock_transport.py', 'tests/agent/transports/test_hermes_tools_mcp_server.py']; running with -j 8
+      +[  9.1% |     8/~88 | ✓8 | ✗0] ✓ tests/agent/transports/test_hermes_tools_mcp_server.py (8✓, 1.1s)
+      +[ 20.5% |    18/~88 | ✓18 | ✗ 0] ✓ tests/agent/transports/test_transport.py (10✓, 1.2s)
+      +[ 42.0% |    37/~88 | ✓37 | ✗ 0] ✓ tests/agent/transports/test_types.py (19✓, 1.2s)
+      +[ 54.5% |    48/~88 | ✓48 | ✗ 0] ✓ tests/agent/transports/test_bedrock_transport.py (11✓, 1.3s)
+      +[100.0% |    88/~88 | ✓93 | ✗ 0] ✓ tests/agent/transports/test_chat_completions.py (45✓, 2.5s)
+      +
+      +=== Summary: 5 files, 93 tests passed, 0 failed (100% complete) in 2.5s (8 workers) ===
+      +  Durations cached to test_durations.json (5 files)
+      +
+      +=== Per-file subprocess time distribution ===
+      +  Files:   5
+      +  Total subprocess CPU-wall: 7.2s  (runner wall: 2.5s, parallelism: 8x)
+      +  P50: 1.19s  P90: 2.48s  P95: 2.48s  P99: 2.48s  Max: 2.48s
+      +  <1s: 0 files (0%)  <2s: 4 files (80%)
+      +  Top 10 slowest:
+      +      2.48s  tests/agent/transports/test_chat_completions.py
+      +      1.30s  tests/agent/transports/test_bedrock_transport.py
+      +      1.19s  tests/agent/transports/test_types.py
+      +      1.17s  tests/agent/transports/test_transport.py
+      +      1.07s  tests/agent/transports/test_hermes_tools_mcp_server.py
+
+[EVIDENCE-DIFF] notes/r9c-raw-transport-contract.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home/user/hermes-venv/bin/python b
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1 +1,125 @@
+      -=== Summary: 8 files, 119 tests passed, 1 failed (100% complete) in 3.7s (8 workers) ===
+      +▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+      +▶ running per-file parallel test suite via run_tests_parallel.py
+      +  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+      +▶ pre-compiling bytecode cache
+      +▶ launching test runner
+      +Discovered 8 test files (~80 tests) under ['tests/agent/test_auxiliary_transport_autodetect.py', 'tests/providers/test_transport_parity.py', 'tests/agent/test_anthropic_thinking_block_order.py', 'tests/agent/test_anthropic_mcp_prefix_strip.py', 'tests/agent/test_model_extra_type_guard.py', 'tests/agent/test_anthropic_kimi_signed_thinking_replay.py', 'tests/agent/transports/test_codex_transport.py', 'tests/providers/test_profile_wiring.py']; running with -j 8
+      +[  5.0% |     4/~80 | ✓4 | ✗0] ✓ tests/agent/test_anthropic_thinking_block_order.py (4✓, 1.6s)
+      +[ 17.5% |    14/~80 | ✓14 | ✗ 0] ✓ tests/providers/test_transport_parity.py (10✓, 1.6s)
+      +[ 32.5% |    26/~80 | ✓26 | ✗ 0] ✓ tests/providers/test_profile_wiring.py (12✓, 1.7s)
+      +[ 36.2% |    29/~80 | ✓29 | ✗ 0] ✓ tests/agent/test_anthropic_kimi_signed_thinking_replay.py (3✓, 1.7s)
+      +[ 38.8% |    31/~80 | ✓31 | ✗ 0] ✓ tests/agent/test_model_extra_type_guard.py (2✓, 1.7s)
+      +[ 43.8% |    35/~80 | ✓35 | ✗ 0] ✓ tests/agent/test_anthropic_mcp_prefix_strip.py (4✓, 1.7s)
+      +[ 96.2% |    77/~80 | ✓104 | ✗  0] ✓ tests/agent/transports/test_codex_transport.py (69✓, 3.0s)
+      +[100.0% |    80/~80 | ✓119 | ✗  1] ✗ tests/agent/test_auxiliary_transport_autodetect.py (15✓ 1✗, 4.2s)
+      +
+      +  ╔╍ Failed: tests/agent/test_auxiliary_transport_autodetect.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+      +  ║         This is the primary regression guard: the bug that caused title
+      +  ║         generation 404s on every Kimi Coding Plan user after the "main model
+      +  ║         for every user" aux design shipped.
+      +  ║         """
+      +  ║         from agent.auxiliary_client import (
+      +  ║             resolve_provider_client,
+      +  ║             AnthropicAuxiliaryClient,
+      +  ║         )
+      +  ║     
+      +  ║         monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+      ... (99 more diff lines)
+
+[EVIDENCE-DIFF] notes/r9c-raw-transport-contract.md
+  command: cd /home/user/hermes-study && python3 scripts/verify_citations.py /home/user/hermes-agent notes/r9c-raw-transp
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,4 +1,5 @@
+      +
+       citations=120  OK=113  UNCHECKED=7
+       可校验比例 OK/120 = 94.2%
+      -table_anchors=30  UNCHECKED=30
+      +table_anchors=30  UNCHECKED=30   (表格行内锚点,单独计数;DRIFT/OUT-OF-RANGE **阻断**,见 H-R9A-h)
+       OK: every code-block-backed citation matches the baseline
+
+[EVIDENCE-DIFF] notes/r9d-01-scope-and-l1-closeout.md
+  command: cd /home/user/hermes-study && awk -F'\t' 'NR>1{sub(/\r$/,"",$4); sub(/\r$/,"",$5); \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1 +1 @@
+      -L1/R1-inventoried	49
+      +L1/R9D-deep-read	49
+
+[EVIDENCE-DIFF] notes/r9d-01-scope-and-l1-closeout.md
+  command: cd /home/user/hermes-study && awk -F'\t' 'NR>1{sub(/\r$/,"",$4); sub(/\r$/,"",$6); \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,4 +1,3 @@
+      -R1-inventoried	49 文件	26434 行
+       R2-deep-read	46 文件	68645 行
+       R3-deep-read	32 文件	29234 行
+       R4-deep-read	35 文件	24418 行
+      @@ -13,3 +12,4 @@
+       R9A-deep-read	37 文件	38893 行
+       R9B-deep-read	46 文件	27325 行
+       R9C-deep-read	47 文件	19274 行
+      +R9D-deep-read	49 文件	26434 行
+
+[EVIDENCE-DIFF] notes/r9d-90-handover-agents-md-toolset-census.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home/user/hermes-venv/bin/python \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,4 +1,18 @@
+      +▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+      +▶ running per-file parallel test suite via run_tests_parallel.py
+      +  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+      +▶ pre-compiling bytecode cache
+      +▶ launching test runner
+       Discovered 1 test files (~22 tests) under ['tests/test_toolsets.py']; running with -j 8
+       [100.0% |    22/~22 | ✓22 | ✗ 0] ✓ tests/test_toolsets.py (22✓, 1.5s)
+       
+       === Summary: 1 files, 22 tests passed, 0 failed (100% complete) in 1.5s (8 workers) ===
+      +  Durations cached to test_durations.json (1 files)
+      +
+      +=== Per-file subprocess time distribution ===
+      +  Files:   1
+      +  Total subprocess CPU-wall: 1.5s  (runner wall: 1.5s, parallelism: 8x)
+      +  P50: 1.53s  P90: 1.53s  P95: 1.53s  P99: 1.53s  Max: 1.53s
+      +  <1s: 0 files (0%)  <2s: 1 files (100%)
+      +  Top 10 slowest:
+      +      1.53s  tests/test_toolsets.py
+
+[EVIDENCE-DIFF] notes/r9d-90-handover-credential-landing.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,4 +0,0 @@
+      -A saw Authorization: Bearer SECRET-BEARER-TOKEN
+      -B saw Authorization: Bearer SECRET-BEARER-TOKEN
+      -[open_credentialed_url] A saw Authorization: Bearer SECRET-BEARER-TOKEN
+      -[open_credentialed_url] B saw Authorization: None
+      stderr: /home/user/hermes-venv/bin/python: can't open file '/home/user/hermes-agent/data/r9d/probes/redirect_probe.py': [Errno 2] No such file or directory
+
+[EVIDENCE-DIFF] notes/r9d-90-handover-credential-landing.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home/user/hermes-venv/bin/python \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1 +1,28 @@
+      -=== Summary: 6 files, 49 tests passed, 0 failed (100% complete) in 5.3s (8 workers) ===
+      +▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+      +▶ running per-file parallel test suite via run_tests_parallel.py
+      +  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+      +▶ pre-compiling bytecode cache
+      +▶ launching test runner
+      +Discovered 6 test files (~35 tests) under ['tests/hermes_cli/test_nous_billing_request.py', 'tests/hermes_cli/test_billing_portal_url.py', 'tests/hermes_cli/test_nous_portal_staging_allowlist.py', 'tests/hermes_cli/test_billing_scope_stepup.py', 'tests/agent/test_billing_view.py', 'tests/hermes_cli/test_urllib_security.py']; running with -j 8
+      +[  5.7% |     2/~35 | ✓2 | ✗0] ✓ tests/hermes_cli/test_billing_scope_stepup.py (2✓, 1.2s)
+      +[ 40.0% |    14/~35 | ✓28 | ✗ 0] ✓ tests/agent/test_billing_view.py (26✓, 1.3s)
+      +[ 54.3% |    19/~35 | ✓33 | ✗ 0] ✓ tests/hermes_cli/test_nous_billing_request.py (5✓, 1.3s)
+      +[ 60.0% |    21/~35 | ✓35 | ✗ 0] ✓ tests/hermes_cli/test_billing_portal_url.py (2✓, 1.4s)
+      +[ 71.4% |    25/~35 | ✓39 | ✗ 0] ✓ tests/hermes_cli/test_nous_portal_staging_allowlist.py (4✓, 1.5s)
+      +[100.0% |    35/~35 | ✓49 | ✗ 0] ✓ tests/hermes_cli/test_urllib_security.py (10✓, 5.0s)
+      +
+      +=== Summary: 6 files, 49 tests passed, 0 failed (100% complete) in 5.0s (8 workers) ===
+      +  Durations cached to test_durations.json (6 files)
+      +
+      +=== Per-file subprocess time distribution ===
+      +  Files:   6
+      +  Total subprocess CPU-wall: 11.6s  (runner wall: 5.0s, parallelism: 8x)
+      +  P50: 1.36s  P90: 5.04s  P95: 5.04s  P99: 5.04s  Max: 5.04s
+      +  <1s: 0 files (0%)  <2s: 5 files (83%)
+      +  Top 10 slowest:
+      +      5.04s  tests/hermes_cli/test_urllib_security.py
+      +      1.46s  tests/hermes_cli/test_nous_portal_staging_allowlist.py
+      +      1.36s  tests/hermes_cli/test_billing_portal_url.py
+      +      1.29s  tests/hermes_cli/test_nous_billing_request.py
+      ... (2 more diff lines)
+
+[EVIDENCE-DIFF] notes/r9d-90-handover-credential-landing.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,11 +0,0 @@
+      -env path      : /tmp/hermes-home-frc1g9yc/.env
+      -exists        : True
+      -mode          : 0o600
+      -content       : BWS_ACCESS_TOKEN=0.deadbeef.secret-token-value
+      -read_blocked  : True
+      -write_denied  : True
+      -block msg     : Access denied: /tmp/hermes-home-frc1g9yc/.env is a Hermes credential store and cannot be r
+      -project .env read_blocked: True
+      -cache/bws_cache.json         read_blocked=True write_denied=False
+      -cache/bws_cache.enc.json     read_blocked=False write_denied=True
+      -cache/op_cache.json          read_blocked=False write_denied=False
+      stderr: /home/user/hermes-venv/bin/python: can't open file '/home/user/hermes-agent/data/r9d/probes/env_deny_probe.py': [Errno 2] No such file or directory
+
+[EVIDENCE-DIFF] notes/r9d-90-handover-credential-landing.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,6 +0,0 @@
+      -before        : BWS_ACCESS_TOKEN=0.GOOD-WORKING-TOKEN
+      -  ✓ stored in /tmp/hermes-home-0f3re2fi/.env as BWS_ACCESS_TOKEN
+      -  ✗ Fetch failed: 401 Unauthorized: access token is invalid
+      -cmd_setup rc  : 1
+      -after         : BWS_ACCESS_TOKEN=0.BAD-PASTED-TOKEN
+      -good token still on disk: False
+      stderr: /home/user/hermes-venv/bin/python: can't open file '/home/user/hermes-agent/data/r9d/probes/setup_overwrite_probe.py': [Errno 2] No such file or direc
+
+[EVIDENCE-DIFF] notes/r9d-90-handover-credential-landing.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home/user/hermes-venv/bin/python \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1 +1,26 @@
+      +▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+      +▶ running per-file parallel test suite via run_tests_parallel.py
+      +  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+      +▶ pre-compiling bytecode cache
+      +▶ launching test runner
+      +Discovered 5 test files (~20 tests) under ['tests/hermes_cli/test_secrets_bitwarden_non_tty.py', 'tests/hermes_cli/test_secrets_token_rotation.py', 'tests/hermes_cli/test_bitwarden_status.py', 'tests/hermes_cli/test_secret_prompt.py', 'tests/test_bitwarden_secrets.py']; running with -j 8
+      +[ 10.0% |     2/~20 | ✓2 | ✗0] ✓ tests/hermes_cli/test_secrets_bitwarden_non_tty.py (2✓, 1.2s)
+      +[ 60.0% |    12/~20 | ✓20 | ✗ 0] ✓ tests/test_bitwarden_secrets.py (18✓, 1.2s)
+      +[ 75.0% |    15/~20 | ✓23 | ✗ 0] ✓ tests/hermes_cli/test_bitwarden_status.py (3✓, 1.2s)
+      +[ 90.0% |    18/~20 | ✓26 | ✗ 0] ✓ tests/hermes_cli/test_secret_prompt.py (3✓, 1.2s)
+      +[100.0% |    20/~20 | ✓28 | ✗ 0] ✓ tests/hermes_cli/test_secrets_token_rotation.py (2✓, 1.3s)
+      +
+       === Summary: 5 files, 28 tests passed, 0 failed (100% complete) in 1.3s (8 workers) ===
+      +  Durations cached to test_durations.json (5 files)
+      +
+      +=== Per-file subprocess time distribution ===
+      +  Files:   5
+      +  Total subprocess CPU-wall: 6.1s  (runner wall: 1.3s, parallelism: 8x)
+      +  P50: 1.23s  P90: 1.29s  P95: 1.29s  P99: 1.29s  Max: 1.29s
+      +  <1s: 0 files (0%)  <2s: 5 files (100%)
+      +  Top 10 slowest:
+      +      1.29s  tests/hermes_cli/test_secrets_token_rotation.py
+      +      1.23s  tests/hermes_cli/test_secret_prompt.py
+      +      1.23s  tests/hermes_cli/test_bitwarden_status.py
+      +      1.19s  tests/test_bitwarden_secrets.py
+      +      1.16s  tests/hermes_cli/test_secrets_bitwarden_non_tty.py
+
+[EVIDENCE-DIFF] notes/r9d-90-handover-process-and-verification.md
+  command: cd /home/user/hermes-agent && git rev-parse HEAD && git status --porcelain
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,2 +1 @@
+       863e31318553cda8ad61df681d08175364d4164b
+      -(git status --porcelain 输出为空)
+
+[EVIDENCE-DIFF] notes/r9d-90-handover-process-and-verification.md
+  command: cd /home/user/hermes-agent && grep -rn "waitpid" --include=*.py .
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,4 +1,11 @@
+       ./scripts/profile-tui.py:458:                pid_done, _ = os.waitpid(pid, os.WNOHANG)
+       ./scripts/profile-tui.py:464:                os.waitpid(pid, 0)
+       ./hermes_cli/kanban_db.py:6941:                    pid, status = os.waitpid(-1, os.WNOHANG)
+      -（其余 8 处命中均在 tests/ 的 .pyc 与用例文本中）
+      +./tests/gateway/test_shutdown_forensics.py:109:            os.waitpid(pid, 0)
+      +./tests/tools/test_windows_native_support.py:536:# hermes_cli/kanban_db.py waitpid guard
+      +./tests/tools/test_windows_native_support.py:544:    def test_source_gates_waitpid_loop(self):
+      +./tests/tools/test_windows_native_support.py:547:        # Find the waitpid call and confirm it's inside a POSIX gate.
+      +./tests/tools/test_windows_native_support.py:548:        idx = source.find("os.waitpid(-1, os.WNOHANG)")
+      +./tests/tools/test_windows_native_support.py:549:        assert idx > 0, "waitpid call must exist"
+      +./tests/tools/test_windows_native_support.py:553:        # Both correctly keep the waitpid loop off Windows; the early-return
+      +./tests/tools/test_windows_native_support.py:563:            "os.waitpid(-1, os.WNOHANG) must sit behind an os.name guard "
+
+[EVIDENCE-DIFF] notes/r9d-90-handover-process-and-verification.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home/user/hermes-venv/bin/python b
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1 +1,22 @@
+      -=== Summary: 3 files, 34 tests passed, 0 failed (100% complete) in 3.3s (8 workers) ===
+      +▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+      +▶ running per-file parallel test suite via run_tests_parallel.py
+      +  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+      +▶ pre-compiling bytecode cache
+      +▶ launching test runner
+      +Discovered 3 test files (~30 tests) under ['tests/agent/test_tool_result_classification.py', 'tests/run_agent/test_file_mutation_verifier.py', 'tests/run_agent/test_verification_continuation_budget.py']; running with -j 8
+      +[  6.7% |     2/~30 | ✓2 | ✗0] ✓ tests/agent/test_tool_result_classification.py (2✓, 0.9s)
+      +[ 76.7% |    23/~30 | ✓27 | ✗ 0] ✓ tests/run_agent/test_file_mutation_verifier.py (25✓, 1.8s)
+      +[100.0% |    30/~30 | ✓34 | ✗ 0] ✓ tests/run_agent/test_verification_continuation_budget.py (7✓, 3.2s)
+      +
+      +=== Summary: 3 files, 34 tests passed, 0 failed (100% complete) in 3.2s (8 workers) ===
+      +  Durations cached to test_durations.json (3 files)
+      +
+      +=== Per-file subprocess time distribution ===
+      +  Files:   3
+      +  Total subprocess CPU-wall: 5.8s  (runner wall: 3.2s, parallelism: 8x)
+      +  P50: 1.76s  P90: 3.21s  P95: 3.21s  P99: 3.21s  Max: 3.21s
+      +  <1s: 1 files (33%)  <2s: 2 files (67%)
+      +  Top 10 slowest:
+      +      3.21s  tests/run_agent/test_verification_continuation_budget.py
+      +      1.76s  tests/run_agent/test_file_mutation_verifier.py
+      +      0.88s  tests/agent/test_tool_result_classification.py
+
+[EVIDENCE-DIFF] notes/r9d-90-handover-single-call-site-misses.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home/user/hermes-venv/bin/python \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1 +1,22 @@
+      -=== Summary: 3 files, 29 tests passed, 0 failed (100% complete) in 2.6s (8 workers) ===
+      +▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+      +▶ running per-file parallel test suite via run_tests_parallel.py
+      +  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+      +▶ pre-compiling bytecode cache
+      +▶ launching test runner
+      +Discovered 3 test files (~29 tests) under ['tests/agent/test_subagent_lifecycle.py', 'tests/run_agent/test_tool_executor_contextvar_propagation.py', 'tests/tools/test_execute_code_approval_cluster.py']; running with -j 8
+      +[ 10.3% |     3/~29 | ✓3 | ✗0] ✓ tests/run_agent/test_tool_executor_contextvar_propagation.py (3✓, 1.7s)
+      +[ 24.1% |     7/~29 | ✓7 | ✗0] ✓ tests/agent/test_subagent_lifecycle.py (4✓, 1.9s)
+      +[100.0% |    29/~29 | ✓29 | ✗ 0] ✓ tests/tools/test_execute_code_approval_cluster.py (22✓, 2.1s)
+      +
+      +=== Summary: 3 files, 29 tests passed, 0 failed (100% complete) in 2.1s (8 workers) ===
+      +  Durations cached to test_durations.json (3 files)
+      +
+      +=== Per-file subprocess time distribution ===
+      +  Files:   3
+      +  Total subprocess CPU-wall: 5.6s  (runner wall: 2.1s, parallelism: 8x)
+      +  P50: 1.86s  P90: 2.08s  P95: 2.08s  P99: 2.08s  Max: 2.08s
+      +  <1s: 0 files (0%)  <2s: 2 files (67%)
+      +  Top 10 slowest:
+      +      2.08s  tests/tools/test_execute_code_approval_cluster.py
+      +      1.86s  tests/agent/test_subagent_lifecycle.py
+      +      1.69s  tests/run_agent/test_tool_executor_contextvar_propagation.py
+
+[EVIDENCE-DIFF] notes/r9d-90-handover-single-call-site-misses.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home/user/hermes-venv/bin/python \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1 +1,24 @@
+      +▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+      +▶ running per-file parallel test suite via run_tests_parallel.py
+      +  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+      +▶ pre-compiling bytecode cache
+      +▶ launching test runner
+      +Discovered 4 test files (~99 tests) under ['tests/tools/test_skills_hub_browse_sh.py', 'tests/tools/test_skills_hub.py', 'tests/tools/test_skills_guard.py', 'tests/tools/test_skill_bundle_provenance.py']; running with -j 8
+      +[  3.0% |     3/~99 | ✓3 | ✗0] ✓ tests/tools/test_skills_hub_browse_sh.py (3✓, 0.8s)
+      +[ 33.3% |    33/~99 | ✓34 | ✗ 0] ✓ tests/tools/test_skills_guard.py (31✓, 1.0s)
+      +[ 93.9% |    93/~99 | ✓94 | ✗ 0] ✓ tests/tools/test_skills_hub.py (60✓, 1.5s)
+      +[100.0% |    99/~99 | ✓100 | ✗  0] ✓ tests/tools/test_skill_bundle_provenance.py (6✓, 2.6s)
+      +
+       === Summary: 4 files, 100 tests passed, 0 failed (100% complete) in 2.6s (8 workers) ===
+      +  Durations cached to test_durations.json (4 files)
+      +
+      +=== Per-file subprocess time distribution ===
+      +  Files:   4
+      +  Total subprocess CPU-wall: 5.9s  (runner wall: 2.6s, parallelism: 8x)
+      +  P50: 1.49s  P90: 2.60s  P95: 2.60s  P99: 2.60s  Max: 2.60s
+      +  <1s: 1 files (25%)  <2s: 3 files (75%)
+      +  Top 10 slowest:
+      +      2.60s  tests/tools/test_skill_bundle_provenance.py
+      +      1.49s  tests/tools/test_skills_hub.py
+      +      1.05s  tests/tools/test_skills_guard.py
+      +      0.79s  tests/tools/test_skills_hub_browse_sh.py
+
+[EVIDENCE-DIFF] notes/r9d-91-handover-rulings.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,4 +0,0 @@
+      -收尸者 = 真实 reap_worker_zombies()
+      -[组1 对照] 无人抢,     Popen.wait() = 42   (真实退出码应为 42)
+      -[组2 实验] 抢走 1 个,Popen.wait() = 0   (被抢后属主看到的退出码)
+      -[组3 asyncio] 抢到 0 个,proc.wait() = 42   (ThreadedChildWatcher 在场)
+      stderr: /home/user/hermes-venv/bin/python: can't open file '/home/user/hermes-agent/data/r9d/probes/h_r9a_b_repro.py': [Errno 2] No such file or directory
+
+[EVIDENCE-DIFF] notes/r9d-91-handover-rulings.md
+  command: cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python \
+      --- pasted-in-note
+      +++ actual-rerun
+      @@ -1,6 +0,0 @@
+      -[组A 对照] 正常 subprocess.run().returncode      = 42
+      -[组B 实验] 抢走 1 个后 run().returncode = 0
+      -
+      -webhook_filters.py:279 的判据 'result.returncode != 0'(非零=拒绝该 webhook):
+      -  对照组该判据 = True  -> 拒绝
+      -  实验组该判据 = False  -> 放行(fail-open)
+      stderr: /home/user/hermes-venv/bin/python: can't open file '/home/user/hermes-agent/data/r9d/probes/h_r9a_b_run_variant.py': [Errno 2] No such file or directo
+Traceback (most recent call last):
+  File "/home/user/hermes-study/scripts/verify_evidence_commands.py", line 108, in <module>
+    main()
+  File "/home/user/hermes-study/scripts/verify_evidence_commands.py", line 83, in main
+    r = subprocess.run(["bash", "-c", cmd], cwd=ROOT, capture_output=True,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.11/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['bash', '-c', "cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 \\\n    HERMES_PYTHON=/home/user/hermes-venv/bin/python \\\n    bash scripts/run_tests.sh $(cat /tmp/r9d_tests3.txt | tr '\\n' ' ')"]' timed out after 900 seconds

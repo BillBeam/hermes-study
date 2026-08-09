@@ -1,0 +1,31 @@
+
+=== H-R9C-c: CONFIRMED ===
+    _discover_transports() completed without raising for BOTH cases.
+    `except ImportError:` occurrences in the module : 4
+    module inspects the failing module name (exc.name): False
+    So an absent optional dependency and a typo'd internal import are
+    handled identically; get_transport() then returns None for both.
+
+=== H-R9D-b: CONFIRMED ===
+    two concurrent calls of ONE wrapper -> completed: 1, errors: ['RuntimeError: cannot enter context: <_contextvars.Context object at 0x7fc7f20a1280> is already entered']
+    Expected if the item holds: one call raises 'cannot enter context' / 'already entered'.
+
+=== H-R9D-c: CONFIRMED ===
+    input          : '<think foo="1">SECRET REASONING</think>Hello, user.'
+    streaming out  : '<think foo="1">SECRET REASONINGHello, user.'
+    non-streaming  : ''
+    streaming leaks the reasoning : True
+    non-streaming eats the reply  : True
+
+=== H-R9D-d: CONFIRMED ===
+    canonical gateway url            : https://tool-gateway.nousresearch.com
+    same host, uppercased            : https://TOOL-GATEWAY.nousresearch.com
+      trusted by is_managed_nous_gateway_url? False   (False => case-sensitive, fails CLOSED)
+    with TOOL_GATEWAY_SCHEME=http    : http://tool-gateway.nousresearch.com
+      trusted by is_managed_nous_gateway_url? True   (True => bearer would ride plaintext)
+
+=== summary ===
+  H-R9C-c    CONFIRMED
+  H-R9D-b    CONFIRMED
+  H-R9D-c    CONFIRMED
+  H-R9D-d    CONFIRMED
