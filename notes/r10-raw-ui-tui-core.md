@@ -218,7 +218,7 @@ WebSocket 网关(桌面端/dashboard 嵌入 PTY 时用)。
 
 另有**唯一一处动态方法名**:`ui-tui/src/hooks/useCompletion.ts:116` 传的是
 `request.method`,取值由 `completionRequestForInput` 返回,只可能是
-`complete.path` / `complete.slash`(`ui-tui/src/hooks/useCompletion.ts` 的联合类型钉死(见下块))。
+`complete.path` / `complete.slash`——见下块的联合类型钉死。
 
 `ui-tui/src/hooks/useCompletion.ts:29 @ 863e313`
 
@@ -465,7 +465,7 @@ grep -n "id: '" ui-tui/src/sdk/apps/*.tsx
 `ticker`(ambient 动画范例)、`weather`(异步范例)。
 用户 app 数量不定:`ui-tui/src/sdk/userWidgets.ts` 扫 `$HERMES_HOME/tui-widgets/*.mjs`。
 
-`WidgetApp` 契约面(见下块)共 9 个字段:
+`WidgetApp` 契约面(见下块)共有 9 个字段:
 `id` `help` `mode?`(modal|ambient)`zone?`(6 个位)`width?` `init(arg)`
 `reduce(state, input)` `render(ctx)` `usage?`。
 宿主对核心只暴露 4 个触点:`launchWidget` / `dispatchWidgetInput` / modal 槽
@@ -1470,8 +1470,16 @@ export function mergeWidgetAppItems(input: string, items: CompletionItem[]): Com
 ```
 
 但 **`tui_gateway/` 从不发出 `tool.progress` 事件**。全仓唯一发出该类型的地方是
-另一个 surface 的 HTTP/SSE 服务器:`gateway/platforms/api_server.py:3735`,
+另一个 surface 的 HTTP/SSE 服务器(见下块),
 而且**载荷键都不一样**(`message_id` / `tool_name` / `delta` vs TUI 期待的 `name` / `preview`)。
+
+`gateway/platforms/api_server.py:3733 @ 863e313`
+
+```python
+        def _tool_progress(event_type: str, tool_name: str = None, preview: str = None, args=None, **kwargs) -> None:
+            if event_type == "reasoning.available":
+                _enqueue("tool.progress", {"message_id": message_id, "tool_name": tool_name or "_thinking", "delta": preview or ""})
+```
 
 **搜索面**:`tui_gateway/` 全目录搜带点的 `tool\.progress`(排除配置键
 `tool_progress`)→ 0 命中;全仓 `--include=*.py` 搜带引号的
@@ -1911,7 +1919,7 @@ def _broadcast_global_event(event: str, payload: dict | None = None) -> None:
 | 1. 点名到位(每个文件全路径 + 一句话角色) | **达成 82/82** | §2 八张表逐个列全,没有"同型薄文件归组"式省略——连 1 行的 `content/charms.ts`、`protocol/paste.ts` 都单独列了 |
 | 2. 接缝穷举(逐项列全 + 机械枚举命令 + 条数) | **达成,5 个接缝** | RPC 方法 **82**、事件 case **45**、slash 命令 **64 + 19 别名**、内置 widget app **4**、客户端出站本地事件 **1**。每个都给了 ```verify 命令与条数;RPC 表与事件表还逐条附了锚点。额外做了服务端对账:服务端方法 **144**、服务端事件 **63**,并给出三向差集 |
 | 3. 一条端到端链走通(逐跳带锚点) | **达成** | §4 一次回车 20 跳,从 `useSubmission.submit` 一路到 `tui_gateway/methods_prompt.py` 再回到 nanostore 通知与队列排水,逐跳带锚点,闭合成环 |
-| 4. 两处以上逐字取证 | **达成,17 个围栏块** | 全部用 `sed -n 'A,Bp'` 取出后粘贴,未手抄。其中 `gatewayRecovery.ts:24` 那一块为避开中间一行做了拆段,并在块后用斜体交代了省掉的是哪一行及其定义 |
+| 4. 两处以上逐字取证 | **达成,43 个逐字源码围栏块** | 全部用 `sed -n 'A,Bp' <文件>` 机械取出后粘贴,**没有一个字是手抄的**;无一处使用省略标记(要跳段就拆成两个各自带锚点的块)。另有 16 个 ```` ```verify ```` 块(声明式非源码:命令 + 回显)与 4 处 `>` 引用块(README 原文摘录)。引用校验读数:`citations=64 OK=49 UNCHECKED=15 MISMATCH=0 BLOCK-DRIFT=0`,可校验比例 **76.6%**(≥70% 下限);表格行内锚点 `table_anchors=137 OK=27 DRIFT=0 OUT-OF-RANGE=0` |
 | 5. 至少一条记号 | **达成,9 条** | ■ 2 条(`tool.progress` 死分支、`start()` 后 `subscribed` 不回真)、◇ 3 条(`clarify.expire` 无分支、19 个无调用方的服务端方法、README 完全没提 widget SDK)、▲ 4 条(Ctrl+L、PgUp/PgDn、`billing.ts`/`credits.ts` + 注册顺序、`DEFAULT_THEME` 首帧)、◎ 1 条(事件表 36/45) |
 
 **没做到的部分**(与 §7 重复但集中声明):判据 2 里"同名方法两侧参数形状"这一项

@@ -1424,10 +1424,18 @@ L2 要求讲清并发模型。这一片是**单线程 + 事件循环**,没有 wo
 
 #### 现象
 
-`ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.test.ts:75`(测试文件,LT 层,
-不在本片 131 个文件里)有一条 `it.skip('(documented hang) without resolveOnExit,
-await never resolves when daemon inherits stdio', ...)`。测试文件顶部 `:67` 之上一段注释
-自陈跳过的理由:*"Skipped because the bug it documents is a forever-hang. ... Even
+被跳过的那条用例(测试文件属 LT 层,不在本片 131 个文件里):
+
+`ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.test.ts:75`
+
+```
+  it.skip('(documented hang) without resolveOnExit, await never resolves when daemon inherits stdio', async () => {
+    const pidFile = join(scriptDir, 'sleeper-skip.pid')
+    const result = await execFileNoThrow(daemonScript, [pidFile], { timeout: 300 })
+    trackSleeperPid(pidFile)
+```
+
+它上面一段注释自陈跳过的理由:*"Skipped because the bug it documents is a forever-hang. ... Even
 SIGTERM at the timeout doesn't help — the daemon survives it. To verify by hand:
 remove `it.skip` and watch the test timeout."*
 
@@ -1494,11 +1502,48 @@ timer 只做两件事:给**直接子进程**发 SIGTERM;并且**只在 `resolveO
 **我判它是 ■(代码缺陷),但严重度低,且作者对现象是完全知情的。** 分三层说清:
 
 1. **"用 `'exit'` 而不是 `'close'`"这个选项本身是有意设计,且设计得很好。**
-   `resolveOnExit` 的 docstring(`ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.ts:7`)把守护进程场景、
-   为什么要把 stdout/stderr 设成 `'ignore'`(不让守护进程继承管道 fd)、
-   以及"此模式下 stdout/stderr 恒为空串"这三件事都写清了。
-   `termio/osc.ts` 的五处剪贴板 spawn 全部带上了它,并且各自注释了原因
-   (`ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:327`、`ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:366`)。这部分无可指摘。
+   它的 docstring 把守护进程场景、为什么要把 stdout/stderr 设成 `'ignore'`
+   (不让守护进程继承管道 fd)、以及"此模式下 stdout/stderr 恒为空串"三件事都写清了:
+
+`ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.ts:7`
+
+```
+  /** Resolve as soon as the child *exits*, instead of waiting for its
+   *  stdio streams to close. Use this for tools that fork a daemon and
+   *  let the daemon inherit the parent's stdio (e.g. `wl-copy`): the
+   *  child exits immediately, but `'close'` never fires because the
+   *  daemon holds the pipes open.
+   *
+   *  When true, stdout and stderr are set to 'ignore' to prevent the
+   *  daemon from inheriting those pipe FDs — the caller must not
+   *  depend on collecting stdout/stderr content. Both will always be
+   *  empty strings in this mode. */
+  resolveOnExit?: boolean
+```
+
+   `termio/osc.ts` 的七处剪贴板 spawn 全部带上了它,并且各自注释了原因:
+
+`ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:327`
+
+```
+  // resolveOnExit: wl-copy daemonizes and the daemon inherits stdio pipes,
+  // so 'close' never fires and the await would hang past the timeout.
+  // 'exit' fires on the immediate child's exit — what we actually care about.
+  const opts = { useCwd: false, timeout: 500, resolveOnExit: true }
+```
+
+`ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:366`
+
+```
+function copyNative(text: string): boolean {
+  // resolveOnExit: pbcopy/wl-copy/xclip/xsel/clip all daemonize or hold
+  // the system selection live in a forked process. Without resolveOnExit,
+  // the inherited stdio pipes keep node from seeing 'close' → the
+  // fire-and-forget await never resolves and the actual copy never runs.
+  const opts = { input: text, useCwd: false, timeout: 2000, resolveOnExit: true }
+```
+
+   这部分无可指摘。
 
 2. **缺陷在于 `timeout` 这个选项在默认路径下不是一个真的超时。** 它的契约看起来是
    "最多等这么久",实际是"最多这么久之后给子进程发个 SIGTERM,然后**继续等
@@ -1535,7 +1580,8 @@ export async function tmuxLoadBuffer(text: string): Promise<boolean> {
 
    `tmux load-buffer` 是把数据经 socket 交给**已经在跑的** tmux server,自己不 fork
    持有 stdio 的后代,所以实践中 `'close'` 会来。但这条推理**依赖 tmux 的实现细节**,
-   而调用方 `setClipboard()`(`ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:289`)是 `await tmuxLoadBuffer(text)` ——
+   而调用方 `setClipboard()` 里那一行就是 `const tmuxBufferLoaded = await tmuxLoadBuffer(text)`
+   (`src/ink/termio/osc.ts` 第 289 行,函数定义在第 257 行)——
    一旦这个假设不成立,挂住的是**用户按下复制键那条交互路径**,不是一个后台任务。
    把 `settle` 提出来的成本是一行;继续依赖 tmux 不 fork,是把一个可以消除的假设留在原地。
 
@@ -1547,7 +1593,7 @@ cd /home/user/hermes-agent && grep -rn "execFileNoThrow" --include="*.ts" --incl
 
 全仓 `ui-tui/` 下 17 处命中:1 处定义、1 处 import、8 处调用(`osc.ts`)、7 处在测试文件里。
 8 处调用中 **7 处带 `resolveOnExit: true`**(`probeLinuxCopy` 3 处共用一个 `opts`,
-`copyNative` 4 处共用一个 `opts`),**只有 `ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:201` 的 `tmuxLoadBuffer` 不带**。
+`copyNative` 4 处共用一个 `opts`),**只有 `tmuxLoadBuffer` 那一处不带**(即上面 `src/ink/termio/osc.ts:193` 块里的第 9 行)。
 `ui-tui/` 之外无调用方(本文件是包私有的 `src/utils/`,未从 `entry-exports.ts` 导出;
 `grep -rn "execFileNoThrow" --include="*.ts" --include="*.tsx" .` 在仓库根的命中集与上面相同)。
 
@@ -1557,8 +1603,19 @@ cd /home/user/hermes-agent && grep -rn "execFileNoThrow" --include="*.ts" --incl
 
 ### ■1 · `timeout` 在默认路径下不保证结算(promise 泄漏)
 
-见 §5.6 的完整论证。锚点:`ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.ts:75`
-(`if (options.resolveOnExit) {` 这一行,timer 里的条件 settle)。
+见 §5.6 的完整论证。缺陷面就是 timer 里这个条件:
+
+`ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.ts:74`
+
+```
+          // so the promise doesn't leak. Safe under settled-guard.
+          if (options.resolveOnExit) {
+            settle(124)
+          }
+        }, options.timeout)
+```
+
+把 `settle(124)` 提出这个 `if`,缺陷即消失。
 
 ### ■2 · 15 个 `.tsx` 文件把构建产物当源码提交了(内嵌 base64 sourcemap + React Compiler 输出)
 

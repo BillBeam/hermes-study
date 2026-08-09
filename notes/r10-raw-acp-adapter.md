@@ -418,9 +418,9 @@ D) 美化表里 ACP 不可见(28): clarify cronjob discord discord_admin
 
 | 表 | 条数 | 位置 | 兜底 |
 |---|---|---|---|
-| `build_tool_title` 的逐工具分支 | 23 | acp_adapter/tools.py:94-188 | `return tool_name` |
-| `_build_tool_start` 的逐工具分支 | 16(15 个 `==` + 1 个 `in _POLISHED_TOOLS`) | acp_adapter/tools.py:1073-1298 | 通用 JSON dump |
-| `_build_polished_completion_content` 的美化器 | 21 | acp_adapter/tools.py:902-924 | `_format_generic_structured_result` |
+| `build_tool_title` 的逐工具分支 | 23 | `acp_adapter/tools.py:94`:`def build_tool_title(tool_name: str, args: Dict[str, Any]) -> str:` | `return tool_name` |
+| `_build_tool_start` 的逐工具分支 | 16(15 个 `==` + 1 个 `in _POLISHED_TOOLS`) | `acp_adapter/tools.py:1073`:`def _build_tool_start(` | 通用 JSON dump |
+| `_build_polished_completion_content` 的美化器 | 21 | `acp_adapter/tools.py:902`:`    formatter = {` | `_format_generic_structured_result` |
 
 ```verify
 cd /home/user/hermes-agent && sed -n '94,188p'   acp_adapter/tools.py | grep -cE '^\s+if tool_name == '        # 23
@@ -438,11 +438,11 @@ cd /home/user/hermes-agent && sed -n '902,924p'  acp_adapter/tools.py | grep -oE
 
 | ACP 块类型 | 处理分支 | 产物 |
 |---|---|---|
-| `TextContentBlock` | acp_adapter/server.py:529 | `{"type":"text",...}` |
-| `ImageContentBlock` | acp_adapter/server.py:534 | `{"type":"image_url",...}`,data 或 uri,data 无 `data:` 前缀时补 `data:<mime>;base64,` |
-| `ResourceContentBlock`(resource_link) | acp_adapter/server.py:539 | 读本地文件:图片 → 文本头 + `image_url` data URL;文本 → 内联正文;二进制 → 「omitted」说明 |
-| `EmbeddedResourceContentBlock` | acp_adapter/server.py:546 | `TextResourceContents` → 直接内联;`BlobResourceContents` → base64 解码后同上 |
-| `AudioContentBlock` | **无分支** | 静默丢弃(只出现在类型标注里,acp_adapter/server.py:483/518) |
+| `TextContentBlock` | `acp_adapter/server.py:529`:`        if isinstance(block, TextContentBlock):` | `{"type":"text",...}` |
+| `ImageContentBlock` | `acp_adapter/server.py:534`:`        if isinstance(block, ImageContentBlock):` | `{"type":"image_url",...}`,data 或 uri,data 无 `data:` 前缀时补 `data:<mime>;base64,` |
+| `ResourceContentBlock`(resource_link) | `acp_adapter/server.py:539`:`        if isinstance(block, ResourceContentBlock):` | 读本地文件:图片 → 文本头 + `image_url` data URL;文本 → 内联正文;二进制 → 「omitted」说明 |
+| `EmbeddedResourceContentBlock` | `acp_adapter/server.py:546`:`        if isinstance(block, EmbeddedResourceContentBlock):` | `TextResourceContents` → 直接内联;`BlobResourceContents` → base64 解码后同上 |
+| `AudioContentBlock` | **无分支** | 静默丢弃(在 `_extract_text` 与 `_content_blocks_to_openai_user_content` 的类型标注里出现,但两处都没有对应分支) |
 
 三条不变量,都是「为了不破坏旧路径」:
 - 上限 `_MAX_ACP_RESOURCE_BYTES = 512 * 1024`(acp_adapter/server.py:212),超了截断并在正文里注明;
@@ -619,9 +619,9 @@ ACP 官方注册表要求 agent 在握手时至少 advertise 一个可用的认�
 
 | 名字 | 谁给的 | 会变吗 | 用途 |
 |---|---|---|---|
-| ACP `session_id` | `SessionManager.create_session` 的 `uuid4()`(acp_adapter/session.py:204) | **不变**,是对编辑器的稳定句柄 | 协议里的会话标识、`task_id`、`HERMES_SESSION_ID` |
+| ACP `session_id` | `acp_adapter/session.py:204`:`        session_id = str(uuid.uuid4())` | **不变**,是对编辑器的稳定句柄 | 协议里的会话标识、`task_id`、`HERMES_SESSION_ID` |
 | 内部 hermes `agent.session_id` | 建 agent 时传入,但**压缩会换** | 会变 | SessionDB 的行主键 |
-| `tool_call_id` | `tc-<uuid12>`(acp_adapter/tools.py:89);历史回放时改用 provider 的原 id(acp_adapter/server.py:1328) | 每次调用一个 | 关联 start / complete 通知 |
+| `tool_call_id` | `acp_adapter/tools.py:89`:`def make_tool_call_id() -> str:`;历史回放时改用 provider 的原 id,`acp_adapter/server.py:1328`:`    def _history_tool_call_id(tool_call: dict[str, Any]) -> str:` | 每次调用一个 | 关联 start / complete 通知 |
 
 **持久化**:落 SessionDB(`source="acp"`),`_restore`(:497)在内存里找不到时**透明地**从 DB 重建
 ——包括重建 `AIAgent`。所以 ACP 会话**跨进程重启存活**,并出现在 `session_search` 里。
@@ -796,13 +796,13 @@ ACP 的 diff 内容块;只在 `skill_manage` 上用(:1014-1027),因为 `skill_ma
 |---|---|---|
 | 拦什么 | 危险**命令**(terminal 家族) | 文件**编辑**(`write_file` / `patch`) |
 | 判据在哪 | **不在本文件**。判据是 `tools/approval.py` 的命令文本模式匹配;本文件只做选项映射 | **在本文件**:`build_edit_proposal` 按**工具名**决定「这算不算一次编辑」 |
-| 装配方式 | `tools/terminal_tool.set_approval_callback`,**线程本地**(acp_adapter/server.py:1885) | `set_edit_approval_requester`,**ContextVar**(acp_adapter/server.py:1892) |
-| 触发点 | 内核 `check_all_command_guards` 内部,只有走 `terminal_tool` 的调用会到 | 共享派发器 `model_tools.py:1356`,**每个工具调用都会到** |
+| 装配方式 | **线程本地**,`acp_adapter/server.py:1885`:`                    _terminal_tool.set_approval_callback(approval_cb)` | **ContextVar**,`acp_adapter/server.py:1892`:`                    edit_approval_token = set_edit_approval_requester(edit_approval_requester)` |
+| 触发点 | 内核 `check_all_command_guards` 内部,只有走 `terminal_tool` 的调用会到 | 共享派发器,`model_tools.py:1356`:`            edit_block_message = maybe_require_edit_approval(function_name, function_args)` —— **每个工具调用都会到** |
 | 选项数 | 5(§3.7) | 2:`allow_once` / `deny` |
 | 自动放行 | 有,但在内核:session/permanent allowlist 按 `pattern_key` 缓存 | 有,在本文件:`should_auto_approve_edit` 按**模式 + 路径** |
 | 敏感例外 | 内核的 hardline / user deny rules | `SENSITIVE_AUTO_APPROVE_NAMES` + 路径含 `.git`/`.ssh` 段 |
 | 超时 | 60s → 返回 **`"timeout"`**(与 deny 区分,:167) | 60s → 返回 **False**(与 deny 不区分,:327-331) |
-| 展示前脱敏 | **有**:`tools/approval.py:2764-2766` 过 `redact_sensitive_text` | **无**:文件原文直接进 `tool_diff_content`(:276-280) |
+| 展示前脱敏 | **有**,`tools/approval.py:2765`:`    display_command = redact_sensitive_text(command)` | **无**,`acp_adapter/edit_approval.py:276`:`            acp.tool_diff_content(` 直接吃文件原文 |
 | 生效范围 | 只在当前 executor 线程 | 当前上下文及其 `copy_context()` 副本(含 delegate 子 agent,见 §7 推定-2) |
 
 `edit_approval.py` 的模块 docstring 把它的隔离性说得非常直白:
@@ -837,18 +837,18 @@ CLI, gateway, and other sessions leave it unset and therefore bypass this guard.
 
 | # | 闸 | 判据是什么 | 谁来答 | 只覆盖哪些工具 |
 |---|---|---|---|---|
-| 1 | 危险命令闸 `tools/approval.py:3738` 的 `check_all_command_guards` | **命令文本**的模式匹配 → `pattern_key` | 三条通道(下表) | 走 `terminal_tool` 的调用 |
-| 2 | execute_code 整段脚本闸 `tools/approval.py:4229` 的 `check_execute_code_guard` | 整段脚本,一次 | **只有** gateway 队列 / `HERMES_EXEC_ASK` | `execute_code` |
-| 3 | 敏感路径闸 `tools/file_tools.py:675` 的 `_check_sensitive_path` | **路径**前缀/精确匹配 + hermes config 路径 | 没人答,硬拒 | `write_file` / `patch` 内部 |
-| 4 | 写审批闸 `tools/write_approval.py:253` 的 `evaluate_gate` | **子系统**(memory / skills),**默认关** | inline 提示 或 落盘暂存(`/memory pending`) | `memory` / `skill_manage` |
-| 5 | **ACP 编辑审批** `acp_adapter/edit_approval.py:233` 的 `maybe_require_edit_approval` | **工具名 ∈ {write_file, patch}** | ACP `request_permission`(**编辑器/宿主程序**) | `write_file` / `patch` |
+| 1 | 危险命令闸 `tools/approval.py:3738`:`def check_all_command_guards(command: str, env_type: str,` | **命令文本**的模式匹配 → `pattern_key` | 三条通道(下表) | 走 `terminal_tool` 的调用 |
+| 2 | execute_code 整段脚本闸 `tools/approval.py:4229`:`def check_execute_code_guard(code: str, env_type: str,` | 整段脚本,一次 | **只有** gateway 队列 / `HERMES_EXEC_ASK` | `execute_code` |
+| 3 | 敏感路径闸 `tools/file_tools.py:675`:`def _check_sensitive_path(filepath: str, task_id: str = "default") -> str | None:` | **路径**前缀/精确匹配 + hermes config 路径 | 没人答,硬拒 | `write_file` / `patch` 内部 |
+| 4 | 写审批闸 `tools/write_approval.py:253`:`def evaluate_gate(subsystem: str, *, inline_summary: str = "",` | **子系统**(memory / skills),**默认关** | inline 提示 或 落盘暂存(`/memory pending`) | `memory` / `skill_manage` |
+| 5 | **ACP 编辑审批** `acp_adapter/edit_approval.py:233`:`def maybe_require_edit_approval(tool_name: str, arguments: dict[str, Any]) -> str | None:` | **工具名 ∈ {write_file, patch}** | ACP `request_permission`(**编辑器/宿主程序**) | `write_file` / `patch` |
 
 闸 1 的**三条投递通道**由 `check_all_command_guards` 内部同一段代码分派:
 
 | 通道 | 判据 | 装配 | 谁用 |
 |---|---|---|---|
-| ① 交互回调 | `_is_interactive_cli()`(tools/approval.py:85,先看 ContextVar,回落 `HERMES_INTERACTIVE`) | `tools/terminal_tool.set_approval_callback`,线程本地 | **CLI 与 ACP** |
-| ② gateway 队列 | `_is_gateway_approval_context()`(tools/approval.py:244)或 `HERMES_EXEC_ASK` | `register_gateway_notify(session_key, cb)`,按会话键 | **tui_gateway** 与各聊天平台 |
+| ① 交互回调 | `tools/approval.py:85`:`def _is_interactive_cli() -> bool:` —— 先看 ContextVar,回落 `HERMES_INTERACTIVE` | `tools/terminal_tool.set_approval_callback`,线程本地 | **CLI 与 ACP** |
+| ② gateway 队列 | `tools/approval.py:244`:`def _is_gateway_approval_context() -> bool:`,或 `HERMES_EXEC_ASK` | `register_gateway_notify(session_key, cb)`,按会话键 | **tui_gateway** 与各聊天平台 |
 | ③ 无人兜底 | 都不成立 | 无 | cron 按 `approvals.cron_mode`;其余**自动放行**(命令路径的历史 fail-open 默认) |
 
 tui_gateway 走的确实是通道 ②:`tui_gateway/server.py:3098` 设
