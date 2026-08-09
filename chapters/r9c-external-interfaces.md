@@ -380,10 +380,95 @@ _TOP_LEVEL_PAYLOAD_KEYS = {"tool_name", "args", "session_id", "parent_session_id
 
 ---
 
-### 3.4 密钥来源:钥匙不放在配置里
+### 3.4 密钥来源:钥匙不放在配置里,以及一份没进名单的明文缓存
 
-*(本节内容见 §6 指向的底稿 `notes/r9c-raw-secret-sources.md`;
-本章此节在该片交付后补齐。)*
+**要解决的问题**:API key 写在配置文件里,就等着被 commit 进 git、被截图、被备份到网盘。
+更好的做法是配置里只写一个**引用**,真正的值运行时从外部密钥管理器取。
+
+hermes 支持三种来源:Bitwarden、1Password,以及**任意外部命令**(你给一条命令,
+它打印密钥,hermes 收走)。抽象契约很朴素——一次取回返回一个字典:
+
+`agent/secret_sources/base.py:112 @ 863e313`
+
+```python
+    secrets: Dict[str, str] = field(default_factory=dict)
+```
+
+这个 `Dict[str, str]` 是理解本节的关键。它绑定的是 `环境变量名 ← 引用`,
+密钥取回后进 `os.environ`,**从此和"这个密钥该发给谁"彻底脱钩**。
+所以回到本章的主问题——"取回的密钥有没有'发往何处'的约束"——**答案是没有,而且结构上不可能有**。
+这不是缺陷,是这层抽象的边界:约束目的地是**用密钥那一侧**的责任,不是取密钥这一侧的。
+(本章 §1 那条正是"用的那一侧"没管住。)
+
+#### 本节最值得记住的一条
+
+取回的密钥为了避免反复 shell 出去,会**缓存到磁盘**。1Password 这一路的缓存文件,
+按它自己的模块文档,存的是明文值:
+
+`agent/secret_sources/onepassword.py:36-37 @ 863e313`
+
+```python
+every reference.  The disk file holds only resolved secret *values*; auth
+material is fingerprinted, never stored.
+```
+
+而 agent 有一张**读禁清单**,防的就是"模型或技能把凭据文件挂进沙箱读走"。
+清单里有 Bitwarden 的同类缓存,**而且旁边的注释把这条的来历写得清清楚楚**:
+
+`agent/file_safety.py:280-284 @ 863e313`
+
+```python
+        os.path.join("auth", "google_oauth.json"),
+        # Bitwarden Secrets Manager disk cache: stores plaintext secret values
+        # to avoid re-fetching across back-to-back CLI invocations. The file
+        # was introduced by #31968 but not added to this guard.
+        os.path.join("cache", "bws_cache.json"),
+```
+
+注释在说:**这个文件当初被引入时忘了加进本守卫,后来补上了。**
+也就是说,"新增一个明文密钥缓存却忘了登记"这个错误,在这个仓库里**发生过一次、被发现、被修复、
+还被写成注释留了案**。
+
+然后 1Password 的缓存,犯了**同一个错**,而这次没人发现。全仓搜两个文件名:
+
+```text
+./gateway/platforms/base.py:1369:        os.path.join("cache", "bws_cache.json"),
+./gateway/platforms/base.py:1370:        os.path.join("cache", "bws_cache.enc.json"),
+./agent/secret_sources/onepassword.py:34:are cached in-process and on disk under ``<hermes_home>/cache/op_cache.json``
+./agent/secret_sources/onepassword.py:118:_DISK_CACHE_BASENAME = "op_cache.json"
+./agent/secret_sources/bitwarden.py:100:_DISK_CACHE_BASENAME = "bws_cache.json"
+./agent/secret_sources/bitwarden.py:101:_ENCRYPTED_CACHE_BASENAME = "bws_cache.enc.json"
+./agent/file_safety.py:50:            str(hermes_home / "cache" / "bws_cache.enc.json"),
+./agent/file_safety.py:284:        os.path.join("cache", "bws_cache.json"),
+./hermes_cli/web_server.py:1779:    "bws_cache.json",
+./hermes_cli/web_server.py:1780:    "bws_cache.enc.json",
+```
+
+`bws_cache` 出现在**四个守卫点**;`op_cache` 只出现在**它自己的模块里**——零个守卫点。
+两个文件结构相同、内容同样是明文密钥、放在同一个 `cache/` 目录下。
+
+**这就是本章反复撞见的那个形状**:防线存在、防线的历史教训被写成了注释、
+而第二个同类实例不在防线里。和 §1 的"25 个出网点接了 2 个"、§3.2 的"钉住表覆盖了没漂的那一对"、
+§3.5 的"双钥匙守卫只装在一个消费者上",是同一件事的四次重演。
+
+#### 另外两条
+
+- **推荐给插件作者的安全助手自己有问题**:密钥源支持"每次取回给子进程一个受控的环境视图"
+  (只放行该 profile 该放行的变量)。但插件指南力荐的那个助手函数,是从**进程全局** `os.environ`
+  取放行清单的,于是本 profile 的 token 传不进去、**兄弟 profile 的 token 反而漏进去**。
+  一个为隔离而写的工具,把隔离方向搞反了。
+- **源名校验用了 Unicode 感知的判断**:契约写的是 `[a-z0-9_]+`,实现用的是 `.isalnum()`。
+
+  `agent/secret_sources/registry.py:113 @ 863e313`
+
+  ```python
+      if not name or not name.replace("_", "").isalnum() or name != name.lower():
+  ```
+
+  Python 的 `str.isalnum()` 对 `café`、全角 `ｖａｕｌｔ` 都返回 `True`。
+  于是可以注册一个**看起来和内置源一模一样**的来源名,用来伪造"这个密钥是从哪来的"这一标签。
+  这是个小口子,但它演示了一件通用的事:**用语言内置的字符类判断去实现一个 ASCII 契约,
+  在 Python 里默认是 Unicode 语义**,和你写在文档里的那个正则不是一回事。
 
 ---
 
