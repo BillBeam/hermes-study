@@ -85,16 +85,16 @@ OK: every code-block-backed citation matches the baseline
 
 **MISMATCH = 0,BLOCK-DRIFT = 0,可校验比例 78.5% 高于 70% 下限。**
 
-**定稿关卡全量跑法**(`chapters/` 全部 + 本轮 `notes/`):
+**定稿关卡全量跑法**(CLAUDE.md 规定的那条命令,即 `chapters/` 全部 + 本轮 `notes/` 与 `reports/`):
 
 ```console
-citations=1448  OK=994  UNCHECKED=454
-可校验比例 OK/1448 = 68.6%  << 低于 70% 下限
+citations=1452  OK=994  UNCHECKED=458
+可校验比例 OK/1452 = 68.5%  << 低于 70% 下限
 OK: every code-block-backed citation matches the baseline
 ```
 
 退出码 0、零 MISMATCH、零 BLOCK-DRIFT。
-**全量比例 68.6% 低于下限,如实报出并说明**:差额全部来自历史成品章
+**全量比例 68.5% 低于下限,如实报出并说明**:差额全部来自历史成品章
 (r2 / r4 / r5 / r6 / r7 / r7b 六章 UNCHECKED 占比 ≥90%,脚本的排版提示逐章点名了它们)。
 这些章是散文引用为主的早期产出,**不是本轮改坏的**;
 本轮自己的成品章 `chapters/r8d-self-custody.md` 是 **citations=18 / OK=18 / 100.0%**。
@@ -388,7 +388,7 @@ R12 的定位是"不产生新文件,把 R2–R11 的成品章装订成《设计�
    用例数会变——这正是 R8A 立"报测试数必须连环境一起记"那条规矩要防的形状。
 2. **基线全程干净。** 每次子代理回合后主线都查了 `git status --porcelain`,
    收工时复查:HEAD = `863e31318553cda8ad61df681d08175364d4164b`,工作区 0 行改动。
-3. **全量可校验比例 68.6% 低于 70% 下限**,差额来自六章历史成品章的散文引用密度,
+3. **全量可校验比例 68.5% 低于 70% 下限**,差额来自六章历史成品章的散文引用密度,
    非本轮改坏(见 §2.3),已按制度报出而不是掩盖。
 4. **本轮未取证的事项**已全部进 §11 移交表,不以"推定"形式写进结论。
 5. **实际执行模型**:运行时策略禁止把模型标识写入推送到仓库的产物
@@ -407,7 +407,7 @@ R12 的定位是"不产生新文件,把 R2–R11 的成品章装订成《设计�
 | **H-R8D-d** | R9 | `agent/proxy_sources/iron_proxy.py`(2,494 行,属 UNCLAIMED) | `hermes egress` 的实现本体未读,"出站流量到底被怎么约束"本轮**没有答案** |
 | **H-R8D-e** | R9 | `hermes_cli/models.py:4612` | Bearer 令牌走裸 `urlopen`,而 `base_url` 是配置可控的;全仓 60+ 个裸 `urlopen` 里还有多少带凭据**未普查** |
 | **H-R8D-f** | R9 | `hermes_cli/managed_scope.py:49` 的 `PYTEST_CURRENT_TEST` | 全仓还有多少安全判断挂在这个环境变量上,**本轮未取证** |
-| **H-R8D-g** | R11B | `chapters/r2-*.md`、`r4-*`、`r5-*`、`r6-*`、`r7-*`、`r7b-*` 六章 | 校验器排版提示逐章点名:UNCHECKED 占比 ≥90%,拉低全量可校验比例到 68.6% |
+| **H-R8D-g** | R11B | `chapters/r2-*.md`、`r4-*`、`r5-*`、`r6-*`、`r7-*`、`r7b-*` 六章 | 校验器排版提示逐章点名:UNCHECKED 占比 ≥90%,拉低全量可校验比例到 68.5% |
 | **H-R8D-h** | R11 复盘 | `notes/r8d-str-setup-and-ux.md` 记的两条 docstring 级 ▲ | 模块 docstring 级 ▲ 与"作者自绘地图"级 ▲ 是否该分开计数,本轮按分开处理,需要一次统一裁定 |
 | **H-R8D-i** | R12 前置 | 本报告 §8.2 | R12 的前置条件是"L1 全部 deep-read"而非"R11 做完";按现状开工会缺一块蓝图自称必须有的内容 |
 | **H-R8D-j** | R11A | `pyproject.toml` 的 extra 定义;现象见本报告 §9.2 | `pip install -e ".[dev]"` 装不出全绿套件——`acp`/`daytona`/`anthropic`/`fal`/`hindsight`/`ssh`/`modal`/媒体各有自己的 extra,合计 17 文件 57 用例失败 + 12 文件收集失败;**贡献者指南未交代跑通全套所需的 extra 集合**。R11A 读 `scripts/`(测试基建)时应把这份集合确定下来并写进 CLAUDE.md |
