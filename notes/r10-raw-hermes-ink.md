@@ -1580,7 +1580,7 @@ export async function tmuxLoadBuffer(text: string): Promise<boolean> {
    `tmux load-buffer` 是把数据经 socket 交给**已经在跑的** tmux server,自己不 fork
    持有 stdio 的后代,所以实践中 `'close'` 会来。但这条推理**依赖 tmux 的实现细节**,
    而调用方 `setClipboard()` 里那一行就是 `const tmuxBufferLoaded = await tmuxLoadBuffer(text)`
-   (`src/ink/termio/osc.ts` 第 289 行,函数定义在第 257 行)——
+   (`ui-tui/packages/hermes-ink/src/ink/termio/osc.ts` 第 289 行,函数定义在第 257 行)——
    一旦这个假设不成立,挂住的是**用户按下复制键那条交互路径**,不是一个后台任务。
    把 `settle` 提出来的成本是一行;继续依赖 tmux 不 fork,是把一个可以消除的假设留在原地。
 
@@ -1592,7 +1592,7 @@ cd /home/user/hermes-agent && grep -rn "execFileNoThrow" --include="*.ts" --incl
 
 全仓 `ui-tui/` 下 17 处命中:1 处定义、1 处 import、8 处调用(`osc.ts`)、7 处在测试文件里。
 8 处调用中 **7 处带 `resolveOnExit: true`**(`probeLinuxCopy` 3 处共用一个 `opts`,
-`copyNative` 4 处共用一个 `opts`),**只有 `tmuxLoadBuffer` 那一处不带**(即 §5.6 结尾 `tmuxLoadBuffer` 那个块里的 `execFileNoThrow('tmux', args, {` 一行)。
+`copyNative` 4 处共用一个 `opts`),**只有 `tmuxLoadBuffer` 那一处不带**(即本节上面那个 `tmuxLoadBuffer` 块里的 `execFileNoThrow('tmux', args, {` 一行)。
 `ui-tui/` 之外无调用方(本文件是包私有的 `src/utils/`,未从 `entry-exports.ts` 导出;
 `grep -rn "execFileNoThrow" --include="*.ts" --include="*.tsx" .` 在仓库根的命中集与上面相同)。
 
@@ -1749,10 +1749,16 @@ import { gte } from '../utils/semver.js'
 
 - 而 **`useTerminalNotification` 这个 hook 全仓没有任何调用方**,也**没有**出现在
   `entry-exports.ts` / `index.d.ts` 的导出面里。搜索面:
-  `grep -rn "useTerminalNotification\|TerminalWriteContext" --include="*.ts" --include="*.tsx" ui-tui/`
-  共 11 处命中,全部是 `TerminalWriteContext`/`TerminalWriteProvider`(Provider 本身,
-  由 `AlternateScreen.tsx`、`use-tab-status.ts`、`use-terminal-title.ts`、`ink.tsx` 使用),
-  **没有一处调用 `useTerminalNotification()`**。
+
+```verify
+cd /home/user/hermes-agent && grep -rn "useTerminalNotification\|TerminalWriteContext" \
+  --include="*.ts" --include="*.tsx" ui-tui/ | grep -v node_modules
+```
+
+  共 **13 处**命中,全部落在本片内,且全部是 `TerminalWriteContext` /
+  `TerminalWriteProvider`(Provider 本身,由 `AlternateScreen.tsx`、`use-tab-status.ts`、
+  `use-terminal-title.ts`、`ink.tsx` 使用)+ `useTerminalNotification.ts` 自身的
+  定义/抛错文案(4 处)。**没有一处调用 `useTerminalNotification()`**。
 - 即使被调到:TUI 的实际打包器 `ui-tui/scripts/build.mjs:50` 注入了
   `banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" }`,
   于是在 TUI bundle 里 `require` 是有定义的。**但包自己的 `build` 脚本没有这个 banner**:
@@ -1763,10 +1769,9 @@ import { gte } from '../utils/semver.js'
     "build": "esbuild src/entry-exports.ts --bundle --platform=node --format=esm --packages=external --outdir=dist",
 ```
 
-  于是走 `index.js` → `dist/entry-exports.js`
-  这条路(库消费者、vitest 默认解析)时,esbuild 会把外部 `require()` 包进
-  `__require` 垫片,ESM 下取不到宿主 `require` 就抛
-  `Dynamic require of "semver" is not supported`。
+  于是走 `index.js` → `dist/entry-exports.js` 这条路(库消费者、vitest 默认解析)时,
+  esbuild 会把外部 `require()` 包进 `__require` 垫片,ESM 下取不到宿主 `require`
+  就抛 `Dynamic require of "semver" is not supported`(**这一步是推定,见 §7-5**)。
 
 而上面那个 import 块已经显示:同一个文件里 `import { coerce } from 'semver'` 是**静态 ESM 导入**,
 所以这个惰性 `require` 想省的那次加载**本来就省不掉**。**判定:■,但是潜伏 + 无收益**。
@@ -1884,8 +1889,16 @@ export function logForDebugging(
 ```
 
 注释里那句 `visible with --debug flag` —— **在这个包里,`--debug` 什么也看不到**。
-调用面:`grep -rc "logForDebugging" src/` 命中 8 个文件。
-唯一真会输出的日志口是 `utils/log.ts` 的 `logError`,且要 `HERMES_INK_DEBUG_ERRORS`。
+调用面(含定义文件本身共 9 个文件,即 8 个调用方):
+
+```verify
+cd /home/user/hermes-agent/ui-tui/packages/hermes-ink && grep -rl "logForDebugging" src/ | sort
+```
+
+输出 9 行:`src/ink/components/App.tsx`、`src/ink/ink.tsx`、`src/ink/log-update.ts`、
+`src/ink/output.ts`、`src/ink/render-to-screen.ts`、`src/ink/renderer.ts`、
+`src/ink/root.ts`、`src/ink/warn.ts`,以及定义处 `src/utils/debug.ts`。
+唯一真会输出的日志口是 `src/utils/log.ts` 的 `logError`,且要 `HERMES_INK_DEBUG_ERRORS`。
 文档里没有任何地方声称它会输出,所以这是 ◇(代码有、文档无)而不是 ▲。
 
 ### ◇2 · `src/bootstrap/state.ts` 里 3/4 个函数是空的
@@ -1915,9 +1928,9 @@ export function getIsInteractive(): boolean {
     flushInteractionTime()
     const renderStart = performance.now()
 ```
-这是 fork 时**为了不改调用点
-而保留的接缝**:上游宿主(hermes CLI 本体)有真实实现,这个包里只留桩。
-写下来是因为读 `ink.tsx` 时很容易被那 4 行注释误导成"这里有节流逻辑"。
+
+这是 fork 时**为了不改调用点而保留的接缝**:上游宿主(hermes CLI 本体)有真实实现,
+这个包里只留桩。写下来是因为读 `ink.tsx` 时很容易被那几行注释误导成"这里有节流逻辑"。
 
 ### ◇3 · 三条"native Yoga / WASM"的化石注释
 
@@ -1944,6 +1957,7 @@ export function getIsInteractive(): boolean {
 `AGENTS.md:470`
 
 > npm run dev       # watch mode (rebuilds hermes-ink + tsx --watch)
+
 判 ◎ 而非 ▲,理由是 CLAUDE.md 的规矩:字面为真就不是 ▲。
 
 ---
@@ -1980,10 +1994,22 @@ export function getIsInteractive(): boolean {
    `render-node-to-output.ts` 的 ScrollBox 滚动漏出与 blit 快路
    (读了判据,没核 `renderScrolledChildren` 的边界)、
    `termio/parser.ts` / `tokenize.ts`(读了 docstring 与导出,没核状态机)。
-7. **行数差 1**:`data/r10/slices/F.txt` 登记本片 27,170 行,我按 `wc -l` 逐文件加总
-   得 27,169。差 1 行几乎确定来自 `tsconfig.json` 末尾无换行符(`wc -l` 数换行符个数,
-   文件是 `}` 结尾无换行 → 少 1)。**我没有去核盘点脚本 `scripts/inventory.py`
-   的行数口径**,所以这条只是推断,不是结论。
+7. **行数差 1(已定位,但口径未核)**:`data/r10/slices/F.txt` 登记本片 27,170 行,
+   `wc -l` 逐文件加总得 27,169。差的那 1 行来自
+   `ui-tui/packages/hermes-ink/tsconfig.json` —— 全片**唯一**一个末尾无换行符的文件,
+   `wc -l` 数的是换行符个数,所以少算 1:
+
+```verify
+cd /home/user/hermes-agent && python3 -c "
+paths=[l.strip() for l in open('/home/user/hermes-study/data/r10/slices/F.txt') if l.strip()]
+nonl=[p for p in paths if open(p,'rb').read() and not open(p,'rb').read().endswith(b'\n')]
+tot=sum(open(p,'rb').read().count(b'\n') for p in paths)
+print('wc -l 加总 =', tot, '| 无末尾换行的文件 =', nonl, '| +1 后 =', tot+len(nonl))"
+```
+
+   输出 `wc -l 加总 = 27169 | 无末尾换行的文件 = ['ui-tui/packages/hermes-ink/tsconfig.json'] | +1 后 = 27170`。
+   **仍未核的是** `scripts/inventory.py` 是否真按"换行数 + 末行补 1"这个口径算 ——
+   我只验证了这个口径能解释这个差,没有验证它就是脚本用的口径。
 8. **`■5` 我只查了文件名**(`LICENSE*`/`NOTICE*`/`COPYING*`/`*THIRD*PARTY*`)。
    没有全文 grep 每个 `.md` 找"内文形式的第三方声明"。如果哪份文档正文里写了
    Ink 的许可声明,我会漏掉它 —— 这是这条负结论的完备性边界。
@@ -2020,11 +2046,22 @@ optional-skills/health/neuroskill-bci/references/protocols.md:274   ### NSDR (..
 
 | 判据 | 自评 | 说明 |
 |---|---|---|
-| 1 · 点名到位 | ✅ | 131 个文件全部以**全路径**出现在 §2 的表格里,各带一句话角色。分组是显式命名的(组 A~N),组内逐个列全。核对方式:§2 末尾的"点名核对"行 + 组内计数(7+4+6+11+9+11+4+10+15+20+14+8+3+10,其中 `Ansi.tsx` 计在组 J、`src/utils/debug.ts` 在组 M/N 各现一次计一次)。 |
-| 2 · 接缝穷举 | ✅(12 个接缝全部列全,附机械枚举命令) | S1 exports 3 条 / S2 运行时导出 47 / S3 类型导出 46 / S4 元素名 7 / S5 Patch 10 / S6 事件 15+9 / S7 LayoutNode 49 / S8 Styles 67 / S9 Ink 成员 55 / S10 环境变量 28 / S11 termio Action 12 / S12 ScrollBoxHandle 15。每条都给了 ```verify 命令。**唯一不足**:S8 的 67 个键、S9 的 55 个成员我按分类列全但没逐个配行号锚点(L2 判据只要求列全,不要求逐项取证)。**S10 表格里的分类小计我写错了一次并在表下标注了"以命令输出为准"** —— 命令输出是 28 行,表格分类加总我没算干净,如实留在原处。 |
+| 1 · 点名到位 | ✅ | 131 个文件全部以**全路径**出现在 §2 的表格里,各带一句话角色。分组是显式命名的(组 A~N),组内逐个列全。机械核对见本表下方的 `verify` 命令:片内 131 个路径**逐个**能在底稿里搜到,漏 0 个;§2 表格共 132 行 = 131 个文件 + `src/utils/debug.ts` 在组 M/组 N 各出现一次(计一次)。`Ansi.tsx` 不在 `components/` 目录下,按职责归入组 J,所以组 J 标题写 19 而表格是 20 行。 |
+| 2 · 接缝穷举 | ✅(12 个接缝全部列全,附机械枚举命令) | S1 exports 3 条 / S2 运行时导出 47 / S3 类型导出 46 / S4 元素名 7 / S5 Patch 10 / S6 事件 15+9 / S7 LayoutNode 49 / S8 Styles 67 / S9 Ink 成员 55 / S10 环境变量 28 / S11 termio Action 12 / S12 ScrollBoxHandle 15。每条都给了 ```verify 命令。**唯一不足**:S8 的 67 个键、S9 的 55 个成员我按分类列全但没逐个配行号锚点(L2 判据只要求列全,不要求逐项取证)。S10 的分类小计初稿写错过一次(漏了 `HERMES_TUI_TRUECOLOR`),已改正为 7+9+5+3+2+2=28 并与 `verify` 命令输出对齐。 |
 | 3 · 一条端到端链走通 | ✅ | §4 走通"React setState → stdout 字节"共 9 跳,逐跳带锚点(逐跳锚点清单见本表下方)。两端接到谁写明了:上游 `ui-tui/src/entry.tsx`(片外),下游 `process.stdout`。反向输入链另给了一段(片内)。 |
 | 4 · 两处以上逐字取证 | ✅ | 全文共 **65 个逐字源码围栏** + 2 个逐字文档引用块,全部由 `verify_citations.py` 判为 OK(`citations=67 OK=67`,可校验比例 100%)。每一块都用 `sed -n 'A,Bp'` 从基线取出后粘贴,**未手抄**。另有 18 个 ```verify 围栏(可复现命令)与 7 个 ```text 围栏(我自己的推演/命令回显,已声明非源码)。 |
 | 5 · 至少一条记号 | ✅ | ■5 条(■1 promise 泄漏 / ■2 构建产物入库 / ■3 ESM 里的 `require` / ■4 三份导出清单 / ■5 无许可声明)、◇3 条、◎1 条,共 9 条,逐条带锚点。**▲ 0 条** —— 我没找到文档与代码**矛盾**的地方,README 那条是"字面为真但保守",按 CLAUDE.md 的规矩判 ◎。 |
+
+判据 1 的机械核对(逐个路径都能在底稿里搜到,输出应为 `131 / 0`):
+
+```verify
+python3 -c "
+note=open('notes/r10-raw-hermes-ink.md').read()
+paths=[l.strip() for l in open('data/r10/slices/F.txt') if l.strip()]
+missing=[p for p in paths if p not in note]
+print(len(paths), '/', len(missing))
+for m in missing: print('MISSING', m)"
+```
 
 §4 那条端到端链的逐跳锚点(全路径,便于逐跳复核):
 

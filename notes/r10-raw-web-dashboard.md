@@ -1515,18 +1515,72 @@ _SECRET_FILE_NAMES = {".env", "auth.json", "state.db"}
 
 **两处附带发现**:
 
-1. **`force=true` 是硬编码的**。`web/src/pages/SystemPage.tsx:452` 无条件传 `true`。
-   这是**有意**的,而且注释交代得很清楚(`web/src/pages/SystemPage.tsx:226`:
-   "the spawned `hermes import` runs non-interactively (stdin is /dev/null), so its CLI
-   'Continue? [y/N]' prompt would auto-abort. The dashboard owns the consent")。
-   也就是说:**CLI 那道"目标目录已有配置,确定覆盖?"的闸被前端这个对话框顶替了**
-   ——顶替本身合理,但顶替物的措辞比被顶替者更弱(CLI 的原话是
-   `hermes_cli/backup.py:894`:`            print("Warning: Target directory already has Hermes configuration.")`)。
-2. **"按路径恢复"是一个自由文本框**。`web/src/pages/SystemPage.tsx:1307` 的
-   `<Input id="import-path" …>` 只有一个 placeholder 提示,不限制目录;
-   后端 `hermes_cli/web_server.py:12893`:`async def run_import(body: ImportRequest):` 也只检查
-   `os.path.isfile(archive)`,不做目录约束——**与下载端点形成对照**,后者用
-   `_path_is_under` 把范围锁死在 dashboard 备份目录内。
+**1. `force=true` 是硬编码的。**
+
+`web/src/pages/SystemPage.tsx:447 @ 863e313`
+
+```tsx
+  const runBackupImport = async (target: BackupImportTarget) => {
+    setImportingBackup(true);
+    try {
+      const res =
+        target.kind === "upload"
+          ? await api.runImportUpload(target.file, true)
+          : await api.runImport(target.path, true);
+      setActiveAction(res.name);
+```
+
+这是**有意**的,而且注释交代得很清楚:
+
+`web/src/pages/SystemPage.tsx:226 @ 863e313`
+
+```tsx
+  // Restore-from-backup is destructive (overwrites the live config) and the
+  // spawned `hermes import` runs non-interactively (stdin is /dev/null), so
+  // its CLI "Continue? [y/N]" prompt would auto-abort. The dashboard owns the
+  // consent: confirm here, then call the endpoint with force=true.
+```
+
+也就是说:**CLI 那道"目标目录已有配置,确定覆盖?"的闸被前端这个对话框顶替了**。
+顶替本身合理,但顶替物的措辞比被顶替者更弱——CLI 的原话是:
+
+`hermes_cli/backup.py:892 @ 863e313`
+
+```python
+        if (has_config or has_env) and not args.force:
+            print()
+            print("Warning: Target directory already has Hermes configuration.")
+            print("Importing will overwrite existing files with backup contents.")
+```
+
+**2. "按路径恢复"是一个自由文本框。**
+
+`web/src/pages/SystemPage.tsx:1306 @ 863e313`
+
+```tsx
+                <Label htmlFor="import-path">Restore from backups path</Label>
+                <Input
+                  id="import-path"
+                  value={importPath}
+                  onChange={(e) => setImportPath(e.target.value)}
+                  placeholder="$HERMES_HOME/backups/hermes-backup.zip"
+```
+
+只有一个 placeholder 提示,不限制目录。后端也不限制:
+
+`hermes_cli/web_server.py:12893 @ 863e313`
+
+```python
+async def run_import(body: ImportRequest):
+    archive = (body.archive or "").strip()
+    if not archive:
+        raise HTTPException(status_code=400, detail="archive path is required")
+    if not os.path.isfile(archive):
+        raise HTTPException(status_code=404, detail=f"Archive not found: {archive}")
+```
+
+只检查"是不是一个文件",不做目录约束——**与下载端点形成对照**,后者用
+`_path_is_under` 把范围锁死在 dashboard 备份目录内。
 
 **本条的处置**:按主线定案,H-R8C-f 的后端半边(import 解包实现的"来源校验仅 basename"
 那句断言)仍需一次精读、归 R11A;**前端半边由本节结清**,结论是
@@ -1554,9 +1608,22 @@ _SECRET_FILE_NAMES = {".env", "auth.json", "state.db"}
         </Button>
 ```
 
-`onInstall` 即 `onSetupMemoryProvider()`(`web/src/pages/PluginsPage.tsx:458`)→
-`api.setupMemoryProvider(provider, currentVisibleMemoryValues())` →
-`POST /api/memory/providers/{name}/setup`。**没有 ConfirmDialog。**
+`onInstall` 即页面的 `onSetupMemoryProvider()`:
+
+`web/src/pages/PluginsPage.tsx:458 @ 863e313`
+
+```tsx
+  const onSetupMemoryProvider = async () => {
+    const provider = memorySel === MEMORY_PROVIDER_BUILTIN ? "" : memorySel;
+    if (!provider) return;
+
+    setMemorySetupBusy(true);
+    setMemorySetupResults(null);
+    try {
+      const result = await api.setupMemoryProvider(provider, currentVisibleMemoryValues());
+```
+
+即 `POST /api/memory/providers/{name}/setup`。**没有 ConfirmDialog。**
 
 对照派工书的三问:
 
@@ -1568,25 +1635,60 @@ _SECRET_FILE_NAMES = {".env", "auth.json", "state.db"}
 
 **"部分"的具体成色,这是本节要给准的**:
 
-- **装什么:说了。** 按钮上方会把 manifest 声明的 pip 包逐个渲染成代码片
-  (`web/src/pages/PluginsPage.tsx:242` 起的 "Python dependencies" 区块),
-  外部依赖的 `install` / `check` 命令也以**可复制的命令块**呈现
-  (`SetupCommandBlock`,`web/src/pages/PluginsPage.tsx:82`)。执行后每一步的
-  `result.command` 与 stdout/stderr 都回显(`MemoryProviderSetupResults`,`:110`)。
-- **装到哪:没说。** 全部说明性文案只有一句
-  `web/src/pages/PluginsPage.tsx:194`:`          ? "Finish these setup steps before Hermes can activate this provider."`,
-  和加载态的 "Running provider setup. This may take a minute…"。
-  **没有任何一句提到 Python 环境、site-packages、或"服务器"。**
+**装什么:说了。** 按钮上方会把 manifest 声明的 pip 包逐个渲染成代码片:
+
+`web/src/pages/PluginsPage.tsx:242 @ 863e313`
+
+```tsx
+          {setup.pip_dependencies.length ? (
+            <div className="grid gap-2">
+              <p className="text-muted-foreground">Python dependencies</p>
+              <div className="flex flex-wrap gap-2">
+                {setup.pip_dependencies.map((dep) => (
+```
+
+外部依赖的 `install` / `check` 命令也以**可复制的命令块**呈现
+(`SetupCommandBlock`,`web/src/pages/PluginsPage.tsx:82`)。执行后每一步的
+`result.command` 与 stdout/stderr 都回显(`MemoryProviderSetupResults`,
+`web/src/pages/PluginsPage.tsx:110`)。
+
+**装到哪:没说。** 全部说明性文案只有这一句:
+
+`web/src/pages/PluginsPage.tsx:192 @ 863e313`
+
+```tsx
+      <p className={isBlocked ? "text-destructive" : "text-muted-foreground"}>
+        {needsDependencySetup
+          ? "Finish these setup steps before Hermes can activate this provider."
+          : "Provider dependency setup completed."}
+      </p>
+```
+
+加上加载态的 "Running provider setup. This may take a minute…"。
+**没有任何一句提到 Python 环境、site-packages、或"服务器"。**
 - **谁的机器:没说,而这一点在 dashboard 场景下不是措辞洁癖。** dashboard 可以被远程访问
   (`--host` 非 loopback 是被支持的部署形态),此时"本机"是**服务端**,不是浏览器所在的机器。
   界面把这些命令渲染成"你可以复制去跑"的样子(旁边就是 `CopyButton`),
   会让人读成"这是给我抄的",而按钮的实际语义是"让服务器去跑"。
 
 **一处比移交项原文更重的发现(后端,超出本片范围,如实标注)**:移交项与主线定案都把这条
-描述成"跑 pip 安装",而 `_install_memory_provider_setup`(`hermes_cli/web_server.py:5579`)
-在 pip 之后还会跑 `_install_memory_provider_external_dependencies`(`:5468`),
-后者对 manifest 里的 `check` / `install` **字符串**做 `shlex.split()` 后交给
-`_run_setup_command`(`:5355`,`shell=False`)执行。
+描述成"跑 pip 安装",而实际的执行编排是两段:
+
+`hermes_cli/web_server.py:5585 @ 863e313`
+
+```python
+    setup = _memory_provider_setup_manifest(name)
+    results = []
+    results.extend(_install_memory_provider_pip_dependencies(setup["pip_dependencies"]))
+    results.extend(
+        _install_memory_provider_external_dependencies(setup["external_dependencies"])
+    )
+```
+
+第二段(`hermes_cli/web_server.py:5468` 的
+`_install_memory_provider_external_dependencies`)对 manifest 里的 `check` / `install`
+**字符串**做 `shlex.split()` 后交给 `_run_setup_command`
+(`hermes_cli/web_server.py:5355`,`shell=False`)执行。
 `shell=False` 挡掉了 shell 元字符注入,**但没有挡住 argv 本身**——manifest 可以直接写
 `bash -c "..."`。也就是说这条端点执行的**不只是 pip**,而是 manifest 声明的任意 argv。
 主线的 ■-R10-01 定性("install_specs 把信任推给了 manifest,而这条面上的 manifest 是可写的")
@@ -1615,20 +1717,44 @@ _SECRET_FILE_NAMES = {".env", "auth.json", "state.db"}
         });
 ```
 
-`api.ts` 专门为"非 JSON 响应(上传 / blob 下载)"提供了 `authedFetch`
-(`web/src/lib/api.ts:246` 起的 docstring 明写这个用途),而且 `authedFetch` 会
-`fetch(\`${BASE}${url}\`, …)` 加上 base path。这里绕开了它:
+`api.ts` 专门为"非 JSON 响应(上传 / blob 下载)"提供了 `authedFetch`,
+而它做的第一件事就是把 token 头包好:
 
-1. **base path 丢失**。`api.exportSessionUrl` 只返回 `/api/sessions/<id>/export`(相对根),
-   没有 `${BASE}`。dashboard 挂在 `https://host/hermes/` 这类前缀下时,
-   这个请求会打到 `https://host/api/sessions/...`,而不是 `https://host/hermes/api/...`。
-   这个部署形态是被明确支持并在 `web/src/lib/api.ts:3` 的注释里详细描述过的。
-2. **手抄了 token 逻辑**。`web/src/plugins/registry.ts:131` 的注释把
-   "plugins never read window.__HERMES_SESSION_TOKEN__ directly" 当成一条纪律,
-   而 SPA 自己这里破了它。
+`web/src/lib/api.ts:244 @ 863e313`
 
-对照组:同一批"下载 blob"的需求里,`web/src/pages/SystemPage.tsx:424` 的备份下载
-走的就是 `api.downloadBackup(archive)` → `authedFetch`,是正确写法。
+```ts
+export async function authedFetch(
+  url: string,
+  init?: RequestInit,
+): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  const token = window.__HERMES_SESSION_TOKEN__;
+  if (token) {
+    setSessionHeader(headers, token);
+  }
+```
+
+紧接着它 `return fetch(\`${BASE}${url}\`, …)`(`web/src/lib/api.ts:253`),
+也就是把 base path 一并加上。`SessionsPage` 绕开了它,两个后果:
+
+**1. base path 丢失。** `api.exportSessionUrl` 只返回 `/api/sessions/<id>/export`(相对根),
+没有 `${BASE}`。dashboard 挂在 `https://host/hermes/` 这类前缀下时,
+这个请求会打到 `https://host/api/sessions/...`,而不是 `https://host/hermes/api/...`。
+这个部署形态在 `web/src/lib/api.ts:3` 的模块头注释里被详细描述过(见 §5.2)。
+
+**2. 手抄了 token 逻辑**,而这正是 SDK 注释明令禁止的形状:
+
+`web/src/plugins/registry.ts:130 @ 863e313`
+
+```ts
+    // Authenticated fetch for non-JSON endpoints (uploads / blob downloads).
+    // Handles loopback-token vs gated-cookie auth so plugins never read
+    // window.__HERMES_SESSION_TOKEN__ directly.
+    authedFetch,
+```
+
+对照组:同一批"下载 blob"的需求里,`SystemPage` 的备份下载(本文件 §6.2 引的
+`web/src/pages/SystemPage.tsx:419`)走的就是 `api.downloadBackup(archive)` → `authedFetch`,是正确写法。
 **这不是风格问题,是一个在特定部署形态下必然 404 的 bug。**
 (未实跑复现——需要起一个带 `X-Forwarded-Prefix` 的反向代理;本条是静态对读。)
 
@@ -1669,11 +1795,27 @@ cd /home/user/hermes-agent && find web/src -name '*.test.ts*' | wc -l
 | `files:*` / `models:*` | **无** | 有 | 无 |
 | `plugins:*` | 有 | 有 | **无** |
 
-`web/src/plugins/slots.ts:60` 的那句 `/** Slot locations the built-in shell renders.` 是一条断言,
+声明面那份名单的开头是一条断言:
+
+`web/src/plugins/slots.ts:18 @ 863e313`
+
+```ts
+/** Slot locations the built-in shell renders. Plugins declaring any of
+ *  these in their manifest's `slots` field get wired in automatically.
+```
+
 而 `sidebar` / `footer-left` / `footer-right` 三个名字下面**没有任何 `<PluginSlot>`**:
 `web/src/components/SidebarFooter.tsx` 全文 41 行没有 `PluginSlot`;
-`layoutVariant`(含 `"cockpit"`)在 `web/src/App.tsx:486` 之后只被写成一个
-`data-layout-variant` 属性,没有条件渲染任何侧栏。
+`layoutVariant`(含 `"cockpit"`)在外壳里只被读出来写进一个 data 属性,
+没有条件渲染任何侧栏:
+
+`web/src/App.tsx:486 @ 863e313`
+
+```tsx
+  const layoutVariant = theme.layoutVariant ?? "standard";
+```
+
+它此后唯一的用处是 `web/src/App.tsx:514` 的 `data-layout-variant={layoutVariant}`。
 一个照文档写 `registerSlot("x", "footer-left", C)` 的插件作者,拿到的是**静默无效果**。
 
 ### ■-G-04 —— SRI 注释声称的威胁模型("compromised plugin server")不被它实现的机制覆盖
@@ -1735,9 +1877,31 @@ python -m hermes_cli.main web --no-open
 
 CLI 没有 `web` 子命令。**负结论的搜索面**:对全仓 `*.py` 抽取
 `add_parser(` 的第一个字符串字面量(含"名字写在下一行"的多行写法)与全部
-`aliases=` 列表,得到约 400 个子命令名,其中**没有 `web`**;
-浏览器 UI 的子命令是 `dashboard`,无浏览器的是 `serve`,两者定义在
-`hermes_cli/subcommands/dashboard.py:101` 与 `:136`,共享
+`aliases=` 列表,得到约 400 个子命令名,其中**没有 `web`**。
+
+```verify
+cd /home/user/hermes-agent && { grep -rhoP 'add_parser\(\s*"[a-z0-9_-]+"' --include='*.py' . ;
+  grep -rh -A1 'add_parser($' --include='*.py' . ; grep -rh 'aliases=' --include='*.py' . ; } \
+  | grep -oP '"[a-z0-9_-]+"' | sort -u | grep -cx '"web"'
+```
+
+```text
+0
+```
+
+浏览器 UI 的子命令是 `dashboard`,无浏览器的是 `serve`:
+
+`hermes_cli/subcommands/dashboard.py:101 @ 863e313`
+
+```python
+    dashboard_parser = subparsers.add_parser(
+        "dashboard",
+        help="Start the web UI dashboard",
+        description="Launch the Hermes Agent web dashboard for managing config, API keys, and sessions",
+    )
+```
+
+`serve` 在 `hermes_cli/subcommands/dashboard.py:136`,两者共享
 `_add_server_runtime_args`。README 后文用的又是正确的 `hermes dashboard`,
 所以这是一处遗留而非全篇失准。
 
@@ -1751,10 +1915,26 @@ CLI 没有 `web` 子命令。**负结论的搜索面**:对全仓 `*.py` 抽取
 ### ◇-G-02 —— 仓库里并存两个 `ConfirmDialog`,只有 3 处用本地那个
 
 `web/src/components/ConfirmDialog.tsx`(122 行,本地实现,默认按钮文案硬编码英文
-"Cancel"/"Confirm",不接 i18n)只被 3 个文件导入:
-`web/src/components/ModelReloadConfirm.tsx:1`、`web/src/components/ModelPickerDialog.tsx:7`、
-`web/src/pages/ModelsPage.tsx:38`。其余 8 处(`App.tsx`、`ConfigPage`、`SystemPage`、
-`PluginsPage`、`OAuthProvidersCard`,以及经 `DeleteConfirmDialog` 转调的 7 个页面)
+"Cancel"/"Confirm",不接 i18n)只被 3 个文件导入。全部导入点:
+
+```verify
+cd /home/user/hermes-agent && grep -rn 'import { ConfirmDialog }' web/src/
+```
+
+```text
+web/src/components/ModelReloadConfirm.tsx:1:import { ConfirmDialog } from "@/components/ConfirmDialog";
+web/src/components/DeleteConfirmDialog.tsx:1:import { ConfirmDialog } from "@nous-research/ui/ui/components/confirm-dialog";
+web/src/components/OAuthProvidersCard.tsx:21:import { ConfirmDialog } from "@nous-research/ui/ui/components/confirm-dialog";
+web/src/components/ModelPickerDialog.tsx:7:import { ConfirmDialog } from "@/components/ConfirmDialog";
+web/src/App.tsx:63:import { ConfirmDialog } from "@nous-research/ui/ui/components/confirm-dialog";
+web/src/pages/ConfigPage.tsx:48:import { ConfirmDialog } from "@nous-research/ui/ui/components/confirm-dialog";
+web/src/pages/SystemPage.tsx:42:import { ConfirmDialog } from "@nous-research/ui/ui/components/confirm-dialog";
+web/src/pages/PluginsPage.tsx:22:import { ConfirmDialog } from "@nous-research/ui/ui/components/confirm-dialog";
+web/src/pages/ModelsPage.tsx:38:import { ConfirmDialog } from "@/components/ConfirmDialog";
+```
+
+走本地实现的是 `ModelReloadConfirm` / `ModelPickerDialog` / `ModelsPage` 三处;
+其余 6 处(再加上经 `DeleteConfirmDialog` 转调的 7 个页面)
 用的是设计系统的 `@nous-research/ui/ui/components/confirm-dialog`。
 后果是**同一个 dashboard 里两种确认框的行为与本地化不一致**;
 "换模型"这条路径上的确认框恰好是不走 i18n 的那一个。
@@ -1762,8 +1942,17 @@ CLI 没有 `web` 子命令。**负结论的搜索面**:对全仓 `*.py` 抽取
 ### ◇-G-03 —— 前端认的公开端点里有两个会在登录前就被拉取
 
 `usePlugins` 与 `ThemeProvider` 在应用挂载时就分别打 `GET /api/dashboard/plugins`
-与 `GET /api/dashboard/themes`,而这两条都在 `PUBLIC_API_PATHS` 里
-(`hermes_cli/dashboard_auth/public_paths.py:51`–`:52`)。这是**前端设计与后端白名单的一处耦合**:
+与 `GET /api/dashboard/themes`,而这两条都在后端的公开白名单里:
+
+`hermes_cli/dashboard_auth/public_paths.py:50 @ 863e313`
+
+```python
+    # Read-only theme + plugin manifests for the dashboard skin engine.
+    "/api/dashboard/themes",
+    "/api/dashboard/plugins",
+```
+
+这是**前端设计与后端白名单的一处耦合**:
 SPA 需要在拿到会话之前就完成插件与主题的引导。代价是未认证的访问者能读到
 "这台 agent 装了哪些 dashboard 插件"。白名单的 docstring 自陈标准是
 "safe to expose to … anyone who happens to `curl` the hostname",

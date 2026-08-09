@@ -443,7 +443,7 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
 
 
 搜索面(证明"只有这一处"):在 `apps/desktop/electron/*.ts` 里 grep `contextBridge|exposeInMainWorld`,
-排除 `*.test.ts`,只有 `preload.ts:1`(import)与 `preload.ts:3`(唯一一次 `exposeInMainWorld`)两处命中。
+排除 `*.test.ts`,只有两处命中——第 1 行的 import 与第 3 行那唯一一次 `exposeInMainWorld`。
 
 ```verify
 cd /home/user/hermes-agent && grep -rn "contextBridge\|exposeInMainWorld" apps/desktop/electron/*.ts | grep -v "\.test\.ts:"
@@ -710,8 +710,23 @@ const _READY_RE = /^HERMES_(?:BACKEND|DASHBOARD)_READY port=(\d+)/m
 ```
 
 
-**跳 8:`fetchJson` 带上 `X-Hermes-Session-Token` 头发出去**(`apps/desktop/electron/main.ts:4242`),
-Python 侧由 `hermes_cli/web_server.py:335` 的 `_SESSION_HEADER_NAME` 校验。
+**跳 8:`fetchJson` 带上 `X-Hermes-Session-Token` 头发出去。**
+
+`apps/desktop/electron/main.ts:4242-4243 @ 863e313`
+
+```ts
+function fetchJson(url, token, options: any = {}) {
+  return new Promise((resolve, reject) => {
+```
+
+
+Python 侧校验的是同一个头名:
+
+`hermes_cli/web_server.py:335 @ 863e313`
+
+```python
+_SESSION_HEADER_NAME = "X-Hermes-Session-Token"
+```
 
 **跳 9(Python 侧,接到谁):** 路由落在 FastAPI 的
 
@@ -735,7 +750,16 @@ SPA 的 catch-all(通常是打到了一个不存在的 `/api` 路径),`fetchJson
 
 #### (a) 找运行时 —— 六级梯子,每一级都要过探针
 
-`resolveHermesBackend`(`apps/desktop/electron/main.ts:3876`)是一条"首个命中即返回"的梯子:
+`resolveHermesBackend` 是一条"首个命中即返回"的梯子,六级的编号就写在它自己的注释里:
+
+`apps/desktop/electron/main.ts:3876-3878 @ 863e313`
+
+```ts
+function resolveHermesBackend(backendArgs) {
+  // 1. Explicit override -- HERMES_DESKTOP_HERMES_ROOT points at a developer
+  //    checkout. Honour it as-is (no bootstrap; the user is driving).
+```
+
 
 | 级 | 候选 | 验证方式 |
 |---:|---|---|
@@ -804,7 +828,17 @@ const MIN_PORT_ANNOUNCE_TIMEOUT_MS = 45_000
 
 #### (c) 判健康 —— 两条腿,以及 401 的两种含义
 
-`waitForHermesReady`(`apps/desktop/electron/backend-health.ts:96`)轮询 `/api/health`,失败时:
+`waitForHermesReady` 轮询 `/api/health`,失败时按错误形状分三类处理。函数签名与它读的三个预算:
+
+`apps/desktop/electron/backend-health.ts:96-99 @ 863e313`
+
+```ts
+export async function waitForHermesReady(baseUrl: string, options: HermesReadyOptions): Promise<void> {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_BACKEND_READY_TIMEOUT_MS
+  const pollMs = options.pollMs ?? DEFAULT_BACKEND_READY_POLL_MS
+  const healthProbeTimeoutMs = options.healthProbeTimeoutMs ?? DEFAULT_HEALTH_PROBE_TIMEOUT_MS
+```
+
 
 - **带凭据探针**拿到 401/403 → 直接抛"需要重新登录",**不回退**。回退到公共的 `/api/status`
   会拿到 200,把一个死会话报成 ready,把失败推迟到第一次真正的 API 调用。
@@ -906,7 +940,15 @@ export function decideBootstrapRepair(input: RepairDecisionInput): RepairDecisio
 
 
 前 3 次只软重启(不动 venv),第 4 次才真重装。计数器 `bootstrapRepairAttempt` 在一次成功的
-启动后归零(`apps/desktop/electron/main.ts:8626`)。
+启动后归零:
+
+`apps/desktop/electron/main.ts:8628-8629 @ 863e313`
+
+```ts
+    // accumulated count of the resolved episode.
+    bootstrapRepairAttempt = 0
+```
+
 
 #### (g) 关机
 
@@ -1022,8 +1064,15 @@ function isForeignBackendToken({ servedToken, spawnToken, childAlive }) {
 
 ### 5.3 多 profile 后端池
 
-主后端之外,`backendPool`(`apps/desktop/electron/main.ts:1064`)按 profile 名缓存**额外的**
-`hermes serve` 子进程。没有命名 profile 的用户这个 Map 永远是空的,行为与单后端逐字节相同。
+主后端之外,`backendPool` 按 profile 名缓存**额外的** `hermes serve` 子进程。
+没有命名 profile 的用户这个 Map 永远是空的,行为与单后端逐字节相同。
+
+`apps/desktop/electron/main.ts:1065 @ 863e313`
+
+```ts
+const backendPool = new Map() // profile -> { process, port, token, connectionPromise, lastActiveAt }
+```
+
 
 - 上限 `POOL_MAX_BACKENDS` = 3(`HERMES_DESKTOP_POOL_MAX` 可调),LRU 淘汰。
 - 空闲回收 `POOL_IDLE_MS` = 10 分钟(下限 60s)。
@@ -1100,7 +1149,16 @@ function chatWindowWebPreferences(preloadPath: string) {
 ```
 
 
-共同的导航守卫由 `wireCommonWindowHandlers`(`apps/desktop/electron/main.ts:8695`)统一挂:
+共同的导航守卫由一个函数统一挂,主窗口与每个二级窗口都过它:
+
+`apps/desktop/electron/main.ts:8695-8697 @ 863e313`
+
+```ts
+function wireCommonWindowHandlers(win, { zoom = true }: { zoom?: boolean } = {}) {
+  installPreviewShortcut(win)
+  installDevToolsShortcut(win)
+```
+
 `setWindowOpenHandler` 一律 `deny` 并转交 `openExternalUrl`;`will-navigate` 只放行
 dev server(开发态)或 `file:`(打包态),其余一律拦下改用系统浏览器打开。
 `openExternalUrl` 自己有协议白名单(`http:`/`https:`/`mailto:`,外加 `file:` 走
@@ -1189,11 +1247,18 @@ node -e "const u=new URL('http://127.0.0.1:53421'+'@evil.example/api/x'); consol
 (OAuth 模式的访问令牌)。
 
 **负结论的搜索面**:我在 `apps/desktop/electron/*.ts`(排除 `*.test.ts`)里搜了
-`request.path` / `request?.path` 的**全部**读取点,共 4 处——`main.ts:10024`(类型检查)、
-`main.ts:10033`(`new URL(request.path, 'http://x')`,只用于路由判断,结果不回写)、
-`main.ts:10272`(拼接点)、`profile-delete-routing.ts:22`(正则匹配 `/api/profiles/<name>`);
-另外搜了 `startsWith('/')`,4 处命中全在 `remote-lifecycle.ts` / `wsl-path-bridge.ts`,
-与本通道无关。**没有任何一处校验 `request.path` 以 `/` 开头。**
+`request.path` / `request?.path` 的**全部**读取点,共 4 处,逐一列出:
+
+| 读取点 | 干什么 | 有没有校验 path 形状 |
+|---|---|---|
+| `apps/desktop/electron/main.ts:10024`:`if (typeof request?.path !== 'string') {` | 只判类型 | 无 |
+| `apps/desktop/electron/main.ts:10033`:`parsed = new URL(request.path, 'http://x')` | 只用于"要不要改道远端"的路由判断,解析结果**不回写** | 无(解析成功即可) |
+| `apps/desktop/electron/main.ts:10272`:`const requestPath = pathWithGlobalRemoteProfile(` | 拼接点本身 | 无 |
+| `apps/desktop/electron/profile-delete-routing.ts:22`:`const match = String(request.path` | 匹配 `/api/profiles/<name>` 做删除路由 | 有,但只对匹配上的那一种路径 |
+
+另外搜了 `startsWith('/')`,4 处命中全在 `apps/desktop/electron/remote-lifecycle.ts` 与
+`apps/desktop/electron/wsl-path-bridge.ts`,与本通道无关。
+**没有任何一处校验 `request.path` 以 `/` 开头。**
 
 ```verify
 cd /home/user/hermes-agent && grep -rn "request\.path\|request?\.path" apps/desktop/electron/*.ts | grep -v "\.test\.ts:"
@@ -1318,10 +1383,20 @@ ipcMain.handle('hermes:fs:rename', async (_event, targetPath, newName) => {
 
 ### ■-3 后端 ready **之后**的崩溃没有任何重启计数器(与 Python 侧同名策略语义不一致)
 
-`backendStartFailure` 只在**连接建立过程**中的失败被 latch;一旦 `backendReady = true`
-(`apps/desktop/electron/main.ts:8598`),后续的子进程 `exit` 只做三件事:清缓存、给渲染层发
-`hermes:backend-exit`、写日志。下一次 `hermes:api` 或 `hermes:connection` 会重新走
-`startHermes()` 再 spawn 一次。**这条路径上没有次数上限、没有时间窗、没有退避。**
+`backendStartFailure` 只在**连接建立过程**中的失败被 latch。分界线是这一行:
+
+`apps/desktop/electron/main.ts:8596-8599 @ 863e313`
+
+```ts
+    await advanceBootProgress('backend.wait', 'Waiting for Hermes backend to become ready', 90)
+    await Promise.race([waitForHermes(baseUrl, token), backendStartFailed])
+    backendReady = true
+    backendStartFailure = null
+```
+
+它之后的子进程 `exit` 只做三件事:清缓存、给渲染层发 `hermes:backend-exit`、写日志。
+下一次 `hermes:api` 或 `hermes:connection` 会重新走 `startHermes()` 再 spawn 一次。
+**这条路径上没有次数上限、没有时间窗、没有退避。**
 
 对比 Python 侧的同一处策略(§5.2 的代码块):`respawn_max=3` / `_RESPAWN_WINDOW_SECS=300.0`,
 超了就 `_stopped_respawning = True` 永久停,并且每次重启前有指数退避。
@@ -1361,13 +1436,20 @@ cd /home/user/hermes-agent && grep -onE "\b(let|const) (_?[A-Za-z]*(Attempt|Atte
 
 
 **搜索面**:在 `apps/desktop/electron/*.ts`(排除 `*.test.ts`)里 grep `unsupported-platform`,
-命中 4 处:`main.ts:1548`(上面这个处理分支)、
-`windows-remote-lifecycle.ts:64`(注释)、`windows-remote-lifecycle.ts:87` 与
-`remote-lifecycle.ts:238`——后两处是给 **Error 对象设 `.kind`**,属于 SSH 错误分类那套命名空间,
-和 bootstrap 事件的 `.type` 完全无关。再看发送侧:`broadcastBootstrapEvent(` 全片 5 处调用
-(`main.ts:1605/1615/1678/4090/4125`),前四处的 type 分别是 `setup-choice`×2、`dismissed`、
-`manifest`,第五处是把 `runBootstrap` 的事件原样转发,而 `bootstrap-runner.ts` 里
-grep `unsupported` 零命中。
+命中 4 处,逐一列出:
+
+| 命中 | 是什么 |
+|---|---|
+| `apps/desktop/electron/main.ts:1548`:`} else if (ev.type === 'unsupported-platform') {` | 上面那个**处理**分支 |
+| `apps/desktop/electron/windows-remote-lifecycle.ts:64` | 一句注释,提到探测链会以 'unsupported-platform' 结尾 |
+| `apps/desktop/electron/windows-remote-lifecycle.ts:87`:`error.kind = 'unsupported-platform'` | 给 **Error 对象设 `.kind`**,SSH 错误分类那套命名空间 |
+| `apps/desktop/electron/remote-lifecycle.ts:238`:`err.kind = 'unsupported-platform'` | 同上 |
+
+后两处的 `.kind` 与 bootstrap 事件的 `.type` 完全无关(前者被
+`apps/desktop/src/app/settings/gateway-settings.tsx` 映射成 SSH 报错文案)。
+再看发送侧:`broadcastBootstrapEvent(` 全片 5 处调用,行号 1605 / 1615 / 1678 / 4090 / 4125,
+前四处的 type 分别是 `setup-choice`×2、`dismissed`、`manifest`,第五处是把 `runBootstrap`
+的事件原样转发;而 `apps/desktop/electron/bootstrap-runner.ts` 里 grep `unsupported` 零命中。
 
 ```verify
 cd /home/user/hermes-agent && grep -rn "unsupported-platform" apps/desktop/electron/*.ts | grep -v "\.test\.ts:" ; \
@@ -1375,21 +1457,33 @@ cd /home/user/hermes-agent && grep -rn "unsupported-platform" apps/desktop/elect
   grep -c "unsupported" apps/desktop/electron/bootstrap-runner.ts
 ```
 
-所以这是一条**主进程再也发不出来的渲染层状态**。渲染层那边有对应的 UI 分支
-(`apps/desktop/src/components/desktop-install-overlay.tsx:254`)和类型定义
-(`apps/desktop/src/global.d.ts:751`)——但渲染层在本片之外,我只做了 grep,**没有读那两个文件**,
-所以"渲染层为一个永不到达的事件保留了 UI"这句话按 grep 级证据算,不按精读算。
+所以这是一条**主进程再也发不出来的渲染层状态**。渲染层那边有对应的 UI 分支与类型定义:
+
+| 片外命中(只做了 grep,**没有读文件**) | 是什么 |
+|---|---|
+| `apps/desktop/src/components/desktop-install-overlay.tsx:254` | 安装覆盖层里对该事件类型的 UI 分支 |
+| `apps/desktop/src/global.d.ts:751` | 该事件类型的 TypeScript 声明 |
+
+渲染层在本片之外,所以"渲染层为一个永不到达的事件保留了 UI"这句话按 **grep 级**证据算,
+不按精读算。
 
 ### ■-5 `webviewTag: true` 但主进程没有 `will-attach-webview` 守卫
 
-聊天窗口的 `webPreferences` 里 `webviewTag: true`(见 §5.6 的代码块),意味着渲染页面可以插
-`<webview>` 标签加载外部内容。Electron 的建议做法是在主进程监听 `will-attach-webview`,
+聊天窗口的 `webPreferences` 里开了 `<webview>` 标签,意味着渲染页面可以嵌入外部内容:
+
+`apps/desktop/electron/session-windows.ts:44 @ 863e313`
+
+```ts
+    webviewTag: true,
+```
+
+Electron 的建议做法是在主进程监听 `will-attach-webview`,
 把访客页面自带的 `preload` / `nodeIntegration` 等 `webPreferences` 剥掉,因为那些属性
 **是宿主页面的 HTML 属性说了算的**。
 
 **搜索面**:在 `apps/desktop/electron/*.ts`(排除 `*.test.ts`)里 grep
-`will-attach-webview|did-attach-webview|webviewTag`,**只有一处命中**:
-`session-windows.ts:44` 的 `webviewTag: true` 本身。没有任何 attach 守卫。
+`will-attach-webview|did-attach-webview|webviewTag`,**只有一处命中**——就是上面那一行
+开关本身。没有任何 attach 守卫。
 
 ```verify
 cd /home/user/hermes-agent && grep -rn "will-attach-webview\|did-attach-webview\|webviewTag" apps/desktop/electron/*.ts | grep -v "\.test\.ts:"
@@ -1401,13 +1495,26 @@ cd /home/user/hermes-agent && grep -rn "will-attach-webview\|did-attach-webview\
 
 ### ▲-1 两份文档都说"删掉 `.hermes-bootstrap-complete` 可以强制干净的首启",代码明确不这么做
 
-`apps/desktop/README.md:176` 的 `### Troubleshooting` 节、`**macOS / Linux:**` 小节下:
+`apps/desktop/README.md` 的 `### Troubleshooting` 节(第 176 行)、`**macOS / Linux:**` 小节下:
 
-> \# Force a clean first-launch setup
-> rm "$HOME/.hermes/hermes-agent/.hermes-bootstrap-complete"
+`apps/desktop/README.md:183-184 @ 863e313`
 
-`website/docs/user-guide/desktop.md:301` 的 `## Troubleshooting` 节,"Common resets" 代码块里
-第 312-313 行是同一条命令、同一句说明。README 的 Windows 版(`:194-195`)也是同一条。
+```bash
+# Force a clean first-launch setup
+rm "$HOME/.hermes/hermes-agent/.hermes-bootstrap-complete"
+```
+
+`website/docs/user-guide/desktop.md` 的 `## Troubleshooting` 节里,"Common resets" 代码块给的是
+同一条命令、同一句说明:
+
+`website/docs/user-guide/desktop.md:312-313 @ 863e313`
+
+```bash
+# Force a clean first-launch setup (macOS/Linux)
+rm "$HOME/.hermes/hermes-agent/.hermes-bootstrap-complete"
+```
+
+README 的 Windows 小节(第 194-195 行)是同一条的 PowerShell 版。
 
 代码里,marker 缺失被**显式忽略**——只要运行时可用就直接用它,连日志都写好了:
 
@@ -1434,26 +1541,71 @@ cd /home/user/hermes-agent && grep -rn "will-attach-webview\|did-attach-webview\
 python 存在**且能 import**,删掉 venv 才会让 `shouldUseActiveRuntime` 变 false。
 所以这一段文档是"第一条命令的说明失效、第二条正确",不是整段过时。
 
-`active-runtime-state.ts:31-37` 的注释把这个设计意图写得很清楚:marker 只是"这个安装是
-桌面装的"这一条出身信息,不是"能不能跑"的判据。也就是说**代码是有意这么改的,文档没跟上**。
+纯判定模块的注释把这个设计意图写得很清楚:marker 只是"这个安装是桌面装的"这一条出身信息,
+不是"能不能跑"的判据。也就是说**代码是有意这么改的,文档没跟上**。
+
+`apps/desktop/electron/active-runtime-state.ts:31-37 @ 863e313`
+
+```ts
+// The active install at ~/.hermes/hermes-agent can be real and runnable even if
+// Desktop never wrote its first-run bootstrap marker (for example when Hermes
+// was installed by the CLI first, or when a past desktop build forgot the
+// marker). Runtime usability is authoritative for "can we launch local Hermes
+// right now?"; the marker is only provenance about how that install was
+// created. A missing/stale marker must never force a healthy local install into
+// the first-run bootstrap UI.
+```
+
 
 ### ▲-2 `website/docs/user-guide/desktop.md` 把 `HERMES_DESKTOP_HERMES` 的优先级说反了
 
-`## How it works` 节(`website/docs/user-guide/desktop.md:206`)那一段说:
+`## How it works` 节整段(按制度整段一并判定,这一段在源文件里是一行):
 
-> Backend resolution first honours `HERMES_DESKTOP_HERMES_ROOT`, then a completed managed
-> install, then a probed `hermes` on `PATH` (unless `--ignore-existing` /
-> `HERMES_DESKTOP_IGNORE_EXISTING=1` is set), and finally an explicit `HERMES_DESKTOP_HERMES`
-> command override for packagers such as Nix.
+`website/docs/user-guide/desktop.md:208 @ 863e313`
+
+> The packaged app ships the Electron shell and a native React chat surface. On first launch it can install the Hermes Agent runtime into `HERMES_HOME` (`~/.hermes`, or `%LOCALAPPDATA%\hermes` on Windows) — **the same layout a CLI install uses**, which is why the two are interchangeable. Backend resolution first honours `HERMES_DESKTOP_HERMES_ROOT`, then a completed managed install, then a probed `hermes` on `PATH` (unless `--ignore-existing` / `HERMES_DESKTOP_IGNORE_EXISTING=1` is set), and finally an explicit `HERMES_DESKTOP_HERMES` command override for packagers such as Nix. The React renderer talks to a headless backend the app launches for you — a `hermes serve` process that serves the `tui_gateway` JSON-RPC/WebSocket API — and reuses the agent runtime rather than embedding `hermes --tui`. The desktop app is **self-contained**: it runs its own `hermes serve` backend and never opens or requires the [web dashboard](./features/web-dashboard.md). (Runtimes older than the `serve` command fall back to a headless `dashboard --no-open` automatically, so an app update never outruns its backend.) Install, backend-resolution, and self-update logic live in the Electron main process.
 
 "and finally" 断言 `HERMES_DESKTOP_HERMES` 是**最低**优先级。代码里它在第 4 级内部**先于**
-PATH 查找:`hermesOverride` 有值就用它、`else` 才 `findOnPath('hermes')`
-(`apps/desktop/electron/main.ts:3934-3945`)。而且它下面还有第 5 级(系统 Python + 已装
-`hermes_cli`)和第 6 级(bootstrap),所以它既不是"最后",也不在 PATH **之后**。
+PATH 查找——`hermesOverride` 有值就用它,`else` 才 `findOnPath('hermes')`:
 
-同仓的 `apps/desktop/README.md:105-113` 把这一级写成 "`HERMES_DESKTOP_HERMES`, or `hermes` on
-`PATH`"(同一级)并且补上了系统 Python 那一级 —— **README 是对的,website 文档是错的**,
-两份自绘地图彼此也不一致。
+`apps/desktop/electron/main.ts:3934-3946 @ 863e313`
+
+```ts
+    if (hermesOverride) {
+      const resolvedOverride = findOnPath(hermesOverride)
+
+      if (resolvedOverride) {
+        hermesCommand = resolvedOverride
+      } else if (!isWindowsBinaryPathInWsl(hermesOverride, { isWsl: IS_WSL })) {
+        hermesCommand = hermesOverride
+      } else {
+        rememberLog(`Ignoring Windows Hermes override under WSL: ${hermesOverride}`)
+      }
+    } else {
+      hermesCommand = findOnPath('hermes')
+    }
+```
+
+而且它下面还有第 5 级(系统 Python + 已装 `hermes_cli`)和第 6 级(bootstrap),
+所以它既不是"最后",也不在 PATH **之后**。
+
+同仓的 README 把这一级写成"`HERMES_DESKTOP_HERMES`, or `hermes` on `PATH`"(同一级)
+并且补上了系统 Python 那一级:
+
+`apps/desktop/README.md:105-112 @ 863e313`
+
+```markdown
+Backend resolution is an ordered ladder:
+
+1. `HERMES_DESKTOP_HERMES_ROOT`
+2. the current source checkout during development
+3. a completed managed install
+4. `HERMES_DESKTOP_HERMES`, or `hermes` on `PATH`
+5. a system Python that can import the Hermes runtime
+6. the first-launch bootstrap installer
+```
+
+**README 是对的,website 文档是错的**,两份自绘地图彼此也不一致。
 
 ### ▲-3 `apps/desktop/README.md:114` 的"候选一律先探针"有一个代码里明写的例外
 
@@ -1470,8 +1622,15 @@ function shouldTrustHermesOverride(hermesOverride?: string) {
 }
 ```
 
-调用点是 `main.ts:3975` 的 `if (shouldTrustHermesOverride(hermesOverride) || verifyHermesCli(...))`
-——短路或,覆盖存在时 `verifyHermesCli` 根本不执行。代码注释给了理由(Nix wrapper 指向的是
+调用点是一个短路或——覆盖存在时 `verifyHermesCli` 根本不执行:
+
+`apps/desktop/electron/main.ts:3975 @ 863e313`
+
+```ts
+      if (shouldTrustHermesOverride(hermesOverride) || verifyHermesCli(hermesCommand, { shell: shellForProbe })) {
+```
+
+代码注释给了理由(Nix wrapper 指向的是
 不可变的、版本匹配的包,不该因为探针在负载下超时就掉进可变的 bootstrap 路径),
 所以这是**有意的例外**;但 README 那句话是全称,字面为假,记 ▲。
 
@@ -1489,14 +1648,43 @@ done | grep -oE "HERMES_[A-Z0-9_]+" | sort -u | while read -r v; do \
 `PORT_ANNOUNCE_TIMEOUT_MS`、`REMOTE_TOKEN`、`SHELL`、`SKIP_QUIT_CONFIRM`、`TERMINAL`、
 `USER_DATA_DIR`、`WEB_DIST`,以及 `HERMES_PROBE_TIMEOUT_MS`。
 
-其中三个不是内部测试钩子而是**面向用户的**:
+其中三个不是内部测试钩子而是**面向用户的**。第一个最刺眼:一条错误文案**直接叫用户去设它**,
+而这个变量在参考文档里查不到(配套的 `HERMES_DESKTOP_REMOTE_URL` 在文档第 556 行有条目):
 
-- `HERMES_DESKTOP_REMOTE_TOKEN` —— `hardening.ts:68-69` 的错误文案**直接叫用户去设它**
-  ("Set HERMES_DESKTOP_REMOTE_URL and HERMES_DESKTOP_REMOTE_TOKEN in your environment"),
-  而配套的 `HERMES_DESKTOP_REMOTE_URL` 在文档 `:556` 行有条目、`_TOKEN` 没有;
-- `HERMES_DESKTOP_PORT_ANNOUNCE_TIMEOUT_MS` —— `backend-ready.ts:22-25` 的注释写明是
-  "for users on slow disks / aggressive AV";
-- `HERMES_PROBE_TIMEOUT_MS` —— 同类的冷启动救急旋钮。
+`apps/desktop/electron/hardening.ts:66-70 @ 863e313`
+
+```ts
+  if (!encryptionAvailable) {
+    throw new Error(
+      'Secure token storage is unavailable, so Hermes Desktop cannot save remote gateway tokens. ' +
+        'Set HERMES_DESKTOP_REMOTE_URL and HERMES_DESKTOP_REMOTE_TOKEN in your environment, or enable OS keychain access and try again.'
+    )
+```
+
+第二个是冷启动救急旋钮,注释里写明了给谁用:
+
+`apps/desktop/electron/backend-ready.ts:21-26 @ 863e313`
+
+```ts
+/**
+ * Resolve the port-announcement deadline. Honors the
+ * HERMES_DESKTOP_PORT_ANNOUNCE_TIMEOUT_MS env override (for users on slow
+ * disks / aggressive AV who need an even longer cold-start window), clamped
+ * to a sane floor so a bad value can't make boot flakier than the default.
+ */
+```
+
+第三个 `HERMES_PROBE_TIMEOUT_MS` 是同类旋钮:
+
+`apps/desktop/electron/backend-probes.ts:41-44 @ 863e313`
+
+```ts
+/**
+ * Resolve the backend probe timeout (ms).
+ * Honours HERMES_PROBE_TIMEOUT_MS when it parses as a positive integer.
+ */
+```
+
 
 ### ◇-2 吉祥物悬浮窗与唤醒指示器两类窗口在任何文档里都没有
 
@@ -1507,9 +1695,16 @@ cd /home/user/hermes-agent && for t in "pet overlay" "petOverlay" "wake indicato
 
 搜索面是 `apps/desktop/README.md`、`apps/desktop/AGENTS.md`、`apps/desktop/DESIGN.md`、
 `website/docs/` 全树,六个词全部零命中。同批零命中的还有**多 profile 后端池**
-(最多 3 个额外的 `hermes serve` 子进程、LRU + 空闲回收 + 保鲜窗口),
-而 `website/docs/user-guide/desktop.md:95` 的 "Windows, tabs & panes" 一节只讲了标签页与多窗口。
-Quick Entry 有文档(`desktop.md:122`),另外两类窗口没有。
+(最多 3 个额外的 `hermes serve` 子进程、LRU + 空闲回收 + 保鲜窗口)。
+
+讲窗口的那一节标题是:
+
+`website/docs/user-guide/desktop.md:95 @ 863e313`
+
+> ### Windows, tabs & panes
+
+它下面只讲了标签页(Cmd/Ctrl+T)与多窗口(Cmd/Ctrl+Shift+N、会话弹出),没有悬浮窗与指示器。
+Quick Entry 有自己的一节(`### Quick Entry`,见 ◎-1 引的那一段),另外两类窗口没有。
 
 ### ◇-3 两份 macOS entitlements plist 逐字节相同
 
@@ -1517,18 +1712,27 @@ Quick Entry 有文档(`desktop.md:122`),另外两类窗口没有。
 cd /home/user/hermes-agent && cmp apps/desktop/electron/entitlements.mac.plist apps/desktop/electron/entitlements.mac.inherit.plist && echo IDENTICAL
 ```
 
-`apps/desktop/package.json:209-210` 分别把它们配给 `entitlements`(主应用)和
-`entitlementsInherit`(helper 子进程)。两者内容完全一致,意味着 helper 进程也拿到了
+两份文件分别配给 `entitlements`(主应用)与 `entitlementsInherit`(helper 子进程):
+
+`apps/desktop/package.json:209-210 @ 863e313`
+
+```json
+      "entitlements": "electron/entitlements.mac.plist",
+      "entitlementsInherit": "electron/entitlements.mac.inherit.plist",
+```
+
+两者内容完全一致,意味着 helper 进程也拿到了
 `device.audio-input` 与 `device.camera`。两份都**没有**声明 `com.apple.security.app-sandbox`,
 所以也就用不到 `com.apple.security.inherit`——在没开 App Sandbox 的前提下这不构成缺陷,
 但"两个名字、一份内容"这件事在代码里没有任何地方交代过,读的人会以为它们有区别。
 
 ### ◎-1 Quick Entry 的快捷键约束比文档说的更严
 
-`website/docs/user-guide/desktop.md:122` 的 `### Quick Entry` 节说:
+`### Quick Entry` 节整段(源文件里是一行):
 
-> the default shortcut is **Ctrl/Cmd+Shift+Space** and you can set your own (it needs at
-> least one modifier)
+`website/docs/user-guide/desktop.md:124 @ 863e313`
+
+> Quick Entry is a small always-available composer summoned by a **global hotkey from anywhere on your system** — fire off a prompt without switching to (or even opening) the main window. Enable it in **Settings → Advanced → Quick Entry**; the default shortcut is **Ctrl/Cmd+Shift+Space** and you can set your own (it needs at least one modifier). If another app already owns the chord, the settings row tells you so you can pick a different one.
 
 "至少一个修饰键"字面成立(`parseQuickEntryShortcut` 确实在 `modifiers.length === 0` 时返回
 `no-modifier`),但代码还多两条文档没提的约束:主键不能是 `Escape`,以及不能有两个非修饰键。
@@ -1588,7 +1792,7 @@ cd /home/user/hermes-agent && cmp apps/desktop/electron/entitlements.mac.plist a
 | 1. 点名到位:每个文件全路径 + 一句话角色 | **达成 80/80** | §2 分 11 组,组内逐个列出全路径与角色。可机械核对:`grep -c 'apps/desktop/electron/' notes/r10-raw-desktop-electron.md` 覆盖全部 80 条清单路径。 |
 | 2. 接缝穷举:逐项列全 + 机械枚举命令 + 条数 | **达成** | 8 个接缝全部列全:126 条渲染→主 IPC(§3.1 逐条 126 行表)、23 条主→渲染(§3.2 逐条)、2 个动态通道族(§3.3)、152 个 preload 叶函数(§3.4,给了枚举脚本;正文没有逐条列 152 行,而是给了分类 + 可复现的枚举命令 + 13 个命名空间的逐个计数——**这一项是"给了可复现枚举命令"而不是"正文逐行抄了 152 行"**)、8 个 bootstrap 事件(§3.5 逐条)、12 个 boot phase(§3.6 逐条)、28 个环境变量(§3.7 逐条)、15 个 userData 条目(§3.8 逐条)。每个接缝都有 ```verify 枚举命令与条数。 |
 | 3. 一条端到端链走通,逐跳带锚点 | **达成** | §4,10 跳,从 preload 到 FastAPI 路由再回来。跨出本片的两端(渲染层入口、Python 路由)都点名了接到谁并给了 Python 侧锚点。 |
-| 4. 两处以上逐字取证 | **达成,远超** | 全文 22 个逐字源码围栏块,分布在 main.ts / preload.ts / backend-ready.ts / backend-child.ts / backend-command.ts / backend-probes.ts / backend-start-failure.ts / bootstrap-repair-guard.ts / dashboard-token.ts / hardening.ts / quick-entry.ts / remote-liveness.ts / session-windows.ts,以及 Python 侧 host_supervisor.py / web_server.py / web_routers/sessions.py。 |
+| 4. 两处以上逐字取证 | **达成,远超** | 全文 **53 个逐字摘录围栏块**(43 `ts` / 6 `python` / 2 `bash` / 1 `markdown` / 1 `json`)+ **4 处逐字文档引用块**,合计 57 条引用,校验器读数 `citations=57 OK=57`、可校验比例 100%。分布在 main.ts / preload.ts / active-runtime-state.ts / backend-child.ts / backend-command.ts / backend-health.ts / backend-probes.ts / backend-ready.ts / backend-start-failure.ts / bootstrap-repair-guard.ts / dashboard-token.ts / hardening.ts / quick-entry.ts / remote-liveness.ts / session-windows.ts / package.json,Python 侧 host_supervisor.py / web_server.py / web_routers/sessions.py,以及文档侧 apps/desktop/README.md / website/docs/user-guide/desktop.md。另有 18 个 ```verify 声明式非源码块(机械枚举命令),按制度记 UNCHECKED。 |
 | 5. 至少一条记号 | **达成** | 5 条 ■、3 条 ▲、3 条 ◇、1 条 ◎,共 12 条,逐条带锚点与(负结论的)搜索面。 |
 
 **没做到的部分,如实写:**
@@ -1615,6 +1819,6 @@ cd /home/user/hermes-agent && cmp apps/desktop/electron/entitlements.mac.plist a
 | H-R10H-f | `apps/desktop/electron/main.ts:8598`:`backendReady = true` | 这一行之后的子进程崩溃不进任何计数器,`startHermes()` 会被下一次 IPC 无限次重新触发 | 与 `tui_gateway/host_supervisor.py:507` 的 `_maybe_respawn_after_crash` 一起,作为"双实现分岔"的案例写进成品章 |
 | H-R10H-g | `apps/desktop/electron/main.ts:3912`:`if (!activeRuntime.hasValidMarker) {` | 代码明确忽略缺失的 bootstrap marker,而 `apps/desktop/README.md:184` 与 `website/docs/user-guide/desktop.md:313` 都教用户删这个 marker 来"强制干净首启" | 两份文档同一处过时,值得作为"自绘地图腐烂"的跨轮样本计入 ▲ |
 | H-R10H-h | `apps/desktop/electron/backend-probes.ts:190`:`return typeof hermesOverride === 'string' && hermesOverride.trim().length > 0` | `HERMES_DESKTOP_HERMES` 跳过 `--version` 探针,与 `apps/desktop/README.md:114` 的"候选一律先探针"冲突(代码是有意的) | 若要修,改文档而不是改代码 |
-| H-R10H-i | `apps/desktop/electron/main.ts:1064`:`const backendPool = new Map() // profile -> { process, port, token, connectionPromise, lastActiveAt }` | 多 profile 后端池(≤3 个额外 Python 子进程)在任何文档里零命中 | 成品章值得单开一小节:它是"一个桌面应用同时监管四个 Python 后端"这件事 |
+| H-R10H-i | `apps/desktop/electron/main.ts:1065`:`const backendPool = new Map()` | 多 profile 后端池(≤3 个额外 Python 子进程)在任何文档里零命中 | 成品章值得单开一小节:它是"一个桌面应用同时监管四个 Python 后端"这件事 |
 | H-R10H-j | `apps/desktop/electron/preload.ts:126`:`return webUtils.getPathForFile(file) || ''` | 152 个暴露项里唯一一个不经过主进程、直接在 preload 里调 Electron API 的 | 若 R10B 要统计"渲染层能力面",这一条不在 IPC 表里,容易漏 |
 
