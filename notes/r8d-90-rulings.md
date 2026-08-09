@@ -261,6 +261,129 @@ R9 计划里有并发/竞态的正题,届时与那两个一并做**一次**验�
 
 ---
 
+## 3.5 主线复核子代理条目(制度要求:不照单全收)
+
+制度要求主线独立复核子代理的结论。本节只记**复核动作与结果**,
+不重复子代理已在各自底稿里给足证据的部分。四条最强断言全部复核,
+**三条通过、一条需要收窄措辞**。
+
+### 3.5.1 通过:`rebuild_venv` 是死桩(簇 A1 的 ■-2)
+
+`hermes_cli/managed_uv.py:1303-1304 @ 863e313`
+
+```python
+def rebuild_venv(uv_bin: str, venv_dir: Path, python_version: str = "3.11") -> bool:
+    True  # dont remove me. ask ethernet
+```
+
+签名声明 `-> bool`,函数体是一条**求值即丢弃的表达式语句**,隐式返回 `None`。
+主线独立复搜确认它没有任何调用方:
+
+```verify
+cd /home/user/hermes-agent && grep -rn "rebuild_venv" .
+```
+
+搜索面:基线全仓、不限后缀、不排除任何目录(含 `tests/`)。实测**唯一命中就是它自己的 def 行**。
+
+### 3.5.2 通过:`UpdateLock.acquire()` 非原子(簇 A1 的 ■-1)
+
+`hermes_cli/update_lock.py:245-250 @ 863e313`
+
+```python
+        existing = read_live_update(path=self.path)
+        if existing is not None:
+            if existing.pid == _handoff_pid() or _is_ancestor_pid(existing.pid):
+                return True
+            self.holder = existing
+            return False
+```
+
+`hermes_cli/update_lock.py:251-255 @ 863e313`
+
+```python
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.path.write_text(
+                f"{os.getpid()}\n{int(time.time())}\n", encoding="utf-8"
+            )
+```
+
+读在 `:245`、写在 `:253`,中间没有任何原子性保障——教科书式的 check-then-write。
+子代理 64 进程对齐并发实测三次分别有 **7 / 1 / 2** 个进程同时自认持锁,与代码形状一致。
+**主线接受**。同仓已有正确写法可参照(`O_CREAT|O_EXCL`),现有 25 个用例全是顺序语义、零并发用例。
+
+### 3.5.3 通过:`mcp_serve` 的审批工具结构性失效(簇 E 的 ■-1,负结论)
+
+这是一条**全称否定**("`_pending_approvals` 全仓无写入点"),按制度必须由主线独立复搜:
+
+```verify
+cd /home/user/hermes-agent && grep -rn "_pending_approvals" . --include=*.py
+```
+
+搜索面:基线全仓 `*.py`,不排除 `tests/`。实测 20 处命中,逐一归类:
+
+| 归属 | 命中 | 是不是写入点 |
+|---|---|---|
+| `mcp_serve.py:333` | 初始化空 dict | 是**声明**,不是写入 |
+| `mcp_serve.py:414/418/425` | `list` 读、`pop` 取 | 只读只删 |
+| `gateway/*`(8 处) | `legacy_dict_property` 的同名字段 | **另一个对象**,与 mcp_serve 无关 |
+| `tests/*`(5 处) | `runner._pending_approvals = {}` 直接注入 | 绕过生产路径 |
+
+**没有一处生产代码往 mcp_serve 的这个 dict 里写。** 主线复核通过:
+10 个对外广告的工具里有 2 个恒为死路,而 5 个测试全绿——正因为它们直接注入私有 dict。
+
+### 3.5.4 需要收窄:"7 条互相独立的动态导入通道"(簇 D 的核心发现)
+
+子代理给的搜索面是全仓 `*.py` 排除 `./tests`/`./scripts`、模式
+`exec_module|spec_from_file_location`,结论是 **7 条通道**。
+主线用**同一模式**重跑,得到的**去重文件数是 12**,比 7 多 5 个。逐个判定后:
+
+| 多出来的站点 | 判定 | 理由 |
+|---|---|---|
+| `cli.py:875/886` | **不是第三方通道** | 是给 httpx 打补丁的 import hook,patch 的是别人的 `exec_module` |
+| `hermes_cli/setup.py:2605`、`hermes_cli/claw.py:206` | **不是第三方通道** | 两处装载的是**同一个仓库自带**的迁移脚本 `openclaw_to_hermes`;主线另查了取路径的 `_find_migration_script`(`hermes_cli/claw.py:196-200`),它只在两个**固定常量**里挑,不接受外部输入 |
+| `plugins/memory/config_schema.py:133` | **同一通道的第二个入口** | 仍是记忆插件子系统,但 schema 装载与 provider 装载是两次独立的 `exec_module` |
+| `plugins/platforms/buzz/adapter.py:130` | **不是新增面** | 自带插件加载自己的同目录兄弟文件 |
+
+**裁定:子代理的 7 条**在"第三方代码进入本进程的准入通道"这个口径下**成立**,
+但底稿里的措辞"7 条互相独立的**动态导入通道**"比它实际验证的范围宽——
+按字面读,全仓做动态装载的非测试文件是 12 个。
+**已按此收窄口径记入本卷,底稿措辞留待成品章统一表述。**
+*(记这一条不是为了挑错:它正是"负结论/全称断言必须写出搜索面"这条规矩起作用的样子
+——因为搜索面写了,主线才能用同一条命令重跑并发现口径差;若只写"全仓 7 条",无从复核。)*
+
+### 3.5.5 顺带确认的一条 ■(簇 D)
+
+model-provider 插件绕过 `plugins.enabled` / `disabled` / `HERMES_SAFE_MODE`。主线复核:
+
+```verify
+cd /home/user/hermes-agent && grep -c "plugins.enabled\|HERMES_SAFE_MODE\|safe_mode\|disabled" providers/__init__.py
+```
+
+实测 **0**——整个文件没有任何门禁字样。而它确实会从
+`$HERMES_HOME/plugins/model-providers/<name>/` 装载用户插件,且**后写者覆盖同名内建 profile**:
+
+`providers/__init__.py:170-179 @ 863e313`
+
+```python
+    # 2. User plugins — under $HERMES_HOME/plugins/model-providers/<name>/.
+    #    These can override any bundled profile of the same name (last-writer-wins
+    #    in register_provider()).
+    user_dir = _user_plugins_dir()
+    if user_dir is not None:
+        for child in sorted(user_dir.iterdir()):
+            if not child.is_dir() or child.name.startswith(("_", ".")):
+                continue
+            _import_plugin_dir(child, "user")
+
+    # 3. Legacy single-file profiles at providers/<name>.py. Kept for
+```
+
+**主线接受这条 ■。** 与 §1/§2 并读,本轮第三次看到同一形状:
+**守卫存在、但某一条路径不问它。**
+
+---
+
 ## 4. 本轮对历史产出的就地改正(制度要求点名)
 
 `chapters/` 与 `notes/` 直接改正文;`reports/` 正文不静默改写、走文末勘误节。

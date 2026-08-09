@@ -153,6 +153,39 @@ context-local 覆盖 → `HERMES_HOME` 环境变量 → 平台默认。这意味
 项目插件(第 3 源,CWD 里的 `.hermes/plugins/`)默认关闭,需要显式 `HERMES_ENABLE_PROJECT_PLUGINS`。
 它读的是 `env_var_enabled` 而不是"非空即真"——这是一个真实事故的修复,见 §2.9。
 
+**目录布局支持两级,且深度硬封顶**:
+
+`hermes_cli/plugins.py:1538-1543 @ 863e313`
+
+```
+        """Recursive implementation of :meth:`_scan_directory`.
+
+        ``prefix`` is the category path already accumulated ("" at root,
+        "image_gen" one level in). ``depth`` is the recursion depth; we
+        cap at 2 so ``<root>/a/b/c/`` is ignored.
+        """
+```
+
+即 `plugins/disk-cleanup/plugin.yaml`(扁平)与 `plugins/image_gen/openai/plugin.yaml`(分类)都合法,
+key 分别是 `disk-cleanup` 与 `image_gen/openai`。**深度封顶是必要的**:
+没有它,一个深层嵌套的用户目录会让扫描退化成全盘遍历。而 key 带上分类前缀
+则解决了"`tts/openai` 和 `image_gen/openai` 都叫 openai"的撞名问题——
+**注册键从路径派生而不是从清单的 `name` 字段派生**,这是本系统一个很干净的决定。
+
+插件作者的调试开关(env 在 import 期读一次,把发现日志 tee 到 stderr):
+
+`hermes_cli/plugins.py:96-99 @ 863e313`
+
+```
+_PLUGINS_DEBUG = os.getenv("HERMES_PLUGINS_DEBUG", "").strip().lower() in {
+    "1", "true", "yes", "on",
+}
+_DEBUG_HANDLER_INSTALLED = False
+```
+
+注意这里的真值判定集合 `{"1","true","yes","on"}` —— 与 `env_var_enabled` 同一套语义。
+§2.9 那个事故的根因正是**另一个模块没用这套语义**。
+
 ### 2.2 门禁:opt-in 白名单
 
 插件默认**全不加载**。这是一个 opt-in(选择性加入)模型,不是 opt-out。
@@ -203,6 +236,31 @@ def _get_enabled_plugins() -> Optional[set]:
 只是不 `_load_plugin`。所以 `hermes plugins list` 能列出"装了但没启用"的插件——
 **可见性与可执行性被拆开了**。这是一个很好的 harness 设计模式:发现是廉价且全量的,
 加载是昂贵且受控的,两者的产物都要能被内省。
+
+还有一个**可重入守卫**,写法值得单独学:
+
+`hermes_cli/plugins.py:1326-1337 @ 863e313`
+
+```
+        # Set the flag up front as a re-entrancy guard (a plugin's register()
+        # can transitively trigger discovery again), but reset it if the sweep
+        # raises so a failed scan is NOT cached as "discovered with an empty
+        # registry" — callers swallow the exception and would otherwise be
+        # permanently stranded on the early-return above (the "No web provider
+        # configured" class of failures).
+        self._discovered = True
+        try:
+            self._discover_and_load_inner()
+        except BaseException:
+            self._discovered = False
+            raise
+```
+
+这是"幂等标志位"的两难:**先置位**才能挡住插件 `register()` 里递归触发的二次发现,
+但先置位又会把一次失败的扫描缓存成"已发现且为空",于是整个进程余生都以为没有插件。
+解法是 try/except 里回滚标志。注释还给出了这个 bug 的可观测形状——
+"No web provider configured" 那一类莫名其妙的报错。**把失败的外在症状写进注释**,
+下一个人搜到那句报错就能找到这里。
 
 还有一个总闸:
 
@@ -548,7 +606,81 @@ cd /home/user/hermes-agent && grep -n "subprocess\.\|exec_module\|importlib\|eva
         return True
 ```
 
-注意 `role != "user"` 时只是加个 `[role]` 前缀塞进**同一个用户输入队列**——
+**`register_skill` —— 插件带的技能刻意不进系统提示。**
+
+`hermes_cli/plugins.py:1226-1237 @ 863e313`
+
+```
+        """Register a read-only skill provided by this plugin.
+
+        The skill becomes resolvable as ``'<plugin_name>:<name>'`` via
+        ``skill_view()``.  It does **not** enter the flat
+        ``~/.hermes/skills/`` tree and is **not** listed in the system
+        prompt's ``<available_skills>`` index — plugin skills are
+        opt-in explicit loads only.
+
+        Raises:
+            ValueError: if *name* contains ``':'`` or invalid characters.
+            FileNotFoundError: if *path* does not exist.
+        """
+```
+
+两个刻意的收窄:(a) **不进扁平 skills 树**,所以插件卸载后不留孤儿文件;
+(b) **不进系统提示索引**,所以插件不能靠装一个技能就往每一次请求的系统提示里塞内容。
+(b) 尤其重要——系统提示是提示缓存(prompt cache)的前缀,任何人往里塞东西都会
+让全体用户的缓存失效并涨 token。**"能注册"和"能进系统提示"必须分开授权**,
+这条对任何有技能/插件机制的 harness 都适用。
+
+**`register_auxiliary_task` —— 插件可以定义新的辅助 LLM 任务类型。**
+
+`hermes_cli/plugins.py:1069-1082 @ 863e313`
+
+```
+    def register_auxiliary_task(
+        self,
+        key: str,
+        *,
+        display_name: str,
+        description: str,
+        defaults: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Register a plugin-defined auxiliary LLM task.
+
+        Auxiliary tasks are LLM-backed side jobs (vision analysis, web extraction,
+        compression, smart-approval, etc.) that route through ``auxiliary_client.py``.
+        Each task has its own ``auxiliary.<key>`` config block where users can
+        pin a provider/model independent of the main chat model.
+```
+
+"辅助任务"是指不面向用户、由 harness 自己发起的后台 LLM 调用(压缩上下文、看图、智能审批)。
+插件注册一个新 key 之后,用户就能在 `auxiliary.<key>` 下单独指定便宜模型。
+**把"哪些后台调用存在"做成可扩展的注册表,而不是硬编码枚举**,
+是让成本控制粒度跟着功能一起长的做法。
+
+**`register_slack_action_handler` —— 平台专属回调也走同一套注册表。**
+
+`hermes_cli/plugins.py:1009-1020 @ 863e313`
+
+```
+    def register_slack_action_handler(
+        self,
+        action_id: Any,
+        callback: Callable,
+    ) -> None:
+        """Register a Slack Block Kit action handler from a plugin.
+
+        Hermes' Slack adapter wires registered handlers into its
+        ``slack_bolt.AsyncApp`` at connect time. The callback is invoked
+        when a user clicks a button (or interacts with another Block Kit
+        action element) whose ``action_id`` matches.
+
+```
+
+这是唯一一个**平台专属**的注册点(其他都是平台无关的)。它的存在说明一件事:
+通用抽象覆盖不了的地方,与其硬造一个"通用交互元素"抽象,不如老实开一个平台专属口子。
+代价是这个口子对非 Slack 用户是死重量,收益是 Slack 插件不用 fork 适配器。
+
+回到 `inject_message`:注意 `role != "user"` 时只是加个 `[role]` 前缀塞进**同一个用户输入队列**——
 也就是说插件无法真正伪造 assistant/system 消息,只能以用户身份说话并自称是别人。
 这是个正确的收窄。另注意它在网关模式下直接失效(`_cli_ref is None`),
 所以这是一个 **CLI-only** 的能力,插件作者必须处理返回 `False`。
@@ -974,8 +1106,27 @@ VALID_MIDDLEWARE: set[str] = {
 }
 ```
 
-**契约版本化**是个细节但很重要:每个 payload 都带 `telemetry_schema_version` 与
-`middleware_schema_version`,让插件能对着版本号写兼容分支。
+**契约版本化**是个细节但很重要:
+
+`hermes_cli/middleware.py:47-55 @ 863e313`
+
+```
+def observer_payload(**kwargs: Any) -> Dict[str, Any]:
+    kwargs.setdefault("telemetry_schema_version", OBSERVER_SCHEMA_VERSION)
+    return kwargs
+
+
+def middleware_payload(**kwargs: Any) -> Dict[str, Any]:
+    kwargs.setdefault("telemetry_schema_version", OBSERVER_SCHEMA_VERSION)
+    kwargs.setdefault("middleware_schema_version", MIDDLEWARE_SCHEMA_VERSION)
+    return kwargs
+```
+
+observer 的 payload 只带**一个**版本号,middleware 的带**两个**——
+因为中间件同时是观察者(能看到全部遥测字段)又是改写者(多一层自己的契约)。
+用 `setdefault` 而不是直接赋值,意味着**调用方可以覆盖版本号**(测试与兼容层需要),
+但默认永远有值。插件因此可以写 `if kwargs.get("middleware_schema_version") == "hermes.middleware.v1": ...`
+而不必担心 KeyError。
 
 ### 4.2 能改写请求吗?能 —— 而且是发给 provider 之前的最终 kwargs
 
@@ -1463,6 +1614,33 @@ def _reject_distribution_symlinks(staged: Path) -> None:
         return cloned, src_str
 ```
 
+版本兼容检查**前置**,失败得早(在拷贝任何文件之前):
+
+`hermes_cli/profile_distribution.py:315-321 @ 863e313`
+
+```
+def check_hermes_requires(spec: str, current_version: str) -> None:
+    """Raise DistributionError if ``current_version`` does not satisfy ``spec``.
+
+    ``spec`` accepts a single comparator (``>=0.12.0``, ``==0.12.0``, etc.).
+    Empty or blank spec is a no-op — no requirement.
+    """
+    if not spec or not spec.strip():
+```
+
+它在 `plan_install` 里紧跟 `read_manifest` 之后被调用:
+
+`hermes_cli/profile_distribution.py:527-528 @ 863e313`
+
+```
+    # Version check up-front so we fail fast
+    check_hermes_requires(manifest.hermes_requires, hermes_version)
+```
+
+**"计划阶段就把能查的都查掉"是这个模块的一贯风格**——符号链接、版本、profile 名冲突
+全在 `plan_install` 里判完,`install_distribution` 只负责执行。
+这也是为什么 `InstallPlan` 能被单独拿去给用户看(`hermes profile install` 的预览)。
+
 拒绝安装成 `default`(不许覆盖根 profile):
 
 `hermes_cli/profile_distribution.py:534-539 @ 863e313`
@@ -1680,6 +1858,51 @@ def _run_bootstrap(cwd: Path, commands: List[str]) -> None:
         )
 ```
 
+克隆策略里两个值得记的细节。其一,**每次安装都是全新检出**:
+
+`hermes_cli/mcp_catalog.py:417-421 @ 863e313`
+
+```
+    if dest.exists():
+        # Fresh checkout each install — manifest version is the source of truth,
+        # so wipe + re-clone for determinism.
+        print(color(f"  Removing existing install at {dest}", Colors.DIM))
+        shutil.rmtree(dest)
+```
+
+"清空重来"而不是 `git pull`,理由是**确定性**:清单里的 ref 是唯一真相,
+不允许本地状态(未提交改动、分支漂移)影响结果。代价是每次重装都要重下。
+对供应链敏感的东西,这个取舍选得对。
+
+其二,**SHA 型 ref 走不同的克隆路径**:
+
+`hermes_cli/mcp_catalog.py:425-429 @ 863e313`
+
+```
+    # `git clone --branch` only accepts branches and tags, NOT commit SHAs.
+    # Detecting SHA-shaped refs upfront avoids a guaranteed stderr leak on
+    # the fast path (the --branch attempt would always fail noisily for a
+    # SHA ref before we fall back to full-clone-then-checkout).
+    is_sha_ref = bool(re.fullmatch(r"[0-9a-f]{7,40}", install.ref))
+```
+
+`git clone --branch` 不接受 commit SHA,所以 SHA 要走"全量克隆 + checkout"。
+预先判断只是为了不让用户看到一条必然失败的 git 报错。
+**注意这里 MCP 目录是真的支持 ref 固定的**,而且 `ref` 是必填项:
+
+`hermes_cli/mcp_catalog.py:270-273 @ 863e313`
+
+```
+        url = install_raw.get("url") or ""
+        ref = install_raw.get("ref") or ""
+        if not url or not ref:
+            raise CatalogError(f"{path}: install.url and install.ref are required")
+```
+
+与 §5.6 的 profile 分发形成对比——**同一个仓库里,一个分发通道强制钉版本,另一个连解析 ref 的代码都没有。**
+这个不一致本身就是 R12 该讨论的东西:两条通道拉的都是任意 git 仓库,
+危险程度相当,供应链纪律却相差一整个数量级。
+
 这与 §2.6 的插件安装形成鲜明对比:**插件安装只 clone 不执行,MCP 目录安装会执行 shell。**
 两个"安装"在同一个 CLI 下,风险等级完全不同。设计同级 harness 时,
 这种"名字一样、危险程度不一样"的动词最容易让用户建立错误直觉。
@@ -1822,6 +2045,57 @@ codex (~/.codex):
     memories/*.md                   → memory entries in HERMES_HOME/memories/MEMORY.md
     skills/<name>/SKILL.md          → HERMES_HOME/skills/codex-imports/<name>/
 ```
+
+**权限规则也被导入**——这是本文件里安全影响最大的一项映射。
+`permissions.allow` 进 `command_allowlist`(放宽),`permissions.deny` 进 `approvals.deny`(收紧):
+
+`hermes_cli/agent_import.py:636-646 @ 863e313`
+
+```
+    def import_permission_allowlist(self, settings: Dict[str, Any]) -> None:
+        """settings.json permissions.allow → config.yaml command_allowlist."""
+        destination = self.target_root / "config.yaml"
+        permissions = settings.get("permissions")
+        allow = permissions.get("allow") if isinstance(permissions, dict) else None
+        if not isinstance(allow, list) or not allow:
+            self.record("command-allowlist", None, destination, "skipped",
+                        "No permissions.allow rules found")
+            return
+
+        patterns: List[str] = []
+```
+
+值得停一下:**导入别的 agent 的配置,等于导入别的 agent 的信任决策。**
+用户当初在 Claude Code 里批准 `Bash(rm:*)`,是在那个工具的沙箱/工作区语境下批的;
+搬到 Hermes 后语境变了(不同的工作目录、不同的工具集、可能还接了网关和定时任务),
+同一条规则的实际风险不同。代码这里做得已经算克制——它是**合并**而不是替换,且每一条都进 report 让用户在 `--dry-run` 里先看见:
+
+`hermes_cli/agent_import.py:667-681 @ 863e313`
+
+```
+        current = config.get("command_allowlist", [])
+        if not isinstance(current, list):
+            current = []
+        merged = sorted(dict.fromkeys(list(current) + patterns))
+        added = [p for p in merged if p not in current]
+        if not added:
+            self.record("command-allowlist", "settings.json permissions.allow",
+                        destination, "skipped", "All patterns already present")
+            return
+        details: Dict[str, Any] = {"added_patterns": added}
+        if skipped_rules:
+            details["unmapped_rules"] = skipped_rules
+        if self.execute:
+            config["command_allowlist"] = merged
+            dump_yaml_file(destination, config)
+```
+
+三个细节都对:`dict.fromkeys` 去重且保序后再排序;`added` 只记**新增**的那些
+(不把用户已有的规则重复报一遍);`unmapped_rules` 把"Claude 有但 Hermes 没有对应概念"
+的规则单独列出来,而不是静默丢弃。**迁移工具必须报告它没能搬过来的东西**,
+否则用户会以为迁移是完整的。
+但"预览里列出 40 条 Bash 规则"和"用户真的逐条重新评估过"是两回事。
+这属于设计取舍而非缺陷,记在这里供 R12 讨论。
 
 整体架构是 **detect → parse → map → apply,带强制预览阶段**,
 每一项记 imported / skipped / conflict / error,`--dry-run` 一个字节都不写。
@@ -2025,6 +2299,46 @@ handler are thin wrappers that parse args and delegate.
 过了才 `install_from_quarantine` 进真正的 skills 树。任何一步失败都 `shutil.rmtree(q_path)`。
 这是处理不可信内容的标准两阶段落地,值得抄。
 
+`hermes_cli/skills_hub.py:639-648 @ 863e313`
+
+```
+    # Quarantine the bundle
+    try:
+        q_path = quarantine_bundle(bundle)
+    except ValueError as exc:
+        c.print(f"[bold red]Installation blocked:[/] {exc}\n")
+        from tools.skills_hub import append_audit_log
+        append_audit_log("BLOCKED", bundle.name, bundle.source,
+                         bundle.trust_level, "invalid_path", str(exc))
+        return
+    c.print(f"[dim]Quarantined to {q_path.relative_to(q_path.parent.parent.parent)}[/]")
+```
+
+注意 `quarantine_bundle` 抛的是 `ValueError`,审计日志记的原因是 `"invalid_path"`
+—— 说明隔离阶段本身就在做路径消毒(bundle 里的相对路径不许逃出隔离目录)。
+**落盘之前先验路径**,和 §5.5 的 `_reject_distribution_symlinks`、
+§2.9 的 `_safe_plugin_api_relpath` 是同一个防御模式在第三处出现。
+
+同样的路径校验在**真正落地那一步再做一次**:
+
+`hermes_cli/skills_hub.py:729-738 @ 863e313`
+
+```
+    # Install
+    try:
+        install_dir = install_from_quarantine(q_path, bundle.name, category, bundle, result)
+    except ValueError as exc:
+        c.print(f"[bold red]Installation blocked:[/] {exc}\n")
+        shutil.rmtree(q_path, ignore_errors=True)
+        from tools.skills_hub import append_audit_log
+        append_audit_log("BLOCKED", bundle.name, bundle.source,
+                         bundle.trust_level, "invalid_path", str(exc))
+        return
+```
+
+两处都记 `"invalid_path"`,即**隔离时验一次、出隔离时再验一次**。
+这与 §2.9 GHSA 修复里"发现阶段洗一次、挂载阶段再验一次"是同一条纵深原则。
+
 扫描结果带**溯源信息**(新扫还是命中缓存、扫描器版本、bundle 哈希、规则集):
 
 `hermes_cli/skills_hub.py:667-677 @ 863e313`
@@ -2222,10 +2536,24 @@ INSTALL_POLICY = {
 全文无任何 `#` 解析。照文档写会落到"本地目录"分支并报 `Cannot resolve distribution source`。详见 §5.6。
 
 **▲-2 · `*_cache/` 通配符不存在。**
-锚点:`website/docs/user-guide/profile-distributions.md:608`(`- `*_cache/` — image / audio / document caches`)
-vs `hermes_cli/profile_distribution.py:112`(只有 `image_cache`/`audio_cache`/`document_cache` 三个具名项)
-+ `hermes_cli/profile_distribution.py:634`(`if name in USER_OWNED_EXCLUDE`,精确匹配无 glob)。
-现象:分发带 `embedding_cache/` 会被拷进用户 profile,而文档承诺 `*_cache/` 一律排除。详见 §5.7。
+锚点:`website/docs/user-guide/profile-distributions.md:610` 与 `:249`(文档**两处**都写 `*_cache/`)
+vs `hermes_cli/profile_distribution.py:113`(只有 `image_cache`/`audio_cache`/`document_cache` 三个具名项)
++ `hermes_cli/profile_distribution.py:634`(`if name in USER_OWNED_EXCLUDE`,精确成员判断,无 glob)。
+
+`hermes_cli/profile_distribution.py:113 @ 863e313`
+
+```
+    "image_cache", "audio_cache", "document_cache",
+```
+
+`hermes_cli/profile_distribution.py:634 @ 863e313`
+
+```
+            if name in USER_OWNED_EXCLUDE:
+```
+
+现象:分发带 `embedding_cache/` 会被拷进用户 profile,而文档承诺 `*_cache/` 一律排除。
+文档在 249 行的"谁拥有什么"总表里又重复了一次同样的通配符写法,所以这不是笔误而是一致的误述。详见 §5.7。
 
 **▲-3 · `requires_env` 不 gate 插件加载。**
 锚点:`website/docs/developer-guide/plugins/index.md:446`
@@ -2236,8 +2564,13 @@ vs `hermes_cli/plugins.py:1662`(只解析进 manifest)与 `hermes_cli/plugins.py
 
 > If `WEATHER_API_KEY` isn't set, the plugin is disabled with a clear message. No crash, no error in the agent — just "Plugin weather disabled (missing: WEATHER_API_KEY)".
 
-同一文件 77 行的清单注释也写 `requires_env:  # gate loading on env vars; prompted during install`
-/ `# simple format — plugin disabled if missing`。
+同一文件 80-81 行的清单示例注释重复了同样的断言:
+
+`website/docs/developer-guide/plugins/index.md:80-81 @ 863e313`
+
+> requires_env:          # gate loading on env vars; prompted during install
+>   - SOME_API_KEY       # simple format — plugin disabled if missing
+
 
 代码里 `PluginManifest.requires_env` 被解析后**再无读取**:
 
