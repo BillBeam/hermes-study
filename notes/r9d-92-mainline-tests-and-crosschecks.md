@@ -51,8 +51,39 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 \
 **133 文件 / 1,829 passed / 2 failed / 71.8 秒 / 8 worker。**
 这是**一次合并去重的测量**;各片自报读数之和是另一个口径,两者**不可混报**(见报告 §8)。
 
-**无整文件静默跳过**:全日志无 `skipped` / `importorskip` / `no tests ran`。
-(R9C 的 E 片曾因 `pytest.importorskip` 整文件不跑而"全绿",本轮范围内没有这种形态。)
+**跳过情况(本节初稿判错,已撤回重判——留痕见下)**:
+
+| 文件 | skipped | 原因 | 性质 |
+|---|---|---|---|
+| `tests/tools/test_send_message_tool.py` | **1(掩盖 47 个 `def test_`)** | `python-telegram-bot not installed` | **整文件跳过**,环境限制 |
+| `tests/tools/test_signal_media.py` | 3 | httpx 类型注解与 telegram 库不兼容 | 环境限制 |
+| `tests/tools/test_read_extract.py` | 3 | `firecrawl-anydoc not installed` | 环境限制 |
+| `tests/agent/test_secret_scope_tier1_migration.py` | 2 | `azure-identity not installed` | 环境限制 |
+| `tests/hermes_cli/test_web_server.py` | 1 | SQLite 3.45.1 的 WAL-reset bug,故无 `-wal` 边车可断言 | 环境限制 |
+| `tests/run_agent/test_tool_batch_segmentation.py` | 1 | `normcase()` 大小写折叠只在 Windows 上有意义 | 正常的平台门控 |
+| **合计** | **11** | | |
+
+**最重的一条**:`tests/tools/test_send_message_tool.py` 是 D 片主文件
+(`tools/send_message_tool.py`,2,116 行)的主测试,**47 个 `def test_` 一个都没跑**,
+而运行器那一行显示的是 `✓ tests/tools/test_send_message_tool.py (1s, 1.1s)`。
+`pytest.importorskip` 在模块级只记 **1 个 skip**,于是 47 个用例的缺失被压成一个字符。
+
+**本节初稿的错判,及它是怎么发生的(留痕,不静默改写)**:
+初稿写的是「**无整文件静默跳过**:全日志无 `skipped` / `importorskip` / `no tests ran`」。
+**这是错的。** 依据是我对全日志 `grep -E "skipped|importorskip|no tests ran"` 得零命中——
+但**运行器把 "skipped" 缩写成了 `s`**(`(1s, 1.1s)` 里的 `1s` 是"1 个跳过",不是"1 秒"),
+所以那次 grep 的搜索面根本没覆盖到它。
+
+*这正是 CLAUDE.md「负结论的成本」那条规矩描述的形状:**全称否定的可信度等于一次 grep 的完备性**,
+而我那次 grep 不完备。它没被更早发现,是因为负结论**不会被下一个读者撞见**——
+撞见它的是 D 片子代理在自己那一亩地里报了一条我"证明"过不存在的东西。*
+
+正确的判定方法(逐文件解析运行器的括号读数,而不是搜关键词):
+
+```verify
+grep -oE "✓ tests/[^ ]+ \([^)]*\)" /tmp/r9d_mainline_tests.log \
+  | grep -E "[0-9]+s," | sed 's/^✓ //'
+```
 
 ### 1.3 两条失败的逐条诊断:是本项目自己的开工纪律造成的
 
