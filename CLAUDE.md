@@ -91,6 +91,22 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   这个关卡把下限从「表格锚点一个都不查」抬到「**声明了指向什么的表格锚点必被查**」,
   不是把表格全查了。*
 
+  **锚点的扩展名白名单(R10B 定,结清 H-R10-a)。** 校验器靠一条正则认出「这是个锚点」,
+  而它的扩展名白名单是有限的。**不在白名单上的锚点不会记 UNCHECKED——它根本不被当成锚点**,
+  既不校验、也不计数,**比 UNCHECKED 更隐蔽**:UNCHECKED 至少出现在分母里,
+  它连分母都进不去。白名单现为
+  `py mdx md yaml yml toml c h sh json tsx ts mjs js nix rs txt`(见
+  `scripts/verify_citations.py:169`:`CITE_EXTS = "py\|mdx\|md\|yaml\|yml\|toml\|c\|h\|sh\|json\|tsx\|ts\|mjs\|js\|nix\|rs\|txt"`),
+  路径另允许前导点(`.github/...` 此前被解析成 `github/...`,永远解析不到)。
+  **写锚点前先确认扩展名在表上;要加新扩展名,连同一次全语料前后对比一起加。**
+  *为什么不干脆放宽成"任意扩展名":`sqlite.org:443` 和 `路径:行号` 是同一个形状。
+  实测全语料有 **49 处** host:port 长成这样(`127.0.0.1:18789` 31 处、`sqlite.org:443` 4 处、
+  `api.openai.com:443`、`homeassistant.local:8123`、`x.test:80`,甚至 `n.lineno:4`),
+  **一个白名单外的真锚点都不掺**——所以白名单是有效的分界,不是懒惰。
+  但 `sh` / `js` / `rs` **同时是国家域名后缀**,所以对这三种额外要求一点「像路径」的证据:
+  有 `/`、有 `_`、或能解析。* 复现:`data/r10b/probes/cite_ext_scan.py`(前后对比与误吞普查)、
+  `data/r10b/probes/cite_ext_negative_control.py`(负控:自造漂移锚点,证明关卡真拦得住)。
+
   **本关卡落地即阻断**,不走 R7C→R8A / R8C→R8D 那种"先加查、后升格"的分期——
   那个分期是为了避免关卡对着自己没造成的积压狂叫,而本轮**在同一轮把积压清零了**
   (全语料 5 处真漂移已全部改正:`notes/r7c-raw-slash-c.md`、
@@ -199,8 +215,25 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   ■ = 代码缺陷;**◎ = 文档成立但显著保守**(如"20+ 平台"而实为 24)。
   *理由(review-1 建议-13 / M-16e):▲ 条数是贯穿各轮、用来衡量"地图腐烂程度"的跨轮指标,
   把"保守但为真"计进 ▲ 会让它不可比。字面为真就不是 ▲。*
-- **shell 命令即证据(R8-fix,review-1 建议-16 / M-16d)**:凡把 shell 命令写进证据,
+- **shell 命令即证据(R8-fix,review-1 建议-16 / M-16d;R10B 起脚本可查)**:凡把 shell 命令写进证据,
   **必须是重跑能复现该结论的那一条**,并用 ```` ```verify ```` 围栏标注。
+  **R10B 新增脚本检查,R11 起升格为阻断**(沿用 R7C→R8A、R8C→R8D 的同一套分期):
+  ```` ```verify ```` 块后**紧跟**的 ```` ```text ```` 块会被重跑比对。
+  **R10B 本轮的强制范围是「当轮主线 notes + 报告 + 成品章」**(作者知道这条规则时写的那些);
+  各片底稿是在这道关卡存在**之前**派出去的,本轮**只报数不阻断**,积压交 R11 清完再升格
+  ——一个对着自己没造成的积压狂叫的关卡,只会教会作者忽略它。
+  每轮 commit 前运行:
+
+  ```bash
+  python3 scripts/verify_evidence_commands.py notes/rN-*.md reports/round-N-*.md
+  ```
+
+  没有配对 ```` ```text ```` 的 verify 块记 unpaired,**不失败**——很多命令是给读者去跑的,
+  不是用来钉一个输出的。要钉输出,就把输出贴在紧跟其后的 ```` ```text ```` 块里。
+  *理由(R10B 实测):这是全项目唯一没有机械校验的证据规则,而它首次运行就在**当轮自己**
+  抓到 4 处:3 处是把命令输出手工裁剪过、命令与块对不上,1 处更糟——
+  一段**从未由该命令产生过**的 diff 被写进了底稿,数字看起来完全合理。
+  人工评审抓不住这一类,因为它要求评审者真的去跑那条命令。*
   *理由:r4-90 写进定案的自检 grep 用 `iron` 匹配到了 `env`**`iron`**`ment`,
   重跑对每个文件都命中,与它声称的"零命中"相反。结论是对的,命令是错的——
   **一条重跑给出相反结果的命令比不写更糟**:读者要么以为结论错了,要么以为自己环境不对。*
@@ -320,6 +353,13 @@ scripts/verify_citations.py# 引用校验(R7C 新增,R8A 起为定稿关卡,R8-f
                            #  DRIFT 与 OUT-OF-RANGE 阻断)——结清 H-R9A-h
                            # R8C 增:打印可校验比例(70% 下限)+ 单文件 UNCHECKED ≥90% 的
                            # 「疑似锚点排版不合规」提示(非阻断)
+                           # R10B 增(结清 H-R10-a):扩展名白名单 `CITE_EXTS` 补
+                           # h/mjs/nix/rs(移交项点名)+ mdx/txt(本轮实测另发现);
+                           # 路径允许前导点,`.github/...` 不再被解析成 `github/...`;
+                           # `sh|js|rs` 与 ccTLD 重名,故无目录部分且不可解析时不认作锚点
+scripts/verify_evidence_commands.py # R10B 新增:重跑每个 ```verify 块并与紧跟其后的
+                           # ```text 块逐字比对(「shell 命令即证据」此前是全项目唯一
+                           # 靠人自觉的证据规则);无配对 text 块的 verify 块记 unpaired,不失败
 scripts/verify_report_headline.py # R8-fix 新增:报告首句 ≤20 字口径的脚本化判定
                            # (剥标签与强调、中文标点计入;纯数据附卷豁免、历史例外显式列名)
 scripts/config_table.py    # R8A 新增:从 DEFAULT_CONFIG / OPTIONAL_ENV_VARS 字面量 AST

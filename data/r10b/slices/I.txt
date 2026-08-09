@@ -1,0 +1,13 @@
+apps/desktop/src/i18n/ar.ts
+apps/desktop/src/i18n/catalog.ts
+apps/desktop/src/i18n/context.tsx
+apps/desktop/src/i18n/define-locale.ts
+apps/desktop/src/i18n/en.ts
+apps/desktop/src/i18n/index.ts
+apps/desktop/src/i18n/ja.ts
+apps/desktop/src/i18n/languages.ts
+apps/desktop/src/i18n/plugin-i18n.ts
+apps/desktop/src/i18n/runtime.ts
+apps/desktop/src/i18n/types.ts
+apps/desktop/src/i18n/zh-hant.ts
+apps/desktop/src/i18n/zh.ts

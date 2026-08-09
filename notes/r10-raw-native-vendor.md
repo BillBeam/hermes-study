@@ -811,9 +811,9 @@ PY
 | 编号 | 锚点 + 现象 | 建议动作 |
 |---|---|---|
 | H-R10I-a | `scripts/assign_layers.py:623`:`("native/**", "L2", "R10"),` —— 这条目录级 catch-all(排在 619-622 那三条显式行之后)是把两个随附头文件判成 L2 的唯一原因;L4 的定义在同文件 `scripts/assign_layers.py:11`:`L4  有理由排除   — generated / vendored / binary / media / lockfiles; justified skip` 里字面写着 vendored | 本底稿即 §5.3 要求的"有理由排除"依据。请主线把 `data/ledger.tsv` 两行改 `L4` / `round=-` / `status=R10-vendored-justified-skip`,L2 减 14,498 行、L4 加 14,498 行,加总不变;`R1-inventoried` 剩余相应减 2 文件 / 14,498 行。**本片未改台账、未改脚本** |
-| H-R10I-b | `tests/test_fts_cjk_bigram.py:28`:`f"-I{VENDOR}", str(SRC),` —— gcc 命令行无条件带 `-I<vendor>`,而 `native/fts5_cjk/README.md:11-12` 与 `build.sh:4-6` 都把 vendor 描述成"系统头缺失时的兜底";后果是 CI 编出的 `.so` 永远照 3.50.4 头编,与 runner 装没装 libsqlite3-dev 无关 | R11/R12 若写"构建与打包"章,这是「文档描述的是 A 路径、自动化走的是 B 路径」的一个短例子。◇1 已定案,无需重查 |
+| H-R10I-b | `tests/test_fts_cjk_bigram.py:28`:`f"-I{VENDOR}", str(SRC),` —— gcc 命令行无条件带 `-I<vendor>`,而 `native/fts5_cjk/README.md:11-12` 与 `native/fts5_cjk/build.sh:4-6` 都把 vendor 描述成"系统头缺失时的兜底";后果是 CI 编出的 `.so` 永远照 3.50.4 头编,与 runner 装没装 libsqlite3-dev 无关 | R11/R12 若写"构建与打包"章,这是「文档描述的是 A 路径、自动化走的是 B 路径」的一个短例子。◇1 已定案,无需重查 |
 | H-R10I-c | `hermes_cli/managed_uv.py:440`:`every published 3.11.14 build links SQLite 3.50.4` —— 托管运行时的 SQLite 版本与 `vendor/sqlite3.h` 声明的版本是同一个数(3.50.4),但仓库里两处互不引用、也没有任何跟随检查 | 若后续轮读 `hermes_cli/managed_uv.py`(SQLite 运行时替换那一簇),把 `vendor/` 的版本一并纳入叙述:运行时一旦升到 3.53.1,随附头文件会静默留在 3.50.4。◇2 已定案 |
-| H-R10I-d | 本项目自己的工具口子:`scripts/verify_citations.py:157`:`CITE = re.compile(` —— 紧跟其后第 158 行的路径正则只认 `py md yaml yml toml c sh json ts tsx js` 十一种扩展、**不含 `h`**,于是**所有指向 `.h` 头文件的锚点既不计入 citations、也从不被比对**。本片 7 处 `.h` 锚点全部落在这个盲区里。同一条正则还会吃掉前导点,使 `.github/...` 一律解析不了(见 §4 跳 1′ 的注) | 报给主线知悉(**本片未改 scripts/**,铁律 2)。基线里 `.h` 文件只有本片这 2 个,所以影响面等于本片;若 R11/R12 决定补 `h`,应先裸跑一遍确认本底稿的 7 处锚点全绿 |
+| H-R10I-d | **【R10B 已结清】** 本项目自己的工具口子:路径正则只认 `py md yaml yml toml c sh json ts tsx js` 十一种扩展、**不含 `h`**,于是**所有指向 `.h` 头文件的锚点既不计入 citations、也从不被比对**。本片 7 处 `.h` 锚点全部落在这个盲区里。同一条正则还会吃掉前导点,使 `.github/...` 一律解析不了(见 §4 跳 1′ 的注) | **R10B 开工杂项已修**(H-R10-a):白名单现为 `scripts/verify_citations.py:169`:`CITE_EXTS = "py\|mdx\|md\|yaml\|yml\|toml\|c\|h\|sh\|json\|tsx\|ts\|mjs\|js\|nix\|rs\|txt"`,并给正则加了可选前导点。**本片 13 处 `.h` 锚点已纳入校验并全绿**(本行原写"7 处"是本片自数,全语料实测 13 处)。行号锚点按当时口径写的 `:157` / `:158` 已随改动失效,故本行改为锚定符号名 |
 
 ---
 
