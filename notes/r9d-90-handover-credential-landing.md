@@ -22,13 +22,16 @@ git -C /home/user/hermes-agent rev-parse HEAD        # 863e31318553cda8ad61df681
 
 ## 1.1 原移交项复述
 
-R9C 移交表原文(`reports/round-9c-external-interfaces.md` 第 410 行)大意:
+R9C 移交表原文(`reports/round-9c-external-interfaces.md` 第 410 行,**下框内是移交表转录,
+不是基线源码**):
 
-- 锚点 `hermes_cli/nous_billing.py:179` 的 `resolve_portal_base_url`;
-- 读环境变量与存储的 `portal_base_url` 时**不查** `_NOUS_PORTAL_ALLOWED_HOSTS`;
-- 返回值在 `:399-402` 被用作 `Authorization: Bearer` 的目的地;
-- 同仓库 `hermes_cli/auth.py:5900` 读同一存储字段时**是**查清单的;
-- 文件不在 R9C 的 47 个内,故未定案。
+```text
+锚点:hermes_cli/nous_billing.py:179 的 resolve_portal_base_url
+现象:读环境变量与存储的 portal_base_url 时不查 _NOUS_PORTAL_ALLOWED_HOSTS,
+      而返回值在 :399-402 被用作 Authorization: Bearer 的目的地;
+      同仓库 hermes_cli/auth.py:5900 读同一存储字段时是查清单的。
+      文件不在 R9C 的 47 个内,故未定案。
+```
 
 ## 1.2 锚点核对(三个锚点全部核到当前准确行号)
 
@@ -108,9 +111,17 @@ cd /home/user/hermes-agent && grep -rn "_NOUS_PORTAL_ALLOWED_HOSTS" \
 的 `:36`(import)、`:50` / `:55`(断言)。**排除项**:`node_modules`、二进制、`.pyc`
 未参与匹配(grep 默认按文本扫,`--include` 限定了扩展名);另用不带 `--include` 的同一模式复扫
 `agent/`、`gateway/`、`tools/`、`providers/`、`apps/`,零命中。
-所以**全仓只有 `hermes_cli/auth.py` 这一个模块查这张清单**,`nous_billing.py` 连 import 都没有
-(该模块的模块级注释还专门解释了它为什么不 import `auth`——`hermes_cli/nous_billing.py:41` 的
-`# import-time dependency on the much heavier auth module`)。
+所以**全仓只有 `hermes_cli/auth.py` 这一个模块查这张清单**,`nous_billing.py` 连 import 都没有。
+该模块的模块级注释还专门解释了它为什么不 import `auth`:
+
+`hermes_cli/nous_billing.py:41 @ 863e313`
+
+```python
+# Scope the privileged billing endpoints require. Mirrored from
+# hermes_cli.auth.NOUS_BILLING_MANAGE_SCOPE (kept here too so this module has no
+# import-time dependency on the much heavier auth module).
+BILLING_MANAGE_SCOPE = "billing:manage"
+```
 
 **两个查它的地方各自在做什么。**
 
@@ -157,7 +168,7 @@ cd /home/user/hermes-agent && grep -rn "_NOUS_PORTAL_ALLOWED_HOSTS" \
     persisted to auth.json), not a value the operator explicitly configured.
 ```
 
-而且这是一次**真实事故**的修复:`tests/hermes_cli/test_nous_portal_staging_allowlist.py:1-27`
+而且这是一次**真实事故**的修复:回归测试文件 `tests/hermes_cli/test_nous_portal_staging_allowlist.py`
 的模块 docstring 记录,2026-07 一台由 nous-account-service 在 staging 环境开出来的托管 agent,
 容器 env 里被打了 `HERMES_PORTAL_BASE_URL=https://portal.staging-nousresearch.com`,
 而旧代码先读 state 再读 env、且一律过白名单,于是 staging 的 refresh token 被重放到**生产**
@@ -169,7 +180,7 @@ token 端点,生产返回 `invalid_grant` → 触发 `_quarantine_nous_oauth_sta
 > ``_quarantine_nous_oauth_state`` and wiped the entire credential pool.
 
 **结论(第 2 问):** 移交项里"读环境变量时不查清单"这半句,**不是缺陷**——它与
-`auth.py` 的既定策略一致(`auth.py:2338-2342`),并且有专门的回归测试
+`auth.py` 的既定策略一致(即上面那段 `_nous_portal_env_override` docstring),并且有专门的回归测试
 (`tests/hermes_cli/test_nous_portal_staging_allowlist.py::TestPortalEnvOverrideHelper::test_env_override_not_gated_by_allowlist`)。
 真正的差异只剩下**存储字段那半句**。
 
@@ -196,8 +207,14 @@ cd /home/user/hermes-agent && grep -rn "portal_base_url" --include=*.py . | grep
 | 5 | `hermes_cli/auth.py:5352`:`"portal_base_url",` (`_merge_shared_nous_oauth_state` 的键列表) | 跨 profile 的**本地共享文件**,该文件由 `_write_shared_nous_state` 写,值取自上面已净化的 state | 间接是 |
 
 `--portal-url` 这个标志的四个注册点(搜索面:`grep -rn '"--portal-url"' --include=*.py .`,
-命中 4 处,无其它):`hermes_cli/subcommands/login.py:49`、`hermes_cli/subcommands/auth.py:34`、
-`hermes_cli/subcommands/model.py:28`、`hermes_cli/subcommands/dashboard.py:204`——**全部是操作者手输**。
+命中 4 处,无其它)——**全部是操作者手输**:
+
+| 注册点(声明式锚点) | 归属命令 |
+|---|---|
+| `hermes_cli/subcommands/login.py:49`:`"--portal-url", help="Portal base URL (default: production portal)"` | `hermes login` |
+| `hermes_cli/subcommands/auth.py:34`:`auth_add.add_argument("--portal-url", help="Nous portal base URL")` | `hermes auth add` |
+| `hermes_cli/subcommands/model.py:28`:`"--portal-url",` | `hermes model`(Nous 登录) |
+| `hermes_cli/subcommands/dashboard.py:204`:`"--portal-url",` | `hermes dashboard register` |
 
 **关键对照:同一个登录响应里,`inference_base_url` 是可以被服务端改写的,`portal_base_url` 不能。**
 
@@ -213,8 +230,8 @@ cd /home/user/hermes-agent && grep -rn "portal_base_url" --include=*.py . | grep
 ```
 
 `token_data` 是 Portal 的 token 响应体,所以 `inference_base_url` **确有网络来源**——
-这也是 `_validate_nous_inference_url_from_network`(`hermes_cli/auth.py:6270-6275` 处调用)
-存在的原因。而紧挨着的 `auth.py:8880` 写 `portal_base_url` 时用的是 `portal_base_url` 局部变量,
+这也是 `_validate_nous_inference_url_from_network` 这个"网络来源专用校验器"存在的原因。
+而紧挨着它的那句写 `portal_base_url`(上表第 2 行)用的是 `portal_base_url` 局部变量,
 **没有读 `token_data`**。
 
 **负结论(带搜索面):在本基线里,不存在任何把网络响应体的值写进 `portal_base_url` 的代码路径。**
