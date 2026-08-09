@@ -467,7 +467,8 @@ unicode61 不在拉丁与相邻 CJK 之间切边界,`修改youer服务端` 整�
         # (progress, high_water] gap. Top the results up with a bounded LIKE
         # scan over just that id range so search never silently loses old
         # messages mid-rebuild. The range shrinks as the backfill advances,
-        # so this cost decays to zero.
+        # so this cost decays to zero. The CJK LIKE-fallback path above
+        # already scans the whole base table and needs no supplement.
 ```
 
 - **结果整形**:snippet 由 `snippet(表, -1, '>>>', '<<<', '...', 40)` 生成;可选 `context`(前后各 1 条,截 200 字符,仅当投影需要才逐条查);**最后统一 `match.pop("content")`——只回 snippet 省 token**(`hermes_state_search.py:1941-1943`);`fields` 白名单投影(`_SEARCH_MESSAGE_RESULT_FIELDS`,39-67)。
@@ -511,9 +512,12 @@ unicode61 不在拉丁与相邻 CJK 之间切边界,`修改youer服务端` 整�
 ```python
 # Automation sources that are kept searchable but DEMOTED below interactive
 # sessions in discover ranking. Cron jobs run on a schedule and accumulate
-# large volumes of repetitive vocabulary ...; under bare BM25 they dominate
-# the top-N FTS rows and starve out the user's own interactive sessions,
-# producing "recall blindness" where only cron sessions surface (#19434).
+# large volumes of repetitive vocabulary (recurring project names, dates,
+# "session", summaries); under bare BM25 they dominate the top-N FTS rows and
+# starve out the user's own interactive sessions, producing "recall blindness"
+# where only cron sessions surface (#19434). Demoting — not excluding — keeps
+# cron content reachable when it's the only match, while interactive sessions
+# always win when both match.
 _DEMOTED_SESSION_SOURCES = ("cron",)
 ```
 
@@ -526,10 +530,16 @@ _DEMOTED_SESSION_SOURCES = ("cron",)
         # after compression). Two sub-cases:
         #
         # Legacy rotation: the FTS hit lives in a session that itself ended
-        # with end_reason='compression'. ...
+        # with end_reason='compression'. That session's content has been
+        # replaced by a summary in the continuation child, so it must stay
+        # discoverable. A delegation child living under a compression
+        # continuation does NOT have end_reason='compression' itself, so it
+        # stays excluded.
+        #
         # In-place compaction: the FTS hit lives on the SAME session_id as the
         # current session, but the matched message row is an archived
-        # (active=0, compacted=1) row. ...
+        # (active=0, compacted=1) row. The live-context load filters active=1,
+        # so that content is no longer in context — let it through.
 ```
 
 5. **每个存活命中水合 anchored view**:`get_anchored_view(hit_sid, msg_id, window=5, bookend=3)` —— 锚点 ±5 条(默认只留 user/assistant,锚点本身任何角色都保留)+ 会话前 3 条 + 后 3 条(空正文的纯 tool-call 轮被跳过),设计意图 `hermes_state_search.py:919-921 @ 863e313`:

@@ -43,7 +43,7 @@ to the wrong thread.
   消息 B 的任务从"消息 A 已 set 过"的上下文里 spawn 出来,B 绑定自己之前的窗口内,
   B 起的子进程会以 A 的身份运行:
 
-`gateway/session_context.py:324-336 @ 863e313`
+`gateway/session_context.py:324-338 @ 863e313`
 ```python
     🔴 Why this exists — the cross-session ContextVar inheritance leak.
     Each gateway message is processed in its own ``asyncio`` task, created via
@@ -54,7 +54,12 @@ to the wrong thread.
     a window where any subprocess B spawns (e.g. a tool shelling out) reads
     *A's* ``HERMES_SESSION_*`` identity via the subprocess-env bridge.  The
     bridge's ``_UNSET``-strip guard cannot help: the vars are not ``_UNSET``,
-    they are set-to-A.
+    they are set-to-A.  Calling ``reset_session_vars`` at the top of the
+    per-message handler drops the inherited identity so the window strips safe
+    (no session) instead of leaking the foreign one; the handler then binds its
+    own via ``set_session_vars`` a few steps later.  See
+    tests/tools/test_local_env_session_leak.py and
+    tests/gateway/test_session_context_inheritance.py.
 ```
   行为规格:tests/gateway/test_session_context_inheritance.py(本轮跑通)。
 - **进程级 engaged 闩锁**:`_session_context_engaged`(60)首个 `set_session_vars` 置 True、
@@ -166,7 +171,8 @@ sees the collision. The two turns then interleave their flushes on one
 transcript: rows persist in completion order instead of arrival order, the
 identity-marker dedup over shared history dicts can swallow a row outright,
 and the second turn runs on a history base that never saw the first turn's
-exchange — leaving a permanent ``user;user`` alternation wedge
+exchange — leaving a permanent ``user;user`` alternation wedge that
+``repair_message_sequence`` re-repairs on every request forever.
 ```
 
 ### 实现

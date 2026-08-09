@@ -1630,18 +1630,19 @@ prompt cache——见 website/docs session-storage.md 对 api_content 列的描�
 ## 34. 文档-代码冲突候选
 
 **▲ C1 — gateway-internals.md「Session Key Format」严重滞后于代码。**
-website/docs/developer-guide/gateway-internals.md:70-79 @ 863e313:
-```
-### Session Key Format
+website/docs/developer-guide/gateway-internals.md:70-80 @ 863e313:
 
-Session keys encode the full routing context:
-
-    agent:main:{platform}:{chat_type}:{chat_id}
-
-For example: `agent:main:telegram:private:123456789`
-
-Thread-aware platforms (Telegram forum topics, Discord threads, Slack threads) may include thread IDs in the chat_id portion.
-```
+> ### Session Key Format
+>
+> Session keys encode the full routing context:
+>
+> ```
+> agent:main:{platform}:{chat_type}:{chat_id}
+> ```
+>
+> For example: `agent:main:telegram:private:123456789`
+>
+> Thread-aware platforms (Telegram forum topics, Discord threads, Slack threads) may include thread IDs in the chat_id portion. **Never construct session keys manually** — always use `build_session_key()` from `gateway/session.py`.
 与代码(gateway/session.py:1058-1179)出入:
 1. thread_id 是**独立冒号段**(1113-1114、1166-1167),不是"included in the chat_id portion"。
 2. 文档完全没有:Slack `scope_id` 段(1109-1110、1162-1163)、group 的 participant_id 段

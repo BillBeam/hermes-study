@@ -19,7 +19,7 @@ automatic memory extraction, and session management.
 
 Original PR #3369 by Mibayy, rewritten to use the full OpenViking session
 lifecycle instead of read-only search endpoints.
-"""
+...
 ```
 
 `plugins/memory/openviking/__init__.py:65-66 @ 863e313`:

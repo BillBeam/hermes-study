@@ -1247,7 +1247,7 @@ Both the authorisation path (:mod:`gateway.run`) and the session-key path
 (:mod:`gateway.session`) need to collapse these aliases to a single stable
 identity. This module is the single source of truth for that resolution so
 the two paths can never drift apart.
-"""
+...
 ```
 
 **术语**:JID = Jabber ID,WhatsApp 沿用 XMPP 的地址格式 `<本地部分>@<域>`;

@@ -740,6 +740,9 @@ def _normalize_workdir(workdir: Optional[str]) -> Optional[str]:
       - The path must exist and be a directory at create/update time.  We do
         NOT re-check at run time (a user might briefly unmount the dir; the
         scheduler will just fall back to old behaviour with a logged warning).
+
+    Returns the absolute path string, or None when disabled.
+    Raises ValueError on invalid input.
     """
 ```
 
@@ -1258,7 +1261,11 @@ def advance_next_runs(job_ids) -> int:
 ```python
             # Cross-process running-claim guard (#59229): if another scheduler
             # process already claimed this one-shot and its run is still in flight
-            # (claim younger than the TTL), skip it — do NOT re-dispatch. ...
+            # (claim younger than the TTL), skip it — do NOT re-dispatch. The
+            # claim is stamped just before we return the job as due (below) and
+            # cleared by mark_job_run() on completion. A claim older than the TTL
+            # is treated as stale (the claiming tick died mid-run) and allowed
+            # through so the job is recovered rather than wedged forever.
             existing_claim = job.get("run_claim")
             if existing_claim and job.get("schedule", {}).get("kind") == "once":
                 try:
@@ -1318,6 +1325,9 @@ def heartbeat_run_claim(job_id: str, *, expected_owner: str) -> bool:
     ``expected_owner`` is the stable owner copied from the dispatched job. The
     compare-and-refresh prevents a stale runner that resumes after a long sleep
     from extending a claim another scheduler process has since taken over.
+
+    Returns True if this owner's one-shot claim was refreshed; False when the
+    job, claim, or ownership no longer matches.
     """
 ```
 

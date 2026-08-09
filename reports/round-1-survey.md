@@ -79,6 +79,11 @@ AGENTS.md 画的依赖链(`tools/registry ← tools/* ← model_tools ← run_ag
 `run_agent.py:7772` 起:
 ```python
         """Forwarder — see ``agent.conversation_loop.run_conversation``."""
+        from agent.aux_accounting import (
+            reset_accounting_context,
+            set_accounting_context,
+        )
+        from agent import relay_runtime
         from agent.conversation_loop import run_conversation
 ```
 
@@ -734,3 +739,20 @@ R2 建议打法:
 3. **【M-25】本报告未受影响,但相关制度已恢复**:"`R1-inventoried` 剩余文件数 / 行数"
    自 R7 起停报,R8-fix 已恢复为每轮必报项并写进 CLAUDE.md。当前值见
    `reports/round-8-fix-review-1.md`。
+
+4. **【R8C BLOCK-DRIFT】正文 §1.4 `run_agent.py:7772` 起的代码块补齐为逐字**(正文第 81-87 行)。
+   R8C 给 `scripts/verify_citations.py` 加了**全块比对**(此前只比对块的首行),扫出本处历史积压:
+   原摘录把 `run_agent.py` 7772 起的 import 段**压成了两行**——
+
+   ```text
+   """Forwarder — see ``agent.conversation_loop.run_conversation``."""
+   from agent.conversation_loop import run_conversation
+   ```
+
+   即把首行(7772)与 `run_conversation` 的 import **直接拼接**,读起来像它就在 7773。
+   基线里 7773-7777 另有 `agent.aux_accounting` 的三行 import 与 `agent import relay_runtime`,
+   `from agent.conversation_loop import run_conversation` 实际在 **7778**。
+   现已按基线 7772-7778 原样补齐(锚点写的是"7772 **起**",未改锚点、未改结论)。
+   **"`run_conversation` 只是转发器"这一结论不受影响**:它由 7772 那行 docstring
+   `"""Forwarder — see ``agent.conversation_loop.run_conversation``."""` 独立支撑,
+   import 行只是佐证。改的是摘录的完整性,不是判断。

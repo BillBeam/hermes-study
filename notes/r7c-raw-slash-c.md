@@ -1008,6 +1008,7 @@ key 映射(`gateway/slash_access.py:163-167`):
 
     if scope == "dm" and not cmds:
         # DM didn't specify — let group's user_allowed_commands fall through
+        # so operators only need to list it once if it's the same.
         cmds = _coerce_command_list(extra.get("group_user_allowed_commands"))
 ```
 命令名单单向回退(group→dm),admin 名单绝不回退。这个不对称是**刻意的**:名单越权是安全问题,
@@ -1067,7 +1068,10 @@ key 映射(`gateway/slash_access.py:163-167`):
 ```python
         # Per-platform slash command access control. Only kicks in when the
         # operator has set ``allow_admin_from`` for the source's scope (DM
-        # vs group). ...
+        # vs group). When unset → backward-compat: every allowed user can
+        # run every command. When set → non-admins can run only commands in
+        # ``user_allowed_commands`` (plus the always-allowed floor: /help,
+        # /whoami). Plain chat is unaffected — only slash commands gate.
         if command and canonical and is_gateway_known_command(canonical):
             _denied = self._check_slash_access(source, canonical)
             if _denied is not None:
@@ -1109,7 +1113,9 @@ Quick command 这条路当初正是被同样的洞咬过、后来补上的:
                 # ones run a shell command in the gateway process. The early
                 # gate above only fires for registry-known commands, so quick
                 # commands (never in the registry) would otherwise reach this
-                # dispatch sink unchecked. ... (#44727)
+                # dispatch sink unchecked. Apply the same admin/user policy to
+                # the raw typed name here so non-admins can't invoke admin-only
+                # quick commands. (#44727)
                 _denied = self._check_slash_access(source, command)
 ```
 同一类推理没有延伸到 skill/bundle。

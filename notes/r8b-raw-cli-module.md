@@ -953,7 +953,11 @@ def _reset_terminal_input_modes_on_exit() -> None:
     SIGHUP and crashes can bypass its unwind, leaving the modes enabled. The
     terminal then emits raw ``ESC[I`` / ``ESC[O`` focus events and fragmented
     SGR mouse reports as visible text in whatever runs next in the same tab
-    (#36823).
+    (#36823). Called from ``_run_cleanup`` (atexit-registered + invoked on the
+    normal / EOF / interrupt exit paths) this covers normal quit, Ctrl+C and
+    SIGTERM/SIGHUP. ``kill -9`` is uncatchable, and the kanban worker's
+    ``os._exit(0)`` path bypasses ``atexit``; neither runs this — but both are
+    non-TTY / non-TUI, so there is nothing to reset there.
 ```
 
 **事故复述**:用户在 hermes TUI 里按 Ctrl+C,prompt_toolkit 的 unwind 被跳过 → 焦点上报和鼠标追踪

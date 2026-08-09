@@ -88,9 +88,18 @@ def build_api_kwargs(agent, api_messages: list, tools_for_api: list | None = Non
 ```python
     if agent.api_mode == "codex_responses":
         request_client = make_client("codex_stream_request")
-        return agent._run_codex_stream(api_kwargs, client=request_client, ...)
+        return agent._run_codex_stream(
+            api_kwargs,
+            client=request_client,
+            on_first_delta=getattr(agent, "_codex_on_first_delta", None),
+        )
     if agent.api_mode == "anthropic_messages":
-        request_client = make_client("anthropic_messages_request", kind="anthropic_messages")
+        # #67142: use a request-local Anthropic client so the stale/interrupt
+        # watchdog aborts sockets from the stranger thread while the worker
+        # owns the SDK close — never closing the shared client mid-flight.
+        request_client = make_client(
+            "anthropic_messages_request", kind="anthropic_messages"
+        )
         return agent._anthropic_messages_create(api_kwargs, client=request_client)
     if agent.api_mode == "bedrock_converse":
         ...

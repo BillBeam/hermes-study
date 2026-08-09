@@ -141,10 +141,13 @@ optimize(残留 demoted 垃圾表/回搬标记/空外部索引对非空 messages
 
 ```python
         Activity contract (#76354 review S4): export INCLUDES the live
-        activity fields ... but import deliberately RESETS them to NULL.
-        Resurrecting a stale "working ..." label on a machine where no agent
-        is running would fabricate activity the watchdog and session listings
-        act on.
+        activity fields (``last_activity_at`` / ``last_activity_description``
+        / ``last_activity_provenance``) because they are part of the durable
+        row, but import deliberately RESETS them to NULL. Resurrecting a
+        stale "working ..." label on a machine where no agent is running
+        would fabricate activity the watchdog and session listings act on.
+        This asymmetry is intentional and covered by regression
+        (tests/gateway/test_watchdog_review_76354.py::test_s4_export_includes_activity_import_resets_it).
 ```
 
 导出带活动戳(它是持久行的一部分),导入清空(别的机器上没有 agent 在跑,复活"working…"标签

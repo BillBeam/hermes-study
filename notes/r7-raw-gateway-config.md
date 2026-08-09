@@ -614,12 +614,17 @@ fresh_final 仅 Telegram 生效)后构造 StreamConsumerConfig。
         # once streaming is on. Only the ``mode`` alias flips ``enabled``.
         raw_transport = data.get("transport")
         raw_mode = data.get("mode")
+        # Normalize both through the same helper so YAML's bare ``off``/``on``
+        # (parsed as bool False/True) become canonical tokens rather than
+        # ``"false"``/``"true"``.
         picked = raw_transport if raw_transport is not None else raw_mode
         transport = _normalize_transport_token(picked)
 
         if "enabled" in data:
             enabled = _coerce_bool(data.get("enabled"), False)
         elif raw_mode is not None:
+            # The ``mode`` alias (and only ``mode``) infers enabled:
+            # ``off`` disables, anything else enables.
             enabled = _normalize_transport_token(raw_mode) != "off"
         else:
             enabled = False
@@ -1180,6 +1185,9 @@ def load_gateway_config_for_runner() -> "GatewayConfig":
     ``load_gateway_config()`` unscoped: ``_getenv`` falls through to
     ``os.environ``, which often has no ``TELEGRAM_BOT_TOKEN`` once the token
     lives only under ``profiles/<name>/.env`` (#64674).
+
+    Single-profile gateways never set ``multiplex_profiles``, so they keep the
+    unscoped load and are unaffected.
     """
     cfg = load_gateway_config()
     if not getattr(cfg, "multiplex_profiles", False):

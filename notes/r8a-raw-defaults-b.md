@@ -1606,7 +1606,9 @@ setup checklist),废弃旋钮不该在那里被推荐。`hermes_cli/config_defau
     # compatibility, so it lives in _EXTRA_ENV_KEYS (known to reload and
     # compatibility paths) but is intentionally NOT listed here:
     # OPTIONAL_ENV_VARS feeds user-facing surfaces (dashboard keys page, setup
-    # checklists) and deprecated knobs shouldn't be offered there.
+    # checklists) and deprecated knobs shouldn't be offered there. The boolean
+    # HERMES_TOOL_PROGRESS is fully unsupported since the v12 config support
+    # floor retired its only consumer (the v3→4 migration).
 ```
 
 对照 `_EXTRA_ENV_KEYS` 里那条同款注释:`hermes_cli/config.py:295 @ 863e313`

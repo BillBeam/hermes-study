@@ -610,10 +610,10 @@ _COMPRESSION_TIMEOUT_FLOOR_SECONDS = 300.0
 
 1. **Phase-1 占位符 vs 信息性摘要**。文档:`website/docs/developer-guide/context-compression-and-caching.md:238-241 @ 863e313`:
 
-```
-Old tool results (>200 chars) outside the protected tail are replaced with:
-[Old tool output cleared to save context space]
-```
+> Old tool results (>200 chars) outside the protected tail are replaced with:
+> ```
+> [Old tool output cleared to save context space]
+> ```
 
 代码:替换文本是 `_summarize_tool_result` 生成的工具语义一行摘要(context_compressor.py:1129-1141);常量 `_PRUNED_TOOL_PLACEHOLDER`(:399)只作幂等跳过判据(:2925),从不被写入。测试 pin 死了这一点(`test_proactive_tool_result_pruning.py:87`:`assert m["content"] != _PRUNED_TOOL_PLACEHOLDER  # informative, not a blank placeholder`)。**文档过时。**
 

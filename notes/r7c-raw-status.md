@@ -527,6 +527,7 @@ C 层数值相同,会走 `GenerateConsoleCtrlEvent(0, pid)` —— **向目标 P
     this PID is alive" via ``os.kill(pid, 0)`` on Windows was silently
     killing that process (and often unrelated processes in the same
     console group). Long-standing Python quirk; see bpo-14484.
+    ...
     """
 ```
 
@@ -605,7 +606,10 @@ C 层数值相同,会走 `GenerateConsoleCtrlEvent(0, pid)` —— **向目标 P
     test also matched ``hermes_cli.main gateway status`` and even unrelated
     processes like ``python -m tui_gateway`` -- which made ``restart()`` race
     against a still-draining old process and ``status``/``start`` report false
-    positives.
+    positives.  This requires the actual ``gateway`` subcommand followed by
+    ``run`` (or one of the gateway-dedicated entrypoints), excluding the other
+    ``gateway`` management subcommands and any process that merely contains the
+    word "gateway".
 
     Tokenizes quote-aware (``shlex``) so quoted Windows paths with spaces
     (``"C:\\Program Files\\...\\hermes-gateway.exe"``) survive, and strips
@@ -865,7 +869,9 @@ cmdline 可读 → 陈旧;两侧 start_time 都在且相等但活进程不像网
 
     Mirrors the Windows ``taskkill /T`` tree-kill for the POSIX ``--replace``
     paths: adapter subprocesses that survive their parent keep holding scoped
-    token locks and block the replacement gateway.
+    token locks and block the replacement gateway.  Call only AFTER the main
+    gateway PID is confirmed dead, with a ``children`` snapshot taken via
+    :func:`_snapshot_gateway_children` while it was still alive.
 ```
 
 **时序陷阱**:必须在旧网关**还活着的时候**拍快照,死后子进程被 reparent 到 init,

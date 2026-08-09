@@ -617,7 +617,7 @@ def seed_catalog_suggestions(
                 "location) and deliver ONLY what it returns. If nothing "
                 "clears the bar, respond with [SILENT] so the user is not "
                 "pinged. Requires a connected mail source; if none is "
-                "configured, explain how to connect one and stop."
+                "configured, explain how to connect one and then stop."
             ),
 ```
 所以执行方式是:**cron job 里的 agent 用终端工具起子进程 `python3 -m cron.scripts.classify_items`**。
@@ -665,7 +665,7 @@ _CLASSIFY_INSTRUCTIONS = (
     "You are an urgency classifier for a proactive assistant. You will be given "
     "a numbered list of items and the user's importance criteria. Score EACH "
     "item from 0 (ignore entirely) to 10 (interrupt the user now). Return ONLY a "
-    'JSON array, one object per item, in the same order: '
+    "JSON array, one object per item, in the same order: "
     '[{"index": <int>, "score": <int 0-10>, "reason": "<short>"}]. '
     "No prose, no markdown fences. Be conservative: most items should score low. "
     "Only score high when the item clearly meets the user's criteria."
@@ -1076,7 +1076,7 @@ suggestions 侧只有 `threading.Lock()`(`cron/suggestions.py:53`)。CLI 进程�
 ```
 | Source | Trigger |
 |--------|---------|
-| `catalog` | Curated starter automations (`/suggestions catalog`) ... |
+| `catalog` | Curated starter automations (`/suggestions catalog`) — daily briefing, important-mail monitor, weekly review, workday-start reminder |
 | `blueprint` | You installed a skill carrying a `blueprint:` block |
 | `usage` | The background review noticed a recurring ask a schedule would serve |
 | `integration` | You connected an account (Gmail, GitHub, ...) and the obvious automations are offered |

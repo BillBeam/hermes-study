@@ -343,6 +343,9 @@ gateway/run.py:3835-3861 @ 863e313(节选):
         ):
             from agent.display import get_tool_preview_max_len
             _cmd_full = args["command"].rstrip()
+            # Consecutive terminal calls: drop the repeated
+            # "💻 terminal" header so back-to-back commands render as
+            # adjacent code blocks under a single header.
             _block_header = (
                 "" if ctx.last_was_terminal_block[0] else f"{emoji} {tool_name}\n"
             )
@@ -890,7 +893,12 @@ gateway/run.py:4407-4420 @ 863e313(节选):
         # two Discord threads) would clobber each other's value, and a tool
         # thread whose contextvar is unset would fall back to os.environ and
         # read the wrong session key — misrouting command-approval prompts to
-        # the wrong thread (#24100).
+        # the wrong thread (#24100). The non-gateway surfaces don't depend on
+        # this write: CLI and cron bind the session via contextvars
+        # (set_current_session_key / session context), and only the TUI
+        # slash-worker *subprocess* exports HERMES_SESSION_KEY (from its own
+        # --session-key argv, a separate process) — so removing this in-process
+        # gateway write does not affect any of them.
 ```
 
 事故还原(#24100):两个 Discord thread 并发跑 → 后来者覆盖 env → 前者的工具线程 contextvar
@@ -1145,6 +1153,8 @@ gateway/run.py:4855-4872 @ 863e313(节选):
             )
             else None
         )
+        # Discord voice verbal-ack hook (fires once per turn on first tool
+        # call; armed only when in a voice channel with the mixer running).
         agent.tool_start_callback = (
             ctx.voice_ack_callback if ctx._voice_ack_guild[0] is not None else None
         )
@@ -1311,6 +1321,12 @@ gateway/run.py:5113-5132 @ 863e313(节选):
                     "conversation context (possible FTS write corruption)",
                     ctx.session_key, len(agent_history), len(_selected),
                 )
+                # The live in-memory history bypassed the
+                # _build_gateway_agent_history cleanup pipeline above —
+                # re-apply the stale-confirmation expiry (#59607) so a
+                # dangerous confirmation can't slip through this path
+                # either. Idempotent; messages without timestamps are
+                # untouched.
                 agent_history = strip_stale_dangerous_confirmations(
                     _selected, now=time.time()
                 )

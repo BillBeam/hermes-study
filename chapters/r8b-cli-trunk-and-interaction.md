@@ -449,7 +449,8 @@ agent.personalities 键数 = 1
     on a pipe; booting the Ink TUI there hits its no-TTY bail-out, which
     prints a resume hint and exits 0 — a kanban worker then dies with
     "exited cleanly without calling kanban_complete — protocol violation"
-    on every attempt (found dogfooding the desktop kanban board).
+    on every attempt (found dogfooding the desktop kanban board). A user
+    who *explicitly* passes ``--tui`` still gets the informative bail-out.
 ```
 
 **故事翻译**:后台任务(没有终端)跑 Hermes,却被环境里的偏好带进了 TUI;
@@ -482,7 +483,8 @@ TUI 发现没有终端,**打印一句提示、以退出码 0 退出**。调度�
 # new code references ``hermes_bootstrap`` but the editable install's
 # ``.pth`` file still points at the old set of top-level modules.  Without
 # this guard, hermes crashes on import and the user can't run
-# ``hermes update`` to recover.
+# ``hermes update`` to recover.  Missing the bootstrap means UTF-8 stdio
+# setup is skipped on Windows — degraded, not broken.  POSIX is unaffected.
 ```
 
 **升级在两步之间崩溃,会留下"新源码 + 旧安装元数据"的组合。**

@@ -34,13 +34,21 @@ execute_code 让 LLM 写一段 Python 脚本,脚本里 `from hermes_tools import
 `tools/code_execution_tool.py:8-25 @ 863e313`
 ```
 Architecture (two transports):
+
   **Local backend (UDS):**
   1. Parent generates a `hermes_tools.py` stub module with UDS RPC functions
   2. Parent opens a Unix domain socket and starts an RPC listener thread
   3. Parent spawns a child process that runs the LLM's script
   4. Tool calls travel over the UDS back to the parent for dispatch
+
   **Remote backends (file-based RPC):**
-  ...
+  1. Parent generates `hermes_tools.py` with file-based RPC stubs
+  2. Parent ships both files to the remote environment
+  3. Script runs inside the terminal backend (Docker/SSH/Modal/Daytona/etc.)
+  4. Tool calls are written as request files; a polling thread on the parent
+     reads them via env.execute(), dispatches, and writes response files
+  5. The script polls for response files and continues
+
 In both cases, only the script's stdout is returned to the LLM; intermediate
 tool results never enter the context window.
 ```
@@ -53,8 +61,13 @@ tool results never enter the context window.
 `tools/code_execution_tool.py:63-71 @ 863e313`
 ```python
 SANDBOX_ALLOWED_TOOLS = frozenset([
-    "web_search", "web_extract", "read_file", "write_file",
-    "search_files", "patch", "terminal",
+    "web_search",
+    "web_extract",
+    "read_file",
+    "write_file",
+    "search_files",
+    "patch",
+    "terminal",
 ])
 ```
 
@@ -194,7 +207,8 @@ if _is_hermes_provider_credential(name):
         "env passthrough: refusing to register Hermes provider "
         "credential %r (blocked by _HERMES_PROVIDER_ENV_BLOCKLIST). "
         "Skills must not override the execute_code sandbox's "
-        "credential scrubbing; see GHSA-rhgp-j443-p4rf.", name,
+        "credential scrubbing; see GHSA-rhgp-j443-p4rf.",
+        name,
     )
     continue
 ```
@@ -211,11 +225,25 @@ if scope is not None:
     if val is not None:
         return val
     if _MULTIPLEX_ACTIVE:
-        return default          # 多路复用下 scope 权威,不回落 os.environ
-    val = os.environ.get(name)  # 单 profile: scope 只是 .env 覆盖层
+        return default
+    # Multiplex off: the scope is an overlay over the process environment,
+    # not an isolation boundary — there is no other profile to leak from.
+    # Without this fallthrough, credentials injected only into the process
+    # environment vanish inside any set_secret_scope(...) block (the cron
+    # scheduler installs one around every job), so cron jobs send a
+    # placeholder API key and 401 while interactive turns keep working.
+    val = os.environ.get(name)
     return val if val is not None else default
+
 if _MULTIPLEX_ACTIVE:
-    raise UnscopedSecretError(...)   # 多路复用 + 无 scope = fail-closed 抛错
+    raise UnscopedSecretError(
+        f"get_secret({name!r}) called with no profile secret scope active "
+        f"while multiplexing is on. This credential read must run inside a "
+        f"set_secret_scope(...) block (the per-turn / per-adapter profile "
+        f"scope). Reading os.environ here would risk leaking another "
+        f"profile's value. See docs/design/multiplexing-gateway.md "
+        f"(Workstream A)."
+    )
 ```
 
 即:多路复用开启且**无 scope** 的凭证读会**抛 `UnscopedSecretError`**,而不是静默回落到 `os.environ`(可能是别的 profile 的值)。`_is_global_env`(`:125-129`)对真正进程级变量(`HERMES_HOME/PATH/TZ/HERMES_KANBAN_*/TERMINAL_*` 等)例外,始终读 `os.environ`。

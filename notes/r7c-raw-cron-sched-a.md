@@ -80,6 +80,9 @@ JOBS_FILE = CRON_DIR / "jobs.json"
         "skill": normalized_skills[0] if normalized_skills else None,
         "model": normalized_model,
         "provider": normalized_provider,
+        # Provider/model resolution captured at creation for unpinned jobs
+        # (#44585). None for pinned axes, no_agent jobs, resolution failures, and
+        # any pre-existing job written before these fields existed (back-compat).
         "provider_snapshot": provider_snapshot,
         "model_snapshot": model_snapshot,
         "base_url": normalized_base_url,
@@ -145,6 +148,12 @@ cron、含 `T` 或 `YYYY-MM-DD` → once(ISO)、`30m/2h/1d` → once(相对)。
 `hermes_time.py:122-134`：
 ```python
 def now() -> datetime:
+    """
+    Return the current time as a timezone-aware datetime.
+
+    If a valid timezone is configured, returns wall-clock time in that zone.
+    Otherwise returns the server's local time (via ``astimezone()``).
+    """
     tz = get_timezone()
     if tz is not None:
         return datetime.now(tz)
@@ -200,7 +209,9 @@ last 2026-03-07T02:30:00-05:00 -> next 2026-03-08T02:30:00-05:00   ← 不存在
             # TRADE-OFF: this cannot distinguish a config/host TZ migration from a
             # legitimate DST offset change. A DST boundary that satisfies all four
             # conditions will recompute (and thus SKIP the pending occurrence, no
-            # catch-up) rather than fire it. Accepted: ...
+            # catch-up) rather than fire it. Accepted: in the pure-migration case
+            # the recompute lands on the same wall-clock time later the same period,
+            # and DST-boundary collisions with a still-future stored wall clock are
             # rare relative to the double-fire bug this prevents (#28934).
             if (
                 kind == "cron"
@@ -221,7 +232,11 @@ last 2026-03-07T02:30:00-05:00 -> next 2026-03-08T02:30:00-05:00   ← 不存在
     long-running previous execution overran the interval), the accumulated
     missed runs are collapsed — ``next_run_at`` is fast-forwarded to the next
     future occurrence so a backlog does NOT burst-fire on restart — but the job
-    still fires ONCE now. This prevents the perpetual-defer loop (#33315) ...
+    still fires ONCE now. This prevents the perpetual-defer loop (#33315) where
+    a job whose runtime exceeds ``interval + grace`` would be skipped forever.
+
+    Note: firing once on catch-up flows through ``mark_job_run``, so a job with
+    a ``repeat.times`` limit consumes one of its runs on that catch-up fire.
 ```
 宽限窗口 = 周期的一半，钳在 120s–7200s（`cron/jobs.py:745-760`）：
 ```python
@@ -447,7 +462,8 @@ tick 的分区注释说得很清楚（`cron/scheduler.py:4263-4269`）：
       Records the job IDs in ``_interrupted_job_ids`` BEFORE writing
       ``last_status`` so ``run_one_job``'s own eventual completion for the
       same job (racing in its own thread) sees the flag and skips its normal
-      write instead of clobbering this one
+      write instead of clobbering this one — see the check near the end of
+      ``run_one_job``. This does not attempt to correlate the killed
   ```
   它坦承不做 PID→job_id 关联（`cron/scheduler.py:381-386`），是粗粒度的。
 - `_is_interrupted` 只窥视不清（`cron/scheduler.py:403-415`），`_consume_interrupted_flag` 读并清
@@ -457,8 +473,11 @@ tick 的分区注释说得很清楚（`cron/scheduler.py:4263-4269`）：
   ```python
         # Match the SHORT prefix deliberately: CPython emits two shutdown
         # variants — "cannot schedule new futures after interpreter shutdown"
-        # ... and "cannot schedule new futures after shutdown" (a plain
-        # ThreadPoolExecutor). Both are documented in #58720.
+        # (asyncio.run_coroutine_threadsafe / a torn-down default executor) and
+        # "cannot schedule new futures after shutdown" (a plain
+        # ThreadPoolExecutor). Both are documented in #58720. The common prefix
+        # catches both; the sibling agent/tool_executor._is_interpreter_shutdown_submit_error
+        # matches only the fuller "...after interpreter shutdown" form.
         return "cannot schedule new futures" in str(exc).lower()
   ```
 
@@ -512,12 +531,13 @@ tick 的分区注释说得很清楚（`cron/scheduler.py:4263-4269`）：
 - 文档 A（开发者卷，绝对口吻）：`website/docs/developer-guide/cron-internals.md:270-272`
   ```
   ### Session Isolation
-  Cron deliveries are NOT mirrored into gateway session conversation history.
+
+  Cron deliveries are NOT mirrored into gateway session conversation history. They exist only in the cron job's own session. This prevents message alternation violations in the target chat's conversation.
   ```
 - 文档 B（根 AGENTS.md，同样绝对）：`AGENTS.md:1082-1083`
   ```
   Cron deliveries are **not** mirrored into the target gateway session —
-  they land in their own cron session with a header/footer frame
+  they land in their own cron session with a header/footer frame so the
   ```
 - 代码：`cron/scheduler.py:640-667` 提供 per-job `attach_to_session` + 全局 `cron.mirror_delivery` 开关：
   ```python

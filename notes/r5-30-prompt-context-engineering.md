@@ -20,9 +20,12 @@
 
 The agent's system prompt is built once per session and reused across all
 turns — only context compression triggers a rebuild.  This keeps the
-upstream prefix cache warm.  ...
+upstream prefix cache warm.  See ``hermes-agent-dev``'s
+``references/system-prompt-invariant.md`` for the invariants and
+``references/self-improvement-loop.md`` for how the background-review
+fork inherits the cached prompt verbatim.
 
-Three tiers are joined with ``\n\n``:
+Three tiers are joined with ``\\n\\n``:
 
 * ``stable``   — identity (SOUL.md or DEFAULT_AGENT_IDENTITY), tool
   guidance, computer-use guidance, nous subscription block, tool-use
@@ -34,6 +37,8 @@ Three tiers are joined with ``\n\n``:
   plus the session's coding-workspace snapshot.
 * ``volatile`` — skills index, memory snapshot, USER.md profile, external
   memory provider block, timestamp/session/model/provider line.
+
+Pure helpers that read the agent's state.  AIAgent keeps thin forwarders.
 """
 ```
 
@@ -150,7 +155,10 @@ volatile 层的关键决策:**技能索引放 volatile 之首而不是 stable**�
 ```python
     # Date-only (not minute-precision) so the system prompt is byte-stable
     # for the full day.  Minute-precision changes invalidate prefix-cache KV
-    # on every rebuild path ...
+    # on every rebuild path (compression boundary, fresh-agent gateway turns,
+    # session resume without a stored prompt).  The model can still query the
+    # exact wall-clock time via tools when it actually needs it.
+    # Credit: @iamfoz (PR #20451).
     timestamp_line = f"Conversation started: {now.strftime('%A, %B %d, %Y')}"
 ```
 
@@ -476,9 +484,12 @@ When `skip_context_files` is set (e.g., subagent delegation), SOUL.md is not loa
 ```
 代码:`if agent.load_soul_identity or not agent.skip_context_files:`(`system_prompt.py:193`)——cron 等模式可在 skip_context_files 下仍装 SOUL。文档漏掉 `load_soul_identity` 这条腿。
 
-5. **AGENTS.md 递归/合并**。文档:`website/docs/user-guide/configuration.md:2303,2311 @ 863e313`:
+5. **AGENTS.md 递归/合并**。文档:`website/docs/user-guide/configuration.md:2303 @ 863e313`:
 ```
 | `AGENTS.md` | Project-specific instructions, coding conventions | Recursive directory walk |
+```
+同页 `website/docs/user-guide/configuration.md:2311 @ 863e313`:
+```
 - **AGENTS.md** is hierarchical: if subdirectories also have AGENTS.md, all are combined.
 ```
 代码:启动仅 cwd 顶层(`prompt_builder.py:2062`:"AGENTS.md — top-level only (no recursive walk)"),子目录版本是**会话中按导航惰性附加到工具结果**,不合并进系统提示(§6)。developer-guide 的 prompt-assembly.md:260 表述("CWD at startup; subdirectories discovered progressively… via agent/subdirectory_hints.py")是对的,user-guide 这两句是错的/过时的。
@@ -501,12 +512,20 @@ def test_empty_list_keeps_original_request():
 
     ``all([])`` is ``True``, so without an emptiness check a ``[]`` returned by
     a failing/buggy engine would replace a valid assembled request with an
-    empty message list the downstream sanitizers cannot restore ...
+    empty message list the downstream sanitizers cannot restore — reaching the
+    provider as an invalid request instead of failing open. Guards the fail-open
+    contract.
     """
+
     class _Engine(_MinimalEngine):
         def select_context(self, request_messages, **kwargs):
             return []
-    ...
+
+    logger = MagicMock()
+    agent = _agent_with(_Engine())
+    out = _apply_context_engine_selection(
+        agent, REQUEST, HISTORY, HISTORY[-1], logger=logger
+    )
     assert out is REQUEST
     assert logger.warning.called
 ```

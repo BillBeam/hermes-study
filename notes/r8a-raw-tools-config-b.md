@@ -1544,6 +1544,7 @@ def _detect_active_provider_index(
 
 ```python
 def _fal_model_catalog():
+    """Lazy-load the FAL model catalog from the tool module."""
     from tools.image_generation_tool import FAL_MODELS, DEFAULT_MODEL
     return FAL_MODELS, DEFAULT_MODEL
 ```

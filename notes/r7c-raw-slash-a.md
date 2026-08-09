@@ -254,7 +254,13 @@ session 已有活跃 handler 时,先决定"这条命令是插队还是排队":
 ```python
 def should_bypass_active_session(command_name: str | None) -> bool:
     """Return True for any resolvable slash command.
-    [中略]
+
+    Rationale: every gateway-registered slash command either has a
+    specific Level-2 handler in gateway/run.py (/stop, /new, /model,
+    /approve, etc.) or reaches the running-agent catch-all that returns
+    a "busy — wait or /stop first" response. In both paths the command
+    is dispatched, not queued.
+
     Queueing is always wrong for a recognized slash command because the
     safety net in gateway.run discards any command text that reaches
     the pending queue — which meant a mid-run /model (or /reasoning,
@@ -262,7 +268,9 @@ def should_bypass_active_session(command_name: str | None) -> bool:
     /usage, /reload-mcp, /sethome, /reset) would silently
     interrupt the agent AND get discarded, producing a zero-char
     response. See issue #5057 / PRs #6252, #10370, #4665.
-    [中略]
+
+    ACTIVE_SESSION_BYPASS_COMMANDS remains the subset of commands with
+    explicit Level-2 handlers; the rest fall through to the catch-all.
     """
     return resolve_command(command_name) is not None if command_name else False
 ```
@@ -911,7 +919,7 @@ markdown 方言 / emoji / i18n"。`execute` 字段存字符串 key 而非 callab
   ```
       # Mid-run (agent busy) gateway behavior.  Drives the Guard-2 dispatcher
       # in gateway/run.py (_dispatch_busy_slash_command) instead of a
-      # hand-written per-command if-chain.
+      # hand-written per-command if-chain.  Values:
   ```
   且旁路集合不是那 6 条,而是**所有可解析命令**:
   `hermes_cli/commands.py:496` `return resolve_command(command_name) is not None if command_name else False`。

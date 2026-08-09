@@ -34,7 +34,8 @@ harness 内建记忆(MEMORY.md/USER.md + FTS5)是"文件 + 检索";它不会**�
 """Honcho memory plugin — MemoryProvider for Honcho AI-native memory.
 
 Provides cross-session user modeling with dialectic Q&A, semantic search,
-peer cards, and persistent conclusions via the Honcho SDK. ...
+peer cards, and persistent conclusions via the Honcho SDK. Honcho provides AI-native cross-session user
+modeling with dialectic Q&A, semantic search, peer cards, and conclusions.
 
 Five tools (profile, search, reasoning, context, conclude) are exposed
 through the MemoryProvider interface.
@@ -154,7 +155,11 @@ through the MemoryProvider interface.
 `plugins/memory/honcho/client.py:788-817 @ 863e313`(节选,顺序即优先级):
 ```python
     def resolve_session_name(
-        self, cwd=None, session_title=None, session_id=None, gateway_session_key=None,
+        self,
+        cwd: str | None = None,
+        session_title: str | None = None,
+        session_id: str | None = None,
+        gateway_session_key: str | None = None,
     ) -> str | None:
         """Resolve Honcho session name.
 
@@ -356,7 +361,11 @@ turn 结束后 harness 调 `queue_prefetch` 为下一轮预热。三道门:琐�
 `plugins/memory/honcho/__init__.py:1317-1351 @ 863e313`
 ```python
     def sync_turn(self, user_content: str, assistant_content: str, *, session_id: str = "") -> None:
-        """Record the conversation turn in Honcho (non-blocking). ..."""
+        """Record the conversation turn in Honcho (non-blocking).
+
+        Messages exceeding the Honcho API limit (default 25k chars) are
+        split into multiple messages with continuation markers.
+        """
         if self._cron_skipped:
             return
         if self._recall_mode == "tools" and not self._session_ready():
