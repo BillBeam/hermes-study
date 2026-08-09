@@ -1266,40 +1266,125 @@ in memory but exists in the database (e.g. after a process restart), it is trans
 ### ◇ 代码有、文档无(7 条)
 
 **◇1 `acp_adapter/edit_approval.py`(338 行)与 `acp_adapter/provenance.py`(127 行)在
-`acp-internals.md` 全文不出现**,包括 `:11-19` 那份「Key implementation files」清单(7 个文件)。
-该页 frontmatter(`:4`)自称覆盖 "approvals",但只有一个 `### Permission bridge` 小节(`:88-98`),
-讲的全是命令审批。ACP 的**两个审批面里有一个**在开发者文档里不存在。
+`acp-internals.md` 全文不出现。** 那份清单的引导句与它覆盖的 7 个文件:
 
-**◇2 三档会话模式与三个协议方法无文档。** `set_session_mode`(`acp_adapter/server.py:2474`)、
-`set_config_option`(`:2490`)、以及 Default / Accept Edits / Don't Ask 三档
-(`:665-680`)在 `website/docs/developer-guide/acp-internals.md:44` 的方法清单(「new/load/resume/fork/list/cancel」)
-与 `acp.md` 全文都不出现。这是 ACP 用户唯一能调节编辑审批强度的旋钮。
+`website/docs/developer-guide/acp-internals.md:11 @ 863e313`
+
+> Key implementation files:
+
+清单是 `:13-19`,列 `entry.py` / `server.py` / `session.py` / `events.py` / `permissions.py` /
+`tools.py` / `auth.py` —— 恰好是本片 11 个文件里的 7 个,漏掉的是
+`edit_approval.py`、`provenance.py`、`__init__.py`、`__main__.py`。前两个不是薄文件。
+而该页 frontmatter 自称覆盖 approvals:
+
+`website/docs/developer-guide/acp-internals.md:4 @ 863e313`
+
+> description: "How the ACP adapter works: lifecycle, sessions, event bridge, approvals, and tool rendering"
+
+正文里只有一个 `### Permission bridge` 小节(`website/docs/developer-guide/acp-internals.md:88-98`),
+讲的全是命令审批。**ACP 的两个审批面里有一个在开发者文档里不存在。**
+
+**◇2 三档会话模式与三个协议方法无文档。** 文档侧的方法清单:
+
+`website/docs/developer-guide/acp-internals.md:44 @ 863e313`
+
+> - new/load/resume/fork/list/cancel session methods
+
+`set_session_mode`(`acp_adapter/server.py:2474`)、`set_config_option`(`acp_adapter/server.py:2490`)、
+以及 Default / Accept Edits / Don't Ask 三档(`acp_adapter/server.py:665-680`)在这份清单与
+`website/docs/user-guide/features/acp.md` 全文都不出现。**这是 ACP 用户唯一能调节编辑审批强度的旋钮。**
 `acp_adapter/server.py:650-657` 的注释还记录了一个非平凡的产品判断:Zed 把 `config_options` 渲染在
 「模型选择器原来的位置」,所以 hermes 故意把编辑策略映射到 **modes** 而不是 config options。
 
-**◇3 两个审批面的脱敏不对称,且同走一条 stdio 通道。** 命令面在渲染前过
-`redact_sensitive_text`(`tools/approval.py:2764-2766`);编辑面把文件当前内容原样放进
-`acp.tool_diff_content(path=..., old_text=..., new_text=...)`(`acp_adapter/edit_approval.py:276-280`)。
+**◇3 两个审批面的脱敏不对称,且同走一条 stdio 通道。** 命令面在渲染前脱敏:
+
+`tools/approval.py:2760 @ 863e313`
+
+```python
+    # Redact secrets before any user-visible rendering. The original
+    # `command` is still what executes after approval; only the displayed
+    # copy is scrubbed. Reuses the same redaction module used for memory
+    # and log sanitization so tokens mask consistently across surfaces.
+    from agent.redact import redact_sensitive_text
+    display_command = redact_sensitive_text(command)
+    display_description = redact_sensitive_text(description)
+```
+
+编辑面把文件当前内容原样放进 diff:
+
+`acp_adapter/edit_approval.py:274 @ 863e313`
+
+```python
+        status="pending",
+        content=[
+            acp.tool_diff_content(
+                path=proposal.path,
+                old_text=proposal.old_text,
+                new_text=proposal.new_text,
+            )
+        ],
+        raw_input={"tool": proposal.tool_name, "arguments": proposal.arguments},
+```
+
 后果具体:模式为 `ask`(Default)时,模型对 `~/.ssh/config` 或某个 `.env` 发起 `patch` ——
-`_is_sensitive_auto_approve_path`(`:192`)正确地不自动放行,于是**弹审批框**,
-而框里的 diff 就是那个文件的**完整明文**。这在本地可信的 stdio 模型下是可辩护的
-(看不见 diff 就没法审批),但它是一个未记录的不对称:同一条通道上两个面,一个脱敏一个不脱。
-顺带核实一条**负结论**:内核给工具进度事件用的
-`redact_tool_args_for_display`(`agent/display.py:400`)**只处理 `browser_type` 的 `text` 参数**
-(`:410-413`),对 `write_file` / `patch` 原样返回,所以 ACP 收到的编辑参数没有被任何一层动过。
+`_is_sensitive_auto_approve_path`(`acp_adapter/edit_approval.py:192`)正确地不自动放行,于是**弹审批框**,
+而框里的 diff 就是那个文件的**完整明文**,`raw_input` 里还带一份完整 arguments。
+这在本地可信的 stdio 模型下是可辩护的(看不见 diff 就没法审批),
+但它是一个未记录的不对称:同一条通道上两个面,一个脱敏一个不脱。
+
+顺带核实一条**负结论:编辑参数在到达 ACP 之前没有被任何一层动过。** 内核给工具进度事件用的
+`redact_tool_args_for_display` 只处理 `browser_type` 的 `text`:
+
+`agent/display.py:408 @ 863e313`
+
+```python
+    if not isinstance(args, dict):
+        return args
+    if tool_name == "browser_type" and isinstance(args.get("text"), str):
+        safe_args = dict(args)
+        safe_args["text"] = redact_sensitive_text(args["text"], force=True)
+        return safe_args
+    return args
+```
+
+搜索面:全仓 `--include=*.py`、排除 `tests/` grep `_redact_tool_args_for_display` 得 9 处命中,
+全在 `agent/tool_executor.py`,都调的是这同一个 `agent/display.py:400` 的实现;
+`acp_adapter/` 内零处脱敏调用。
 
 **◇4 `execute_code` 在 ACP 会话里不过整段脚本闸。** 取证见 §5.9 取证 B。
-`acp.md` 的 `## Approvals` 一节(`:332-345`)只讲「Dangerous terminal commands」;
-`execute_code` 唯一被提到的地方是 Buzz 那段警告(`:262`)。
-代码侧这是**声明过的取舍**(`tools/approval.py:4292-4296` 的注释),不是遗漏,所以记 ◇ 而非 ■;
+`website/docs/user-guide/features/acp.md` 的 `## Approvals` 一节(`:332-345`)只讲
+「Dangerous terminal commands」;`execute_code` 唯一被提到的地方是 Buzz 那段警告(`:262`)。
+代码侧这是**声明过的取舍**(§5.9 取证 B 的逐字块),不是遗漏,所以记 ◇ 而非 ■;
 但那句取舍的理由(「the script's `terminal()` calls are guarded per-call」)与同函数 docstring
-`:4233-4236` 的自陈(脚本可以直接 `subprocess` / `os.system` / `ctypes`,不过 `terminal()`)
-在覆盖面上并不相等。
+的自陈在覆盖面上并不相等:
+
+`tools/approval.py:4233 @ 863e313`
+
+```python
+    execute_code runs arbitrary local Python — the script can call
+    ``subprocess``, ``os.system``, ``ctypes``, or other process/file APIs
+    directly, none of which pass through ``terminal()`` /
+    ``DANGEROUS_PATTERNS``. In gateway/ask contexts we fail closed by approving
+```
 
 **◇5 代码处理 resource_link 与 embedded resource,但能力位只 advertise 了 image。**
-`initialize` 里是 `prompt_capabilities=PromptCapabilities(image=True)`(`acp_adapter/server.py:1163`),
-而 `_resource_link_to_parts`(`:332`,含图片内联、512 KiB 上限、二进制说明、WSL 路径互译)
-与 `_embedded_resource_to_parts`(`:431`)是**近 150 行**的实现。
+`initialize` 里只有 `prompt_capabilities=PromptCapabilities(image=True)`(▲2 的逐字块,
+`acp_adapter/server.py:1163`),而这两个转换器加起来近 150 行:
+
+`acp_adapter/server.py:332 @ 863e313`
+
+```python
+def _resource_link_to_parts(block: ResourceContentBlock) -> list[dict[str, Any]]:
+    """Convert an ACP resource_link block to OpenAI content parts.
+
+    Returns a list of {"type": "text", ...} and/or {"type": "image_url", ...}
+    parts. Image resources produce an image_url part with a small text header
+    so the model knows which attachment it is. Non-image resources return a
+    single text part with the inlined file body (or a binary-omit note).
+    """
+```
+
+加上 `_embedded_resource_to_parts`(`acp_adapter/server.py:431`)。
 守规矩的客户端不会发它没被告知服务端能收的块类型,所以这段代码在标准客户端上可能长期不可达。
 (ACP 规范里是否存在对应的 `embeddedContext` 能力位 —— 未取证,SDK 未安装,见 §7。)
 

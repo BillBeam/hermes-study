@@ -218,7 +218,7 @@ WebSocket 网关(桌面端/dashboard 嵌入 PTY 时用)。
 
 另有**唯一一处动态方法名**:`ui-tui/src/hooks/useCompletion.ts:116` 传的是
 `request.method`,取值由 `completionRequestForInput` 返回,只可能是
-`complete.path` / `complete.slash`(`ui-tui/src/hooks/useCompletion.ts:32-33` 的联合类型钉死)。
+`complete.path` / `complete.slash`(`ui-tui/src/hooks/useCompletion.ts` 的联合类型钉死(见下块))。
 
 `ui-tui/src/hooks/useCompletion.ts:29 @ 863e313`
 
@@ -465,7 +465,7 @@ grep -n "id: '" ui-tui/src/sdk/apps/*.tsx
 `ticker`(ambient 动画范例)、`weather`(异步范例)。
 用户 app 数量不定:`ui-tui/src/sdk/userWidgets.ts` 扫 `$HERMES_HOME/tui-widgets/*.mjs`。
 
-`WidgetApp` 契约面(`ui-tui/src/sdk/types.ts:47-63`)共 9 个字段:
+`WidgetApp` 契约面(见下块)共 9 个字段:
 `id` `help` `mode?`(modal|ambient)`zone?`(6 个位)`width?` `init(arg)`
 `reduce(state, input)` `render(ctx)` `usage?`。
 宿主对核心只暴露 4 个触点:`launchWidget` / `dispatchWidgetInput` / modal 槽
@@ -515,7 +515,7 @@ grep -rn "publishLocalEvent" ui-tui/src --include=*.ts --include=*.tsx | grep -v
 
 服务端方法表在 `tui_gateway/`,注册靠两个装饰器:`@method("名")`(133 个)与
 `@_projects_method("名")`(11 个,后者内部再包一层 `@method(name)`,
-见 `tui_gateway/server.py:11200-11226`);`methods_*.py` 用
+见下块);`methods_*.py` 用
 `tui_gateway/method_ctx.py` 的 `HandlerRegistry.method` 做延迟注册,
 `install()` 时把 handler 的 `__globals__` 重绑到 `server.py` 的命名空间。
 
@@ -637,7 +637,7 @@ done
    同理 `approval.respond` 走 `_sess(params, rid)`、`browser.manage` 把整个 `params`
    透传给 `_browser_connect(rid, params)`(那里读 `url`)。脚本只扫 handler 本体,看不见这一层。
 
-2. **客户端模板字面量假阳性**:`ui-tui/src/app/slash/commands/core.ts:344` 的
+2. **客户端模板字面量假阳性**:下面这一行的
    `` { key: `details_mode.${first}`, value: … } `` 里的 `${first}` 被键提取正则误当成键名。
 
 `ui-tui/src/app/slash/commands/core.ts:344 @ 863e313`
@@ -824,7 +824,7 @@ def _(rid, params: dict) -> dict:
 `start()` `request()` `drain()` `kill()` `getLogTail()` `publishLocalEvent()`
 加 EventEmitter 的 `on/off`。两个事件名:`'event'`、`'exit'`。
 
-传输模式由环境变量在 `start()` 时决定(`ui-tui/src/gatewayClient.ts:523-548`):
+传输模式由环境变量在 `start()` 时决定(见下块):
 
 `ui-tui/src/gatewayClient.ts:523 @ 863e313`
 
@@ -873,7 +873,7 @@ def _(rid, params: dict) -> dict:
 还 `recordParentLifecycle()` 落盘——因为父进程退出后内存环就没了,
 而崩溃日志需要能和子进程的 SIGTERM panic 摆在一起看。
 URL 一律经 `redactUrl()`(剥 query 与 `user:pass@`),连 WHATWG `URL` 解析不了的
-畸形 URL 也有正则兜底(`ui-tui/src/gatewayClient.ts:98-124`)——因为网关/sidecar URL
+畸形 URL 也有正则兜底(见下块)——因为网关/sidecar URL
 常在 query 里带 bearer token,而这些 URL 会出现在用户可见的日志行和
 `gateway.start_timeout` 载荷里。
 
@@ -895,7 +895,7 @@ URL 一律经 `redactUrl()`(剥 query 与 `user:pass@`),连 WHATWG `URL` 解析�
 所以每个 `'error'` / `'exit'` / WS `'close'` 处理器都先比一次
 `this.proc !== ownedProc` / `this.ws !== ws`,不符就只记一行 `stale … ignored` 后返回。
 `closeGatewaySocket()` 甚至**先把 `this.ws` 置 null 再 `close()`**,理由写在
-`ui-tui/src/gatewayClient.ts:194-201`:真实 WebSocket 的 `close` 事件隔一个微任务才派发,
+下面这块的注释里:真实 WebSocket 的 `close` 事件隔一个微任务才派发,
 先置 null 才能让身份闸把它正确归类为"已丢弃的 socket";而测试用的假 socket 是
 同步派发的,先置 null 也让测试时序和真实时序一致。
 
@@ -924,7 +924,7 @@ URL 一律经 `redactUrl()`(剥 query 与 `user:pass@`),连 WHATWG `URL` 解析�
 
 ### 5.2 事件缓冲与 `drain()` 的微任务
 
-启动顺序是 `ui-tui/src/entry.tsx:53` 的 `gw.start()` **先于** `useMainApp` 挂载时的 `gw.drain()`。
+启动顺序是 `entry.tsx` 里的 `gw.start()`(见下块) **先于** `useMainApp` 挂载时的 `gw.drain()`。
 所以早到的事件必须先攒着。`publish()` 的闸门:
 
 `ui-tui/src/entry.tsx:51 @ 863e313`
@@ -1026,8 +1026,8 @@ stateDiagram-v2
     Recovering --> Buffering: resetStartupState() 把 subscribed 置回 false
 ```
 
-**忙态三模式**(`display.busy_input_mode`,`ui-tui/src/app/useSubmission.ts:182-225`)。
-TUI 的默认值**故意**和框架默认不同——`ui-tui/src/app/useConfigSync.ts:40`
+**忙态三模式**(`display.busy_input_mode`,`ui-tui/src/app/useSubmission.ts`,见下块)。
+TUI 的默认值**故意**和框架默认不同——见下块
 `const TUI_BUSY_DEFAULT: BusyInputMode = 'queue'`,理由写在 `:33-39`:
 全屏 TUI 里用户常在流式输出时就开始写下一条,误打断会丢工作;
 CLI / 消息适配器保持 `interrupt`。
@@ -1081,7 +1081,7 @@ const TUI_BUSY_DEFAULT: BusyInputMode = 'queue'
       send(item.text)
 ```
 
-**打断的两段式**(`ui-tui/src/app/turnController.ts:297`)。
+**打断的两段式**(`ui-tui/src/app/turnController.ts`,见下块)。
 `interruptTurn({...}, { keepBusy })`:发 `session.interrupt`、关推理段、把已成形的
 segment 落 transcript、补一条 `*[interrupted]*`。`keepBusy` 是关键:
 若队列里还有消息,`idle()` 刚清掉的 `busy` 要**重新置真**并把状态写成
@@ -1108,7 +1108,7 @@ segment 落 transcript、补一条 `*[interrupted]*`。`keepBusy` 是关键:
 
 **spawn 模式,Python 子进程被 OOM killer 干掉:**
 
-1. `ui-tui/src/gatewayClient.ts:406` 的 `proc.on('exit')` 触发,身份闸通过。
+1. `ui-tui/src/gatewayClient.ts` 里 `proc.on('exit')` 触发(见下块),身份闸通过。
 2. `handleTransportExit(code)`(`:255`):拆 ready 定时器、关 sidecar 镜像、
    记一行 `[lifecycle] transport exit code=… reason=…`、
    `rejectPending(new Error('gateway exited (N)'))` ——**所有在飞 RPC 的 Promise 全部 reject**,
@@ -1212,7 +1212,7 @@ export const GATEWAY_RECOVERY_WINDOW_MS = 60_000
    重新 `spawn(python, ['-m', 'tui_gateway.entry'])`,重挂 15s ready 定时器。
 6. **设计意图**是:新网关起来后发 `gateway.ready` → `handleReady()` 看到
    `recoverSidRef.current` 非空 → 一次性消费它、`resumeById(recoverSid)`、
-   状态写成 `recovering session…`(`ui-tui/src/app/createGatewayEventHandler.ts:657-668`)。
+   状态写成 `recovering session…`(见下块)。
    队列因为存在客户端 ref 里,会在 sid 恢复且 `busy` 为 false 后照常排水。
 
 **——但第 6 步在当前代码里到不了。** 见 §6 ■-2:`resetStartupState()` 把
@@ -1220,7 +1220,7 @@ export const GATEWAY_RECOVERY_WINDOW_MS = 60_000
 所以重启后 `subscribed` 永久停在 false,新网关的所有事件(包括 `gateway.ready`)
 都只进 2000 容量环、再也不 emit。
 
-**attach 模式的差别**:socket 的 `'close'` 处理器(`ui-tui/src/gatewayClient.ts:494`)
+**attach 模式的差别**:socket 的 `'close'` 处理器(见下块)
 同样走 `handleTransportExit`;此外 `request()` 时若 socket 已 CLOSED/CLOSING,
 `ensureAttachedWebSocket()` 会**懒重连**(`:673-675`),不需要等 exit 事件。
 `HERMES_TUI_GATEWAY_URL` 在运行时被换掉时,`request()` 还会额外
@@ -1258,7 +1258,7 @@ export const GATEWAY_RECOVERY_WINDOW_MS = 60_000
    **一律不信**:xterm.js 在编辑器主题没设终端背景时回纯黑(实测在白色 Cursor 终端上),
    tmux 也用自己的黑兜底回答且会剥掉 `TERM_PROGRAM`,没有宿主白名单能识别。
 3. 兜底一:OSC 10 问**前景**。`polarityBackgroundFromForeground()`
-   (`ui-tui/src/app/createGatewayEventHandler.ts:227`)——亮前景意味着暗主题,反之亦然;
+   (见下块)——亮前景意味着暗主题,反之亦然;
    中灰模糊、`#000000`/`#ffffff` 本身可能是未设默认值,都返回 undefined。
 4. 兜底二:1.5s 后,若还没定论且平台是 darwin,跑
    `defaults read -g AppleInterfaceStyle`(命令非零退出即"亮色")。
@@ -1335,7 +1335,7 @@ const commitTheme = (theme: Theme) => {
 | 生命周期 | `startMessage` / `idle` / `reset` / `fullReset` / `interruptTurn` / `recordMessageComplete` / `recordError` | 三层重置粒度:`idle()` 只清流式态、`reset()` 清整个回合、`fullReset()` 连 `$turnState` 一起重建 |
 | 通知时序 | `showNotice` / `clearNotice` / `applyNotice` / `flushPendingNotice` / `clearNoticeState` | 忙时 FaceTicker 占着状态槽,所以 notice 暂存(最新胜),回合结束才显示;**TTL 从"变可见"起算,不是从"到达"起算** |
 
-最微妙的一条纪律写在 `ui-tui/src/app/turnController.ts:240-245` 的注释里:
+最微妙的一条纪律写在 下面这块的注释里:
 `flushPendingNotice()` **只许**三个真正的回合结束点调
 (`recordMessageComplete` / `interruptTurn` / `recordError`),
 `idle()` / `reset()` **绝不许**调——否则会话 A 的 notice 会漏进会话 B。
@@ -1392,10 +1392,10 @@ const commitTheme = (theme: Theme) => {
   `reduce(state, input) -> S | null`(返回**同一个引用**= 吞掉这次按键不改状态;
   null = 关闭)、`render(ctx) -> ReactNode`。
 - **没有硬编码目录**:slash 补全从 `listWidgetApps()` 派生
-  (`ui-tui/src/hooks/useCompletion.ts:13 mergeWidgetAppItems`),
+  (`mergeWidgetAppItems`,见下块),
   slash 分发从 `getWidgetApp()` 派生。新 app 自动出现在两处。
 - **用户文件拿不到 import 路径**,所以 SDK 是**注入**的:
-  `ui-tui/src/sdk/userWidgets.ts:36` 的 `widgetSdk` 对象带着 React、Ink 的 Box/Text、
+  下面这块的 `widgetSdk` 对象带着 React、Ink 的 Box/Text、
   overlay/grid/charts 原语一起塞进用户的 `register(sdk)`。`sdk.h` 就是
   `React.createElement`(用户文件是纯 ESM,没有 bundler、不能写 JSX)。
 - **信任模型明说了**:与 `~/.hermes/plugins/` 一致——`HERMES_HOME` 下的文件以 TUI 的权限执行。
@@ -1486,7 +1486,7 @@ grep -rn "recordToolProgress" ui-tui/src --include=*.ts --include=*.tsx
 # → 定义 turnController.ts:877 + 唯一调用点 createGatewayEventHandler.ts:1094
 ```
 
-**后果**:`ui-tui/src/app/turnController.ts:877` 的 `recordToolProgress`
+**后果**:`recordToolProgress`(见下块)
 (约 25 行,做的是"把 preview 挂到同名 activeTool 上并刷 `$turnState`")
 只有这一个调用方,因此在 TUI 上永远不执行。工具进度预览在 TUI 里实际是靠
 `tool.start` 的 `context` / `args_text` 和 `tool.complete` 的 `summary` 呈现的。
@@ -1589,7 +1589,7 @@ grep -n "resetStartupState" ui-tui/src/gatewayClient.ts
 ("recovering your session…")已经打出来了。
 
 **还有一个二阶后果**:`handleTransportExit` 在 `subscribed` 为假时走
-`this.pendingExit = code` 而不 emit(`ui-tui/src/gatewayClient.ts:261-265`),
+`this.pendingExit = code` 而不 emit(见下块),
 而 `resetStartupState()` 又会把 `pendingExit` 清成 undefined。
 于是**第二次**网关猝死连 `exitHandler` 都不会再跑,
 `planGatewayRecovery` 的 3 次预算实际上最多只能花掉 1 次。
@@ -1652,7 +1652,7 @@ grep -n "gw.start()\|gw.drain()" ui-tui/src/__tests__/gatewayClient.test.ts
 和 `secret.expire`(`:1207`)两个 case。
 
 **这不构成明显 bug**,因为 clarify 的超时另有一条兜底路径:
-`flushAbandonedClarify()`(`ui-tui/src/app/createGatewayEventHandler.ts:413`)
+`flushAbandonedClarify()`(见下块)
 在 clarify 工具自己的 `tool.complete`(`:1129`)时把问题+选项冲进 transcript 再关覆盖层,
 `message.complete` 也做同样的事作为后备。但这意味着 clarify 的超时清理**依赖工具事件**
 而不是那条专门为此设计的 `.expire` 通知——若某次 `tool.complete` 因重连丢了
@@ -1751,7 +1751,7 @@ grep -rn "isAction(key, ch, 'l')" ui-tui/src --include=*.ts --include=*.tsx | gr
 ```
 
 而且不止一处:`ui-tui/src/app/useInputHandlers.ts:403` / `:415` 在分页器里也用,
-`ui-tui/src/app/useInputHandlers.ts:77` 的 `shouldFallThroughForScroll` 还专门为
+`shouldFallThroughForScroll`(见下块) 还专门为
 PgUp/PgDn 决定是否让位。`agentsOverlay.tsx` / `journey.tsx` 也各有绑定。
 
 `ui-tui/src/app/useInputHandlers.ts:74 @ 863e313`
@@ -1877,7 +1877,7 @@ comm -13 /tmp/readme_ev.txt /tmp/handled.txt
 8. **attach 模式与 sidecar 镜像我只读了代码,没有起过 WS 网关。**
    `session.reclaimed`、`_CHANGE_WATCHES` 那五个 `*.changed` 广播只在 WS 后端
    有已注册 transport 时才走 `_broadcast_global_event` 的多播分支
-   (`tui_gateway/server.py:1565-1580`),stdio 模式下回落到普通 `_emit`。
+   (见下块),stdio 模式下回落到普通 `_emit`。
    TUI 在 stdio 模式下**会**收到它们(只是没有 case),在 attach 模式下也会;
    这一点是读代码得出的,没实测。
 

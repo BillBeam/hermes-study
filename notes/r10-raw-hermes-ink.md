@@ -1313,9 +1313,17 @@ flowchart TB
   ev --> ink
 ```
 
-依赖纪律上有一处值得记:`utils/env.ts` 里放着 `OSC52_CAPABLE_TERMINALS` 白名单,
-`ui-tui/packages/hermes-ink/src/utils/env.ts:57` 的注释说明了原因 —— 放在 `ink/terminal.ts` 会成环,
-因为 `ink/terminal.ts` 已经从 `ink/termio/osc.ts` 里 import 了 `link`。
+依赖纪律上有一处值得记:`OSC52_CAPABLE_TERMINALS` 白名单被放在 `src/utils/` 而不是
+`src/ink/terminal.ts`,原因写在原地:
+
+`ui-tui/packages/hermes-ink/src/utils/env.ts:55`
+
+```
+// Lives here in utils/env.ts (rather than ink/terminal.ts) so that
+// ink/termio/osc.ts can import it without creating a circular dependency:
+// ink/terminal.ts already imports `link` from ink/termio/osc.ts.
+const OSC52_CAPABLE_TERMINALS = ['ghostty', 'kitty', 'WezTerm', 'windows-terminal', 'vscode']
+```
 
 ### 5.4 帧管线的并发与生命周期模型
 
@@ -1332,18 +1340,45 @@ L2 要求讲清并发模型。这一片是**单线程 + 事件循环**,没有 wo
 | `prevFrameContaminated` | `src/ink/ink.tsx:286` | 上一帧的屏幕缓冲被叠加层改过 → 下一帧禁用 blit(否则会把反色单元格拷回来) |
 
 节流器只有一个:`throttle(deferredRender, 16ms, {leading:true, trailing:true})`。
-另有两处**故意不用它**:`scrollDrainPending` 与背压重试都用裸 `setTimeout`,
-`ui-tui/packages/hermes-ink/src/ink/ink.tsx:1159` 的注释解释了原因 —— lodash throttle 的 leading 边会在 trailing 调用
-内部再触发一次,变成双渲染。
+另有两处**故意不用它**:`scrollDrainPending` 与背压重试都用裸 `setTimeout`,理由写在原地:
+
+`ui-tui/packages/hermes-ink/src/ink/ink.tsx:1159`
+
+```
+    // Plain setTimeout (not scheduleRender) — lodash throttle's leading
+    // edge would fire inside this trailing invocation and double-render.
+    // Scroll drain only; absolute-overlay movement rides prevFrameContaminated
+    // into the next natural render. Routing it here made caret re-layout a
+    // 250fps self-oscillator that locked the event loop after resize.
+    if (frame.scrollDrainPending) {
+      this.drainTimer = setTimeout(() => this.onRender(), FRAME_INTERVAL_MS >> 2)
+    }
+```
 
 **渲染时机的三条路**:
 1. 正常:React commit → `resetAfterCommit` → `onComputeLayout()`(同步 yoga)→
    `scheduleRender()`(节流 + 微任务)→ `onRender()`;
-2. 测试环境(`NODE_ENV=test`):`ui-tui/packages/hermes-ink/src/ink/reconciler.ts:201` 走 `onImmediateRender?.()`,
-   直接同步 `onRender`,不节流 —— 老的 `lastFrame()` 同步断言才成立;
+2. 测试环境(`NODE_ENV=test`)走另一条:直接同步 `onRender`,不节流 —— 老的
+   `lastFrame()` 同步断言才成立;
+
+`ui-tui/packages/hermes-ink/src/ink/reconciler.ts:192`
+
+```
+    if (process.env.NODE_ENV === 'test') {
+      if (rootNode.childNodes.length === 0 && rootNode.hasRenderedContent) {
+        return
+      }
+
+      if (rootNode.childNodes.length > 0) {
+        rootNode.hasRenderedContent = true
+      }
+
+      rootNode.onImmediateRender?.()
+```
+
 3. 无 React 提交的帧:滚动 drain、背压重试、resize、SIGCONT 恢复,都是直接调 `onRender()`。
 
-**尺寸事件**:`stdout.on('resize')` → `handleResize`(`ui-tui/packages/hermes-ink/src/ink/ink.tsx:493`),
+**尺寸事件**:`stdout.on('resize')` → `Ink` 的私有 `handleResize`(`ink.tsx` 第 493 行),
 备用屏下还要走 `prepareAltScreenResizeRepaint()` 打上"下一帧先清屏"的标志
 (`needsEraseBeforePaint`),因为差分只写变化的单元格,而物理终端上宽度变化留下的旧行尾
 在缓冲里两帧都是空白、差分看不见。
@@ -1367,10 +1402,20 @@ L2 要求讲清并发模型。这一片是**单线程 + 事件循环**,没有 wo
     }
 ```
 
-`resetPools()`(`ui-tui/packages/hermes-ink/src/ink/ink.tsx:2539`)新建 `CharPool`/`HyperlinkPool`,再对两个帧缓冲调
-`migrateScreenPools`(`ui-tui/packages/hermes-ink/src/ink/screen.ts:616`)把旧 id 翻译成新 id。`StylePool` **不重置**
-(`ui-tui/packages/hermes-ink/src/ink/output.ts:31` 的注释:`styleId is safe to cache: StylePool is session-lived (never reset)`),
-因为 `log-update` 缓存了按 (fromId,toId) 键的样式跃迁串。
+`resetPools()`(`ink.tsx` 第 2539 行)新建 `CharPool`/`HyperlinkPool`,再对两个帧缓冲调
+`migrateScreenPools`(`screen.ts` 第 616 行)把旧 id 翻译成新 id。`StylePool` **不重置**,
+理由写在 `Output` 的行缓存注释里:
+
+`ui-tui/packages/hermes-ink/src/ink/output.ts:30`
+
+```
+ *
+ * styleId is safe to cache: StylePool is session-lived (never reset).
+ * hyperlink is stored as a string (not interned ID) since hyperlinkPool
+ * resets every 5 min; setCellAt interns it per-frame (cheap Map.get).
+```
+
+也就是说 `log-update` 可以放心缓存按 (fromId,toId) 键的样式跃迁串。
 
 另有一条外部驱动的驱逐口:`evictInkCaches('all' | 'half')`(公开导出),
 一次清/半清四个内容键缓存(width / wrap / slice / lineWidth)。
