@@ -44,10 +44,20 @@ R9A 移交项 H-R9A-g:锚点写作「AGENTS.md 的 971–974 行」的 toolset �
 > `messaging`, `moa`, `rl`, `safe`, `search`, `session_search`, `skills`,
 > `spotify`, `terminal`, `todo`, `tts`, `video`, `vision`, `web`, `yuanbao`.
 
-第 975 行(`spotify` … `yuanbao`)是清单的**最后一行**,句号在此。R9A 的 `971-974`
-**截掉了 6 个键**(`spotify`、`terminal`、`todo`、`tts`、`video`、`vision`、`web`、`yuanbao`
-中落在第 975 行的那 8 个,减去 974 行末的部分),下一轮若照 `971-974` 去 `sed` 会少数出 8 个键。
-本轮起锚点一律写 **`AGENTS.md:971-975`**。
+第 975 行是清单的**最后一行**,句号在此。R9A 那个 971–974 的写法**截掉了整整一行、8 个键**
+(`spotify`、`terminal`、`todo`、`tts`、`video`、`vision`、`web`、`yuanbao`),
+下一轮若照 971–974 去 `sed` 只会数出 22 个键而不是 30 个。
+本轮起锚点一律写 **AGENTS.md 的 971–975 行**。
+
+```verify
+cd /home/user/hermes-agent && printf 'to974=%s  to975=%s\n' \
+  "$(sed -n '971,974p' AGENTS.md | grep -o '`[a-z0-9_-]*`' | wc -l)" \
+  "$(sed -n '971,975p' AGENTS.md | grep -o '`[a-z0-9_-]*`' | wc -l)"
+```
+
+```text
+to974=22  to975=30
+```
 
 ### 2.2 这段清单归哪个标题管
 
@@ -55,8 +65,13 @@ R9A 移交项 H-R9A-g:锚点写作「AGENTS.md 的 971–974 行」的 toolset �
 
 > ## Toolsets
 
-节的完整边界:`AGENTS.md:964`(标题)到 `AGENTS.md:979`(最后一句正文),
-`AGENTS.md:981` 是分隔线 `---`、`AGENTS.md:983` 是下一个标题 `## Delegation (\`delegate_task\`)`。
+节的正文止于最后一句的 `config.yaml`.(见 §2.2 末尾那段引用),再往下是一条 `---` 分隔线,
+然后就换了标题:
+
+`AGENTS.md:983 @ 863e313`
+
+> ## Delegation (`delegate_task`)
+
 按本项目规矩(判定一条文档断言要把整段一并判定、并确认归哪个标题管),
 `## Toolsets` 这一节**总共四段正文**,清单只是第二段。四段全判见 §5、§6。
 
@@ -163,7 +178,7 @@ cd /home/user/hermes-agent && sed -n '971,975p' AGENTS.md | grep -o '`[a-z0-9_-]
 
 ### 3.4 代码侧 58 个键(逐个列出,按源码出现序 + 行号)
 
-**能力 toolset(34 个,`toolsets.py:103–380`)**:
+**能力 toolset(34 个,`toolsets.py` 第 103–380 行)**:
 `web`(103)、`search`(109)、`x_search`(115)、`vision`(128)、`video`(134)、`image_gen`(140)、
 `video_gen`(146)、`bfl`(158)、`computer_use`(177)、`terminal`(187)、`skills`(193)、
 `browser`(199)、`cronjob`(211)、`file`(218)、`tts`(224)、`todo`(230)、`memory`(236)、
@@ -172,7 +187,7 @@ cd /home/user/hermes-agent && sed -n '971,975p' AGENTS.md | grep -o '`[a-z0-9_-]
 `discord_admin`(313)、`yuanbao`(319)、`feishu_doc`(331)、`feishu_drive`(337)、`spotify`(346)、
 `debugging`(358)、`safe`(364)、`coding`(374)。
 
-**平台束(24 个,`toolsets.py:407–610`)**:
+**平台束(24 个,`toolsets.py` 第 407–610 行)**:
 `hermes-acp`(407)、`hermes-api-server`(426)、`hermes-cli`(463)、`hermes-cron`(469)、
 `hermes-telegram`(480)、`hermes-discord`(486)、`hermes-whatsapp`(495)、`hermes-slack`(501)、
 `hermes-signal`(507)、`hermes-bluebubbles`(513)、`hermes-homeassistant`(519)、`hermes-email`(525)、
@@ -311,10 +326,10 @@ cd /home/user/hermes-agent && for k in x_search video_gen bfl computer_use conte
     },
 ```
 
-**没有一个是"内部键"或"已废弃"**。判定依据:这 7 个里有 6 个同时出现在
+**没有一个是"内部键"或"已废弃"**。判定依据:这 7 个里有 5 个同时出现在
 `hermes_cli/tools_config.py` 的 `CONFIGURABLE_TOOLSETS`(即 `hermes tools` 那个 curses 界面
-逐行列出来给用户勾选的清单)里,是**面向用户的一等能力**;唯一不在其中的是 `coding`,
-它是"姿态包"(由 CLI/TUI/desktop/ACP 的 coding-context 选用),同样不是内部实现细节。
+逐行列出来给用户勾选的清单)里,是**面向用户的一等能力**;另外两个不在其中,但各有明确理由
+(见下面实跑输出后的说明),同样不是内部实现细节。
 
 ```verify
 cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python -c "
@@ -342,11 +357,10 @@ CONFIGURABLE_TOOLSETS = 27 at line 96
   coding False
 ```
 
-> 修正上一段的措辞:实测是 **5 个**在 `CONFIGURABLE_TOOLSETS` 里(`x_search`、`video_gen`、
-> `bfl`、`computer_use`、`context_engine`),`project` 与 `coding` 不在。
-> `project` 不在的原因代码里写了——它只对 GUI 会话有意义(见上面 `(GUI sessions only)` 的
-> description,以及 `toolsets.py:60-64` 那段解释为什么 project 工具**故意**不进 `_HERMES_CORE_TOOLS`)。
-> 结论不变:**没有一个是废弃键或内部占位键**,7 个全是真实在用的能力。
+不在 `CONFIGURABLE_TOOLSETS` 里的两个,理由都写在代码里:
+`project` 只对能跟随切换的 GUI 会话有意义(description 里的 `(GUI sessions only)`,
+以及下面这段注释),`coding` 是 CLI/TUI/desktop/ACP 的 coding-context 姿态包、由代码按上下文选用
+而非用户逐项勾选。**两者都不是废弃键或内部占位键。**
 
 `toolsets.py:60 @ 863e313`
 
@@ -362,7 +376,11 @@ CONFIGURABLE_TOOLSETS = 27 at line 96
 
 ## 5. 记号判定:整体不是一条 ▲,而是「1 条 ◇ + 1 条 ▲」
 
-本项目规矩:**字面为真就不是 ▲**。所以关键在于 `AGENTS.md:971` 那句话的**措辞**。
+本项目规矩:**字面为真就不是 ▲**。所以关键在于那句话的**措辞**:
+
+`AGENTS.md:971 @ 863e313`
+
+> Current toolset keys: `browser`, `clarify`, `code_execution`, `cronjob`,
 
 原文起手四个字是 **`Current toolset keys:`** ——不是 `e.g.`、不是 `including`、不是 `some of`。
 `Current` 是一个**关于当下状态的完整性声明**:它承诺"这就是现在的键"。
@@ -373,8 +391,15 @@ CONFIGURABLE_TOOLSETS = 27 at line 96
 
 ### 5.1 A 类(24 个 `hermes-*`)—— **◇,不是 ▲**
 
-理由:文档在**紧邻的上一段**(`AGENTS.md:967-969`)已经把"平台适配器各挑一个 base toolset"
-单独讲了一遍,清单那句的隐含论域因此是"能力 toolset"。§4.1 用集合相等证明了这个隐含论域
+理由:文档在**紧邻的上一段**已经把"平台适配器各挑一个 base toolset"单独讲了一遍——
+
+`AGENTS.md:967 @ 863e313`
+
+> Each platform's adapter picks a base toolset (e.g. Telegram uses
+> `"messaging"`); `_HERMES_CORE_TOOLS` is the default bundle most
+> platforms inherit from.
+
+——清单那句的隐含论域因此是"能力 toolset"。§4.1 用集合相等证明了这个隐含论域
 **在写作时被严格执行**(30 = 全部非 `hermes-*` 键)。也就是说:
 文档**没有**声称 `hermes-telegram` 不存在,也**没有**给出与代码矛盾的内容;
 它只是**没有把这套命名规则写出来**。
@@ -409,7 +434,11 @@ CONFIGURABLE_TOOLSETS = 27 at line 96
 R9A 只判了清单那一句。按本项目规矩(「判定一条文档断言时,必须把它所在的整句/整段一并判定」),
 `## Toolsets` 节余下三段也须落判,否则它们会以"这里已经查过了"的名义活下来。
 
-### 6.1 ▲ —— "All toolsets are defined in `toolsets.py` as a single `TOOLSETS` dict"(`AGENTS.md:966`)
+### 6.1 ▲ —— "All toolsets are defined in `toolsets.py` as a single `TOOLSETS` dict"
+
+`AGENTS.md:966 @ 863e313`
+
+> All toolsets are defined in `toolsets.py` as a single `TOOLSETS` dict.
 
 **不成立。** 代码自己有两条把 `TOOLSETS` 之外的 toolset 算进来的路径:
 
@@ -457,7 +486,7 @@ R9A 只判了清单那一句。按本项目规矩(「判定一条文档断言时
 所以 "**All** toolsets are defined in `toolsets.py`" 字面为假 → **▲**。
 (顺带解释了为什么 58 这个数只是"静态键数",不是"用户能看到的 toolset 数"。)
 
-### 6.2 ▲ —— "e.g. Telegram uses `\"messaging\"`"(`AGENTS.md:967-968`)
+### 6.2 ▲ —— "e.g. Telegram uses `"messaging"`"(原文见 §5.1 那段引用,AGENTS.md 第 967–968 行)
 
 **不成立,而且从写下那天起就不成立。** 平台默认 toolset 由一张表定死:
 
@@ -483,7 +512,11 @@ cd /home/user/hermes-agent && git show b7bd17710:hermes_cli/platforms.py | grep 
 > 读者**既不知道 `hermes-*` 存在**(◇),**又被给了一个错的替代品**(▲)。
 > 单看清单会以为"平台束只是没写";把这一段一起判,才看得出文档对这套机制的描述整体失真。
 
-### 6.3 ▲ —— "`tools.<platform>.enabled` / `tools.<platform>.disabled` lists in `config.yaml`"(`AGENTS.md:978`)
+### 6.3 ▲ —— "`tools.<platform>.enabled` / `tools.<platform>.disabled` lists in `config.yaml`"
+
+`AGENTS.md:978 @ 863e313`
+
+> `tools.<platform>.enabled` / `tools.<platform>.disabled` lists in
 
 **配置路径不存在。** 真实路径是根键 `platform_toolsets`,值是**一个平铺的 toolset 名字列表**,
 没有 `enabled` / `disabled` 两个子键:
@@ -510,17 +543,24 @@ the `platform_toolsets` key.
   逐条看过,全部是**模型请求体里的 `tools` 数组**或 **MCP server 配置的 `tools` 子表**,
   没有一处是"按平台名去 `tools` 下取 enabled/disabled"。
 - 全仓 `grep -rn "tools\.<platform>\|platform_toolsets" --include=*.md --include=*.mdx .`
-  只有 `AGENTS.md:978` 一处用 `tools.<platform>` 措辞;`website/docs/` 侧
-  (`user-guide/configuration.md:740`、`getting-started/quickstart.md:105`、
-  `user-guide/features/acp.md:275`)一律写 `platform_toolsets`。
+  只有 AGENTS.md 第 978 行一处用 `tools.<platform>` 措辞;官网文档侧
+  (`website/docs/user-guide/configuration.md` 第 740 行、
+  `website/docs/getting-started/quickstart.md` 第 105 行、
+  `website/docs/user-guide/features/acp.md` 第 275 行)一律写 `platform_toolsets`。
   **即作者自绘地图内部也不自洽:官网文档写对了,AGENTS.md 写错了。**
 
 ```verify
 cd /home/user/hermes-agent && grep -rn "tools\.<platform>\|platform_toolsets" --include=*.md --include=*.mdx . | head
 ```
 
-`platform_toolsets` **之后**还有一层全局关闭开关 `agent.disabled_toolsets`
-(`hermes_cli/config_defaults.py:241`,默认 `[]`),这也是 AGENTS.md 未提的(→ 归入 §5.1 同一条 ◇)。
+`platform_toolsets` **之后**还有一层全局关闭开关 `agent.disabled_toolsets`(默认空列表),
+这也是 AGENTS.md 未提的(→ 归入 §5.1 同一条 ◇):
+
+`hermes_cli/config_defaults.py:241 @ 863e313`
+
+```
+        "disabled_toolsets": [],
+```
 
 ### 6.4 成立 —— "`_HERMES_CORE_TOOLS` is the default bundle most platforms inherit from"
 
@@ -587,7 +627,7 @@ Discovered 1 test files (~22 tests) under ['tests/test_toolsets.py']; running wi
   (那批文件里的 `AGENTS.md` 全部指"把项目里的 AGENTS.md 作为上下文文件喂给 agent"这个功能,
   与 toolset 清单无关。)
 - `grep -rn "Current toolset keys\|toolset keys" --include=*.md --include=*.mdx .` 全仓
-  **只有 `AGENTS.md:971` 一处**,即这份清单没有第二份副本需要一起维护。
+  **只有 AGENTS.md 第 971 行一处**,即这份清单没有第二份副本需要一起维护。
 
 ```verify
 cd /home/user/hermes-agent && grep -rl "AGENTS.md" tests/ --include=*.py | xargs grep -l "TOOLSETS\|get_toolset_names" 2>/dev/null; echo "exit=$? (无输出=无同步测试)"
@@ -606,7 +646,7 @@ cd /home/user/hermes-agent && grep -rl "AGENTS.md" tests/ --include=*.py | xargs
 |---|---|---|---|
 | U1 | `a2a` 出现在 `_DEFAULT_OFF_TOOLSETS` 但不是 `TOOLSETS` 的键,它是插件注册的 toolset 还是残留 | **未取证** | `hermes_cli/tools_config.py:156`:`_DEFAULT_OFF_TOOLSETS = {"homeassistant", "spotify", "discord", "discord_admin", "video", "video_gen", "x_search", "a2a"}` —— 本轮未追它的注册处 |
 | U2 | 「A 类是有意排除而非遗漏」 | **静态对读 + 历史快照推出**,非作者自述 | 依据是集合相等(30 = 写作时全部非 `hermes-*` 键),这是很强的间接证据,但作者从未在文中写出"本清单不含平台束"这句话;若主线要求更强,只能去查 PR #20226 的描述(本容器离线,未做) |
-| U3 | 运行期 `get_toolset_names()` 的实际返回数(含插件/MCP 别名) | **未实跑** | 需要加载插件与 MCP registry,本容器无 MCP 服务器配置;§6.1 的结论只依赖**静态代码路径**(`toolsets.py:881-889`),不依赖运行期数字 |
+| U3 | 运行期 `get_toolset_names()` 的实际返回数(含插件/MCP 别名) | **未实跑** | 需要加载插件与 MCP registry,本容器无 MCP 服务器配置;§6.1 的结论只依赖静态代码路径 `toolsets.py:881` 的 `names = set(TOOLSETS.keys())`,不依赖运行期数字 |
 | U4 | `computer_use` 在 2026-04-28 revert 与再次落地之间的确切 commit | **部分取证** | `git log -S` 只取了最早一条;§4.2 的结论依赖的是"2026-05-05 那一刻它不在字典里",这一点已由 §4.1 的集合相等**直接证明**,不依赖 U4 |
 | U5 | ▲ 计数口径(§5.2 建议合并计 1 条) | **待主线裁定** | 不是取证问题,是计数约定问题 |
 
@@ -616,7 +656,8 @@ cd /home/user/hermes-agent && grep -rl "AGENTS.md" tests/ --include=*.py | xargs
 
 **H-R9A-g:关闭并改述。**
 
-1. **锚点改正**:`AGENTS.md:971-974` → **`AGENTS.md:971-975`**,归 `## Toolsets`(`AGENTS.md:964`)。
+1. **锚点改正**:AGENTS.md 的 971–974 行 → **971–975 行**(漏了整整一行 8 个键),
+   归 `AGENTS.md:964` 的 `## Toolsets` 标题管。
 2. **数字改判**:「漏 28」→ **漏 31**(R9A 用 `58−30` 相减,未扣除 30 里已被代码删除的 3 个)。
 3. **31 个漏列项判定完毕,分两类**:
    - **24 个 `hermes-*` 平台束 = ◇**(代码有、文档无)。有历史快照证明是**有意的分类排除**

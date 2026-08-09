@@ -44,8 +44,16 @@ git -C /home/user/hermes-agent rev-parse HEAD
         return handle
 ```
 
-`:259` 正是那一行 `record.future = _EXECUTOR.submit(...)`,一字不差。被提交的可调用是 `self._run`
-(`agent/subagent_lifecycle.py:408 @ 863e313` 定义),**没有任何 `copy_context()` / `propagate_context_to_thread()` 包裹**。
+`:259` 正是那一行 `record.future = _EXECUTOR.submit(...)`,一字不差,
+**没有任何 `copy_context()` / `propagate_context_to_thread()` 包裹**。被提交的可调用是 `self._run`:
+
+`agent/subagent_lifecycle.py:408 @ 863e313`
+
+```python
+    def _run(self, record: _Record, goal: str, parent: Any) -> None:
+        with _REGISTRY.lock:
+            if record.state is not SubagentState.CANCEL_REQUESTED:
+```
 
 线程池本身:
 
@@ -94,11 +102,40 @@ Tool dispatch inside such a thread therefore silently loses:
     if not is_cli and not is_gateway:
 ```
 
-`_is_gateway_approval_context()`(`tools/approval.py:244 @ 863e313`)的最后一句是
-`return bool(_get_session_platform())`,而 `_get_session_platform()` 读的是
-`gateway.session_context` 的 contextvar(`gateway/session_context.py:74 @ 863e313` 起的 `_SESSION_PLATFORM` 等)。
-`_is_interactive_cli()`(`tools/approval.py:85 @ 863e313`)读 `_hermes_interactive_ctx` contextvar。
-**两者在空上下文里都是假**,于是走进 `if not is_cli and not is_gateway:`。
+两个谓词各自读一个 contextvar。第一个 `_is_gateway_approval_context`(定义在 `tools/approval.py:244`)的判定尾部:
+
+`tools/approval.py:258 @ 863e313`
+
+```python
+    if _is_cron_approval_context():
+        return False
+    if env_var_enabled("HERMES_GATEWAY_SESSION"):
+        return True
+    return bool(_get_session_platform())
+```
+
+`_get_session_platform()` 读的是 `gateway.session_context` 里那一排 contextvar:
+
+`gateway/session_context.py:74 @ 863e313`
+
+```python
+_SESSION_PLATFORM: ContextVar = ContextVar("HERMES_SESSION_PLATFORM", default=_UNSET)
+_SESSION_SOURCE: ContextVar = ContextVar("HERMES_SESSION_SOURCE", default=_UNSET)
+```
+
+第二个 `_is_interactive_cli`(定义在 `tools/approval.py:85`)的判定体:
+
+`tools/approval.py:91 @ 863e313`
+
+```python
+    ctx_val = _hermes_interactive_ctx.get()
+    if ctx_val is not None:
+        return is_truthy_value(ctx_val)
+    return env_var_enabled("HERMES_INTERACTIVE")
+```
+
+**两者在空上下文里都退回环境变量,而 gateway 只写 contextvar、不写 `os.environ`,于是双双为假**,
+于是走进 `if not is_cli and not is_gateway:`。
 该分支里非 cron、且危险命令路径的 `fail_closed_when_no_human` 默认为 `False`,直落到:
 
 `tools/approval.py:3253 @ 863e313`
@@ -152,17 +189,19 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 \
   /home/user/hermes-venv/bin/python /tmp/r9d/probe_ctx.py
 ```
 
-实测输出(节选,已去掉日志行):
+实测输出(逐字照抄,含中间那行 warning 日志):
 
 ```text
-PARENT   {'tag': 'parent-thread',          'session_key': 'telegram:42', 'is_gateway': True,  'profile': 'work',   'approved': False}
+PARENT   {'tag': 'parent-thread', 'session_key': 'telegram:42', 'is_gateway': True, 'profile': 'work', 'approved': False}
 PROBE (pattern: probe_pattern): probe dangerous action — set HERMES_INTERACTIVE or HERMES_GATEWAY_SESSION to require approval.
-BARE     {'tag': 'bare-submit',            'session_key': 'default',     'is_gateway': False, 'profile': '<none>', 'approved': True}
-COPYCTX  {'tag': 'copy_context-submit',    'session_key': 'telegram:42', 'is_gateway': True,  'profile': 'work',   'approved': True is False}
+BARE     {'tag': 'bare-submit', 'session_key': 'default', 'is_gateway': False, 'profile': '<none>', 'approved': True}
+COPYCTX  {'tag': 'copy_context-submit', 'session_key': 'telegram:42', 'is_gateway': True, 'profile': 'work', 'approved': False}
 ```
 
-(第三行实测原文为 `'approved': False`;上面表格化时写成了对照,以实测为准:
-**父线程 `approved=False`(要求审批)、裸 submit `approved=True`(自动放行)、`copy_context` submit `approved=False`(恢复为要求审批)**。)
+读法:**父线程 `approved=False`(要求审批)→ 裸 submit `approved=True`(自动放行)→
+把同一个函数放进 `copy_context()` 再提交,`approved=False`(恢复为要求审批)**。
+第二行那句 warning 正是上面 `tools/approval.py:3253` 那个 `logger.warning` 打出来的,
+它本身即"走进了自动放行分支"的证据。
 
 **结论:方向是「变松 / 全放行」。** 丢了 session key 不会让子代理的危险命令全被拒,而是让它们
 **绕过审批直接执行**;同时 `HERMES_SESSION_PROFILE` 也从 `work` 变成未设置(profile 覆盖丢失,
@@ -244,8 +283,22 @@ grep -rn "copy_context" --include=*.py .
 `SubagentLifecycleService` 的唯一非测试消费者是插件上下文:
 
 搜索面:`grep -rn "subagent_lifecycle\|SubagentLifecycle" --include=*.py . | grep -v tests/`,
-命中 `hermes_cli/plugins.py:350/372/379-387`(`PluginContext.subagent_lifecycle` 惰性构造服务)与
-`run_agent.py:7787`(回合内 `bind_subagent_parent`)两处,无第三处。
+命中 `hermes_cli/plugins.py`(`PluginContext.subagent_lifecycle` 惰性构造服务)与
+`run_agent.py:7787`(回合内 `bind_subagent_parent`)两处,无第三处。构造处:
+
+`hermes_cli/plugins.py:379 @ 863e313`
+
+```python
+        if self._subagent_lifecycle is None:
+            from agent.subagent_lifecycle import (
+                SubagentLifecycleService,
+                get_active_subagent_parent,
+            )
+            self._subagent_lifecycle = SubagentLifecycleService(
+                get_active_subagent_parent
+            )
+        return self._subagent_lifecycle
+```
 
 即:**一个插件在 agent 回合里调用 `ctx.subagent_lifecycle.launch(...)` 起的子代理,
 其整条工具链都在空审批上下文里跑。** 而 `launch` 的父上下文是完整的(它就在回合内被调用),
@@ -302,6 +355,16 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home
   实跑证据见 §1.4 —— 父线程 `approved=False`,裸 worker `approved=True`。
   连带丢失 `HERMES_SESSION_PROFILE`(profile 覆盖)。
 - **测试**:无任何用例钉住;仓库对同类问题已有"源码级钉子"手法但名单未覆盖此处。
+
+同构的正确写法就在隔壁子系统里,一行之差:
+
+`agent/tool_executor.py:1176 @ 863e313`
+
+```python
+                    try:
+                        f = executor.submit(
+                            propagate_context_to_thread(_run_tool),
+```
 
 修法(供 R12 蓝图引用,不改基线):把 `:259` 改成
 `_EXECUTOR.submit(propagate_context_to_thread(self._run), record, request.goal, parent)`
@@ -396,8 +459,28 @@ def _ssrf_safe_http_get(url: str, *, timeout: int = 20) -> httpx.Response:
 
 `follow_redirects=False` + 循环里手动 `urljoin` 下一跳,**就是为了不把重定向交给 httpx**,
 因为交给 httpx 就意味着第 2 跳往后的地址从没过闸门。
-`create_ssrf_safe_client` 还额外把校验挪到**连接前一刻**,对付 DNS rebinding(TOCTOU,
-先返回公网 IP 过检、连接时返回内网 IP)—— 这一点 `tools/url_safety.py` 的 `Limitations` 一节写得很清楚。
+`create_ssrf_safe_client` 还额外把校验挪到**连接前一刻**,对付 DNS rebinding
+(TOCTOU:先返回公网 IP 骗过检查、连接时改返回内网 IP)。这两条限制是仓库自己写下的:
+
+`tools/url_safety.py:15 @ 863e313`
+
+```python
+Limitations:
+  - DNS rebinding (TOCTOU): an attacker-controlled DNS server with TTL=0
+    can return a public IP for the check, then a private IP for the actual
+    connection. Hermes-owned direct httpx request paths should use
+    ``create_ssrf_safe_client()`` / ``create_ssrf_safe_async_client()`` so the
+    same policy is applied immediately before TCP connect and the client
+    connects to the validated IP while preserving Host/SNI semantics.
+  - Redirect-based bypass is mitigated by httpx event hooks that re-validate
+    each redirect target in vision_tools, gateway platform adapters, and
+    media cache helpers. Web tools use third-party SDKs (Firecrawl/Tavily)
+    where redirect handling is on their servers.
+```
+
+注意最后一句点名的是 `vision_tools`、gateway 平台适配器、媒体缓存 —— **skills_hub 不在其列**,
+本文件的重定向再校验是靠 `_guarded_http_get` 自己那个循环实现的,
+所以**只有走这个函数的取回点才享有它**。
 
 **`:3205` 的 `follow_redirects=True` 恰好是这个设计的反面。**
 
@@ -430,10 +513,23 @@ def _ssrf_safe_http_get(url: str, *, timeout: int = 20) -> httpx.Response:
 ```
 
 **browse.sh 是 Browserbase 的目录,不是 Nous 官方 hub。**
-对照:`HERMES_INDEX_URL = "https://hermes-agent.nousresearch.com/docs/api/skills-index.json"`
-(`tools/skills_hub.py:3981 @ 863e313`)才是 Nous 自家的。
-`BrowseShSource` 给出的信任级别是 `"community"`(`tools/skills_hub.py:3111 @ 863e313` 的
-`trust_level_for` 恒返回 `"community"`)—— 仓库自己就把它标成了不可信来源。
+`BrowseShSource` 给出的信任级别恒为 `"community"` —— 仓库自己就把它标成了不可信来源:
+
+`tools/skills_hub.py:3111 @ 863e313`
+
+```python
+    def trust_level_for(self, identifier: str) -> str:
+        return "community"
+```
+
+对照 Nous 自家索引源的常量:
+
+`tools/skills_hub.py:3981 @ 863e313`
+
+```python
+HERMES_INDEX_URL = "https://hermes-agent.nousresearch.com/docs/api/skills-index.json"
+HERMES_INDEX_TTL = 6 * 3600  # 6 hours
+```
 
 **第二跳 —— 详情端点吐出 `skillMdUrl`。**
 
@@ -502,7 +598,7 @@ fallback md_url -> http://127.0.0.1:9/x?ref=raw.githubusercontent.com
 ### 2.5 挂没挂凭据:**没有。所以这不是 R9C 那个形态**
 
 `:3205` 的调用没有 `headers=` 参数(见 §2.2 的原文块),整个 `BrowseShSource` 也不持有任何 token
-(它没有 `auth` 成员,`create_sources()` 里构造它时不传 `auth`,见 `tools/skills_hub.py:4283 @ 863e313`)。
+(它没有 `auth` 成员,`create_sources()` 里构造它时不传 `auth`,见 §2.8 引的那一段)。
 另外 httpx 0.28.1 在跨 origin 重定向时会主动剥掉 `Authorization`(`httpx._client.Client._redirect_headers`,
 `if not _same_origin(url, request.url): ... headers.pop("Authorization", None)`),
 所以即便挂了也不会跟着跳走。
@@ -512,10 +608,18 @@ fallback md_url -> http://127.0.0.1:9/x?ref=raw.githubusercontent.com
 1. **SSRF** —— 让 Hermes 进程去 GET 一个它能到、攻击者到不了的地址(内网服务、云元数据端点、
    `check_website_access` 里被用户禁掉的站点)。`follow_redirects=True` 让第一跳合法、第二跳打内网
    这种最常见的绕法直接生效。
-2. **内容投毒 / 提示注入** —— 取回的**响应体原样成为 `SkillBundle.files["SKILL.md"]`**
-   (见 §2.2 原文块的 `content = resp.text`,以及紧随其后 `tools/skills_hub.py:3214 @ 863e313` 起的
-   `SkillBundle(... files={"SKILL.md": content} ...)`)。技能正文是喂给模型的指令文本,
-   等于把任意远端内容变成 agent 的指令。
+2. **内容投毒 / 提示注入** —— 取回的**响应体原样成为 `SkillBundle.files["SKILL.md"]`**。
+   §2.2 的原文块里 `content = resp.text`,紧随其后:
+
+`tools/skills_hub.py:3214 @ 863e313`
+
+```python
+        return SkillBundle(
+            name=name,
+            files={"SKILL.md": content},
+```
+
+   技能正文是喂给模型的指令文本,等于把任意远端内容变成 agent 的指令。
 
 **端到端实跑复现(本机 loopback,不联网)** —— 同一个 URL:守卫拒、裸调用取到并装进 bundle:
 
@@ -713,12 +817,27 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home
 - **改述(覆盖率)**:同文件 21 处 `httpx.*` 调用中,"URL 主机取自远端响应体"的有 **3 处**,
   **1 处走守卫(ClawHub `:2850`→`:2922`)、2 处没走(`:3205`、`:1767`)**。
   R9A 的"8 处裸调用里唯一一处"两个数都不准:裸调用是 21 处,"唯一"是 2 取 1。
-- **新增子项 ■**:`_resolve_skill_md_url` 的回落分支用 `"raw.githubusercontent.com" in source_url`
-  这种**子串**判定当 host 校验,实跑可用 query 参数绕过(`tools/skills_hub.py:3251 @ 863e313`)。
+- **新增子项 ■**:`_resolve_skill_md_url` 的回落分支用**子串**判定当 host 校验,实跑可用 query 参数绕过:
+
+`tools/skills_hub.py:3250 @ 863e313`
+
+```python
+        source_url = item.get("sourceUrl", "") if isinstance(item, dict) else ""
+        if source_url and "raw.githubusercontent.com" in source_url:
+            return source_url
+```
 - **新增 ◇/■(轻)**:`tools/skills_hub.py:1767` 的 sitemap 二跳同样未守,属盲 SSRF。
 - **来源可信度**:browse.sh 是 Browserbase 的第三方目录,**不是 Nous 官方 hub**;
-  仓库自己给它的信任级别就是 `"community"`。它在 `create_sources()`
-  (`tools/skills_hub.py:4283 @ 863e313`)里**默认启用**,不需要用户额外开关。
+  仓库自己给它的信任级别就是 `"community"`。它在 `create_sources()` 里**默认启用**,不需要用户额外开关:
+
+`tools/skills_hub.py:4281 @ 863e313`
+
+```python
+        ClawHubSource(),
+        LobeHubSource(),
+        BrowseShSource(),   # browse.sh: 169+ site-specific browser automation skills
+    ]
+```
 
 修法(供蓝图引用):把 `:3205` 换成 `_guarded_http_get(md_url, timeout=20)`,与 ClawHub 同构;
 `:3251` 改成解析后的 host 精确比较;`:1767` 同样换成守卫版。
@@ -728,9 +847,16 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home
 - **browse.sh 的目录条目是否可由任意第三方提交**,决定这条是"需要第三方站点作恶"还是
   "任何人都能投毒"。容器离线,无法访问 browse.sh 核实,**推定未取证**。
   这不影响 ■ 的成立(守卫该走没走是代码事实),只影响严重度分级。
-- 未验证 `_write_index_cache` 落盘的目录缓存(`tools/skills_hub.py:3464 @ 863e313` 起)
-  是否会把被投毒的 `skillMdUrl` 持久化到 `INDEX_CACHE_TTL` 之后 —— 若会,则一次投毒有持续窗口。
-  **推定未取证。**
+- 未验证落盘的目录缓存是否会把被投毒的 `skillMdUrl` 持久化到 `INDEX_CACHE_TTL` 之后 ——
+  若会,则一次投毒有持续窗口。**推定未取证。** 落盘入口:
+
+`tools/skills_hub.py:3464 @ 863e313`
+
+```python
+def _write_index_cache(key: str, data: Any) -> None:
+    """Write data to cache."""
+    index_cache_dir = _index_cache_dir()
+```
 - 未穷举全仓"URL 主机取自远端响应体"的取回点(见 §2.6 末尾的口径声明)。
 
 ---
