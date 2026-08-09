@@ -1,0 +1,32 @@
+▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+▶ running per-file parallel test suite via run_tests_parallel.py
+  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+▶ pre-compiling bytecode cache
+▶ launching test runner
+Discovered 8 test files (~540 tests) under ['tests/agent/test_platform_hint_desktop.py', 'tests/ci/test_classify_changes.py', 'tests/ci/test_emit_review_status.py', 'tests/ci/test_lockfile_diff.py', 'tests/hermes_cli/test_ssh_session_token_parser.py', 'tests/test_engines_satisfiable.py', 'tests/test_install_sh_bootstrap_marker.py', 'tests/test_tui_gateway_server.py']; running with -j 8
+[  0.4% |     2/~540 | ✓2 | ✗0] ✓ tests/ci/test_emit_review_status.py (2✓, 1.6s)
+[  1.5% |     8/~540 | ✓12 | ✗ 0] ✓ tests/test_engines_satisfiable.py (10✓, 1.7s)
+[  2.2% |    12/~540 | ✓16 | ✗ 0] ✓ tests/ci/test_lockfile_diff.py (4✓, 1.7s)
+[  3.5% |    19/~540 | ✓23 | ✗ 0] ✓ tests/hermes_cli/test_ssh_session_token_parser.py (7✓, 1.9s)
+[  3.9% |    21/~540 | ✓62 | ✗ 0] ✓ tests/ci/test_classify_changes.py (39✓, 2.0s)
+[  4.8% |    26/~540 | ✓67 | ✗ 0] ✓ tests/test_install_sh_bootstrap_marker.py (5✓, 2.0s)
+[  6.7% |    36/~540 | ✓82 | ✗ 0] ✓ tests/agent/test_platform_hint_desktop.py (15✓, 2.6s)
+[100.0% |   540/~540 | ✓599 | ✗  0] ✓ tests/test_tui_gateway_server.py (517✓, 23.5s)
+
+=== Summary: 8 files, 599 tests passed, 0 failed (100% complete) in 23.5s (8 workers) ===
+  Durations cached to test_durations.json (8 files)
+
+=== Per-file subprocess time distribution ===
+  Files:   8
+  Total subprocess CPU-wall: 37.0s  (runner wall: 23.5s, parallelism: 8x)
+  P50: 1.98s  P90: 23.50s  P95: 23.50s  P99: 23.50s  Max: 23.50s
+  <1s: 0 files (0%)  <2s: 6 files (75%)
+  Top 10 slowest:
+     23.50s  tests/test_tui_gateway_server.py
+      2.61s  tests/agent/test_platform_hint_desktop.py
+      1.99s  tests/ci/test_classify_changes.py
+      1.98s  tests/test_install_sh_bootstrap_marker.py
+      1.88s  tests/hermes_cli/test_ssh_session_token_parser.py
+      1.70s  tests/ci/test_lockfile_diff.py
+      1.67s  tests/test_engines_satisfiable.py
+      1.63s  tests/ci/test_emit_review_status.py

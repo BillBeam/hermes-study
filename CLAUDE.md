@@ -215,8 +215,21 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   ■ = 代码缺陷;**◎ = 文档成立但显著保守**(如"20+ 平台"而实为 24)。
   *理由(review-1 建议-13 / M-16e):▲ 条数是贯穿各轮、用来衡量"地图腐烂程度"的跨轮指标,
   把"保守但为真"计进 ▲ 会让它不可比。字面为真就不是 ▲。*
-- **shell 命令即证据(R8-fix,review-1 建议-16 / M-16d)**:凡把 shell 命令写进证据,
+- **shell 命令即证据(R8-fix,review-1 建议-16 / M-16d;R10B 起脚本可查)**:凡把 shell 命令写进证据,
   **必须是重跑能复现该结论的那一条**,并用 ```` ```verify ```` 围栏标注。
+  **R10B 起由脚本强制**:```` ```verify ```` 块后**紧跟**的 ```` ```text ```` 块会被重跑比对,
+  不一致即失败。每轮 commit 前对**当轮 notes 与报告**运行:
+
+  ```bash
+  python3 scripts/verify_evidence_commands.py notes/rN-*.md reports/round-N-*.md
+  ```
+
+  没有配对 ```` ```text ```` 的 verify 块记 unpaired,**不失败**——很多命令是给读者去跑的,
+  不是用来钉一个输出的。要钉输出,就把输出贴在紧跟其后的 ```` ```text ```` 块里。
+  *理由(R10B 实测):这是全项目唯一没有机械校验的证据规则,而它首次运行就在**当轮自己**
+  抓到 4 处:3 处是把命令输出手工裁剪过、命令与块对不上,1 处更糟——
+  一段**从未由该命令产生过**的 diff 被写进了底稿,数字看起来完全合理。
+  人工评审抓不住这一类,因为它要求评审者真的去跑那条命令。*
   *理由:r4-90 写进定案的自检 grep 用 `iron` 匹配到了 `env`**`iron`**`ment`,
   重跑对每个文件都命中,与它声称的"零命中"相反。结论是对的,命令是错的——
   **一条重跑给出相反结果的命令比不写更糟**:读者要么以为结论错了,要么以为自己环境不对。*
@@ -340,6 +353,9 @@ scripts/verify_citations.py# 引用校验(R7C 新增,R8A 起为定稿关卡,R8-f
                            # h/mjs/nix/rs(移交项点名)+ mdx/txt(本轮实测另发现);
                            # 路径允许前导点,`.github/...` 不再被解析成 `github/...`;
                            # `sh|js|rs` 与 ccTLD 重名,故无目录部分且不可解析时不认作锚点
+scripts/verify_evidence_commands.py # R10B 新增:重跑每个 ```verify 块并与紧跟其后的
+                           # ```text 块逐字比对(「shell 命令即证据」此前是全项目唯一
+                           # 靠人自觉的证据规则);无配对 text 块的 verify 块记 unpaired,不失败
 scripts/verify_report_headline.py # R8-fix 新增:报告首句 ≤20 字口径的脚本化判定
                            # (剥标签与强调、中文标点计入;纯数据附卷豁免、历史例外显式列名)
 scripts/config_table.py    # R8A 新增:从 DEFAULT_CONFIG / OPTIONAL_ENV_VARS 字面量 AST

@@ -1,0 +1,8 @@
+tests/agent/test_platform_hint_desktop.py
+tests/ci/test_classify_changes.py
+tests/ci/test_emit_review_status.py
+tests/ci/test_lockfile_diff.py
+tests/hermes_cli/test_ssh_session_token_parser.py
+tests/test_engines_satisfiable.py
+tests/test_install_sh_bootstrap_marker.py
+tests/test_tui_gateway_server.py
