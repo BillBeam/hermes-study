@@ -189,7 +189,7 @@ sed -n '47,58p' apps/desktop/src/app/settings/index.tsx | grep -c "^  '"
 | `key` | 任意 env 键 | `apps/desktop/src/app/settings/keys-settings.tsx:46`:`param: 'key',` | 从 Capabilities 深链到某张凭据卡 |
 | `session` | 会话 id | `apps/desktop/src/app/settings/sessions-settings.tsx:99`:`param: 'session',` | 深链到某条归档会话 |
 | `server` | MCP server 名 | `apps/desktop/src/app/settings/index.tsx:73`:`const server = params.get('server')` | 仅用于把 `?tab=mcp` 老书签转发到 Capabilities |
-| `aux` | 辅助任务键 | `apps/desktop/src/app/settings/model-settings.tsx:217` 的 `useDeepLinkHighlight` | 深链到某个辅助模型槽 |
+| `aux` | 辅助任务键 | `apps/desktop/src/app/settings/model-settings.tsx:215` 的 `useDeepLinkHighlight` | 深链到某个辅助模型槽 |
 
 **渲染派发的一个不对称**(容易看漏):`config:appearance` 在 `startsWith('config:')` **之前**被单独拦截,所以 `ConfigSettings` 永远不会渲染 appearance 段(该段 `keys: []`,本来也是空的)。
 
@@ -314,7 +314,18 @@ const VIEW_CATEGORIES: Record<KeysView, readonly string[]> = {
 }
 ```
 
-- `category === 'provider'` → Providers 页(`providers-settings.tsx:68` 显式过滤)
+Providers 页的那一档是显式过滤掉的:
+
+`apps/desktop/src/app/settings/providers-settings.tsx:67 @ 863e313`
+
+```
+  for (const [key, info] of Object.entries(vars)) {
+    if (info.category !== 'provider') {
+      continue
+    }
+```
+
+- `category === 'provider'` → Providers 页
 - `category ∈ {'setting','messaging'}` 且 `!channel_managed` → Keys 页 `settings` 子视图
 - `category === 'tool'` → Keys 页 `tools` 子视图
 - `channel_managed === true` 的 `messaging` 行 → 本片**不显示**,归 Messaging 页
@@ -445,7 +456,27 @@ EOF
 | 网关 RPC | `@/store/pet`、`@/store/pet-gallery` | Appearance→Pet |
 | 键位存储 | `@/store/keybinds` | Keybinds |
 
-**这就是本片最容易被忽略的接缝:同一个"设置"页面里,相邻两行可能写向三种完全不同的权威。** `config-settings.tsx:305` 的注释把这件事说破了:两个设备本地开关(keep-awake、Quick Entry)被有意放进 Advanced 段,和 config.yaml 字段混排。
+**这就是本片最容易被忽略的接缝:同一个"设置"页面里,相邻两行可能写向三种完全不同的权威。** 代码里的注释把这件事说破了——两个设备本地开关(keep-awake、Quick Entry)被**有意**放进 Advanced 段,和 config.yaml 字段混排:
+
+`apps/desktop/src/app/settings/config-settings.tsx:305 @ 863e313`
+
+```
+      {/* Device-local desktop prefs (not config.yaml) — they live here since
+          keeping the machine awake and the global Quick Entry chord are both
+          power-user, this-computer-only knobs. */}
+      {activeSectionId === 'advanced' && (
+        <>
+          <ToggleRow
+            checked={keepAwake}
+            description={c.keepAwakeDesc}
+            label={c.keepAwakeTitle}
+            onChange={setKeepAwake}
+          />
+          <QuickEntrySettings />
+        </>
+      )}
+```
+
 
 ---
 
@@ -503,7 +534,7 @@ EOF
    ```
 
 6. **内核** —— 服务端**不做全量替换**,而是先反规范化再深合并到磁盘配置上,否则 schema 之外的根键(`custom_providers`、`agent.personalities`…)会被静默抹掉。
-   `hermes_cli/web_server.py:6919 @ 863e313`
+   `hermes_cli/web_server.py:6921 @ 863e313`
    ```
                existing = read_raw_config()
                incoming = _denormalize_config_from_web(body.config)
@@ -610,12 +641,36 @@ EOF
 
 ### 4.1 网关连接:四种模式 + 每 profile 覆盖
 
-`gateway-settings.tsx:34` 定义 `type Mode = 'local' | 'remote' | 'cloud' | 'ssh'`,四张 `ModeCard` 全部无条件渲染(`:1070`–`:1103`)。
+`apps/desktop/src/app/settings/gateway-settings.tsx:34` 定义 `type Mode = 'local' | 'remote' | 'cloud' | 'ssh'`,四张 `ModeCard` 全部无条件渲染(`:1070`–`:1103`)。
 
 - **scope**:`scope === null` 是全局连接,否则是某个具名 profile 的**每 profile 覆盖**;`default` profile 用全局连接,所以 chip 列表 = `profiles.filter(p => p.name !== 'default')`。切 scope 会清空本地输入的 token,防止跨 scope 泄漏(`:229`–`:232`)。
 - **envOverride**:环境变量强制指定连接时整页禁用并挂红条(`:1055`)。
-- **认证方式判定**:输入远端 URL → 500ms 防抖 → `probeConnectionConfig` 打公开的 `/api/status` → 得知这台网关是 OAuth 还是静态 token。**在探测落地前两个控件都不渲染**(`authResolved`,`:338`),否则默认值 `token` 会让每台 OAuth 网关都先闪一下 token 输入框。
-- **password provider**:只有**全部**广告出来的 provider 都 `supportsPassword` 才切成密码版文案(`:367`–`:371`),混合部署保持通用 OAuth 措辞。
+- **认证方式判定**:输入远端 URL → 500ms 防抖 → `probeConnectionConfig` 打公开的 `/api/status` → 得知这台网关是 OAuth 还是静态 token。**在探测落地前两个控件都不渲染**,否则默认值 `token` 会让每台 OAuth 网关都先闪一下 token 输入框。
+
+  `apps/desktop/src/app/settings/gateway-settings.tsx:338 @ 863e313`
+
+  ```
+    const authResolved = useMemo(() => {
+      if (probeStatus === 'done') {
+        return true
+      }
+
+      return probeStatus === 'idle' && hasSavedRemote
+    }, [probeStatus, hasSavedRemote])
+  ```
+
+- **password provider**:只有**全部**广告出来的 provider 都 `supportsPassword` 才切成密码版文案,混合部署保持通用 OAuth 措辞。
+
+  `apps/desktop/src/app/settings/gateway-settings.tsx:367 @ 863e313`
+
+  ```
+    const isPasswordProvider = useMemo(() => {
+      const providers: DesktopAuthProvider[] = probe?.providers ?? []
+
+      return providers.length > 0 && providers.every(p => p.supportsPassword)
+    }, [probe])
+  ```
+
 - **cloud**:一次门户登录 → `cloud.discover(org)`;多组织返回 `needsOrgSelection` 时先出组织选择器。选中 agent 后走 `cloud.agentSignIn`(静默级联,不再弹第二次授权),再以 cloud 模式 `applyConnectionConfig`。选中的 org 通过 **ref 而非 state** 读取(`cloudOrgRef`,`:194`),因为发现是异步的、用户可能在同一 render tick 里就点 Connect。
 - **ssh**:主机可从 `~/.ssh/config` 建议列表选,也可切 Custom 自由输入;`selectSshHost`/`enrichSelectedSshHost` 两个纯 reducer 保证"换主机清空派生字段、解析结果只填空位"。7 类 `sshError` 有专属文案(`:497`–`:505` 与 `:932`–`:941` 两处**各写了一份**,后者多一个 `unknown` 键)。
 
@@ -687,9 +742,25 @@ EOF
 
 `deriveBillingView` 把两份 wire 响应折成 4 种 `status`:`loading` / `refusal` / `logged_out` / `normal`。几个值得记的判断:
 
-- **`can_change_plan` 与 `context`** 共同决定"能不能在应用内换套餐"(`plansCapable`,`use-billing-state.ts:338`)。团队/组织账号一律不给应用内动作,只给门户外链。
+- **`can_change_plan` 与 `context`** 共同决定"能不能在应用内换套餐"。团队/组织账号一律不给应用内动作,只给门户外链。
+
+  `apps/desktop/src/app/settings/billing/use-billing-state.ts:338 @ 863e313`
+
+  ```
+  function plansCapable(
+    subscription: null | SubscriptionStateResponse,
+    subscriptionResult: BillingResult<SubscriptionStateResponse> | undefined
+  ): boolean {
+    if (!subscription || (subscriptionResult && !subscriptionResult.ok)) {
+      return false
+    }
+
+    return subscription.context !== 'team' && Boolean(subscription.can_change_plan)
+  }
+  ```
+
 - **升级 vs 降级不对称**:升级 = 门户深链(`Choose ↗`),降级 = 应用内 preview→confirm→schedule。原因写在 `derivePlanTiers` 的 doc 注释里。
-- **`payment_method` 与 `card` 的关系**在 `billing-types.ts:130`–`:141` 讲得很清楚:`card` 是有损的旧视图,只在支付方式是卡时才有值;**`!card` 不等于"没有支付方式"**。但视图模型的 `noCardNotice`/`paymentMethodRow`/`buyCreditsRow` **全部只看 `billing.card`**,没有一处读 `payment_method`。对一个 Link 客户,页面会顶着"No payment method on file"的告警条,并把 Buy 按钮禁用。
+- **`payment_method` 与 `card` 的关系**在 `apps/shared/src/billing-types.ts:130`–`:141` 讲得很清楚:`card` 是有损的旧视图,只在支付方式是卡时才有值;**`!card` 不等于"没有支付方式"**。但视图模型的 `noCardNotice`/`paymentMethodRow`/`buyCreditsRow` **全部只看 `billing.card`**,没有一处读 `payment_method`。对一个 Link 客户,页面会顶着"No payment method on file"的告警条,并把 Buy 按钮禁用。
 
   ```verify
   cd /home/user/hermes-agent
@@ -701,16 +772,73 @@ EOF
 
 - **DEV fixture 通道**:`BillingApiProvider` 用 context 整体替换 `BillingApi`,所以 16 个 fixture 走的是**和线上完全相同的 query 路径**,没有任何 fixture 短路分支。这是个值得抄的设计。
 
+  `apps/desktop/src/app/settings/billing/api.ts:183 @ 863e313`
+
+  ```
+  const BillingApiContext = createContext<BillingApi | null>(null)
+
+  export const BillingApiProvider = BillingApiContext.Provider
+
+  export function useBillingApi(): BillingApi {
+    const override = useContext(BillingApiContext)
+    const { requestGateway } = useGatewayRequest()
+    const real = useMemo(() => createBillingApi(requestGateway), [requestGateway])
+
+    return override ?? real
+  ```
+
+- **套餐缩略图按名字查表,不按 id**:真实 `tier_id` 是随环境变的 Prisma cuid,名字才稳定。
+
+  `apps/desktop/src/app/settings/billing/tier-art.tsx:28 @ 863e313`
+
+  ```
+  const TIER_ART: Record<string, TierArtSpec> = {
+    free: { blend: 'screen', src: connectArt },
+    plus: { blend: 'screen', src: memoryArt },
+    starter: { blend: 'screen', src: connectArt },
+    super: { blend: 'lighten', src: automationArt },
+    ultra: { blend: 'normal', src: sandboxArt }
+  }
+  ```
+
+
 ### 4.4 `apps/shared` 的定位
 
-包里没有一行 React、没有 DOM 依赖(`websocket-url.ts:113` 的 `readWindowLocation` 显式做了 `typeof window === 'undefined'` 兜底)。它承载的是**必须逐字一致的跨界面契约**:
+包里没有一行 React、没有硬 DOM 依赖:
+
+`apps/shared/src/websocket-url.ts:113 @ 863e313`
+
+```
+function readWindowLocation(): { host: string; protocol: string } {
+  if (typeof window === 'undefined') {
+    return { host: '', protocol: 'http:' }
+  }
+
+  return { host: window.location.host, protocol: window.location.protocol }
+}
+```
+
+它承载的是**必须逐字一致的跨界面契约**:
 
 - 线协议形状(`billing-types.ts`、`skin.ts`)
 - 分类策略(`billing-policy.ts`)
 - 时序状态机(`charge-settlement.ts`、`json-rpc-gateway.ts`)
-- 与 Python 侧字节对齐的字符串标记(`skill-scaffold.ts:16`–`:22` 的 7 个常量,注释写明 "mirror `agent/skill_commands.py` byte for byte")
+- 与 Python 侧字节对齐的字符串标记(7 个常量,注释写明 "mirror `agent/skill_commands.py` byte for byte")
 
-`billing-types.ts:59` 那段注释把"为什么要把码集合闭起来"讲透了:闭集 + `Record<KnownBillingRefusalCode, …>` = 新增一个码却忘了映射时**编译不过**。这个机制在 `billing-policy.ts` 上生效了,在桌面的 `errors.ts` 上没生效(见 §6 ■-5)。
+`apps/shared/src/skill-scaffold.ts:16 @ 863e313`
+
+```
+const INVOCATION_PREFIX = '[IMPORTANT: The user has invoked the '
+const SINGLE_MARKER = 'The full skill content is loaded below.]'
+const SINGLE_INSTRUCTION = 'The user has provided the following instruction alongside the skill invocation: '
+const RUNTIME_NOTE = '\n\n[Runtime note:'
+const BUNDLE_MARKER = ' skill bundle,'
+const BUNDLE_INSTRUCTION = '\nUser instruction: '
+const BUNDLE_SKILL_BLOCK = '\n\n[Loaded as part of the '
+```
+
+
+`apps/shared/src/billing-types.ts:59` 那段注释把"为什么要把码集合闭起来"讲透了:闭集 + `Record<KnownBillingRefusalCode, …>` = 新增一个码却忘了映射时**编译不过**。这个机制在 `billing-policy.ts` 上生效了,在桌面的 `errors.ts` 上没生效(见 §6 ■-5)。
 
 ---
 
@@ -722,7 +850,7 @@ EOF
 
 > You can also define custom personalities in `~/.hermes/config.yaml`:
 
-紧随其后的 YAML 例子(`cli.md:230`–`:236`)把键写在**顶层**:
+紧随其后的 YAML 例子(`website/docs/user-guide/cli.md:230`–`:236`)把键写在**顶层**:
 
 `website/docs/user-guide/cli.md:231 @ 863e313`
 
@@ -765,7 +893,7 @@ function personalityOptions(config: HermesConfigRecord): string[] {
 ```
 
 另一页文档写的是对的(`website/docs/user-guide/features/personality.md:214` 明说 "under `agent.personalities`"),所以这是**两页文档互相矛盾、其中一页与代码矛盾**。
-*判定范围*:▲ 只落在 `cli.md:228`–`:236` 这一句加它的 YAML 块上(散文句"你也可以在 config.yaml 里定义自定义 personalities"本身为真,假的是块里的嵌套层级),归 `cli.md:214` 的 `## Personalities` 标题管。
+*判定范围*:▲ 只落在 `website/docs/user-guide/cli.md:228`–`:236` 这一句加它的 YAML 块上(散文句"你也可以在 config.yaml 里定义自定义 personalities"本身为真,假的是块里的嵌套层级),归 `website/docs/user-guide/cli.md:214` 的 `## Personalities` 标题管。
 
 ### ▲-2 `DESIGN.md` 说"每个面向用户的字符串都走 `useI18n()`",整个 Billing 页不走
 
@@ -812,7 +940,7 @@ python3 data/r10b/probes/probe_c_i18n.py /home/user/hermes-agent
 ```
 
 Billing 是 `settings/index.tsx:167` 侧栏里的一个正式导航项、`:330` 会被渲染的正式页面,不是隐藏实验区。同类还有 `uninstall-section.tsx`(14 处)、`custom-endpoints-settings.tsx`(18 处)、`computer-use-panel.tsx`(10 处)。
-*判定范围*:`DESIGN.md:283` 的 `## i18n` 标题下,`:285`–`:286` 这一条是一个无限定的全称句("Every … No literals in JSX."),因此整条被证伪,记 ▲。
+*判定范围*:`apps/desktop/DESIGN.md:283` 的 `## i18n` 标题下,`:285`–`:286` 这一条是一个无限定的全称句("Every … No literals in JSX."),因此整条被证伪,记 ▲。
 
 ### ◎-1 `apps/desktop/README.md` 只列三种连接模式,代码有四种
 
@@ -837,7 +965,7 @@ type Mode = 'local' | 'remote' | 'cloud' | 'ssh'
 网关声明:`tui_gateway/methods_session.py:2125`:`@method("subscription.upgrade")`
 TUI 调用:`ui-tui/src/app/slash/commands/subscription.ts:135`:`.rpc<SubscriptionUpgradeResponse>('subscription.upgrade', {`
 共享包为它专门定了类型:`apps/shared/src/billing-types.ts:347`:`export interface SubscriptionUpgradeResponse {`
-桌面:`BillingApi` 的 9 个方法里没有它(§2.5 探针输出)。桌面的升级一律 deep-link 门户(`use-billing-state.ts:532` 的 `Choose ↗`)。
+桌面:`BillingApi` 的 9 个方法里没有它(§2.5 探针输出)。桌面的升级一律 deep-link 门户(`apps/desktop/src/app/settings/billing/use-billing-state.ts:532` 的 `Choose ↗`)。
 
 搜索面:`grep -rn "SubscriptionUpgradeResponse\|subscription.upgrade" --include=*.ts --include=*.tsx apps/ ui-tui/ web/`(排除 node_modules),9 处命中,`apps/` 下只有 `apps/shared/` 的类型定义与转出,`apps/desktop/` 零命中。
 
@@ -929,7 +1057,18 @@ function shouldReuseIdempotencyKey(refusal: BillingRefusal): boolean {
           : null
 ```
 
-`stripe_unavailable` 在 `errors.ts:119` 里被映射成 `action: { type: 'retry' }`,**页面会给用户一个 Retry 按钮**;点它 → `flow.start(clampedAmount)` → `retryIntentRef.current` 是 `null` → `idempotencyKey === undefined` → `api.ts:147` 现铸一个新 UUID。也就是说:**"Stripe 出问题了,重试一下"这条按钮,发出去的是一笔幂等键全新的请求**。如果第一笔其实已在服务端落地,这就是重复扣款。`network_error` 同理(它连 Retry 按钮都没有,见 ■-5,用户只能再点 Buy,结果一样)。
+`apps/desktop/src/app/settings/billing/errors.ts:119 @ 863e313`
+
+```
+    case 'stripe_unavailable':
+      return {
+        action: { type: 'retry' },
+        message: stripeRetryMessage(refusal),
+        title: 'Stripe is having trouble'
+      }
+```
+
+`stripe_unavailable` 被映射成 `action: { type: 'retry' }`,**页面会给用户一个 Retry 按钮**;点它 → `flow.start(clampedAmount)` → `retryIntentRef.current` 是 `null` → `idempotencyKey === undefined` → `apps/desktop/src/app/settings/billing/api.ts:147` 现铸一个新 UUID。也就是说:**"Stripe 出问题了,重试一下"这条按钮,发出去的是一笔幂等键全新的请求**。如果第一笔其实已在服务端落地,这就是重复扣款。`network_error` 同理(它连 Retry 按钮都没有,见 ■-5,用户只能再点 Buy,结果一样)。
 
 修法只需一行:该模块 `:1` 已经 `import { refusalPolicy } from '@hermes/shared/billing-policy'`,并在 `:111` 用它读 `ambiguousMidPoll`——把 `shouldReuseIdempotencyKey` 改成 `refusalPolicy(refusal.kind).reuseIdempotencyKey === true`(再并上 `timeout`/`transport`)即可。
 
@@ -965,7 +1104,7 @@ export const redactedValue = (v: string) => (v.length <= 8 ? '••••' : `$
       patchVar(key, { is_set: true, redacted_value: redactedValue(value) })
 ```
 
-两者的门槛不同:服务端是 `< 12 → ***`,桌面是 `<= 8 → ••••`。**长度 9、10、11 的值落在中间地带**:服务端会返回 `***`,桌面本地却渲染成 `abcd...wxyz` —— 对一个 9 字符的密钥,这是把 9 个字符里的 8 个直接显示出来。这个错误遮罩会一直挂到该页面下一次 mount(`useEnvCredentials` 的 `getEnvVars` 只在挂载时跑一次,`env-credentials.tsx:63`–`:80`),期间截图、录屏、共享屏幕都会带上它。
+两者的门槛不同:服务端是 `< 12 → ***`,桌面是 `<= 8 → ••••`。**长度 9、10、11 的值落在中间地带**:服务端会返回 `***`,桌面本地却渲染成 `abcd...wxyz` —— 对一个 9 字符的密钥,这是把 9 个字符里的 8 个直接显示出来。这个错误遮罩会一直挂到该页面下一次 mount(`useEnvCredentials` 的 `getEnvVars` 只在挂载时跑一次,`apps/desktop/src/app/settings/env-credentials.tsx:63`–`:80`),期间截图、录屏、共享屏幕都会带上它。
 
 9–11 字符的凭据在本仓不是假想:`category === 'setting'` 下有大量非 API-key 的短值(端口、用户名、代理地址),而 `isKeyVar` 会把任何以 `_KEY`/`_TOKEN`/`_API_KEY` 结尾的名字都当密钥渲染。
 
@@ -997,7 +1136,7 @@ hook 把 `revealed` 与 `onReveal` 一起放进 `rowProps`:
   const { edits, onClear, onSave, saving, setEdits } = rowProps
 ```
 
-搜索面:`grep -rn "useEnvCredentials\|rowProps" apps/desktop/src --include=*.ts --include=*.tsx`,`useEnvCredentials` 只有 2 个调用方(`providers-settings.tsx:342`、`keys-settings.tsx:33`),两者都把 `rowProps` 原样交给 `ProviderKeyRows` / `CredentialKeyCard`,而这两者又只把它转给 `KeyField`。**结论:Settings→Providers 与 Settings→Keys 两页永远不会调用 `POST /api/env/reveal`。** 明文回显能力实际只存在于 `toolset-config-panel.tsx`(它自己维护 `revealed` 局部 state,`:92`/`:146`/`:190`)。
+搜索面:`grep -rn "useEnvCredentials\|rowProps" apps/desktop/src --include=*.ts --include=*.tsx`,`useEnvCredentials` 只有 2 个调用方(`apps/desktop/src/app/settings/providers-settings.tsx:342`、`apps/desktop/src/app/settings/keys-settings.tsx:33`),两者都把 `rowProps` 原样交给 `ProviderKeyRows` / `CredentialKeyCard`,而这两者又只把它转给 `KeyField`。**结论:Settings→Providers 与 Settings→Keys 两页永远不会调用 `POST /api/env/reveal`。** 明文回显能力实际只存在于 `toolset-config-panel.tsx`(它自己维护 `revealed` 局部 state,`:92`/`:146`/`:190`)。
 
 同文件的 `filterEnv` 同样零调用方,而它的注释宣称自己是共享的:
 
@@ -1009,7 +1148,7 @@ hook 把 `revealed` 与 `onReveal` 一起放进 `rowProps`:
 export function filterEnv(info: EnvVarInfo, key: string, q: string, cat: string, extra?: string): boolean {
 ```
 
-搜索面:`grep -rn "filterEnv" apps/desktop/src --include=*.ts --include=*.tsx` → 1 处命中,即定义本身。Providers 页现在用自己的 `haystack.some(...)`(`providers-settings.tsx:447`–`:452`),Keys 页根本没有搜索框。
+搜索面:`grep -rn "filterEnv" apps/desktop/src --include=*.ts --include=*.tsx` → 1 处命中,即定义本身。Providers 页现在用自己的 `haystack.some(...)`(`apps/desktop/src/app/settings/providers-settings.tsx:447`–`:452`),Keys 页根本没有搜索框。
 **严重度**:低(不影响行为),但注释在**断言一个不成立的不变量**,是下一个读代码的人最容易被带偏的形态。
 
 ### ■-4 `formatMoney` 有两份实现,一份钉了 `en-US`、一份没钉,而买点数的金额走没钉的那份
@@ -1039,11 +1178,50 @@ export function filterEnv(info: EnvVarInfo, key: string, q: string, cat: string,
 
 `billing/index.tsx:26` 导入的是**没钉的那一份**,用在两处直接面向用户的金额上:`:162`(预设金额 chip 的兜底标签)与 `:270`(充值成功后的"$X added.")。在 `fr-FR`/`de-DE` 这类 locale 下,同一屏里上方摘要卡是 `$996.47`(钉死版),下方成功提示是 `996,47 $`(未钉版)——正是那条注释想避免的现象。
 
-两份 `parseAmount` 也不一致:`billing-amounts.ts:30` 要求 `parsed > 0`,`use-billing-state.ts:814` 不要求(它需要负数来渲染"超支 $X")。这一处分叉是**有意的**,locale 那一处不是。
+两份 `parseAmount` 也不一致:
+
+`apps/desktop/src/app/settings/billing/billing-amounts.ts:19 @ 863e313`
+
+```
+export function parseAmount(value?: null | number | string): null | number {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const parsed = Number(value.replace(/[$,\s]/g, ''))
+
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+```
+
+`apps/desktop/src/app/settings/billing/use-billing-state.ts:803 @ 863e313`
+
+```
+function parseAmount(value?: null | number | string): null | number {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const parsed = Number(value.replace(/[$,\s]/g, ''))
+
+  return Number.isFinite(parsed) ? parsed : null
+}
+```
+
+前者要求 `parsed > 0`,后者不要求(它需要负数来渲染"超支 $X")。这一处分叉是**有意的**,locale 那一处不是。
+另有一处不对称:数字入口两者都放行 `0`(`Number.isFinite(0)` 为真),字符串入口前者会把 `'0'` 判成 `null`——同一个逻辑零,按 wire 上是数字还是字符串会渲染成 `$0` 或 `—`。
 
 ### ■-5 桌面拒绝文案表不是编译期穷尽的,8/24 个码退化成通用文案且丢掉 recovery 动作
 
-`billing-types.ts:59`–`:66` 的注释明说闭集的目的是"分类表/文案表/测试用 `Record<KnownBillingRefusalCode, …>` 就能在漏映射时编译不过"。`billing-policy.ts:11` 照做了(`Record<KnownBillingRefusalCode, BillingRefusalPolicy>`),桌面的文案表**没有**——它是一个带 `default` 的普通 `switch`:
+`apps/shared/src/billing-types.ts:59`–`:66` 的注释明说闭集的目的是"分类表/文案表/测试用 `Record<KnownBillingRefusalCode, …>` 就能在漏映射时编译不过"。`apps/shared/src/billing-policy.ts:11` 照做了(`Record<KnownBillingRefusalCode, BillingRefusalPolicy>`),桌面的文案表**没有**——它是一个带 `default` 的普通 `switch`:
 
 `apps/desktop/src/app/settings/billing/errors.ts:156 @ 863e313`
 
@@ -1157,7 +1335,21 @@ grep -rn "describe\.skip\|it\.skip\|test\.skip\|\.todo(" \
 - `apps/desktop/src/app/settings/billing/`:`api.test.ts`、`errors.test.ts`、`index.test.tsx`、`simulated-api.test.ts`、`tier-art.test.ts`、`types.test.ts`、`use-billing-state.test.ts`、`use-charge-poller.test.ts`、`use-step-up.test.tsx`、`use-subscription-change.test.tsx`
 - `apps/desktop/src/lib/`:`gateway-ws-url.test.ts`、`json-rpc-gateway-url-guard.test.ts`(测的是 `apps/shared/src/websocket-url.ts` 与 `json-rpc-gateway.ts`,是本片共享包的真实规格所在)
 
-**行为规格里值得记的两条**:`apps/desktop/src/lib/json-rpc-gateway-url-guard.test.ts` 钉住了 `connect()` 对非法 URL 的拒绝(对应 `json-rpc-gateway.ts:102`–`:123` 那段 `#68250 stale-emit boot loop` 注释);`apps/desktop/src/lib/gateway-ws-url.test.ts` 钉住了"OAuth 不回落缓存 URL、token 可以"这条 §4.1 的不变量。**共享包的规格住在消费方仓里,而不是包自己里**——这正是 ■-6 的结构性成因。
+**行为规格里值得记的两条**:`apps/desktop/src/lib/json-rpc-gateway-url-guard.test.ts` 钉住了 `connect()` 对非法 URL 的拒绝——
+
+`apps/shared/src/json-rpc-gateway.ts:101 @ 863e313`
+
+```
+    // Refuse garbage; WebSocket coerces non-strings into
+    // `ws://<origin>/[object%20Object]` (#68250 stale-emit boot loop).
+    const invalidUrl = () => {
+      const got = typeof wsUrl === 'string' ? JSON.stringify(wsUrl) : `type "${typeof wsUrl}"`
+
+      return new Error(`gateway connect() requires a ws:// or wss:// URL string, got ${got}`)
+    }
+```
+
+`apps/desktop/src/lib/gateway-ws-url.test.ts` 钉住了"OAuth 不回落缓存 URL、token 可以"这条 §4.1 的不变量。**共享包的规格住在消费方仓里,而不是包自己里**——这正是 ■-6 的结构性成因。
 
 ---
 
@@ -1187,9 +1379,9 @@ grep -rn "describe\.skip\|it\.skip\|test\.skip\|\.todo(" \
 | **H-R10B-C-d** | `apps/desktop/src/app/settings/env-credentials.tsx:184`:`onReveal: handleReveal` | `revealed`/`onReveal` 挂进 `rowProps` 但 `KeyField` 从不解构 → Settings 的 Providers/Keys 两页永不调用 `POST /api/env/reveal`;同文件的 `filterEnv` 也零调用方,而它的注释自称"每个凭据面共用" | ■(低危),但注释断言了一个不成立的不变量 |
 | **H-R10B-C-e** | `apps/desktop/src/app/settings/billing/errors.ts:23` 的 `resolveRefusal` | 普通 `switch` + `default`,非编译期穷尽;24 个线上码里 8 个落 default,其中 3 个(`network_error`/`internal_error`/`auto_top_up_disabled_failures`)因此丢掉了 policy 上写明的 retry / portal 恢复动作 | ■ |
 | **H-R10B-C-f** | `apps/shared/src/skill-scaffold.ts:46`:`export function skillInvocationText(text: string): null | string {` | 它的规格文件 `apps/shared/src/skill-scaffold.test.ts` 不被任何 vitest project 收集(`apps/shared` 无 test 脚本、无 vitest 依赖、不在四个 config 的 root 下);实测 `No test files found` | ■,测试基建 |
-| **H-R10B-C-g** | `apps/desktop/src/app/settings/billing/billing-amounts.ts:110`:`export function formatMoney(value?: null | number | string): string {` | 与 `use-billing-state.ts:817` 的同名私有函数是两份实现;后者钉死 `en-US` 并写明理由,前者用运行时 locale,而 Billing 页的"$X added."与预设 chip 走的是前者 | ■ |
+| **H-R10B-C-g** | `apps/desktop/src/app/settings/billing/billing-amounts.ts:110`:`export function formatMoney(value?: null | number | string): string {` | 与 `apps/desktop/src/app/settings/billing/use-billing-state.ts:817` 的同名私有函数是两份实现;后者钉死 `en-US` 并写明理由,前者用运行时 locale,而 Billing 页的"$X added."与预设 chip 走的是前者 | ■ |
 | **H-R10B-C-h** | `website/docs/user-guide/cli.md:231`:`personalities:` | 文档 YAML 例子把 personalities 写在**顶层**;CLI / 网关 / TUI / 桌面四处运行时全部读 `agent.personalities`;顶层键在 `_OPEN_DICT_TOP_LEVEL_KEYS` 里所以校验通过、然后永远没人读 | ▲,且与 `features/personality.md:214` 自相矛盾 |
-| **H-R10B-C-i** | `apps/desktop/README.md:133`:`Desktop supports a managed local backend, explicit remote gateways, and Hermes` | 只列三种连接模式,代码是四种(`gateway-settings.tsx:34` 的 `ssh`),而 ssh 恰是执行边界最不同的一种 | ◎(字面为真但显著保守) |
+| **H-R10B-C-i** | `apps/desktop/README.md:133`:`Desktop supports a managed local backend, explicit remote gateways, and Hermes` | 只列三种连接模式,代码是四种(`apps/desktop/src/app/settings/gateway-settings.tsx:34` 的 `ssh`),而 ssh 恰是执行边界最不同的一种 | ◎(字面为真但显著保守) |
 | **H-R10B-C-j** | `apps/shared/src/billing-types.ts:143`:`export type BillingPaymentMethod =` | 类型注释明说 "`!card` 不等于没有支付方式",但桌面 `deriveBillingView` 的三处判断(`noCardNotice`/`paymentMethodRow`/`buyCreditsRow`)**只看 `billing.card`**;对 Link 客户会显示"No payment method on file"并禁用 Buy。**未定性**:老网关会整字段缺席,缺席时只能看 `card`,需要先确认网关版本矩阵才能判是不是缺陷 | 待定,需 R11 与网关侧一并判 |
 | **H-R10B-C-k** | `hermes_cli/web_server.py:872`:`"model_context_length": {` | `data/r8a-config-keys.tsv`(856 键)的口径是 `DEFAULT_CONFIG` 字面量,覆盖不到 Web 合成键与 `cli.py::load_cli_config()` 的另一棵默认树;桌面设置面用到的 101 个键里有 3 个在表外 | ◇,建议在 R8A 资产说明里补一句口径边界 |
 | **H-R10B-C-l** | `apps/desktop/DESIGN.md:285`:`- Every user-facing string goes through \`useI18n()\` (\`src/i18n/context.tsx\`).` | 全称句被证伪:整个 Billing 页(含 `errors.ts` 18 条文案)、`uninstall-section.tsx`、`custom-endpoints-settings.tsx`、`computer-use-panel.tsx` 全是硬编英文 | ▲ |

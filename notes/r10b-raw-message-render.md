@@ -1463,15 +1463,17 @@ grep -rnE "\.(skip|todo|skipIf|runIf)\(" src/components/assistant-ui src/compone
 
 ```console
 $ python3 scripts/verify_citations.py /home/user/hermes-agent notes/r10b-raw-message-render.md
-citations=75  OK=61  UNCHECKED=14
-可校验比例 OK/75 = 81.3%
+citations=77  OK=61  UNCHECKED=16
+可校验比例 OK/77 = 79.2%
 table_anchors=35  OK=25  UNCHECKED=10
 OK: every code-block-backed citation matches the baseline
 ```
 
-0 MISMATCH / 0 BLOCK-DRIFT / 0 TABLE-DRIFT / 0 TABLE-OUT-OF-RANGE;可校验比例 **81.3%**,
-高于 70% 下限。剩下的 14 条 UNCHECKED 全部是散文里的"区域指路"锚点(如
-`apps/desktop/src/app/contrib/controller.tsx:384-387`),不是排版错误 —— 锚点一律在块之前。
+退出码 0;0 MISMATCH / 0 BLOCK-DRIFT / 0 TABLE-DRIFT / 0 TABLE-OUT-OF-RANGE;
+可校验比例 **79.2%**,高于 70% 下限。剩下的 16 条 UNCHECKED 全部是散文里的"区域指路"锚点
+(如 `apps/desktop/src/app/contrib/controller.tsx:384-387`、
+`apps/desktop/src/components/chat/widget-shell.ts:1-11`),不是排版错误 —— 本文锚点一律在块之前,
+没有一处写在块后。
 
 **未达标 / 已知不足,如实列出**:
 

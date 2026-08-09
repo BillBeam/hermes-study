@@ -13,18 +13,24 @@
 
 | 目录 | 文件 | 行 | 一句话 |
 |---|---|---|---|
-| `apps/desktop/src/app/shell/` | 15 | 3,140 | 应用最外层 chrome:标题栏工具簇、状态栏、状态栏里的四个面板(网关 / 上下文 / 审批模式 / 模型目录) |
+| `apps/desktop/src/app/shell/` | 15 | 3,080 | 应用最外层 chrome:标题栏工具簇、状态栏、状态栏里的四个面板(网关 / 上下文 / 审批模式 / 模型目录) |
 | `apps/desktop/src/components/pane-shell/` | 25 | 8,051 | 多窗格布局:一棵持久化的 split/group 树 + FancyZones 风格的拖放引擎 + 网格编辑器 |
-| `apps/desktop/src/components/ui/` | 60 | 6,353 | 通用原语(shadcn/ui "new-york" 风格的本地副本 + 本项目自研原语) |
+| `apps/desktop/src/components/ui/` | 60 | 6,413 | 通用原语(shadcn/ui "new-york" 风格的本地副本 + 本项目自研原语) |
 
-行数复核(可重跑):
+行数复核(可重跑,输出就是上表的三行 + 总计):
 
 ```verify
 cd /home/user/hermes-agent
-awk '{print}' /home/user/hermes-study/data/r10b/slices/G.txt | xargs wc -l | tail -1
-# → 17544 total
-awk -F/ '{print $5}' /home/user/hermes-study/data/r10b/slices/G.txt | sort | uniq -c
-# → 15 shell / 25 pane-shell(含 tree、tree/renderer)/ 60 ui  —— 见下逐目录清单
+for d in app/shell components/pane-shell components/ui; do
+  n=$(grep -c "apps/desktop/src/$d/" /home/user/hermes-study/data/r10b/slices/G.txt)
+  l=$(grep "apps/desktop/src/$d/" /home/user/hermes-study/data/r10b/slices/G.txt | xargs wc -l | tail -1 | awk '{print $1}')
+  printf "%-24s %3d files %6d lines\n" "$d" "$n" "$l"
+done
+# → app/shell                 15 files   3080 lines
+#   components/pane-shell     25 files   8051 lines
+#   components/ui             60 files   6413 lines
+xargs wc -l < /home/user/hermes-study/data/r10b/slices/G.txt | tail -1
+# → 17544 total   (3080 + 8051 + 6413 = 17544 ✓)
 ```
 
 ### 0.1 `apps/desktop/src/app/shell/`(15)
@@ -1406,8 +1412,28 @@ grep -rn "sidebar_state" . 2>/dev/null | grep -v node_modules
 
 ### ■-3(轻)`FloatingPane` 在 state updater 里做持久化副作用
 
-`apps/desktop/src/components/pane-shell/tree/renderer/floating-panes.tsx:133-137`:`onPointerUp` 里写
-`setRect(current => { persist(current, collapsed); return current })` —— 用 updater 当"读当前值"的手段,但 updater 必须是纯函数。React StrictMode 会双调用 updater,于是每次松手写两遍 localStorage。不改变结果,只是多一次写。同一个文件的 `toggleCollapsed` 也是这个形状。归为轻微,列出来是因为它是这一片里**唯一**违反"直接操纵先画、持久化后对账"那条 DESIGN.md 原则的实现细节(它是"持久化混进渲染路径")。
+`apps/desktop/src/components/pane-shell/tree/renderer/floating-panes.tsx:125 @ 863e313`
+
+```tsx
+  const onPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      if (!drag.current) {
+        return
+      }
+
+      drag.current = null
+      event.currentTarget.releasePointerCapture?.(event.pointerId)
+      setRect(current => {
+        persist(current, collapsed)
+
+        return current
+      })
+    },
+    [collapsed, persist]
+  )
+```
+
+用 state updater 当"读当前值"的手段,但 updater 必须是纯函数。React StrictMode 会双调用 updater,于是每次松手写两遍 localStorage。不改变结果,只是多一次写。同一个文件的 `toggleCollapsed` 也是这个形状。归为轻微,列出来是因为它是这一片里**唯一**违反"直接操纵先画、持久化后对账"那条 DESIGN.md 原则的实现细节(它是"持久化混进渲染路径")。
 
 ---
 
@@ -1456,12 +1482,12 @@ grep -rn "\.skip\|\.todo\|\.only\|skipIf\|runIf" \
 |---|---|---|---|
 | 1 | 点名到位 | **达成** | §0.1/0.2/0.3 逐个列出 100 个全路径 + 一句话角色;`components/ui` 归成 4 组但**组内逐个列全路径** |
 | 2 | 接缝穷举 | **大部分达成,一处部分达成** | 全列:布局树 9 字段 + 校验规则、8 个持久化键、`tree/store.ts` 79 导出、`PaneChrome` 16+2 键、10 个 data-* 契约、`StatusbarItem` 20 键 / `StatusbarMenuItem` 9 键 / `TitlebarTool` 11 键、`titlebar.ts` 13 常量、SDK 暴露的 29/60、`components/ui` 215 导出名与 179 个 props 注解(全表在 §2.3)。**部分达成的一处**:116 个 `passthrough` 组件我给的是注解本身,没有展开 Radix 原语的 props 全集(那在 `radix-ui@1.6.7` 包里,越过基线边界)。按"仓库内可枚举"口径 100%,按"逐字段列全"口径约 65%(63/179) |
-| 3 | 端到端链 | **达成** | §3:点状态栏 → `use-statusbar-items` 组项 → `statusbar-controls` 的 menu 分支 → `surfaces.tsx` 注入 `requestGateway` → `context-usage-panel` 发 `session.context_breakdown` → `tui_gateway/methods_session.py:1296` → `agent/context_breakdown.py:89`,逐跳带锚点 |
+| 3 | 端到端链 | **达成** | §3:点状态栏 → `use-statusbar-items` 组项 → `statusbar-controls` 的 menu 分支 → `surfaces.tsx` 注入 `requestGateway` → `context-usage-panel` 发 `session.context_breakdown` → `tui_gateway/methods_session.py:1296`:`@method("session.context_breakdown")` → `agent/context_breakdown.py:89`:`def compute_session_context_breakdown(`,逐跳带锚点 |
 | 4 | 逐字取证 | **达成** | 14 个逐字源码围栏块(model.ts×3、store.ts×3、track-model、floating-rect、drag-session、zones-engine、grid-model、pane-visibility、titlebar、tree-split、sidebar、use-statusbar-items、surfaces、context-usage-panel、methods_session×2) |
 | 5 | 记号 | **达成** | ▲×2、◇×2、◎×1、■×3,每条带锚点;两条全称否定(◇-1、■-2)都写了搜索面 |
 
 **未做到 / 主动缩范围的地方**(如实记):
-- `components/ui` 我读的是**接口面 + 顶部设计注释**,只对 `button` / `sidebar` / `tooltip` / `pane-tab` / `dialog-portal-context` / `keyboard-first` / `actions-menu` / `loader` / `command` / `dropdown-menu` / `search-field` / `switch` 这 12 个读了实现体;其余 48 个是签名 + 文档注释级。这符合 L2 定义,但要说清楚。
+- `app/shell` 15 个与 `pane-shell` 25 个是**逐行读全**的;`components/ui` 我读的是**接口面 + 顶部设计注释**,只对 `button` / `sidebar` / `tooltip` / `pane-tab` / `dialog-portal-context` / `keyboard-first` / `actions-menu` / `loader` / `command` / `dropdown-menu` / `search-field` / `switch` 这 12 个读了实现体;其余 48 个是签名 + 文档注释级。这符合 L2 定义,但要说清楚。
 - `loader.tsx` 的 22 条曲线数学、`decode-text` 的动画时序、`status-pulse` 的 rAF 循环,只记了"是什么",没验算。
 - `zone-editor.tsx` 的交互我读全了,但**没有对着 PowerToys 的 `GridEditor.xaml.cs` 原文逐条比对**移植保真度(上游不在本容器里)。作者声称"逐行移植"这一点**未经独立验证**,只验证了它自称的上游文件名与常量名是自洽的。
 
@@ -1472,9 +1498,9 @@ grep -rn "\.skip\|\.todo\|\.only\|skipIf\|runIf" \
 | 编号 | 锚点 + 摘录 | 一句话现象 | 建议接手方 |
 |---|---|---|---|
 | H-G-a | `apps/desktop/src/components/pane-shell/tree/renderer/tree-split.tsx:465`:`setTreeSplitWeights(node.id, !preset && !pinned ? weights.map(() => 1) : weights)` | ■-1:双击 sash 复位后没有任何 persist,重载即丢;修法是这一行后面补 `persistTree()` | 需要给上游报 issue / 写进"我自己的 harness 要避开的坑" |
-| H-G-b | `apps/desktop/src/components/ui/sidebar.tsx:81`:`document.cookie = ` | ■-2:vendored shadcn 组件在 Electron 里种一个全仓零读取的 cookie;`grep -rn sidebar_state` 全仓只命中常量定义 | 与"vendored 副本如何随宿主裁剪"这个主题一起讲 |
+| H-G-b | `apps/desktop/src/components/ui/sidebar.tsx:81`:`document.cookie` | ■-2:vendored shadcn 组件在 Electron 里种一个全仓零读取的 cookie;`grep -rn sidebar_state` 全仓只命中常量定义 | 与"vendored 副本如何随宿主裁剪"这个主题一起讲 |
 | H-G-c | `website/docs/developer-guide/desktop-plugin-sdk.md:227` 的 `placement` | ▲-1:网站文档把 pane placement 穷举成 5 个值,代码与 SDK 注释都有第 6 个 `'floating'`;同小节表格把 `data` 载荷写成 4 键,实为 16+2 键 | R12 装订"插件贡献面"一章时要用代码侧口径 |
-| H-G-d | `apps/desktop/DESIGN.md:157` 的 `SearchField` | ▲-2:"唯一的搜索输入框",同目录另有 `DropdownMenuSearch` 与 `CommandInput`,后者恰是一条带边框的搜索栏 | 同上 |
+| H-G-d | `apps/desktop/DESIGN.md:158` 的 `borderless, underline-on-focus, auto-width. The only` | ▲-2:"唯一的搜索输入框",同目录另有 `DropdownMenuSearch` 与 `CommandInput`,后者恰是一条带边框的搜索栏 | 同上 |
 | H-G-e | `apps/desktop/src/components/pane-shell/tree/grid-model.ts:2`:`* FancyZones grid model — a faithful port of PowerToys'` | ◇-1:三个文件声明逐行移植自 PowerToys(MIT),仓库无第三方许可清单;`components/ui` 是 shadcn 副本但桌面端文档零提及 | 与 R10 在 `hermes-ink` 上的同型判定合并成"外部代码引入的三种形态"一节 |
 | H-G-f | `apps/desktop/src/components/pane-shell/tree/store.ts:1661`:`;(window as unknown as Record<string, unknown>).__HERMES_LAYOUT_TREE__ = {` | ◇-2:DEV / `VITE_PERF_PROBE=1` 下挂 7 个布局操作到 window,供 E2E 与性能探针驱动;无文档 | 讲"harness 怎么给自己留自动化把手"时可用 |
 | H-G-g | `apps/desktop/src/components/pane-shell/tree/grid-to-tree.ts:80`:`  // No full-length cut exists on either axis: non-guillotine (pinwheel).` | 能力边界:FancyZones 网格能表达的比这棵树多,风车布局保存不了(Save 被禁用);后续若要讲"为什么选 guillotine 树"这是关键取舍点 | R12 布局章 |
@@ -1488,17 +1514,22 @@ grep -rn "\.skip\|\.todo\|\.only\|skipIf\|runIf" \
 片号            : G
 层              : L2
 文件数 / 行数   : 100 / 17,544
-实际打开的文件数: 46          (完整读过内容的;另有 54 个只读了头部 20~40 行的
-                              导出/props/文档注释 —— 那 54 个通过探针脚本拿到
-                              了完整的导出面与 props 注解,不是"只看了路径")
-实际读过的行数  : ~9,500      (估法:完整读过的 46 个文件行数合计约 8,100
-                              [pane-shell 25 个 8,051 行里读全了 22 个约 7,700,
-                               app/shell 15 个里读全了 13 个约 2,900,
-                               components/ui 60 个里读全了 11 个约 2,400 —— 
-                               去重后约 8,100],加上片外追链读的
-                               surfaces.tsx / use-gateway-request.ts /
-                               methods_session.py / sdk/index.ts / DESIGN.md /
-                               desktop-plugin-sdk.md 约 1,400 行)
+实际打开的文件数: 100 / 其中 52 读全
+                              (app/shell 15/15 全读、pane-shell 25/25 全读;
+                               components/ui 60 个里 12 个读全或读过半,
+                               其余 48 个读了头部文档注释 + 由探针抽出完整
+                               导出面与 props 注解 —— 不是"只看了路径")
+实际读过的行数  : ~14,300     (估法:app/shell 3,080 全读 + pane-shell 8,051 全读
+                               = 11,131;components/ui 约 1,800
+                               [12 个读全/过半约 1,200 + 48 个头部注释约 600];
+                               片外追链另读约 1,400:
+                               app/contrib/surfaces.tsx、controller.tsx 片段、
+                               app/gateway/hooks/use-gateway-request.ts、
+                               sdk/index.ts、store/panes.ts、
+                               tui_gateway/methods_session.py 片段、
+                               agent/context_breakdown.py 片段、
+                               apps/desktop/DESIGN.md 全文 337 行、
+                               website/docs/developer-guide/desktop-plugin-sdk.md 片段)
 底稿字节数      : (主线自测)
 主观耗费        : 中偏高。瓶颈是**两头分化**:pane-shell 一侧是"单文件极长 +
                   概念密度高"(store.ts 1,670 行、79 个导出,而且关闭/隐藏/

@@ -778,14 +778,37 @@ export class HermesGateway extends JsonRpcGatewayClient {
 ```
 
 **跳 4 —— 注册表把事件交给渲染层唯一的分派器。**`g.config` 由 `configureGatewayRegistry` 注入,
-注入点在 `apps/desktop/src/app/gateway/hooks/use-gateway-boot.ts:385`,值是
-`{ onEvent: event => callbacksRef.current.handleGatewayEvent(event) }`。
+注入点只有一处:
+
+`apps/desktop/src/app/gateway/hooks/use-gateway-boot.ts:385 @ 863e313`
+
+```ts
+    configureGatewayRegistry({ onEvent: event => callbacksRef.current.handleGatewayEvent(event) })
+```
+
 于是 primary 与 N 条 secondary 的事件汇成一股。
 
-**跳 5 —— 分派器路由到 `session.info` 分支。**
-`apps/desktop/src/app/session/hooks/use-message-stream/gateway-event.ts:354`(分支到 536 行结束)。
-分支内先用 `resolveGatewayEventSessionId`(`apps/desktop/src/lib/gateway-events.ts:79`:`export function resolveGatewayEventSessionId({`)定 runtime id:
-显式 `session_id` 优先,没有则落到「`message.start` 钉住的那个流会话」,再没有才落到当前活动会话。
+**跳 5 —— 分派器路由到 `session.info` 分支**(该分支到 536 行结束,183 行):
+
+`apps/desktop/src/app/session/hooks/use-message-stream/gateway-event.ts:354 @ 863e313`
+
+```ts
+      } else if (event.type === 'session.info') {
+```
+
+分支内先定 runtime id:显式 `session_id` 优先,没有则落到「`message.start` 钉住的那个流会话」,
+再没有才落到当前活动会话。
+
+`apps/desktop/src/lib/gateway-events.ts:79 @ 863e313`
+
+```ts
+export function resolveGatewayEventSessionId({
+  activeSessionId,
+  eventType,
+  explicitSessionId,
+  unscopedStreamSessionId
+}: GatewayEventSessionRouteInput): GatewayEventSessionRoute {
+```
 
 **跳 6 —— 状态发布到本片的 `$sessionStates`。**这是**从内核世界进入 store 世界的那一步**:
 
@@ -830,13 +853,14 @@ export const $workingSessionIds = computed(
 只在 busy/needsInput 的**边沿**才变。`stableArray` 在成员未变时把**旧数组引用**还回去,
 `computed` 于是判定值没变、不通知 —— 否则每来一个 token,整条侧栏和每一行都要重渲染。
 
-**跳 8 —— 谁订阅了它。**全仓订阅 `$workingSessionIds` / `$attentionSessionIds` 的
-非测试消费者共 8 处(搜索面:`apps/desktop/src` 全树 `--include=*.ts --include=*.tsx`,
-排除 `.test.`;命令见下),其中**渲染型** 4 处、**逻辑型** 4 处:
+**跳 8 —— 谁订阅了它。**搜索面:`apps/desktop/src` 全树 `--include=*.ts --include=*.tsx`,排除 `.test.`。
+命中 **13 个文件**,逐个判定后:定义处 1 个(`store/session-states.ts`)、
+只在注释里提到 2 个(`store/pet.ts`、`store/gateway-switch.ts`)、
+**真正读它的 10 个**(渲染型 4 + 逻辑型 5 + dev 工具 1),逐个列全:
 
 ```verify
 cd /home/user/hermes-agent && grep -rln '\$workingSessionIds\|\$attentionSessionIds' \
-  apps/desktop/src --include=*.ts --include=*.tsx | grep -v '\.test\.'
+  apps/desktop/src --include=*.ts --include=*.tsx | grep -v '\.test\.' | wc -l
 ```
 
 | 消费者 | 性质 | 它因此做什么 |
@@ -849,8 +873,10 @@ cd /home/user/hermes-agent && grep -rln '\$workingSessionIds\|\$attentionSession
 | `apps/desktop/src/app/gateway/hooks/use-gateway-boot.ts:460`:`const offWorking = $workingSessionIds.subscribe(() => recomputeKeptGateways())` | 逻辑 | 重算「哪些 profile 的 secondary socket 还要留着」 |
 | `apps/desktop/src/app/session/hooks/use-background-queue-drain.ts:49`:`const workingSessionIds = useStore($workingSessionIds)` | 逻辑 | 后台会话空闲了就把排队的 prompt 放出去 |
 | `apps/desktop/src/app/contrib/hooks/use-pet-bridge.ts:66`:`return $attentionSessionIds.listen(sync)` | 逻辑 | 宠物切到「等你输入」的动画 |
+| `apps/desktop/src/app/session/hooks/use-session-list-actions.ts:51`:`...$workingSessionIds.get(),` | 逻辑 | 拉新一页会话时的 `keepIds`——在跑的行不许被服务端那一页挤掉(见 §4.3 的 `mergeSessionPage`) |
+| `apps/desktop/src/debug/watched-atoms.ts:49`:`const DERIVED = {` | dev | 原子 churn 观测台把这两个原子归进 `DERIVED` 组,注释写着「回合中**不该**响,响了就是浪费」 |
 
-**跳 9 —— 回路闭合。**注意跳 8 的第 6 行:这条 computed 反过来决定 `work` 这条 secondary socket
+**跳 9 —— 回路闭合。**注意跳 8 表里 `recomputeKeptGateways` 那一行:这条 computed 反过来决定 `work` 这条 secondary socket
 留不留(`pruneSecondaryGateways`)。也就是说 —— **事件养活了它自己的 socket**:
 只要 `work` 还有会话在 `$workingSessionIds` 里,它的后台 socket 就不会被剪掉;
 一旦回合结束、集合变空,socket 被 dispose,后端交给空闲回收。
@@ -1018,8 +1044,13 @@ import './store/translucency'
 
 ### ▲1 —— README 说「换 profile 是软切换,不是冷启」;代码里换 profile 有两条路,其中一条就是冷启
 
-文档(标题层级也是断言的一部分:这句在 `### Connections, projects, and switching` 之下,
-`apps/desktop/README.md:131` 是该标题行):
+文档(标题层级本身就是断言的一部分,先把它钉住):
+
+`apps/desktop/README.md:131 @ 863e313`
+
+> ### Connections, projects, and switching
+
+这句就在该标题之下:
 
 `apps/desktop/README.md:155 @ 863e313`
 
@@ -1029,9 +1060,16 @@ import './store/translucency'
 (被判定的那一句到 `cold boot.` 为止;同一行后半截属于下一句,单独在 ◎2 里判。)
 这一句只说了一件事,所以整句可判。代码里换 profile 有两条互不相同的路:
 
-- **软路** `selectProfile` → `ensureGatewayProfile`(`apps/desktop/src/store/profile.ts:260`),
-  开/复用目标 profile 的 socket 再把活动指针挪过去,窗口不重载 —— 与文档相符;
-- **硬路** `switchProfile`(`apps/desktop/src/store/profile.ts:134`),它的**自带注释就说是重载**:
+- **软路** `selectProfile` → `ensureGatewayProfile`,开/复用目标 profile 的 socket 再把活动指针挪过去,
+  窗口不重载 —— 与文档相符:
+
+`apps/desktop/src/store/profile.ts:260 @ 863e313`
+
+```ts
+export async function ensureGatewayProfile(profile: string | null | undefined): Promise<void> {
+```
+
+- **硬路** `switchProfile`,它的**自带注释就说是重载**:
 
 `apps/desktop/src/store/profile.ts:130 @ 863e313`
 
@@ -1043,9 +1081,22 @@ import './store/translucency'
 export async function switchProfile(name: string): Promise<void> {
 ```
 
-主进程侧确实 `mainWindow?.reload()`(`apps/desktop/electron/main.ts:9997`)。
+主进程侧确实重载窗口:
 
-**为什么记 ▲ 而不是 ◎**:同一仓库的 `apps/desktop/AGENTS.md:92` 明确列出三种切换形态,
+`apps/desktop/electron/main.ts:9990 @ 863e313`
+
+```ts
+ipcMain.handle('hermes:profile:set', async (_event, name) => {
+  const next = writeActiveDesktopProfile(name)
+
+  // Switching profiles is a backend re-home: relaunch the dashboard under the
+  // new HERMES_HOME. Pool backends keep their own homes, so only the primary
+  // is torn down.
+  await teardownPrimaryBackendAndWait()
+  mainWindow?.reload()
+```
+
+**为什么记 ▲ 而不是 ◎**:同一仓库的 `apps/desktop/AGENTS.md` 明确列出三种切换形态,
 其中第二种就是 README 否认的那一种 ——
 
 `apps/desktop/AGENTS.md:92 @ 863e313`
@@ -1070,9 +1121,19 @@ cd /home/user/hermes-agent && grep -rn "profile\.set(" apps/desktop/src apps/des
   --include=*.ts --include=*.tsx
 ```
 
-也就是说:preload 暴露了 `hermesDesktop.profile.set`(`apps/desktop/electron/preload.ts:105`),
-主进程实现了 `hermes:profile:set` 并在其中 reload 窗口(`apps/desktop/electron/main.ts:9990`),
-渲染端有 `switchProfile` 去调它 —— **但没有任何 UI 或 hook 去调 `switchProfile`**。
+能力链是完整的 —— preload 暴露了这扇门:
+
+`apps/desktop/electron/preload.ts:103 @ 863e313`
+
+```ts
+  profile: {
+    get: () => ipcRenderer.invoke('hermes:profile:get'),
+    set: name => ipcRenderer.invoke('hermes:profile:set', name)
+  },
+```
+
+主进程实现了它(上面 `apps/desktop/electron/main.ts:9990` 那段),渲染端有 `switchProfile` 去调它
+—— **但没有任何 UI 或 hook 去调 `switchProfile`**。
 rail 上的 profile 方块、⌘1–⌘N 快捷键、all-profiles 视图里的「+」,走的全是软路
 (`selectProfile` / `newSessionInProfile` / `switchProfileToSlot`)。
 这不是缺陷(能力仍在、给未来留门),但**文档描述的三形态里,第二形态在今天的桌面 UI 上不可达**,
@@ -1159,12 +1220,30 @@ export function clearBillingBlock(sessionId?: string): void {
 }
 ```
 
-- 路径 A(自动):`message.start` 时 `clearBillingBlock(sessionId)`
-  (`apps/desktop/src/app/session/hooks/use-message-stream/gateway-event.ts:549`)。
-  切换后新后端的 runtime id 与旧 block 的 `sessionId` 永远不等 → **第 41 行的 early return 命中,永不清除**。
-- 路径 B(手动):横幅上的 × 按钮。但横幅自身按会话过滤 ——
-  `apps/desktop/src/components/billing-banner.tsx:27`:`if (!active || !sessionId || active.sessionId !== sessionId) {`
-  返回 null → **横幅根本不渲染,× 按钮不存在**。
+- 路径 A(自动):`message.start` 时按会话清 ——
+
+`apps/desktop/src/app/session/hooks/use-message-stream/gateway-event.ts:547 @ 863e313`
+
+```ts
+        // A fresh turn on this session optimistically clears its billing wall;
+        // if credits are still exhausted the next failure re-raises it.
+        clearBillingBlock(sessionId)
+```
+
+  切换后新后端的 runtime id 与旧 block 的 `sessionId` 永远不等 →
+  上面 `apps/desktop/src/store/billing-block.ts` 第 41 行那个 early return 命中,**永不清除**。
+
+- 路径 B(手动):横幅上的 × 按钮。但横幅自身按会话过滤,不匹配就直接 `return null` ——
+
+`apps/desktop/src/components/billing-banner.tsx:27 @ 863e313`
+
+```tsx
+  if (!active || !sessionId || active.sessionId !== sessionId) {
+    return null
+  }
+```
+
+  于是 **横幅根本不渲染,× 按钮不存在**。
 
 于是切换后 `$billingBlock` 是一个**永远非 null、永远不可清除**的原子,直到窗口重载。
 今天的可见影响有限(横幅与状态栈都按会话过滤),但这是一个**只增不减的错误状态**:
@@ -1173,10 +1252,29 @@ export function clearBillingBlock(sessionId?: string): void {
 
 **负结论的搜索面**:`clearBillingBlock` 的全部调用点 = `apps/desktop/src` 全树
 `--include=*.ts --include=*.tsx`、排除 `.test.`,共 3 处(定义 1 + gateway-event 1 + banner 1);
-`wipeSessionListsForGatewaySwitch` 的调用点唯一,在 `use-gateway-boot.ts:295`;
-`beforeConnectionSwitch` 的实现唯一,在 `app/contrib/wiring.tsx:729`,它做 4 件事
-(`startFreshSessionDraft` / `resetOverlayReturnRoute` / `resetProjectTreeState` / `closeAllTerminals`),
-不含任何 billing/prompt 清理。命令:
+`wipeSessionListsForGatewaySwitch` 的调用点唯一:
+
+`apps/desktop/src/app/gateway/hooks/use-gateway-boot.ts:294 @ 863e313`
+
+```ts
+      callbacksRef.current.beforeConnectionSwitch()
+      wipeSessionListsForGatewaySwitch()
+```
+
+而 `beforeConnectionSwitch` 的实现也唯一,它做 4 件事,**不含任何 billing / prompt 清理**:
+
+`apps/desktop/src/app/contrib/wiring.tsx:729 @ 863e313`
+
+```tsx
+    beforeConnectionSwitch: () => {
+      startFreshSessionDraft({ preserveRoute: true, workspaceTarget: null })
+      resetOverlayReturnRoute()
+      resetProjectTreeState()
+      closeAllTerminals()
+    },
+```
+
+命令:
 
 ```verify
 cd /home/user/hermes-agent && grep -rn "clearBillingBlock\|wipeSessionListsForGatewaySwitch\|beforeConnectionSwitch" \
@@ -1184,12 +1282,18 @@ cd /home/user/hermes-agent && grep -rn "clearBillingBlock\|wipeSessionListsForGa
 ```
 
 同一族的第二个观察:**`clearAllPrompts()` 的无参形态(全局重置)在生产代码里从无调用方**。
-搜索面 = `apps/desktop/src` 全树 `--include=*.ts --include=*.tsx`,命中 13 处:
-定义 1 处(`apps/desktop/src/store/prompts.ts:163`),
-**生产调用 4 处且全部传了 sessionId**(`app/chat/session-tile-actions.ts:263`、
-`app/session/hooks/use-message-stream/gateway-event.ts:708` 与 `:1171`、
-`app/session/hooks/use-prompt-actions/index.ts:626`),
-其余 8 处无参调用全在 `.test.tsx` / `.test.ts` 里。也就是说 approval/sudo/secret
+搜索面 = `apps/desktop/src` 全树 `--include=*.ts --include=*.tsx`,命中 13 处,逐个列全:
+
+| 命中 | 形态 |
+|---|---|
+| `apps/desktop/src/store/prompts.ts:163` 的 `export function clearAllPrompts(sessionId?: string): void {` | 定义 |
+| `apps/desktop/src/app/chat/session-tile-actions.ts:263`:`clearAllPrompts(sessionId)` | 生产,带 sessionId |
+| `apps/desktop/src/app/session/hooks/use-message-stream/gateway-event.ts:708`:`clearAllPrompts(sessionId)` | 生产,带 sessionId |
+| `apps/desktop/src/app/session/hooks/use-message-stream/gateway-event.ts:1171`:`clearAllPrompts(sessionId)` | 生产,带 sessionId |
+| `apps/desktop/src/app/session/hooks/use-prompt-actions/index.ts:626`:`clearAllPrompts(sessionId)` | 生产,带 sessionId |
+| `.test.ts` / `.test.tsx` 8 处(prompts / approval / prompt-overlays / tool-group / scroll-to-bottom-button) | 测试,**无参** |
+
+**无参形态只出现在测试里。**也就是说 approval/sudo/secret
 三种阻塞提示**没有任何「换后端了,全丢掉」的路径**。
 
 ```verify
@@ -1216,7 +1320,15 @@ export function $toolInlineDiff(toolCallId: string): ReadableAtom<string> {
 `$toolDiffs`(一个 `Record<toolCallId, diffText>`)与 `inlineDiffCache`(一个
 `Map<toolCallId, ReadableAtom>`)都随每一次带 `inline_diff` 的 `tool.complete` 增长,
 **整个模块 38 行里没有 `delete` / `clear` / `reset` 任何一个词**,也没有上限。
-写入点唯一:`apps/desktop/src/app/session/hooks/use-message-stream/gateway-event.ts:841`。
+写入点唯一:
+
+`apps/desktop/src/app/session/hooks/use-message-stream/gateway-event.ts:840 @ 863e313`
+
+```ts
+        if (typeof payload?.inline_diff === 'string' && payload.inline_diff.trim()) {
+          recordToolDiff(payload.tool_id || payload.name || '', payload.inline_diff)
+        }
+```
 
 对照组说明这不是「本仓库不在乎」:隔壁 `store/tool-view.ts` 对同形状的
 `$toolDisclosureStates` 定了 `MAX_DISCLOSURE_STATES = 240` 并在读写两侧都 `.slice(-240)`;
@@ -1226,8 +1338,12 @@ export function $toolInlineDiff(toolCallId: string): ReadableAtom<string> {
 在一个「专门用来长时间跑改文件的 agent」的桌面端里,这是一条随使用时长单调增长的内存曲线。
 
 **负结论的搜索面**:`apps/desktop/src` 全树 `--include=*.ts --include=*.tsx`,
-搜 `recordToolDiff|getToolDiff|toolInlineDiff|toolDiffs`,非测试命中 4 处(定义 3 + 消费 1);
-模块内部 `delete|clear|reset` 命中 0。
+搜 `recordToolDiff|getToolDiff|toolInlineDiff|toolDiffs`,排除 `.test.` 后 **12 行命中,分布在 3 个文件**:
+`store/tool-diffs.ts` 自己 8 行(定义)、
+`app/session/hooks/use-message-stream/gateway-event.ts` 2 行(import + 唯一写入点)、
+`components/assistant-ui/tool/fallback.tsx` 2 行(import + 唯一读取点)。
+**没有第四个文件碰它**,所以也没有第四个地方可能在清它。
+再对模块自身搜 `delete|clear|reset`,命中 **0**。
 
 ```verify
 cd /home/user/hermes-agent && grep -rn "recordToolDiff\|getToolDiff\|toolInlineDiff\|toolDiffs" \
@@ -1288,9 +1404,24 @@ grep `describe.skip|it.skip|test.skip|.todo(`,零命中:
 cd /home/user/hermes-agent && grep -rn "describe\.skip\|it\.skip\|test\.skip\|\.todo(" apps/desktop/src/store/*.test.ts
 ```
 
-**覆盖缺口(这才是有信息量的部分)**:53 个测试文件对 86 个 store 模块 —— **33 个模块没有同名测试文件**。
-`src/hooks/` 下 **7 个 hook 一个测试都没有**(`ls apps/desktop/src/hooks/*.test.* | wc -l` = 0);
-`src/sdk/` 下 2 个文件也没有直接测试。
+**覆盖缺口(这才是有信息量的部分)**:53 个测试文件对 86 个 store 模块 —— **38 个模块没有同名测试文件**;
+反过来有 5 个测试文件不对应任何模块,它们按**场景**而不是按文件命名
+(`layout-dismissed-projects` / `preview-persistence` / `session-watchdog` /
+`sidebar-collapse-persistence` / `working-ids-stored-id`),所以「没有同名测试」并不等于「没被测到」。
+`src/hooks/` 下 **7 个 hook 一个测试都没有**;`src/sdk/` 下 2 个文件也没有直接测试:
+
+```verify
+cd /home/user/hermes-agent && python3 -c "
+import pathlib
+d = pathlib.Path('apps/desktop/src/store')
+mods = {p.stem for p in d.glob('*.ts') if not p.name.endswith('.test.ts')}
+tests = {p.name[:-8] for p in d.glob('*.test.ts')}
+print('modules', len(mods), 'test files', len(tests))
+print('modules without same-name test:', len(mods - tests))
+print('test files without same-name module:', sorted(tests - mods))
+"
+cd /home/user/hermes-agent && ls apps/desktop/src/hooks/*.test.* apps/desktop/src/sdk/*.test.* 2>/dev/null | wc -l
+```
 
 值得当规格读的两个:
 
@@ -1311,7 +1442,7 @@ cd /home/user/hermes-agent && grep -rn "describe\.skip\|it\.skip\|test\.skip\|\.
 | **1 点名到位** | 片内每个文件全路径 + 一句话角色 | **达标** | §0.1 给 11 个非 store 文件逐个;§0.2 把 86 个 store 归 12 组、组内逐个列全路径,并用 `probe_d_store_groups.py` 机械校验「不重不漏」(输出 `missing: []` / `extra: []` / `OK`)。此外 §2.1 的 85 行全表 + `active-work.ts` 的零导出说明,是第二重全覆盖点名。 |
 | **2 接缝穷举** | 每个对外接缝逐项列全 + 机械枚举命令 + 条数 | **达标(6 张表全给了命令与条数)** | 表 A store 面 1,068 项 / 表 B `hermes.ts` 133 项 / 表 C 事件 47 型 42 分支 / 表 D SDK 130 名 / 表 E hooks 11 名 / 表 F 持久化键 64 个。**唯一的抽样残留**:表 A 只铺了 state/computed/action 三列,`type`(126)与 `const`(179)两列留在 TSV 里没进正文 —— 命令能打出来,正文没铺。 |
 | **3 端到端链** | 一条链逐跳带锚点 | **达标** | §3 共 9 跳,跳 1→9 每跳一个锚点,跳 8 把 8 个订阅方逐个列出(不抽样)。 |
-| **4 逐字取证** | ≥2 个围栏块是逐字源码 | **达标** | 共 15 个 `ts`/`tsx` 围栏块全部逐字摘录;非源码块一律 ```` ```verify ```` 标注。 |
+| **4 逐字取证** | ≥2 个围栏块是逐字源码 | **达标** | 共 **30** 个 `ts`/`tsx` 围栏块全部逐字摘录;非源码块一律 ```` ```verify ```` 标注。 |
 | **5 记号** | ≥1 条 ■/▲/◇/◎ 带锚点 | **达标** | ▲1、◇1、◎1、◎2、■1、■2、■3(标为待确认),共 7 条,每条带锚点与搜索面。 |
 
 **未达标 / 打折的地方,如实说:**
@@ -1341,7 +1472,7 @@ cd /home/user/hermes-agent && grep -rn "describe\.skip\|it\.skip\|test\.skip\|\.
 | **H-R10B-D-d** | `apps/desktop/src/store/approval-mode.ts:31`:`export function approvalModeForProfile(profile: string): ApprovalMode {` | 「缓存里没有这个 profile」落到 `'smart'`,而「后端值解析失败」落到 `'manual'` —— 两个 fallback 方向相反。需追这个函数的全部消费点,确认是否存在「软切换后短暂读到 smart」而导致某次审批被跳过的窗口。 |
 | **H-R10B-D-e** | `apps/desktop/src/app/gateway/hooks/use-gateway-boot.ts:448`:`const live = new Set([...$workingSessionIds.get(), ...$attentionSessionIds.get()])` | secondary socket 的保留集是这样算的:先取「在忙/待输入」的 **stored id** 集合,再去 `$sessions` 里按 `session.id` 反查它属于哪个 profile。而 `apps/desktop/src/store/session.ts:334` 的 `mergeSessionPage` 自己的 docstring 说明**首答中的新会话可能根本不在 `$sessions` 里**。若如此,该 profile 不进 `keep`,`pruneSecondaryGateways` 会在它正忙时关掉它的 socket。本片没有验证这条路径是否真的可达(需要模拟一个后台 profile 的首答),**不作为已证实缺陷,只作为线索移交**。 |
 | **H-R10B-D-f** | `apps/desktop/src/store/session.ts:39`:`function profileNavigationKey(base: string, profile: string): string {` | 「上次会话 / 上次路由」按 profile 命名空间化,而 composer 的模型选择(`hermes.desktop.composer.*` 五个键)刻意全局。两种作用域选择都有注释辩护,但 §2.6 那张四类作用域表里还有一批键**没有任何作用域段也没有注释说明为什么可以全局**(如 `hermes.desktop.visible-models`、`hermes.desktop.model-presets`、`hermes.desktop.collapsed-providers` —— 后者有注释,前两者没有)。`apps/desktop/AGENTS.md:44` 要求「Persisted state must declare its scope in its own key」,可以逐键对这条要求做一次核查。 |
-| **H-R10B-D-g** | `apps/desktop/src/store/tool-diffs.test.ts:7`:`expect($toolInlineDiff('a')).toBe($toolInlineDiff('a'))` | 53 个 store 测试文件对 86 个模块 —— 33 个模块没有同名测试;`src/hooks/` 7 个文件、`src/sdk/` 2 个文件零测试。若要做「测试即规格」的覆盖图,这 42 个文件是空白区。 |
+| **H-R10B-D-g** | `apps/desktop/src/store/tool-diffs.test.ts:7`:`expect($toolInlineDiff('a')).toBe($toolInlineDiff('a'))` | 53 个 store 测试文件对 86 个模块 —— 38 个模块没有同名测试;`src/hooks/` 7 个文件、`src/sdk/` 2 个文件零测试。若要做「测试即规格」的覆盖图,这 47 个文件(38 + 7 + 2)是候选空白区 —— 但要先扣掉那 5 个按场景命名的测试文件所覆盖的模块,别把「没有同名测试」直接当成「没测」。 |
 
 ---
 

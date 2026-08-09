@@ -220,3 +220,138 @@ R10 片 H 已就 Electron IPC 记过一条:`fs:reveal` / `openDir` / `rename` / 
 
 *不主张的部分*:本复核**没有**重验那 72 个通道各自的实现,也**没有**判断 `terminal`
 通道有没有审批闸。那两件事都在 R10 已读过的 `apps/desktop/electron/` 里。
+
+---
+
+## 复核 3:片 K 的供应链结论 —— **独立佐证**,但它对 Rust 测试的判断**被推翻**
+
+### 3.1 推翻的部分:Rust 测试跑得了,而且全绿
+
+片 K 写:「Rust 51 个 `#[test]` 未跑(**无工具链**、跑 cargo 会**污染基线**)」。
+**两半都不成立。**
+
+工具链在:
+
+```verify
+which cargo rustc
+```
+
+```text
+/root/.cargo/bin/cargo
+/root/.cargo/bin/rustc
+```
+
+而「跑 cargo 会污染基线」这个顾虑正确、结论错误:**不在基线里跑就行**。
+主线在 `git archive` 导出的副本里跑,基线全程 `git status --porcelain` 为空。
+结果 **51 passed / 0 failed / 0 ignored / 0 filtered**(详见 `notes/r10b-96-tests.md` §5.1),
+是本项目十轮以来第一次运行这个 crate 的测试。
+
+*这条值得记的地方不在于片 K 少跑了一个套件,而在于**它把一个可测的事实写成了断言**。*
+派工书里明写了环境在哪、可以跑测试;片 K 的两条理由**都可以用一条命令证伪**,而它没跑那条命令。
+与 R10 那条「490 个测试要 Electron」是同一个形状:**推断出来的障碍和实测出来的障碍,长得一模一样。**
+本轮在同一份产出里同时看到这个形状的**两次**(R10 的、片 K 的),它不是偶发。
+
+### 3.2 佐证的部分:供应链的三条,主线独立搜过,与片 K 一致
+
+主线在片 K 到货**之前**独立搜过安装器的完整性校验面,结论与它一致:
+
+```verify
+cd /home/user/hermes-agent/apps/bootstrap-installer/src-tauri/src && \
+  grep -rniE "sha256|sha512|checksum|signature|minisign|gpg|digest" *.rs | wc -l
+```
+
+```text
+0
+```
+
+```verify
+cd /home/user/hermes-agent/apps/bootstrap-installer/src-tauri/src && \
+  grep -rnoE "https://[a-zA-Z0-9./_{}-]+" *.rs | sort -u
+```
+
+```text
+install_script.rs:327:https://raw.githubusercontent.com/NousResearch/hermes-agent/{}/scripts/{}
+```
+
+**只有一个出网点,零校验。** 下载的是要在用户机器上执行的安装脚本:
+
+`apps/bootstrap-installer/src-tauri/src/install_script.rs:325-329 @ 863e313`
+
+```rust
+async fn download(kind: ScriptKind, commit_or_ref: &str, dest_path: &Path) -> Result<()> {
+    let url = format!(
+        "https://raw.githubusercontent.com/NousResearch/hermes-agent/{}/scripts/{}",
+        commit_or_ref,
+        kind.filename()
+```
+
+而片 K 点出的那处「唯一叫 `verify` 的代码反而把失败抹掉」,主线逐字核过,成立:
+
+`apps/bootstrap-installer/src-tauri/src/paths.rs:142-152 @ 863e313`
+
+```rust
+    let verify = Command::new("/usr/bin/codesign")
+        .arg("--verify")
+        .arg(path)
+        .status();
+
+    if !matches!(verify, Ok(status) if status.success()) {
+        let _ = Command::new("/usr/bin/codesign")
+            .args(["--force", "--sign", "-"])
+            .arg(path)
+            .status();
+    }
+```
+
+**验签失败 → 用 ad-hoc 身份重新自签。** 这不是校验,是把校验的失败分支填平。
+`let _ =` 还把重签本身的失败也丢掉了。
+
+依赖锁被忽略这条也成立:
+
+`apps/bootstrap-installer/.gitignore:1-3 @ 863e313`
+
+```gitignore
+# Rust / Cargo
+/src-tauri/target/
+/src-tauri/Cargo.lock
+```
+
+**主线补一条片 K 没说的**:`Cargo.lock` 不入库,意味着**本轮跑出来的那 51 个绿灯,
+用的依赖版本与作者机器上的可能不是同一批**。测试全绿这件事的强度,因此比看上去弱一档——
+它证明的是「今天解析出的这套依赖下代码是对的」,不是「作者发布的那套依赖下代码是对的」。
+*这一条削弱的是我自己上一节的战果,所以更要写。*
+
+### 3.3 副产品:又一个「连锚点都不算」的形态 —— 无扩展名路径
+
+片 K 的 ■-1 锚在 `apps/bootstrap-installer/.gitignore:3`。**这个锚点不会被校验器识别**:
+本轮扩了扩展名白名单,但 `.gitignore` / `Dockerfile` / `Makefile` 这类**根本没有扩展名**
+的文件,白名单这个机制在原理上就覆盖不到。全语料实测:
+
+```verify
+python3 data/r10b/probes/extless_anchor_scan.py | tail -5
+```
+
+```text
+corpus excludes: ('r10b-', 'round-10b-')
+resolvable extensionless anchors NOT recognised by the whitelist:
+  x17  .gitignore   in: 15 个文件
+  x2  Dockerfile   in: round-1-capabilities-full.md, round-1-survey.md
+total occurrences: 19  distinct paths: 2
+```
+
+**两个读数分开报**(这个探针也躲不过测量污染——本节自己就引用了
+`apps/bootstrap-installer/.gitignore`):**剔除本轮写作 19 处 / 2 个路径**;
+不剔除(`--no-exclude`)**25 处 / 3 个路径**。报告采用前者。
+
+*这已经是本轮第三次撞见同一个形状了*(`named_coverage`、`cite_ext_scan`、这里)。
+H-R9D-e 当初把它记成「点名覆盖率这个测量对报告它不幂等」——**实际它是所有
+扫语料的探针的共同性质**,不是那一个测量的毛病。三次里有两次是本轮自己新写的探针,
+说明这不是历史包袱,是**每写一个扫语料的探针就会重新长出来的东西**。已提炼为移交项。
+
+**22 处,可解析,但既不校验也不计 UNCHECKED** —— 与 H-R10-a 同一个家族。
+**本轮不修**:纪律是「开工杂项若需改动 `scripts/`,须在派发子代理之前完成」,
+而这是子代理运行期间发现的;而且它的修法与扩展名白名单不同(要一份显式的
+无扩展名文件名单,不能靠正则放宽,否则 `word:数字` 满地都是)。**带证据移交 R11A。**
+
+*上面那 3 处 `.gitignore:1-3` 的锚点,主线是人工核对的*(`sed -n '1,3p'`),
+因为关卡读不到它——**这句话本身就是这条移交项的理由**。

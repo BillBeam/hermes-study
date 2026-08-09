@@ -1141,7 +1141,7 @@ const debugEntry = (command: string, env: Record<string, string>) =>
 | 来源 | 转换器 | 关键取舍 |
 |---|---|---|
 | 6 个内置主题 | `apps/desktop/src/themes/presets.ts` 直接写死 | 只有 `nous` 之类手工调了 `darkColors`;没有 `darkColors` 的主题,亮色版由 `synthLightColors` 合成 |
-| CLI/TUI 的 skin(YAML) | `apps/desktop/src/themes/skin.ts:46` 的 `export function skinToDesktopTheme(skin: HermesSkin): DesktopTheme \| null {` | skin 是**单模式**的,所以 `colors` 和 `darkColors` 都填同一份 |
+| CLI/TUI 的 skin(YAML) | `apps/desktop/src/themes/skin.ts:46` 的 `export function skinToDesktopTheme(skin: HermesSkin): DesktopTheme` | skin 是**单模式**的,所以 `colors` 和 `darkColors` 都填同一份 |
 | VS Code 主题 JSON | `apps/desktop/src/themes/vscode.ts:205` 的 `export function convertVscodeColorTheme(raw: VscodeColorTheme, opts: ConvertOptions = {}): ConvertResult {` | 只读 ~6 个 workbench 键做种子,其余靠向前景/背景混色推导 |
 | 插件贡献 | `apps/desktop/src/themes/user-themes.ts:155` 的 `export function contributedThemes(): DesktopTheme[] {` | 一个数据贡献**就是**一个 `DesktopTheme`,同样的合法性门槛 |
 
@@ -1650,7 +1650,7 @@ import './right-pane-probe'
 搜索面:在这三个文件里 grep `global.d.ts`、`preload`、`contextBridge`、`hermesDesktop`,
 `AGENTS.md` 零命中,`DESIGN.md` 零命中,`README.md` 零命中。
 
-### ◇ E-5 `src/lib/` 里有 6 个文件明说自己是某个 Python 文件的镜像
+### ◇ E-5 `src/lib/` 里有 9 处明说自己是某个后端 / 另一前端实现的镜像
 
 这是一条文档没画出来的**跨语言一致性约束**,逐条列全(这就是搜索面:
 在 `apps/desktop/src/lib/` 与 `src/themes/` 下 grep `\.py\b` 与 `hermes_cli/` 与 `tools/`):
@@ -1658,7 +1658,7 @@ import './right-pane-probe'
 | 桌面文件 | 声明镜像的后端文件 | 锚点 |
 |---|---|---|
 | `apps/desktop/src/lib/composer-input-sanitize.ts` | `hermes_cli/input_sanitize.py` | `apps/desktop/src/lib/composer-input-sanitize.ts:5` 的 `Mirrors hermes_cli/input_sanitize.py (CLI/TUI gateway defensive path).` |
-| `apps/desktop/src/lib/mcp-tool-filter.ts` | `tools/mcp_tool.py` 的 `_register_server_tools` | `apps/desktop/src/lib/mcp-tool-filter.ts:3` 的 `// — `include` wins, no filter means all. Mirrors `_register_server_tools` in` |
+| `apps/desktop/src/lib/mcp-tool-filter.ts` | `tools/mcp_tool.py` 的 `_register_server_tools` | `apps/desktop/src/lib/mcp-tool-filter.ts:3` 的 `wins, no filter means all. Mirrors` |
 | `apps/desktop/src/lib/reasoning-effort.ts` | `hermes_constants.py` 的 `VALID_REASONING_EFFORTS` | `apps/desktop/src/lib/reasoning-effort.ts:3` 的 `/** Hermes' reasoning levels, in ascending order — mirrors the backend's` |
 | `apps/desktop/src/lib/voice-barge-in.ts` | `tools/voice_mode.full_duplex_listen` | `apps/desktop/src/lib/voice-barge-in.ts:10` 的 `// Phase-aware trigger (mirrors tools/voice_mode.full_duplex_listen on the` |
 | `apps/desktop/src/lib/thinking-sound.ts` | `tools/voice_mode.py` 的 numpy 合成 | `apps/desktop/src/lib/thinking-sound.ts:6` 的 `// backend's numpy-synthesized blips in tools/voice_mode.py so CLI and desktop` |
@@ -1666,8 +1666,6 @@ import './right-pane-probe'
 | `apps/desktop/src/lib/remote-url.ts` | `electron/connection-config.ts` 的 `normalizeRemoteBaseUrl()` | `apps/desktop/src/lib/remote-url.ts:4` 的 `* Renderer-side twin of the scheme coercion in` |
 | `apps/desktop/src/lib/wake-client-capture.ts` | `tools/wake_word.py` 的帧长 | `apps/desktop/src/lib/wake-client-capture.ts:11` 的 `const DEFAULT_FRAME = 1280 // 80 ms @ 16 kHz — matches tools/wake_word.py` |
 | `apps/desktop/src/lib/local-preview.ts` | 后端 filesystem 端点的 `_FS_DATA_URL_MAX_BYTES` | `apps/desktop/src/lib/local-preview.ts:9` 的 `// Mirrors `_FS_DATA_URL_MAX_BYTES` in the backend filesystem endpoint.` |
-
-(表头说 6 个,实际数出来是 9 条——以表为准,上面那句「6 个」按表更正为 **9 条**。)
 
 **这 9 条都是靠注释维持的**,没有任何测试或脚本比对两侧。对「独立实现同级 harness」
 这个目标来说,这是一条重要的负债形态:跨语言双实现 + 纯注释约束。
@@ -1895,7 +1893,7 @@ cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project ui -
 | **1 点名到位** | 126/126 文件全路径 + 一句话角色 | **达标** | §0.1–§0.4 四张分组表,组内逐个列全路径;下面给了自检命令 |
 | **2 接缝穷举** | 三个面全列,给了机械枚举命令与条数 | **达标(口径已声明)** | §2.0 声明口径替换;§2.1 导出面 123 文件 / 809 符号全列;§2.2 类型面 94 + 64 + 130 全列;§2.3 30 张常量表条数;§2.4 4 个 `window.__*__` 全列。**唯一自认的缺口**:`n_importers` 是 grep 量级而非精确调用图,已在 §2.1 声明 |
 | **3 端到端链** | 两条链,逐跳带锚点 | **达标** | §3.1 消息 → markdown → 渲染(8 跳);§3.2 按键 → 键位表 → 主题(6 跳) |
-| **4 逐字取证** | 远超 2 个 | **达标** | 全文 45 个 ```` ```ts/tsx/js/mjs/md ```` 逐字源码块 |
+| **4 逐字取证** | 远超 2 个 | **达标** | 全文 68 个 ```` ```ts/tsx/js/mjs/md ```` 逐字源码块,校验器实测 `OK=68 / MISMATCH=0 / BLOCK-DRIFT=0` |
 | **5 记号** | 2 ▲ / 2 ◇ / 1 ◎ / 3 ■ | **达标** | §5、§6 |
 
 判据 1 的自检命令(主线复核可直接用):
@@ -1926,12 +1924,12 @@ cd /home/user/hermes-study && miss=0; while read -r f; do \
 
 | 编号 | 锚点 + 摘录 | 一句话现象 | 建议 |
 |---|---|---|---|
-| **H-R10B-E-1** | `apps/desktop/src/components/assistant-ui/tool/fallback.tsx:282`:`return <SharedLinkifiedText className={className} pretty text={cleanVisibleText(text)} />` | 工具结果摘要走的是 `pretty` + 无 `explicitOnly` 的链接化,`agent.log` 这类词元会变成 `https://agent.log` 并触发主进程标题抓取 | 与电子端片(`electron/main.ts:4733` 的 `fetchLinkTitle`)合并成一条完整的「不可信文本 → 外发请求」定案,不要两片各写一半 |
-| **H-R10B-E-2** | `apps/desktop/src/lib/external-link.tsx:24`:`const LOCAL_HOST_RE = /^(?:localhost\|127\.0\.0\.1\|0\.0\.0\.0\|\[::1\])(?::\d+)?$/i` | 标题抓取的主机拦截只有四个字面 localhost 形式,没有私网 / 链路本地 / 云元数据网段 | 归入 H-R10B-E-1 的同一条定案 |
-| **H-R10B-E-3** | `apps/desktop/src/debug/README.md:103`:`The sidebar hypothesis is **refuted**: 6 renders across the whole run, all` | 这段结尾的 `store/session-states.ts:236-259` 锚点已漂,真实位置是 `:261` 与 `:271` | 成品章引用这段测量结论时,改引真实行号;▲ 计数按 §5 声明不计入跨轮 |
-| **H-R10B-E-4** | `apps/desktop/src/app/messaging/platform-icon.tsx:14`:`} from '@icons-pack/react-simple-icons'` | `DESIGN.md:224-226` 的「功能代码不直接 import 图标包」在 simple-icons 上有两处反例,且无 lint 强制 | 与 UI 组件片(`src/components/`)核对是否还有更多反例后再定 ▲ 的范围 |
-| **H-R10B-E-5** | `apps/desktop/src/lib/markdown-blocks.test.ts:163`:`}, 30_000)` | 该 fuzz 用例在 76 文件并行下实测 35.4s、超它自己声明的 30s 预算;单跑只要 9.86s | 建议加入 CLAUDE.md「容器环境必然失败」表作第 7 条,注明**只在全目录并行时**失败 |
-| **H-R10B-E-6** | `apps/desktop/src/types/hermes.ts:519`:`export type TimelineDisplayMetadata =` | 该类型声明了三种形状,但唯一的读取点 `chat-messages.ts:348` 把 `display_metadata` 当 `unknown` 重新收窄,类型没被用作保证 | 写「类型契约 vs 运行时校验」那一章时,这是本仓最干净的一个例子 |
+| **H-R10B-E-1** | `apps/desktop/src/components/assistant-ui/tool/fallback.tsx:282`:`return <SharedLinkifiedText className={className} pretty text={cleanVisibleText(text)} />` | 工具结果摘要走的是 `pretty` + 无 `explicitOnly` 的链接化,`agent.log` 这类词元会变成 `https://agent.log` 并触发主进程标题抓取 | 与电子端片(`apps/desktop/electron/main.ts:4733` 的 `function fetchLinkTitle(rawUrl) {`)合并成一条完整的「不可信文本 → 外发请求」定案,不要两片各写一半 |
+| **H-R10B-E-2** | `apps/desktop/src/lib/external-link.tsx:24`:`const LOCAL_HOST_RE` | 标题抓取的主机拦截只有四个字面 localhost 形式,没有私网 / 链路本地 / 云元数据网段 | 归入 H-R10B-E-1 的同一条定案 |
+| **H-R10B-E-3** | `apps/desktop/src/debug/README.md:103`:`The sidebar hypothesis is **refuted**: 6 renders across the whole run, all` | 这段结尾括号里给的 `session-states.ts` 行号区间已漂,真实位置是 `:261` 与 `:271` | 成品章引用这段测量结论时,改引真实行号;▲ 计数按 §5 声明不计入跨轮 |
+| **H-R10B-E-4** | `apps/desktop/src/app/messaging/platform-icon.tsx:14`:`} from '@icons-pack/react-simple-icons'` | `apps/desktop/DESIGN.md:224` 的 `is the default component/chrome set. Import its curated aliases` 那条 bullet 的第三句「功能代码不直接 import 图标包」在 simple-icons 上有两处反例,且无 lint 强制 | 与 UI 组件片(`src/components/`)核对是否还有更多反例后再定 ▲ 的范围 |
+| **H-R10B-E-5** | `apps/desktop/src/lib/markdown-blocks.test.ts:137`:`it('matches a full lex at every char-level streaming cut over noisy markdown (property fuzz)'` | 该 fuzz 用例在 `:163` 自报 30 秒预算,76 文件并行下实测 35.4s 超时;单跑只要 9.86s | 建议加入 CLAUDE.md「容器环境必然失败」表作第 7 条,注明**只在全目录并行时**失败 |
+| **H-R10B-E-6** | `apps/desktop/src/types/hermes.ts:519`:`export type TimelineDisplayMetadata =` | 该类型声明了三种形状,但唯一的读取点 `apps/desktop/src/lib/chat-messages.ts:348` 的 `function parseDisplayMetadata(metadata:` 把 `display_metadata` 当 `unknown` 重新收窄,类型没被用作保证 | 写「类型契约 vs 运行时校验」那一章时,这是本仓最干净的一个例子 |
 | **H-R10B-E-7** | `apps/desktop/src/debug/atom-churn.ts:33`:`const unsubscribes: Array<() => void> = []` | 只写不读的 disposer 数组,`window.__ATOM_CHURN__` 没有取消订阅入口 | 低优先级;若某轮统一清点「攒了 disposer 却没有 dispose 入口」的形态,这是一例 |
 | **H-R10B-E-8** | `apps/desktop/src/lib/composer-input-sanitize.ts:5`:`Mirrors hermes_cli/input_sanitize.py (CLI/TUI gateway defensive path).` | 本片查到 9 处「桌面 TS 实现声明自己镜像某个 Python 文件」,全部只靠注释约束,无测试/脚本比对 | 值得单独做一次跨语言双实现清点(不限于本片),它是 harness 设计里一类系统性负债 |
 
@@ -1943,11 +1941,15 @@ cd /home/user/hermes-study && miss=0; while read -r f; do \
 片号            : E
 层              : L2
 文件数 / 行数   : 126 / 20,540
-实际打开的文件数: 121   (126 减去 5 个只看了路径与行数的:
-                        vite-env.d.ts 1 行、以及 4 个纯内容表
-                        project-idea-templates.ts / excluded-paths.ts 尾部 /
-                        presets.ts 的 5 个非 nous 主题字面量 / icons.ts 的别名清单
-                        —— 这几个我只读了头部与结构,没通读字面量)
+实际打开的文件数: 126   (全部打开过。但深度分三档:
+                        ① 通读实现体 —— 约 40 个(debug/ 全部、themes/ 全部、
+                           chat-messages / markdown-* / katex-memo / external-link /
+                           tool-result-summary / keybinds 全部 / voice-barge-in 等);
+                        ② 读了头部文档注释 + 导出面 + 关键常量表,未读实现体 ——
+                           约 80 个(§8 自查第 2 条点名了具体分组);
+                        ③ 只核了结构与条数、未通读字面量 —— 4 个纯内容表
+                           project-idea-templates.ts / excluded-paths.ts /
+                           presets.ts 的 5 个非 nous 主题 / icons.ts 的别名清单)
 实际读过的行数  : 约 11,500
                   (估法:完整读完的文件按全行数计——debug/ 全部 1,085 行、
                    themes/ 全部 1,905 行、chat-messages.ts 1,174、
