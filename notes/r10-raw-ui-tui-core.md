@@ -895,7 +895,7 @@ URL 一律经 `redactUrl()`(剥 query 与 `user:pass@`),连 WHATWG `URL` 解析�
 所以每个 `'error'` / `'exit'` / WS `'close'` 处理器都先比一次
 `this.proc !== ownedProc` / `this.ws !== ws`,不符就只记一行 `stale … ignored` 后返回。
 `closeGatewaySocket()` 甚至**先把 `this.ws` 置 null 再 `close()`**,理由写在
-下面这块的注释里:真实 WebSocket 的 `close` 事件隔一个微任务才派发,
+下面这块的注释里——真实 WebSocket 的 `close` 事件隔一个微任务才派发,
 先置 null 才能让身份闸把它正确归类为"已丢弃的 socket";而测试用的假 socket 是
 同步派发的,先置 null 也让测试时序和真实时序一致。
 
@@ -1108,12 +1108,8 @@ segment 落 transcript、补一条 `*[interrupted]*`。`keepBusy` 是关键:
 
 **spawn 模式,Python 子进程被 OOM killer 干掉:**
 
-1. `ui-tui/src/gatewayClient.ts` 里 `proc.on('exit')` 触发(见下块),身份闸通过。
-2. `handleTransportExit(code)`(`:255`):拆 ready 定时器、关 sidecar 镜像、
-   记一行 `[lifecycle] transport exit code=… reason=…`、
-   `rejectPending(new Error('gateway exited (N)'))` ——**所有在飞 RPC 的 Promise 全部 reject**,
-   调用方各自 `catch` 成 `sys('error: …')`。因为 `subscribed` 为真,`emit('exit', code)`。
-3. `ui-tui/src/app/useMainApp.ts:822` 的 `exitHandler` 跑:
+**第 1 跳**——子进程的 `exit` 事件先过身份闸(`this.proc !== ownedProc` 就只记一行
+`stale child exit ignored` 后返回,免得旧子进程的收尸拆掉新子进程的启动定时器):
 
 `ui-tui/src/gatewayClient.ts:406 @ 863e313`
 
@@ -1130,6 +1126,14 @@ segment 落 transcript、补一条 `*[interrupted]*`。`keepBusy` 是关键:
         return
       }
 ```
+
+**第 2 跳**——闸门通过后调 `handleTransportExit(code)`
+(`ui-tui/src/gatewayClient.ts:255`,全文见 §6 ■-2 里引的那一块):
+拆 ready 定时器、关 sidecar 镜像、记一行 `[lifecycle] transport exit code=… reason=…`、
+`rejectPending(new Error('gateway exited (N)'))` ——**所有在飞 RPC 的 Promise 全部 reject**,
+调用方各自 `catch` 成 `sys('error: …')`。因为此刻 `subscribed` 为真,`emit('exit', code)`。
+
+**第 3 跳**——`ui-tui/src/app/useMainApp.ts:822` 注册的 `exitHandler` 跑:
 
 `ui-tui/src/app/useMainApp.ts:833 @ 863e313`
 
@@ -1157,12 +1161,12 @@ segment 落 transcript、补一条 `*[interrupted]*`。`keepBusy` 是关键:
       sys('error: gateway exited')
 ```
 
-   注意 `patchUiState({ sid: null })` 是**无条件**的:网关一死就必须让
-   `session.active_list` 1.5s 轮询、`config.get mtime` 5s 轮询、队列排水这三个
-   带 sid 门禁的 effect 全部停火,免得对着一个死进程发 RPC。
-   会话身份被搬到 `recoverSidRef` 里带过去。
+注意 `patchUiState({ sid: null })` 是**无条件**的:网关一死就必须让
+`session.active_list` 1.5s 轮询、`config.get mtime` 5s 轮询、队列排水这三个
+带 sid 门禁的 effect 全部停火,免得对着一个死进程发 RPC。
+会话身份被搬到 `recoverSidRef` 里带过去。
 
-4. 预算判定是纯函数,可单测:
+**第 4 跳**——预算判定是纯函数,可单测:
 
 `ui-tui/src/app/gatewayRecovery.ts:24 @ 863e313`
 
@@ -1181,15 +1185,23 @@ export function planGatewayRecovery(
 }
 ```
 
-   窗口与上限是两个模块级常量:`ui-tui/src/app/gatewayRecovery.ts:7 @ 863e313`
+窗口与上限是两个模块级常量:`ui-tui/src/app/gatewayRecovery.ts:7 @ 863e313`
 
 ```ts
 export const GATEWAY_RECOVERY_LIMIT = 3
 export const GATEWAY_RECOVERY_WINDOW_MS = 60_000
 ```
 
-   `liveSid ?? recoverSid` 的兜底是为了"重生的网关在 `gateway.ready` 之前又死了"
-   这一种崩溃循环——那时 `sid` 已经是 null,只有 `recoverSidRef` 还记得目标会话。
+`liveSid ?? recoverSid` 的兜底是为了"重生的网关在 `gateway.ready` 之前又死了"
+这一种崩溃循环——那时 `sid` 已经是 null,只有 `recoverSidRef` 还记得目标会话。
+
+**第 5 跳**——`gw.start()` → `resetStartupState()`(全文见 §6 ■-2)→ `startSpawnedGateway()`:
+重新 `spawn(python, ['-m', 'tui_gateway.entry'])`,重挂 15s ready 定时器。
+
+**第 6 跳(本该如此)**——新网关起来后发 `gateway.ready` → `handleReady()` 看到
+`recoverSidRef.current` 非空 → 一次性消费它、`resumeById(recoverSid)`、
+状态写成 `recovering session…`;队列因为存在客户端 ref 里,
+会在 sid 恢复且 `busy` 为 false 后照常排水。
 
 `ui-tui/src/app/createGatewayEventHandler.ts:657 @ 863e313`
 
@@ -1208,21 +1220,14 @@ export const GATEWAY_RECOVERY_WINDOW_MS = 60_000
     }
 ```
 
-5. `gw.start()` → `resetStartupState()`(见下)→ `startSpawnedGateway()`:
-   重新 `spawn(python, ['-m', 'tui_gateway.entry'])`,重挂 15s ready 定时器。
-6. **设计意图**是:新网关起来后发 `gateway.ready` → `handleReady()` 看到
-   `recoverSidRef.current` 非空 → 一次性消费它、`resumeById(recoverSid)`、
-   状态写成 `recovering session…`(见下块)。
-   队列因为存在客户端 ref 里,会在 sid 恢复且 `busy` 为 false 后照常排水。
-
-**——但第 6 步在当前代码里到不了。** 见 §6 ■-2:`resetStartupState()` 把
+**——但第 6 跳在当前代码里到不了。** 见 §6 ■-2:`resetStartupState()` 把
 `subscribed` 置回 false,而全仓只有一处 `drain()` 调用点、且在一个依赖恒定的 effect 里,
 所以重启后 `subscribed` 永久停在 false,新网关的所有事件(包括 `gateway.ready`)
 都只进 2000 容量环、再也不 emit。
 
 **attach 模式的差别**:socket 的 `'close'` 处理器(见下块)
 同样走 `handleTransportExit`;此外 `request()` 时若 socket 已 CLOSED/CLOSING,
-`ensureAttachedWebSocket()` 会**懒重连**(`:673-675`),不需要等 exit 事件。
+`ensureAttachedWebSocket()` 会**懒重连**(`ui-tui/src/gatewayClient.ts:673-675`),不需要等 exit 事件。
 `HERMES_TUI_GATEWAY_URL` 在运行时被换掉时,`request()` 还会额外
 `rejectPending(new Error('gateway attach url changed'))` 再 `start()`
 ——注释说明理由是"只关 socket 会把之前 spawn 的 Python 进程留在那儿活着"。
@@ -1325,7 +1330,7 @@ const commitTheme = (theme: Theme) => {
 ### 5.6 `TurnController`:一个刻意的单例可变类
 
 在一堆纯函数与 nanostore 中间,回合控制器是个**有状态的单例类**
-(`ui-tui/src/app/turnController.ts:112 class TurnController`)。它的公开面很宽
+(`ui-tui/src/app/turnController.ts:112` 的 `class TurnController`)。它的公开面很宽
 (约 30 个方法),但可以按四组理解:
 
 | 组 | 方法 | 要点 |
@@ -1335,7 +1340,7 @@ const commitTheme = (theme: Theme) => {
 | 生命周期 | `startMessage` / `idle` / `reset` / `fullReset` / `interruptTurn` / `recordMessageComplete` / `recordError` | 三层重置粒度:`idle()` 只清流式态、`reset()` 清整个回合、`fullReset()` 连 `$turnState` 一起重建 |
 | 通知时序 | `showNotice` / `clearNotice` / `applyNotice` / `flushPendingNotice` / `clearNoticeState` | 忙时 FaceTicker 占着状态槽,所以 notice 暂存(最新胜),回合结束才显示;**TTL 从"变可见"起算,不是从"到达"起算** |
 
-最微妙的一条纪律写在 下面这块的注释里:
+最微妙的一条纪律写在下面这块的注释里:
 `flushPendingNotice()` **只许**三个真正的回合结束点调
 (`recordMessageComplete` / `interruptTurn` / `recordError`),
 `idle()` / `reset()` **绝不许**调——否则会话 A 的 notice 会漏进会话 B。
@@ -1392,10 +1397,10 @@ const commitTheme = (theme: Theme) => {
   `reduce(state, input) -> S | null`(返回**同一个引用**= 吞掉这次按键不改状态;
   null = 关闭)、`render(ctx) -> ReactNode`。
 - **没有硬编码目录**:slash 补全从 `listWidgetApps()` 派生
-  (`mergeWidgetAppItems`,见下块),
+  (`mergeWidgetAppItems`,见本节末块),
   slash 分发从 `getWidgetApp()` 派生。新 app 自动出现在两处。
 - **用户文件拿不到 import 路径**,所以 SDK 是**注入**的:
-  下面这块的 `widgetSdk` 对象带着 React、Ink 的 Box/Text、
+  下面这块里的 `widgetSdk` 对象带着 React、Ink 的 Box/Text、
   overlay/grid/charts 原语一起塞进用户的 `register(sdk)`。`sdk.h` 就是
   `React.createElement`(用户文件是纯 ESM,没有 bundler、不能写 JSX)。
 - **信任模型明说了**:与 `~/.hermes/plugins/` 一致——`HERMES_HOME` 下的文件以 TUI 的权限执行。
@@ -1759,7 +1764,7 @@ grep -rn "isAction(key, ch, 'l')" ui-tui/src --include=*.ts --include=*.tsx | gr
 ```
 
 而且不止一处:`ui-tui/src/app/useInputHandlers.ts:403` / `:415` 在分页器里也用,
-`shouldFallThroughForScroll`(见下块) 还专门为
+`shouldFallThroughForScroll`(见下块)还专门为
 PgUp/PgDn 决定是否让位。`agentsOverlay.tsx` / `journey.tsx` 也各有绑定。
 
 `ui-tui/src/app/useInputHandlers.ts:74 @ 863e313`
@@ -1919,7 +1924,7 @@ def _broadcast_global_event(event: str, payload: dict | None = None) -> None:
 | 1. 点名到位(每个文件全路径 + 一句话角色) | **达成 82/82** | §2 八张表逐个列全,没有"同型薄文件归组"式省略——连 1 行的 `content/charms.ts`、`protocol/paste.ts` 都单独列了 |
 | 2. 接缝穷举(逐项列全 + 机械枚举命令 + 条数) | **达成,5 个接缝** | RPC 方法 **82**、事件 case **45**、slash 命令 **64 + 19 别名**、内置 widget app **4**、客户端出站本地事件 **1**。每个都给了 ```verify 命令与条数;RPC 表与事件表还逐条附了锚点。额外做了服务端对账:服务端方法 **144**、服务端事件 **63**,并给出三向差集 |
 | 3. 一条端到端链走通(逐跳带锚点) | **达成** | §4 一次回车 20 跳,从 `useSubmission.submit` 一路到 `tui_gateway/methods_prompt.py` 再回到 nanostore 通知与队列排水,逐跳带锚点,闭合成环 |
-| 4. 两处以上逐字取证 | **达成,43 个逐字源码围栏块** | 全部用 `sed -n 'A,Bp' <文件>` 机械取出后粘贴,**没有一个字是手抄的**;无一处使用省略标记(要跳段就拆成两个各自带锚点的块)。另有 16 个 ```` ```verify ```` 块(声明式非源码:命令 + 回显)与 4 处 `>` 引用块(README 原文摘录)。引用校验读数:`citations=64 OK=49 UNCHECKED=15 MISMATCH=0 BLOCK-DRIFT=0`,可校验比例 **76.6%**(≥70% 下限);表格行内锚点 `table_anchors=137 OK=27 DRIFT=0 OUT-OF-RANGE=0` |
+| 4. 两处以上逐字取证 | **达成,43 个逐字源码围栏块** | 全部用 `sed -n 'A,Bp' <文件>` 机械取出后粘贴,**没有一个字是手抄的**;无一处使用省略标记(要跳段就拆成两个各自带锚点的块)。另有 16 个 ```` ```verify ```` 块(声明式非源码:命令 + 回显)与 4 处 `>` 引用块(README 原文摘录)。引用校验读数:`citations=66 OK=49 UNCHECKED=17 MISMATCH=0 BLOCK-DRIFT=0`,可校验比例 **74.2%**(≥70% 下限);表格行内锚点 `table_anchors=136 OK=27 DRIFT=0 OUT-OF-RANGE=0` |
 | 5. 至少一条记号 | **达成,9 条** | ■ 2 条(`tool.progress` 死分支、`start()` 后 `subscribed` 不回真)、◇ 3 条(`clarify.expire` 无分支、19 个无调用方的服务端方法、README 完全没提 widget SDK)、▲ 4 条(Ctrl+L、PgUp/PgDn、`billing.ts`/`credits.ts` + 注册顺序、`DEFAULT_THEME` 首帧)、◎ 1 条(事件表 36/45) |
 
 **没做到的部分**(与 §7 重复但集中声明):判据 2 里"同名方法两侧参数形状"这一项

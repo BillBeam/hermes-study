@@ -533,15 +533,14 @@ export function shouldEmitClipboardSequence(env: NodeJS.ProcessEnv = process.env
 
 | 类 | 变量 |
 |---|---|
-| 项目自有(6) | `HERMES_INK_DEBUG_ERRORS` `HERMES_TUI_DIM` `HERMES_TUI_DISABLE_MOUSE_CLICKS` `HERMES_TUI_FORCE_OSC52` `HERMES_TUI_CLIPBOARD_OSC52` `HERMES_TUI_COPY_OSC52` |
+| 项目自有(7) | `HERMES_INK_DEBUG_ERRORS` `HERMES_TUI_DIM` `HERMES_TUI_TRUECOLOR` `HERMES_TUI_DISABLE_MOUSE_CLICKS` `HERMES_TUI_FORCE_OSC52` `HERMES_TUI_CLIPBOARD_OSC52` `HERMES_TUI_COPY_OSC52` |
 | 终端识别(9) | `TERM` `TERM_PROGRAM` `TERM_PROGRAM_VERSION` `LC_TERMINAL` `COLORTERM` `CURSOR_TRACE_ID` `KITTY_WINDOW_ID` `VTE_VERSION` `ZED_TERM` |
 | Windows/ConEmu(5) | `WT_SESSION` `MSYSTEM` `ConEmuANSI` `ConEmuPID` `ConEmuTask` |
 | 多路复用/远程(3) | `TMUX` `STY` `SSH_CONNECTION` |
 | 显示服务器(2) | `DISPLAY` `WAYLAND_DISPLAY` |
-| 其他(3) | `NODE_ENV` `USER_TYPE` `TERM`(已计) → 实际第三类为 `NODE_ENV` `USER_TYPE` |
+| 其他(2) | `NODE_ENV` `USER_TYPE` |
 
-(合计 6+9+5+3+2+2 = 27,加 `USER_TYPE` 与 `NODE_ENV` 中未重复的一个 = 28;
-逐个名字见上面 `verify` 命令的输出,以命令输出为准。)
+合计 7+9+5+3+2+2 = **28**,与上面 `verify` 命令的输出行数一致。
 
 ### S11 · termio 语义动作 `Action`(12 个顶层变体)
 
@@ -905,9 +904,9 @@ cd /home/user/hermes-agent && grep -rn -i "vadim\|demedes" --include="*.ts" --in
 
 | 位置 | 内容 |
 |---|---|
-| `src/ink/components/App.tsx:300` / `:304` | 两条 raw-mode 报错文案原样保留,连**指向上游 README 的链接** `https://github.com/vadimdemedes/ink/#israwmodesupported` 都在 |
-| `ui-tui/packages/hermes-ink/src/ink/events/input-event.ts:54` / `:92` | 两条 `TODO(vadimdemedes)`(署上游作者名的 TODO) |
-| `src/ink/reconciler.ts:28` | `// See https://github.com/vadimdemedes/ink/issues/384`(devtools 条件导入的原因) |
+| `ui-tui/packages/hermes-ink/src/ink/components/App.tsx:300`:`Read about how to prevent this error on https://github.com/vadimdemedes/ink/#israwmodesupported`(另一条同形,在 `:304`) | 两条 raw-mode 报错文案原样保留,连**指向上游 README 的链接**都在 |
+| `ui-tui/packages/hermes-ink/src/ink/events/input-event.ts:54`:`// TODO(vadimdemedes): consider removing this in the next major version.`(另一条在 `:92`) | 两条署上游作者名的 TODO |
+| `ui-tui/packages/hermes-ink/src/ink/reconciler.ts:28`:`// See https://github.com/vadimdemedes/ink/issues/384` | devtools 条件导入的原因,指向上游 issue |
 
 再加两处"指向上游文件名"的化石注释:
 
@@ -1333,11 +1332,11 @@ L2 要求讲清并发模型。这一片是**单线程 + 事件循环**,没有 wo
 
 | 状态位 | 位置 | 作用 |
 |---|---|---|
-| `isRendering` | `src/ink/ink.tsx:315` | 帧内重入(选区扇出、`onFrame` 回调里再 setState)不递归渲染,折进一个后续微任务 |
-| `immediateRerenderRequested` | `src/ink/ink.tsx:316` | 上面那个"后续微任务"的标志 |
-| `pendingWriteStart` | `src/ink/ink.tsx:206` | 上一帧 `stdout.write` 的 drain 回调还没来 → 本帧**整帧跳过**,改挂 drain tick |
-| `coalescedBackpressureFrames` | `src/ink/ink.tsx:212` | 上面的合并次数上限 10(`MAX_COALESCED_BACKPRESSURE_FRAMES`),保证向前推进 |
-| `prevFrameContaminated` | `src/ink/ink.tsx:286` | 上一帧的屏幕缓冲被叠加层改过 → 下一帧禁用 blit(否则会把反色单元格拷回来) |
+| `isRendering` | `ui-tui/packages/hermes-ink/src/ink/ink.tsx:315`:`private isRendering = false` | 帧内重入(选区扇出、`onFrame` 回调里再 setState)不递归渲染,折进一个后续微任务 |
+| `immediateRerenderRequested` | `ui-tui/packages/hermes-ink/src/ink/ink.tsx:316`:`private immediateRerenderRequested = false` | 上面那个"后续微任务"的标志 |
+| `pendingWriteStart` | `ui-tui/packages/hermes-ink/src/ink/ink.tsx:206`:`private pendingWriteStart: number` | 上一帧 `stdout.write` 的 drain 回调还没来 → 本帧**整帧跳过**,改挂 drain tick |
+| `coalescedBackpressureFrames` | `ui-tui/packages/hermes-ink/src/ink/ink.tsx:212`:`private coalescedBackpressureFrames = 0` | 上面的合并次数上限 10(`MAX_COALESCED_BACKPRESSURE_FRAMES`),保证向前推进 |
+| `prevFrameContaminated` | `ui-tui/packages/hermes-ink/src/ink/ink.tsx:286`:`private prevFrameContaminated = false` | 上一帧的屏幕缓冲被叠加层改过 → 下一帧禁用 blit(否则会把反色单元格拷回来) |
 
 节流器只有一个:`throttle(deferredRender, 16ms, {leading:true, trailing:true})`。
 另有两处**故意不用它**:`scrollDrainPending` 与背压重试都用裸 `setTimeout`,理由写在原地:
@@ -1593,7 +1592,7 @@ cd /home/user/hermes-agent && grep -rn "execFileNoThrow" --include="*.ts" --incl
 
 全仓 `ui-tui/` 下 17 处命中:1 处定义、1 处 import、8 处调用(`osc.ts`)、7 处在测试文件里。
 8 处调用中 **7 处带 `resolveOnExit: true`**(`probeLinuxCopy` 3 处共用一个 `opts`,
-`copyNative` 4 处共用一个 `opts`),**只有 `tmuxLoadBuffer` 那一处不带**(即上面 `src/ink/termio/osc.ts:193` 块里的第 9 行)。
+`copyNative` 4 处共用一个 `opts`),**只有 `tmuxLoadBuffer` 那一处不带**(即 §5.6 结尾 `tmuxLoadBuffer` 那个块里的 `execFileNoThrow('tmux', args, {` 一行)。
 `ui-tui/` 之外无调用方(本文件是包私有的 `src/utils/`,未从 `entry-exports.ts` 导出;
 `grep -rn "execFileNoThrow" --include="*.ts" --include="*.tsx" .` 在仓库根的命中集与上面相同)。
 
@@ -1719,12 +1718,35 @@ cd /tmp && printf 'console.log("typeof require in ESM =", typeof require)\n' > e
 
 **可达性分析(诚实版,这条不该被夸大)**:
 
-- `utils/semver.ts` 唯一被 `ui-tui/packages/hermes-ink/src/ink/terminal.ts:6` 引入(只用了 `gte`)。
-- `gte` 只在 `isProgressReportingAvailable()`(`ui-tui/packages/hermes-ink/src/ink/terminal.ts:28`)里被调,
-  且只有当 `TERM_PROGRAM` 是 `ghostty` 或 `iTerm.app` 且 `TERM_PROGRAM_VERSION`
-  能被 `coerce` 解析时才走到。
-- `isProgressReportingAvailable()` 只有一个调用方:`useTerminalNotification()` 里的
-  `progress()`(`ui-tui/packages/hermes-ink/src/ink/useTerminalNotification.ts:65`)。
+- `utils/semver.ts` 唯一被 `src/ink/terminal.ts` 引入,且只用了 `gte`:
+
+`ui-tui/packages/hermes-ink/src/ink/terminal.ts:1`
+
+```
+import type { Writable } from 'stream'
+
+import { coerce } from 'semver'
+
+import { env } from '../utils/env.js'
+import { gte } from '../utils/semver.js'
+```
+
+- `gte` 只在 `isProgressReportingAvailable()` 里被调,且只有当 `TERM_PROGRAM` 是
+  `ghostty` 或 `iTerm.app` 且 `TERM_PROGRAM_VERSION` 能被 `coerce` 解析时才走到
+  (`src/ink/terminal.ts` 第 28 行起)。
+- `isProgressReportingAvailable()` 只有一个调用方,`useTerminalNotification()` 里的
+  `progress()`:
+
+`ui-tui/packages/hermes-ink/src/ink/useTerminalNotification.ts:63`
+
+```
+  const progress = useCallback(
+    (state: Progress['state'] | null, percentage?: number) => {
+      if (!isProgressReportingAvailable()) {
+        return
+      }
+```
+
 - 而 **`useTerminalNotification` 这个 hook 全仓没有任何调用方**,也**没有**出现在
   `entry-exports.ts` / `index.d.ts` 的导出面里。搜索面:
   `grep -rn "useTerminalNotification\|TerminalWriteContext" --include="*.ts" --include="*.tsx" ui-tui/`
@@ -1733,13 +1755,20 @@ cd /tmp && printf 'console.log("typeof require in ESM =", typeof require)\n' > e
   **没有一处调用 `useTerminalNotification()`**。
 - 即使被调到:TUI 的实际打包器 `ui-tui/scripts/build.mjs:50` 注入了
   `banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" }`,
-  于是在 TUI bundle 里 `require` 是有定义的。**但包自己的 `build` 脚本
-  (`ui-tui/packages/hermes-ink/package.json:7`)没有这个 banner** —— 走 `index.js` → `dist/entry-exports.js`
+  于是在 TUI bundle 里 `require` 是有定义的。**但包自己的 `build` 脚本没有这个 banner**:
+
+`ui-tui/packages/hermes-ink/package.json:7`
+
+```
+    "build": "esbuild src/entry-exports.ts --bundle --platform=node --format=esm --packages=external --outdir=dist",
+```
+
+  于是走 `index.js` → `dist/entry-exports.js`
   这条路(库消费者、vitest 默认解析)时,esbuild 会把外部 `require()` 包进
   `__require` 垫片,ESM 下取不到宿主 `require` 就抛
   `Dynamic require of "semver" is not supported`。
 
-同一个文件里 `ui-tui/packages/hermes-ink/src/ink/terminal.ts:3` 已经 `import { coerce } from 'semver'`(静态 ESM 导入),
+而上面那个 import 块已经显示:同一个文件里 `import { coerce } from 'semver'` 是**静态 ESM 导入**,
 所以这个惰性 `require` 想省的那次加载**本来就省不掉**。**判定:■,但是潜伏 + 无收益**。
 
 ### ■4 · 三份彼此独立的导出清单,靠人手同步
@@ -1756,12 +1785,41 @@ cd /tmp && printf 'console.log("typeof require in ESM =", typeof require)\n' > e
 node_modules 解析)。于是 `index.d.ts` 对包的主消费者 `ui-tui/src` 实际上是死的。
 已经漂了的两处:
 
-- **`Key` 类型不一致**。包内 `ui-tui/packages/hermes-ink/src/ink/events/input-event.ts:7` 的 `Key` 有 21 个字段,
-  含 `fn`,**没有 `alt`**;消费者声明 `ui-tui/src/types/hermes-ink.d.ts:4` 的 `Key`
-  有 `alt`、**没有 `fn`**,还带一条 `readonly [key: string]: boolean` 索引签名
-  —— 这条索引签名让**任何**键名拼写都能通过类型检查,把这个类型的价值抹平了。
-- **`TextInput` 是个类型层面的陷阱**。`ui-tui/src/types/hermes-ink.d.ts:109`
-  声明 `export const TextInput: React.ComponentType<any>`,而 `@hermes/ink` 的运行时
+- **`Key` 类型不一致**。包内那份有 21 个字段、含 `fn`、**没有 `alt`**:
+
+`ui-tui/packages/hermes-ink/src/ink/events/input-event.ts:8`
+
+```
+export type Key = {
+  upArrow: boolean
+  downArrow: boolean
+  leftArrow: boolean
+  rightArrow: boolean
+```
+
+  消费者那份有 `alt`、**没有 `fn`**,还带一条 `readonly [key: string]: boolean`
+  索引签名 —— 这条索引签名让**任何**键名拼写都能通过类型检查,把这个类型的价值抹平了:
+
+`ui-tui/src/types/hermes-ink.d.ts:4`
+
+```
+  export type Key = {
+    readonly ctrl: boolean
+    readonly meta: boolean
+    readonly super: boolean
+    readonly shift: boolean
+    readonly alt: boolean
+```
+
+- **`TextInput` 是个类型层面的陷阱**:
+
+`ui-tui/src/types/hermes-ink.d.ts:109`
+
+```
+  export const TextInput: React.ComponentType<any>
+```
+
+  而 `@hermes/ink` 的运行时
   导出面(S2)里**没有** `TextInput` —— 它在 `@hermes/ink/text-input` 子路径上。
   也就是说 `import { TextInput } from '@hermes/ink'` **类型检查通过、运行时是
   `undefined`**。目前没人这么写(全仓 `TextInput` 的 import 全部来自
@@ -1793,7 +1851,7 @@ cd /home/user/hermes-agent && find . -type f \( -iname "LICENSE*" -o -iname "NOT
 顶层文件)。而这个包里留着上游作者署名的 TODO、上游 issue 链接、上游 README 链接
 (§5.1-i,5 处)。上游 Ink 是 MIT 许可,MIT 要求保留版权声明与许可全文。
 **这是合规缺陷,不是风格问题。** 我不判断法律后果,只指出:代码上的 fork 事实
-仓库自己都写在 `ui-tui/README.md:332` 上了,许可侧却没有对应动作。
+仓库自己都写在 `ui-tui/README.md` 的 File map 一节里了(见 ◎1),许可侧却没有对应动作。
 
 ### ◇1 · `logForDebugging` 是空函数体 —— 包内所有调试日志都不输出
 
@@ -1808,11 +1866,24 @@ export function logForDebugging(
 ): void {}
 ```
 
-而 `ui-tui/packages/hermes-ink/src/ink/renderer.ts:62` 那条"Invalid yoga dimensions: …"的诊断日志、
-`ui-tui/packages/hermes-ink/src/ink/renderer.ts:91` 的"something is rendering outside `<AlternateScreen>`"警告、
-`ui-tui/packages/hermes-ink/src/ink/log-update.ts:223` 的"Full reset (shrink->below)"、`ui-tui/packages/hermes-ink/src/ink/warn.ts:12` 的非整数样式警告,
-统统走它。`ui-tui/packages/hermes-ink/src/ink/renderer.ts:60` 的注释还写着 `// Log to help diagnose root cause (visible
-with --debug flag)` —— **在这个包里,`--debug` 什么也看不到**。
+而下面这条诊断日志、`renderer.ts` 第 91 行的"something is rendering outside
+`<AlternateScreen>`"警告、`log-update.ts` 第 223 行的"Full reset (shrink->below)"、
+`warn.ts` 第 12 行的非整数样式警告,统统走它:
+
+`ui-tui/packages/hermes-ink/src/ink/renderer.ts:59`
+
+```
+    if (!node.yogaNode || hasInvalidHeight || hasInvalidWidth) {
+      // Log to help diagnose root cause (visible with --debug flag)
+      if (node.yogaNode && (hasInvalidHeight || hasInvalidWidth)) {
+        logForDebugging(
+          `Invalid yoga dimensions: width=${computedWidth}, height=${computedHeight}, ` +
+            `childNodes=${node.childNodes.length}, terminalWidth=${terminalWidth}, terminalRows=${terminalRows}`
+        )
+      }
+```
+
+注释里那句 `visible with --debug flag` —— **在这个包里,`--debug` 什么也看不到**。
 调用面:`grep -rc "logForDebugging" src/` 命中 8 个文件。
 唯一真会输出的日志口是 `utils/log.ts` 的 `logError`,且要 `HERMES_INK_DEBUG_ERRORS`。
 文档里没有任何地方声称它会输出,所以这是 ◇(代码有、文档无)而不是 ▲。
@@ -1833,14 +1904,24 @@ export function getIsInteractive(): boolean {
 }
 ```
 
-`ui-tui/packages/hermes-ink/src/ink/ink.tsx:745` 每帧调 `flushInteractionTime()`,并配了 4 行注释解释"这样每帧只调一次
-`Date.now()` 而不是每次按键调一次" —— 而函数体是空的。这是 fork 时**为了不改调用点
+`onRender()` 每帧调 `flushInteractionTime()`,并配了注释解释"这样每帧只调一次
+`Date.now()` 而不是每次按键调一次" —— 而函数体是空的:
+
+`ui-tui/packages/hermes-ink/src/ink/ink.tsx:743`
+
+```
+    // Done before the render to avoid dirtying state that would trigger
+    // an extra React re-render cycle.
+    flushInteractionTime()
+    const renderStart = performance.now()
+```
+这是 fork 时**为了不改调用点
 而保留的接缝**:上游宿主(hermes CLI 本体)有真实实现,这个包里只留桩。
 写下来是因为读 `ink.tsx` 时很容易被那 4 行注释误导成"这里有节流逻辑"。
 
 ### ◇3 · 三条"native Yoga / WASM"的化石注释
 
-除 §5.2 引的 `ui-tui/packages/hermes-ink/src/ink/reconciler.ts:93`("freed WASM memory")之外:
+除 §5.2 引的 `cleanupYogaNode` 里那句 `accessing freed WASM memory` 之外:
 
 | 位置 | 化石文字 | 实情 |
 |---|---|---|
@@ -1852,14 +1933,18 @@ export function getIsInteractive(): boolean {
 
 `ui-tui/README.md:332`
 
-> `  packages/hermes-ink/   forked Ink renderer (local dep)`
+>   packages/hermes-ink/   forked Ink renderer (local dep)
 
 字面为真(它确实是 fork 的 Ink 渲染器,确实是本地依赖),所以**不是 ▲**。
 但这一行是 `ui-tui/README.md` "File map" 一节里 hermes-ink 得到的**全部**篇幅:
 27,169 行、含一个自写的 flexbox 求解器、一个自写的 ANSI 解析器、一套 DOM 事件系统、
 一个位打包屏幕缓冲差分引擎 —— 在自绘地图上是一行括注。同一份 README 用 200+ 行
-逐文件讲了 `ui-tui/src/`。`AGENTS.md:470` / `:472` 只把它作为 `npm run dev` / `npm run build`
-的一个构建步骤提到。判 ◎ 而非 ▲,理由是 CLAUDE.md 的规矩:字面为真就不是 ▲。
+逐文件讲了 `ui-tui/src/`。`AGENTS.md` 只把它作为构建步骤提到两次,其中一次是:
+
+`AGENTS.md:470`
+
+> npm run dev       # watch mode (rebuilds hermes-ink + tsx --watch)
+判 ◎ 而非 ▲,理由是 CLAUDE.md 的规矩:字面为真就不是 ▲。
 
 ---
 
@@ -1902,16 +1987,32 @@ export function getIsInteractive(): boolean {
 8. **`■5` 我只查了文件名**(`LICENSE*`/`NOTICE*`/`COPYING*`/`*THIRD*PARTY*`)。
    没有全文 grep 每个 `.md` 找"内文形式的第三方声明"。如果哪份文档正文里写了
    Ink 的许可声明,我会漏掉它 —— 这是这条负结论的完备性边界。
-9. **`■2` 我没有核 lint/CI 是否对这 15 个文件有豁免**。`ui-tui/packages/hermes-ink/package.json:10` 的
-   `"lint": "echo 'ok!'"` 说明**这个包的 lint 是空操作**,但 `ui-tui/package.json`
-   的 `"lint": "eslint src/ packages/"` 会扫到它;我没读 `ui-tui/eslint.config.mjs`
-   看是否有 ignore 规则。
+9. **`■2` 我没有核 lint/CI 是否对这 15 个文件有豁免**。包自己的 lint 脚本是空操作:
+
+`ui-tui/packages/hermes-ink/package.json:10`
+
+```
+    "lint": "echo 'ok!'",
+```
+
+   但 `ui-tui/package.json` 的 `"lint": "eslint src/ packages/"` 会扫到它;
+   我没读 `ui-tui/eslint.config.mjs` 看是否有 ignore 规则。
 10. **`◎1` 的判定只覆盖了 `ui-tui/README.md` 与 `AGENTS.md`**。
-    搜索面:`grep -rn -i "hermes-ink\|hermes/ink\|yoga" --include="*.md" .`(排除
-    node_modules)共 5 处命中,分别是 `ui-tui/README.md:332`、`ui-tui/README.md:479`、
-    `AGENTS.md:470`、`AGENTS.md:472`,以及一处与本片无关的
-    `optional-skills/health/neuroskill-bci/references/protocols.md:274`("Yoga Nidra")。
-    `website/docs/` 里**没有**任何关于 hermes-ink 的段落。
+    搜索面与全部命中(排除 node_modules):
+
+```verify
+cd /home/user/hermes-agent && grep -rn -i "hermes-ink\|hermes/ink\|yoga" --include="*.md" . | grep -v node_modules
+```
+
+```text
+ui-tui/README.md:332      packages/hermes-ink/   forked Ink renderer (local dep)
+ui-tui/README.md:479      hermes-ink.d.ts            type declarations for @hermes/ink
+AGENTS.md:470             npm run dev       # watch mode (rebuilds hermes-ink + tsx --watch)
+AGENTS.md:472             npm run build     # full build (hermes-ink + tsc)
+optional-skills/health/neuroskill-bci/references/protocols.md:274   ### NSDR (... Yoga Nidra)
+```
+
+    共 5 处,最后一处与本片无关。`website/docs/` 里**没有**任何关于 hermes-ink 的段落。
 
 ---
 
@@ -1921,9 +2022,34 @@ export function getIsInteractive(): boolean {
 |---|---|---|
 | 1 · 点名到位 | ✅ | 131 个文件全部以**全路径**出现在 §2 的表格里,各带一句话角色。分组是显式命名的(组 A~N),组内逐个列全。核对方式:§2 末尾的"点名核对"行 + 组内计数(7+4+6+11+9+11+4+10+15+20+14+8+3+10,其中 `Ansi.tsx` 计在组 J、`src/utils/debug.ts` 在组 M/N 各现一次计一次)。 |
 | 2 · 接缝穷举 | ✅(12 个接缝全部列全,附机械枚举命令) | S1 exports 3 条 / S2 运行时导出 47 / S3 类型导出 46 / S4 元素名 7 / S5 Patch 10 / S6 事件 15+9 / S7 LayoutNode 49 / S8 Styles 67 / S9 Ink 成员 55 / S10 环境变量 28 / S11 termio Action 12 / S12 ScrollBoxHandle 15。每条都给了 ```verify 命令。**唯一不足**:S8 的 67 个键、S9 的 55 个成员我按分类列全但没逐个配行号锚点(L2 判据只要求列全,不要求逐项取证)。**S10 表格里的分类小计我写错了一次并在表下标注了"以命令输出为准"** —— 命令输出是 28 行,表格分类加总我没算干净,如实留在原处。 |
-| 3 · 一条端到端链走通 | ✅ | §4 走通"React setState → stdout 字节"共 9 跳,逐跳带锚点(`entry.tsx:167` → `ui-tui/packages/hermes-ink/src/ink/dom.ts:106` → `ui-tui/packages/hermes-ink/src/ink/reconciler.ts:184` → `ui-tui/packages/hermes-ink/src/ink/ink.tsx:405` → `ui-tui/packages/hermes-ink/src/ink/ink.tsx:374` → `ui-tui/packages/hermes-ink/src/ink/ink.tsx:750` → `ui-tui/packages/hermes-ink/src/ink/renderer.ts:122` → `ui-tui/packages/hermes-ink/src/ink/render-node-to-output.ts:717` → `ui-tui/packages/hermes-ink/src/ink/ink.tsx:913/943/956/980/1134` → `ui-tui/packages/hermes-ink/src/ink/terminal.ts:338`)。两端接到谁写明了:上游 `ui-tui/src/entry.tsx`(片外),下游 `process.stdout`。反向输入链另给了一段(片内)。 |
-| 4 · 两处以上逐字取证 | ✅ | 逐字源码围栏共 20 处:`ui-tui/packages/hermes-ink/src/ink/dom.ts:19`、`ui-tui/packages/hermes-ink/src/ink/dom.ts:106`、`ui-tui/packages/hermes-ink/src/ink/reconciler.ts:88`、`ui-tui/packages/hermes-ink/src/ink/reconciler.ts:184`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:374`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:405`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:750`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:913`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:943`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:956`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:962`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:980`、`ui-tui/packages/hermes-ink/src/ink/ink.tsx:1134`、`ui-tui/packages/hermes-ink/src/ink/renderer.ts:122`、`ui-tui/packages/hermes-ink/src/ink/render-node-to-output.ts:653`、`ui-tui/packages/hermes-ink/src/ink/render-node-to-output.ts:717`、`ui-tui/packages/hermes-ink/src/ink/screen.ts:383`、`ui-tui/packages/hermes-ink/src/ink/log-update.ts:50`、`ui-tui/packages/hermes-ink/src/ink/layout/yoga.ts:305`、`ui-tui/packages/hermes-ink/src/ink/root.ts:133`、`ui-tui/packages/hermes-ink/src/ink/instances.ts:1`、`ui-tui/packages/hermes-ink/src/entry-exports.ts:41`、`ui-tui/packages/hermes-ink/src/ink/termio/types.ts:214`、`ui-tui/packages/hermes-ink/src/ink/termio/osc.ts:193`、`ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.ts:67`、`ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.ts:91`、`ui-tui/packages/hermes-ink/src/native-ts/yoga-layout/index.ts:733`、`ui-tui/packages/hermes-ink/src/native-ts/yoga-layout/index.ts:928`、`ui-tui/packages/hermes-ink/src/ink/components/Spacer.tsx:10`、`ui-tui/packages/hermes-ink/src/utils/semver.ts:1`、`ui-tui/packages/hermes-ink/src/utils/debug.ts:1`、`ui-tui/packages/hermes-ink/src/bootstrap/state.ts:1`、`ui-tui/package.json:31`(实际 33 处,均以 `sed -n 'A,Bp'` 取出后粘贴,未手抄)。 |
+| 3 · 一条端到端链走通 | ✅ | §4 走通"React setState → stdout 字节"共 9 跳,逐跳带锚点(逐跳锚点清单见本表下方)。两端接到谁写明了:上游 `ui-tui/src/entry.tsx`(片外),下游 `process.stdout`。反向输入链另给了一段(片内)。 |
+| 4 · 两处以上逐字取证 | ✅ | 全文共 **65 个逐字源码围栏** + 2 个逐字文档引用块,全部由 `verify_citations.py` 判为 OK(`citations=67 OK=67`,可校验比例 100%)。每一块都用 `sed -n 'A,Bp'` 从基线取出后粘贴,**未手抄**。另有 18 个 ```verify 围栏(可复现命令)与 7 个 ```text 围栏(我自己的推演/命令回显,已声明非源码)。 |
 | 5 · 至少一条记号 | ✅ | ■5 条(■1 promise 泄漏 / ■2 构建产物入库 / ■3 ESM 里的 `require` / ■4 三份导出清单 / ■5 无许可声明)、◇3 条、◎1 条,共 9 条,逐条带锚点。**▲ 0 条** —— 我没找到文档与代码**矛盾**的地方,README 那条是"字面为真但保守",按 CLAUDE.md 的规矩判 ◎。 |
+
+§4 那条端到端链的逐跳锚点(全路径,便于逐跳复核):
+
+```text
+跳 0  ui-tui/src/entry.tsx:167                                     ink.render(...)            片外
+跳 1  ui-tui/packages/hermes-ink/src/ink/dom.ts:106                createNode + createLayoutNode
+跳 2  ui-tui/packages/hermes-ink/src/ink/reconciler.ts:184          resetAfterCommit
+      ui-tui/packages/hermes-ink/src/ink/ink.tsx:405                onComputeLayout
+      ui-tui/packages/hermes-ink/src/native-ts/yoga-layout/index.ts:841  calculateLayout
+跳 3  ui-tui/packages/hermes-ink/src/ink/reconciler.ts:206          rootNode.onRender?.()
+      ui-tui/packages/hermes-ink/src/ink/ink.tsx:374                throttle + queueMicrotask
+跳 4  ui-tui/packages/hermes-ink/src/ink/ink.tsx:687                onRender 闸门
+      ui-tui/packages/hermes-ink/src/ink/ink.tsx:750                this.renderer({...})
+      ui-tui/packages/hermes-ink/src/ink/renderer.ts:122            renderNodeToOutput + output.get
+      ui-tui/packages/hermes-ink/src/ink/render-node-to-output.ts:717  output.write
+跳 5  ui-tui/packages/hermes-ink/src/ink/ink.tsx:913                整屏 damage 兜底
+跳 6  ui-tui/packages/hermes-ink/src/ink/ink.tsx:943                this.log.render(...)
+      ui-tui/packages/hermes-ink/src/ink/log-update.ts:136          LogUpdate.render
+      ui-tui/packages/hermes-ink/src/ink/ink.tsx:956                双缓冲交换
+跳 7  ui-tui/packages/hermes-ink/src/ink/ink.tsx:980                optimize(diff)
+      ui-tui/packages/hermes-ink/src/ink/ink.tsx:1134               writeDiffToTerminal(...)
+      ui-tui/packages/hermes-ink/src/ink/terminal.ts:338            拼串 + 单次 stdout.write
+跳 8  process.stdout                                                字节离开进程
+反向  ui-tui/packages/hermes-ink/src/ink/components/App.tsx:559     handleReadable(stdin 泵)
+```
 
 **明确没做到 / 不确定的**:见 §7 全部 10 条,其中最重要的三条是
 (a) 挂死用例没有实测复现(铁律 3 禁跑测试);

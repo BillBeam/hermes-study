@@ -624,17 +624,46 @@ not-a-path strings : 1
 | 4 | WS | `/api/ws` | `web/src/lib/gatewayClient.ts:59`:`        path: "/api/ws",` | JSON-RPC 网关(连接态徽章、凭据告警、slash 命令) |
 | 5 | POST | `/api/chat/image-upload` | `web/src/lib/chatImagePaste.ts:145`:`  const res = await authedFetch(\`/api/chat/image-upload${qs}\`, {` | 粘贴图片上传 |
 
-**「SPA 的网络出口只有这几处」是一条负结论,搜索面如下**:对 `web/src/` 下全部
-非测试 `.ts`/`.tsx`(含 `web/vite.config.ts`)扫 `fetch(` / `fetchJSON(` / `authedFetch(`
-/ `new WebSocket` 全部出现;结果是——`fetch(` 只出现在
-`web/src/lib/api.ts`(4 处:`:114` `:203` `:253` `:362`)与
-`web/src/pages/SessionsPage.tsx:1470`(见 §7 ■-G-01);`fetchJSON(`/`authedFetch(` 在
-`api.ts` 之外只有 `web/src/lib/chatImagePaste.ts:145`;`new WebSocket` 3 处
-(`ChatPage` / `ChatSidebar` / `HermesConsoleModal`)加 `gatewayClient` 经
-`@hermes/shared` 的 `JsonRpcGatewayClient` 建连,共 4 条 WS。未排除任何文件。
-**唯一的开放口子是插件 SDK**:`web/src/plugins/registry.ts:127` 把 `fetchJSON`
-原样交给插件,插件可以打任意路径——所以"SPA 自己只打这 171 条"成立,
-"跑在 dashboard 里的代码只打这 171 条"不成立。
+**「SPA 的网络出口只有这几处」是一条负结论,搜索面写出来**:对 `web/src/` 下**全部**
+非测试 `.ts`/`.tsx` 扫每一个建连原语的出现,不排除任何文件。
+
+```verify
+cd /home/user/hermes-agent && grep -rnoE '\b(fetch|fetchJSON|authedFetch)\(|new WebSocket' \
+  web/src/ --include='*.ts' --include='*.tsx' | grep -v '\.test\.' \
+  | sed 's/:[0-9]*:/ /' | sort | uniq -c | sort -rn
+```
+
+```text
+      5 web/src/lib/api.ts fetch(
+      2 web/src/lib/api.ts authedFetch(
+      1 web/src/pages/SessionsPage.tsx fetch(
+      1 web/src/pages/ChatPage.tsx new WebSocket
+      1 web/src/lib/chatImagePaste.ts authedFetch(
+      1 web/src/components/HermesConsoleModal.tsx new WebSocket
+      1 web/src/components/ChatSidebar.tsx new WebSocket
+```
+
+读法:`api.ts` 的 5 处 `fetch(` 里有 1 处在注释里(`:367` 的
+"letting fetch() opaquely consume the redirect"),真正建连的是 `:114` / `:203` / `:253` / `:362`。
+`api.ts` 之外只有两处:`web/src/lib/chatImagePaste.ts` 的 `authedFetch(`(合规,走 api.ts)
+与 `web/src/pages/SessionsPage.tsx` 的裸 `fetch(`(**不合规**,见 §7 ■-G-01)。
+`new WebSocket` 3 处,加上 `gatewayClient` 经 `@hermes/shared` 的
+`JsonRpcGatewayClient` 建连,共 4 条 WS。
+
+**唯一的开放口子是插件 SDK**——它把裸 `fetchJSON` 原样交给插件:
+
+`web/src/plugins/registry.ts:129 @ 863e313`
+
+```ts
+    fetchJSON,
+    // Authenticated fetch for non-JSON endpoints (uploads / blob downloads).
+    // Handles loopback-token vs gated-cookie auth so plugins never read
+    // window.__HERMES_SESSION_TOKEN__ directly.
+    authedFetch,
+    // Build a ws(s):// URL with the correct auth param for the active mode
+```
+
+所以"SPA 自己只打这 171 条"成立,"跑在 dashboard 里的代码只打这 171 条"不成立。
 
 ### 3.3 路由表(19 条内置 + 1 条兜底)
 
@@ -663,26 +692,73 @@ const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
   "/docs": DocsPage,
 ```
 
-18 条 + 闭合;第 19 条是 `/chat`,它**不在**这张表里,而是在
-`web/src/App.tsx:450` 处按 `embeddedChat` 条件合并进来,元素是一个返回 `null` 的
-`ChatRouteSink`(`web/src/App.tsx:180`)——真正的 ChatPage 渲染在 `<Routes>` **之外**,
-用 `display:none` 隐藏,这样切标签页时 PTY 子进程、WebSocket、xterm 实例都不被卸载。
-另有 `web/src/App.tsx:774` 的 `path="*"` 兜底。
+18 条 + 闭合;第 19 条是 `/chat`,它**不在**这张表里,而是在 `web/src/App.tsx:450`
+处按 `embeddedChat` 条件合并进来,元素是一个**返回 `null` 的占位组件**:
 
-**路由合并的三轮**(`web/src/App.tsx:306` 的 `buildRoutes`):
+`web/src/App.tsx:181 @ 863e313`
+
+```tsx
+function ChatRouteSink() {
+  return null;
+}
+```
+
+真正的 ChatPage 渲染在 `<Routes>` **之外**,用 `display:none` 隐藏,
+这样切标签页时 PTY 子进程、WebSocket、xterm 实例都不被卸载;
+`ChatRouteSink` 只是"占住这个路径,别让 `*` 兜底重定向抢走"。
+兜底本身在 `web/src/App.tsx:775` 的 `path="*"`。
+
+**路由合并分三轮**,入口是:
+
+`web/src/App.tsx:306 @ 863e313`
+
+```tsx
+function buildRoutes(
+  builtinRoutes: Record<string, ComponentType>,
+  manifests: PluginManifest[],
+): Array<{
+  key: string;
+  path: string;
+  element: ReactNode;
+}> {
+```
+
 ① 内置路径逐个检查有没有插件声明 `tab.override` 要顶替;
 ② 未 override 的插件按 `tab.path` 追加(跳过 `hidden` 与 `/plugins`);
 ③ `hidden` 插件也注册路由但不进导航。
 
 ### 3.4 侧栏导航表(17 条,`BUILTIN_NAV_REST`)
 
-`web/src/App.tsx:184` 起,顺序即渲染顺序:
-`/sessions`、`/files`、`/analytics`、`/models`、`/logs`、`/cron`、`/skills`、`/plugins`、
-`/mcp`、`/channels`、`/webhooks`、`/pairing`、`/profiles`、`/config`、`/env`、`/system`、`/docs`。
+`web/src/App.tsx:185 @ 863e313`
+
+```tsx
+const BUILTIN_NAV_REST: NavItem[] = [
+  {
+    path: "/sessions",
+    labelKey: "sessions",
+    label: "Sessions",
+    icon: MessageSquare,
+```
+
+顺序即渲染顺序:`/sessions`、`/files`、`/analytics`、`/models`、`/logs`、`/cron`、
+`/skills`、`/plugins`、`/mcp`、`/channels`、`/webhooks`、`/pairing`、`/profiles`、
+`/config`、`/env`、`/system`、`/docs`。
 
 与 3.3 的差集,**两条路由有页面但不在导航里**:`/profiles/new`(从 `/profiles` 内部进)
-和 `/`(重定向)。`/chat` 由 `CHAT_NAV_ITEM`(`web/src/App.tsx:137`)在嵌入式 chat 开启时
-插到最前,故实际 18 条;`/analytics` 在 `showTokenAnalytics` 为假时被过滤掉。
+和 `/`(重定向)。`/chat` 由一个单独的导航项在嵌入式 chat 开启时插到最前:
+
+`web/src/App.tsx:137 @ 863e313`
+
+```tsx
+const CHAT_NAV_ITEM: NavItem = {
+  path: "/chat",
+  labelKey: "chat",
+  label: "Chat",
+  icon: Terminal,
+};
+```
+
+故实际 18 条;`/analytics` 在 `showTokenAnalytics` 为假时被过滤掉。
 
 ### 3.5 api 客户端方法表(166 个)与页面映射
 
@@ -728,12 +804,38 @@ web/src/pages/WebhooksPage.tsx	7
 读法:`SystemPage` 一页调 33 个方法,是第二名的 2.5 倍——**运维面全堆在一页**,
 这也是 §6 三条移交项里有两条落在它身上的结构原因。`DocsPage` 为 0(纯 iframe)。
 
-**恰好 1 个 api 方法在 SPA 里没有调用方**:`api.uninstallSkillFromHub`
-(`web/src/lib/api.ts:1294`)。技能页有安装/更新/扫描/预览/搜索,**没有卸载按钮**
-(搜索面:`grep -rni 'uninstall' web/src/` 全部命中只有 `api.ts` 的定义与注释、
-以及 `McpPage.tsx` 里三处名为 `runInstall` 的无关标识符)。同名能力在桌面端另有一份独立实现
-(`apps/desktop/src/hermes.ts:1684`)。它经 `SDK.api` 仍对插件可达,不是死代码,
-但**是一条界面上到不了的端点**。
+**恰好 1 个 api 方法在 SPA 里没有调用方**:
+
+`web/src/lib/api.ts:1294 @ 863e313`
+
+```ts
+  uninstallSkillFromHub: (name: string, profile?: string) =>
+    fetchJSON<ActionResponse>("/api/skills/hub/uninstall", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, profile: profile || undefined }),
+    }),
+```
+
+技能页有安装/更新/扫描/预览/搜索,**没有卸载按钮**。搜索面:
+
+```verify
+cd /home/user/hermes-agent && grep -rni 'uninstall' web/src/
+```
+
+```text
+web/src/lib/api.ts:1286:  // ``profile`` scopes install/uninstall/update and the installed-state
+web/src/lib/api.ts:1294:  uninstallSkillFromHub: (name: string, profile?: string) =>
+web/src/lib/api.ts:1295:    fetchJSON<ActionResponse>("/api/skills/hub/uninstall", {
+web/src/pages/McpPage.tsx:245:  const runInstall = useCallback(
+web/src/pages/McpPage.tsx:276:      void runInstall(entry, {});
+web/src/pages/McpPage.tsx:293:    void runInstall(installEntry, envMap);
+```
+
+全部命中只有 `api.ts` 的定义与注释、以及 `McpPage.tsx` 里三处名为 `runInstall`
+的无关标识符(它们因子串 `nInstall` 被 `-i` 匹配到,与 hub 卸载无关)。
+同名能力在桌面端另有一份独立实现(`apps/desktop/src/hermes.ts:1684`)。
+它经 `SDK.api` 仍对插件可达,不是死代码,但**是一条界面上到不了的端点**。
 
 ### 3.6 插件插槽表(声明 30 / 实渲染 31 / 文档 28)
 
@@ -765,7 +867,17 @@ rendered but NOT documented : ['files:bottom', 'files:top', 'models:bottom', 'mo
 `web/src/plugins/slots.ts` 自身的 docstring 示例)扫 `<PluginSlot name="…"`,
 并同时扫 `<PluginSlot name={` 这种动态名——**0 处**,所以静态枚举就是全集。
 
-**声明面 30 个**(`web/src/plugins/slots.ts:61` 起):壳层 10 个
+**声明面 30 个**:
+
+`web/src/plugins/slots.ts:61 @ 863e313`
+
+```ts
+export const KNOWN_SLOT_NAMES = [
+  // Shell-wide
+  "backdrop",
+```
+
+壳层 10 个
 `backdrop` / `header-left` / `header-right` / `header-banner` / `sidebar` /
 `pre-main` / `post-main` / `footer-left` / `footer-right` / `overlay`;
 页面级 20 个 = `sessions` / `analytics` / `logs` / `cron` / `skills` / `plugins` /
@@ -795,13 +907,39 @@ rendered but NOT documented : ['files:bottom', 'files:top', 'models:bottom', 'mo
 
 ### 3.9 主题与字体表
 
-内置主题 **8** 个(`web/src/themes/presets.ts:231` 的 `BUILTIN_THEMES`):
-`default`、`default-large`、`nous-blue`、`midnight`、`ember`、`mono`、`cyberpunk`、`rose`。
+内置主题 **8** 个:
+
+`web/src/themes/presets.ts:231 @ 863e313`
+
+```ts
+export const BUILTIN_THEMES: Record<string, DashboardTheme> = {
+  default: defaultTheme,
+  "default-large": defaultLargeTheme,
+  "nous-blue": nousBlueTheme,
+  midnight: midnightTheme,
+  ember: emberTheme,
+  mono: monoTheme,
+  cyberpunk: cyberpunkTheme,
+  rose: roseTheme,
+```
+
 字体选项 **14** 个(`web/src/themes/fonts.ts`):3 个系统栈
 (`system-sans` / `system-serif` / `system-mono`)+ 11 个可下载
 (`inter`、`ibm-plex-sans`、`work-sans`、`atkinson-hyperlegible`、`dm-sans`、
 `spectral`、`fraunces`、`source-serif`、`jetbrains-mono`、`ibm-plex-mono`、`space-mono`)。
-布局变体 3 种:`standard` / `cockpit` / `tiled`(`web/src/themes/types.ts:77`)。
+布局变体 3 种:
+
+`web/src/themes/types.ts:71 @ 863e313`
+
+```ts
+/** Overall layout variant the shell renders. `standard` = default single-
+ *  column page layout. `cockpit` = reserves a left sidebar rail for a
+ *  plugin slot (intended for HUD-style themes with persistent status panels).
+ *  `tiled` = relaxes the main content max-width so pages can use the full
+ *  viewport width. Themes set this; plugins react via CSS vars /
+ *  `[data-layout-variant="..."]` selectors. */
+export type ThemeLayoutVariant = "standard" | "cockpit" | "tiled";
+```
 
 ### 3.10 profile 作用域前缀表(17 条)
 
@@ -839,9 +977,19 @@ const PROFILE_SCOPED_PREFIXES = [
 选它的理由:它跨了本片的全部横切件(profile 作用域、认证头、base path),
 并且正好是 §6 里 H-R8C-e 那条移交项的**前端对照物**。逐跳带锚点。
 
-**跳 1 · 用户点按钮。** Cron 页每行任务右侧有一个闪电图标按钮,
-`web/src/pages/CronPage.tsx:1099` 的 `onClick={() => handleTrigger(job)}`,
-无二次确认。
+**跳 1 · 用户点按钮。** Cron 页每行任务右侧有一个闪电图标按钮,**无二次确认**:
+
+`web/src/pages/CronPage.tsx:1094 @ 863e313`
+
+```tsx
+                  <Button
+                    ghost
+                    size="icon"
+                    title={t.cron.triggerNow}
+                    aria-label={t.cron.triggerNow}
+                    onClick={() => handleTrigger(job)}
+                  >
+```
 
 **跳 2 · 页面处理器取出这条 job 自己的 profile。**
 
@@ -858,11 +1006,26 @@ const PROFILE_SCOPED_PREFIXES = [
       loadJobs();
 ```
 
-`getJobProfile`(`web/src/pages/CronPage.tsx:485`)从 job 载荷里读 `profile` / `profile_name`,
-取不到则回落 `"default"`。**注意这里传的是 job 自己的 profile,不是界面上选中的过滤器**——
-过滤器可以选 `"all"`(`web/src/pages/CronPage.tsx:970` 的
-`<SelectOption value="all">All profiles</SelectOption>`),此时列表里同时躺着多个 profile 的任务,
-每一行按自己的归属触发。
+传进去的 profile 从 job 载荷里读,取不到则回落 `"default"`:
+
+`web/src/pages/CronPage.tsx:485 @ 863e313`
+
+```tsx
+function getJobProfile(job: CronJob): string {
+  return asText(job.profile) || asText(job.profile_name) || "default";
+}
+```
+
+**注意这里传的是 job 自己的 profile,不是界面上选中的过滤器**——
+过滤器还可以选 `"all"`:
+
+`web/src/pages/CronPage.tsx:969 @ 863e313`
+
+```tsx
+              <SelectOption value="all">All profiles</SelectOption>
+```
+
+此时列表里同时躺着多个 profile 的任务,每一行按自己的归属触发。
 
 **跳 3 · 客户端把 profile 拼成显式 query。**
 
@@ -956,8 +1119,21 @@ def _trigger_cron_job_sync(job_id: str, profile: Optional[str] = None):
     return job
 ```
 
-**跳 8 · 回到界面。** 成功则 `showToast(...)` 弹一条 toast,并调 `loadJobs()`
-重新拉 `GET /api/cron/jobs?profile=<过滤器值>`(`web/src/pages/CronPage.tsx:579`)刷新列表。
+**跳 8 · 回到界面。** 成功则 `showToast(...)` 弹一条 toast,并调 `loadJobs()` 重新拉列表:
+
+`web/src/pages/CronPage.tsx:579 @ 863e313`
+
+```tsx
+  const loadJobs = useCallback(() => {
+    api
+      .getCronJobs(selectedProfile)
+      .then(setJobs)
+      .catch(() => showToast(t.common.loading, "error"))
+      .finally(() => setLoading(false));
+  }, [selectedProfile, showToast, t.common.loading]);
+```
+
+注意它拉的是**过滤器**的 profile(可能是 `"all"`),不是刚触发那条 job 的 profile。
 失败时 `fetchJSON` 抛 `Error("<status>: <body>")`,页面 catch 后弹红 toast。
 **没有乐观更新、没有轮询任务执行状态**——用户只知道"请求被接受了",
 任务真正跑成什么样要去 Logs 页看。
@@ -987,15 +1163,39 @@ def _trigger_cron_job_sync(job_id: str, profile: Optional[str] = None):
   而"其他请求都成功 → 闩锁被清 → 这个 401 又触发重载"会构成无限重载环。
   这是一段值得抄走的设计:**一个全局的"401 就重载"策略必须给"预期内的 401"留豁免口**。
 - **WebSocket 的认证是另一条路**。浏览器无法给 WS 升级请求设 `Authorization` 头,
-  gated 模式下后端又拒绝 `?token=`。于是 `getWsTicket()`(`web/src/lib/api.ts:201`)
-  用已认证的 REST 通道换一张**单次、30 秒**的 ticket,`buildWsAuthParam()` 按模式返回
-  `["ticket", …]` 或 `["token", …]`。**每次连接都要新取一张**。
+  gated 模式下后端又拒绝 `?token=`。于是用已认证的 REST 通道换一张**单次、30 秒**的 ticket:
+
+`web/src/lib/api.ts:202 @ 863e313`
+
+```ts
+export async function getWsTicket(): Promise<{ ticket: string; ttl_seconds: number }> {
+  const res = await fetch(`${BASE}/api/auth/ws-ticket`, {
+    method: "POST",
+    credentials: "include",
+  });
+```
+
+  `buildWsAuthParam()` 按模式返回 `["ticket", …]` 或 `["token", …]`。**每次连接都要新取一张**。
 
 ### 5.2 反向代理前缀(base path)
 
 dashboard 可能被挂在 `https://host/hermes/` 这种子路径下。后端读 `X-Forwarded-Prefix`
-把前缀注入成 `window.__HERMES_BASE_PATH__`,前端在 `web/src/lib/api.ts:10` 归一化
-(补前导斜杠、去尾斜杠)后存成模块级常量 `BASE`,并在三处使用:
+把前缀注入成 `window.__HERMES_BASE_PATH__`,前端归一化后存成模块级常量:
+
+`web/src/lib/api.ts:10 @ 863e313`
+
+```ts
+function readBasePath(): string {
+  if (typeof window === "undefined") return "";
+  const raw = window.__HERMES_BASE_PATH__ ?? "";
+  if (!raw) return "";
+  // Normalise: ensure leading slash, strip trailing slash.
+  const withLead = raw.startsWith("/") ? raw : `/${raw}`;
+  return withLead.replace(/\/+$/, "");
+}
+```
+
+这个 `BASE` 在三处使用:
 `fetchJSON` / `authedFetch` 拼 URL、`buildWsUrl` 传给 `buildHermesWebSocketUrl`、
 `main.tsx` 传给 `<BrowserRouter basename>`。**绕过 `BASE` 的网络调用会在这种部署下 404**
 ——全仓恰有一处,见 §7 ■-G-01。
@@ -1022,9 +1222,21 @@ React state 是唯一真源,URL 只是它的投影,这样深链接能落到正�
 
 两处值得抄的细节:
 
-- **`PluginPage` 用 `useSyncExternalStore` 而不是 `useEffect` 订阅注册事件**
-  (`web/src/plugins/PluginPage.tsx:16` 的注释直说了原因):脚本可能在 effect 跑之前就
-  执行完并 `register()`,用 effect 订阅会漏掉那一次。
+- **`PluginPage` 用 `useSyncExternalStore` 而不是 `useEffect` 订阅注册事件**,
+  注释直说了原因——脚本可能在 effect 跑之前就执行完并 `register()`:
+
+`web/src/plugins/PluginPage.tsx:15 @ 863e313`
+
+```tsx
+  // Subscribe in render (via useSyncExternalStore) so we never miss
+  // `register()` if the script loads before a useEffect would run.
+  const Component = useSyncExternalStore(
+    (onChange) => onPluginRegistered(onChange),
+    () => getPluginComponent(name) ?? null,
+    () => null,
+  );
+```
+
 - **缓存不能无条件用来提前结束 loading**。`canSeedLoadedFromCache` 只在缓存里
   没有任何插件声明 `tab.override === "/chat"` 时才允许 `loading=false` 起步。
   否则常驻 ChatPage 宿主会先挂载、spawn 一个 PTY,再被插件顶掉——用户的会话在绘制中途被杀。
@@ -1063,8 +1275,19 @@ React state 是唯一真源,URL 只是它的投影,这样深链接能落到正�
 
 `ChatPage` 是全片最重的一块。要点:
 
-- **常驻宿主**:它渲染在 `<Routes>` 之外,靠 `display:none` 隐藏。理由写在
-  `web/src/App.tsx:144` 的注释里——PTY 子进程、WebSocket、xterm 实例必须跨标签页存活。
+- **常驻宿主**:它渲染在 `<Routes>` 之外,靠 `display:none` 隐藏。理由写在路由表上方:
+
+`web/src/App.tsx:144 @ 863e313`
+
+```tsx
+/**
+ * Built-in routes except /chat.  Chat is rendered persistently (outside
+ * <Routes>) when embedded — see the persistent chat host block rendered
+ * inline near the bottom of this file — so the PTY child, WebSocket,
+ * and xterm instance survive when the user visits another tab and comes
+ * back.  A `display:none` toggle hides the terminal without unmounting.
+```
+
   但宿主本身要等第一次访问 `/chat` 才挂载(`latchChatActivation` 粘滞闩锁),
   否则打开 dashboard 任意页面都会 spawn 一个 TUI 并触发 `npm install`。
 - **连接身份由四个 query 参数决定**:`channel`、`resume`(续接哪个会话)、`fresh`、
@@ -1092,8 +1315,18 @@ React state 是唯一真源,URL 只是它的投影,这样深链接能落到正�
 配合 `App.tsx` 里 19 个 `lazy()` 页面形成路由级代码分割。
 
 开发环路里有一处很实用的设计:**Vite dev server 会去抓生产服务器的 token**。
-`hermesDevToken()` 插件(`web/vite.config.ts:18`)在每次 dev 页面加载时 fetch
-`http://127.0.0.1:9119` 的 HTML,正则抠出 `window.__HERMES_SESSION_TOKEN__` 再注回 dev HTML。
+
+`web/vite.config.ts:18 @ 863e313`
+
+```ts
+function hermesDevToken(): Plugin {
+  const TOKEN_RE = /window\.__HERMES_SESSION_TOKEN__\s*=\s*"([^"]+)"/;
+  const EMBEDDED_RE =
+    /window\.__HERMES_DASHBOARD_EMBEDDED_CHAT__\s*=\s*(true|false)/;
+```
+
+这个插件在每次 dev 页面加载时 fetch `http://127.0.0.1:9119` 的 HTML,
+正则抠出 `window.__HERMES_SESSION_TOKEN__` 再注回 dev HTML。
 没有它,dev server 自己的 `index.html` 不含 token,所有 `/api/*` 都 401。
 `server.proxy` 把 `/api`(含 `ws: true`)与 `/dashboard-plugins` 都代理到后端。
 

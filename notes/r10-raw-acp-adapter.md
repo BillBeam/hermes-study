@@ -515,8 +515,24 @@ ContextVar 的 interactive 标志(`:1899`)。
 start 通知(`:166`-`:177`),然后 `build_tool_start` → `_send_update`(`:179`-`:180`)。
 
 **跳 8** `_send_update`(`acp_adapter/events.py:87`)是**唯一的跨线程出口**:
-`safe_schedule_threadsafe(conn.session_update(...), loop, ...)`(`:96`)+ `future.result(timeout=5)`(`:105`)。
-编辑器此刻画出一个 `edit` 类型的工具卡片。
+
+
+`acp_adapter/events.py:94 @ 863e313`
+
+```python
+    from agent.async_utils import safe_schedule_threadsafe
+
+    future = safe_schedule_threadsafe(
+        conn.session_update(session_id, update),
+        loop,
+        logger=logger,
+        log_message="Failed to send ACP update",
+    )
+```
+
+再 `future.result(timeout=5)`(`acp_adapter/events.py:105`)。编辑器此刻画出一个 `edit` 类型的工具卡片。
+`safe_schedule_threadsafe` 内部就是 `asyncio.run_coroutine_threadsafe`,但失败路径会 `coro.close()`
+以免留下「coroutine was never awaited」的泄漏(`agent/async_utils.py:56-68`)。
 
 **跳 9(片外,共享派发器)** 工具真正派发前,`model_tools.handle_function_call`(`model_tools.py:1123`)
 里插着 ACP 的编辑审批闸:
@@ -591,8 +607,17 @@ start 通知(`:166`-`:177`),然后 `build_tool_start` → `_send_update`(`:179`-
 周期性发 `ping` 当心跳;ACP 路由器**正确地**回 `-32601 method not found`;但 SDK 的调度任务随后
 用 `logging.exception("Background task failed")` 把 traceback 打到 stderr,每个探针周期一次。
 `_BenignProbeMethodFilter` 的判据窄到不能再窄:消息**恰好**是 `"Background task failed"`、
-异常是 `RequestError`、code **恰好** `-32601`、且 `data["method"]` 在
-`frozenset({"ping", "health", "healthcheck"})` 里 —— 四条全中才吞。协议响应一字不改。
+异常是 `RequestError`、code **恰好** `-32601`、且 `data["method"]` 在下面这个集合里
+—— 四条全中才吞。协议响应一字不改。
+
+`acp_adapter/entry.py:47 @ 863e313`
+
+```python
+# traceback is pure noise. We keep the protocol response intact and only
+# silence the stderr noise for this specific benign case.
+_BENIGN_PROBE_METHODS = frozenset({"ping", "health", "healthcheck"})
+```
+
 
 **MCP 冷启动**(:258-267):默认在后台守护线程里跑 `start_background_mcp_discovery`,
 免得 `asyncio.run()` 被 2-5 秒的 MCP 连接阻塞;`HERMES_ACP_SKIP_CONFIGURED_MCP=1` 可以整个跳过
@@ -602,13 +627,43 @@ start 通知(`:166`-`:177`),然后 `build_tool_start` → `_send_update`(`:179`-
 
 ACP 官方注册表要求 agent 在握手时至少 advertise 一个可用的认证方式。hermes 的做法:
 
-- `detect_provider()`(:11)委托给 `hermes_cli.runtime_provider.resolve_runtime_provider()`;
-  **关键判据是 `api_key` 可以是 `Callable`**(:28 `is_callable_provider = callable(api_key) and not isinstance(api_key, str)`)
-  —— Azure Foundry 的 Entra ID 是「bearer token 提供函数」而不是字符串密钥;
+- `detect_provider()`(`acp_adapter/auth.py:11`)委托给
+  `hermes_cli.runtime_provider.resolve_runtime_provider()`;**关键判据是 `api_key` 可以是 `Callable`**:
+
+
+`acp_adapter/auth.py:27 @ 863e313`
+
+```python
+        is_string_key = isinstance(api_key, str) and api_key.strip()
+        is_callable_provider = callable(api_key) and not isinstance(api_key, str)
+        if is_string_key or is_callable_provider:
+            return provider.strip().lower()
+```
+
+  Azure Foundry 的 Entra ID 是「bearer token 提供函数」而不是字符串密钥;
   没有这一条,Entra 配置的部署会静默回落成 `"openrouter"` 而握手拒掉合法 provider。
   这是一个「鸭子类型的凭据」在类型判定上留下的坑,值得记住。
-- `build_auth_methods()`(:41)**恒发**一个 `TerminalAuthMethod(id="hermes-setup", args=["--setup"])`,
-  有凭据时**追加**一个 `AuthMethodAgent(id=<provider>)`。所以列表长度是 1 或 2,不会是 0。
+- `build_auth_methods()`(`acp_adapter/auth.py:41`)**恒发**一个终端设置方式,
+  有凭据时才**追加** `AuthMethodAgent(id=<provider>)`,所以列表长度是 1 或 2、不会是 0:
+
+
+`acp_adapter/auth.py:67 @ 863e313`
+
+```python
+    methods.append(
+        TerminalAuthMethod(
+            id=TERMINAL_SETUP_AUTH_METHOD_ID,
+            name="Configure Hermes provider",
+            description=(
+                "Open Hermes' interactive model/provider setup in a terminal. "
+                "Use this when Hermes has not been configured on this machine yet."
+            ),
+            type="terminal",
+            args=["--setup"],
+        )
+    )
+```
+
 - `authenticate`(acp_adapter/server.py:1173)反过来收窄:`method_id` 必须**等于**当前探到的 provider
   (小写比较),或者等于 `hermes-setup` 且此刻**已经**有 provider(终端设置流走完了)。
   注释(acp_adapter/server.py:1174-1179)自陈这是 API 卫生而非安全边界:「ACP is stdio-only, local-trust」。
@@ -633,7 +688,21 @@ agent 自己往同一个 DB 增量 flush 时,再调 `replace_messages()` 就是�
 `archive_and_compact()` 留下的 `active=0/compacted=1` 归档行 —— 长到发生过压缩的 ACP 对话会**静默丢历史**。
 判据是「agent 是否自己拥有持久化」(`agent._session_db is db and agent._session_db_created`);
 即使不拥有(换模型 / `/restore` 会铸一个 `_session_db_created=False` 的新 agent),
-也要先问 `db.has_archived_messages()`,有归档就只替换 `active=1` 那一份。
+也要先问一次有没有归档行,有就只替换 `active=1` 那一份:
+
+
+`acp_adapter/session.py:487 @ 863e313`
+
+```python
+                try:
+                    has_archived = db.has_archived_messages(state.session_id)
+                except Exception:
+                    has_archived = False
+                db.replace_messages(
+                    state.session_id, state.history, active_only=has_archived
+                )
+```
+
 
 **WSL cwd 互译**贯穿全文件:`_translate_acp_cwd`(:29,写入/执行用)与
 `_normalize_cwd_for_compare`(:43,过滤/比较用)是**两套**,后者还额外把 `/mnt/E/` 折成 `/mnt/e/`(:56-57)。
@@ -649,8 +718,17 @@ agent 自己往同一个 DB 增量 flush 时,再调 `replace_messages()` 就是�
 ### §5.4 `server.py`:生命周期、并发模型、并发不变量
 
 **并发模型**(要一句话讲清):事件循环独占主线程;每个 `prompt()` 把同步的 agent 丢进一个
-**全模块共享的 4 线程池**(`_executor`,:199);跨向用 `run_coroutine_threadsafe`,
-跨回用 `loop.run_in_executor` 的 future。所以:
+**全模块共享的 4 线程池**;跨向用 `run_coroutine_threadsafe`,跨回用 `loop.run_in_executor` 的 future。
+
+
+`acp_adapter/server.py:198 @ 863e313`
+
+```python
+# Thread pool for running AIAgent (synchronous) in parallel.
+_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="acp-agent")
+```
+
+所以:
 
 - **最多 4 个 ACP 会话能同时跑回合**,第 5 个排在 executor 队列里(编辑器看不出区别,只是慢)。
 - 线程池会**复用线程**,于是每一样「线程可见的状态」都必须存取对称。代码里三处显式对称:
@@ -665,12 +743,40 @@ agent 自己往同一个 DB 增量 flush 时,再调 `replace_messages()` 就是�
 `is_running` 的翻转、`queued_prompts` 的进出、`interrupted_prompt_text` 的交接,全在锁内。
 两个非平凡场景:
 
-- **cancel 与新 prompt 的竞态**(:1543-1558):`cancel` 在**同一把锁内**先把
-  `current_prompt_text` 挪到 `interrupted_prompt_text`、再置 cancel_event、再 hard interrupt,
-  免得另一个 prompt 抢到锁后把这个回合误判成「可重定向的活干」。
-- **MCP 迟到刷新与首个回合的竞态**(:1105-1116):后台守护线程要重建工具表,
-  但重建会破坏 prompt cache 前缀;于是它**持 `runtime_lock`** 检查 `is_running` 与
-  `_user_turn_count`/`_api_call_count` 都为 0 才动手,把「守卫过了但首个 prompt 已经起跑」那个窗口关掉。
+- **cancel 与新 prompt 的竞态**:`cancel` 在**同一把锁内**先把 `current_prompt_text` 挪到
+  `interrupted_prompt_text`、再置 cancel_event、再 hard interrupt,免得另一个 prompt 抢到锁后
+  把这个回合误判成「可重定向的活干」——注释把这个理由写在了锁里:
+
+
+`acp_adapter/server.py:1543 @ 863e313`
+
+```python
+            with state.runtime_lock:
+                if state.is_running and state.current_prompt_text:
+                    state.interrupted_prompt_text = state.current_prompt_text
+                # Publish cancellation and hard-stop the agent before another
+                # prompt can acquire this lock and mistake the turn for
+                # redirectable work.
+                state.cancel_event.set()
+```
+
+- **MCP 迟到刷新与首个回合的竞态**:后台守护线程要重建工具表,但重建会破坏 prompt cache 前缀;
+  于是它**持 `runtime_lock`** 三重检查后才动手,把「守卫过了但首个 prompt 已经起跑」那个窗口关掉:
+
+
+`acp_adapter/server.py:1105 @ 863e313`
+
+```python
+                with current.runtime_lock:
+                    if current.is_running:
+                        return
+                    if (
+                        int(getattr(agent, "_user_turn_count", 0) or 0) > 0
+                        or int(getattr(agent, "_api_call_count", 0) or 0) > 0
+                    ):
+                        return
+```
+
 
 **`prompt()` 的输入分流**(:1646-1768),按判定顺序:
 
@@ -730,8 +836,24 @@ cd /home/user/hermes-agent && grep -rn 'read_text_file\|write_text_file\|create_
 2. **`todo` → ACP 原生 plan**(`_build_plan_update_from_todo_result`,:39):Zed 把
    `sessionUpdate: plan` 渲染成一等公民的任务面板。翻译里有一个必须记住的取舍:
    ACP 的 plan 只有 `pending/in_progress/completed` 三态,hermes 有 `cancelled`;
-   映射成 `completed` 并在正文前加 `[cancelled] `(:80-81),理由是客户端做的是**整表替换**,
-   直接丢掉会让用户看着任务凭空消失。
+   映射成 `completed` 并在正文前加 `[cancelled] `(`acp_adapter/events.py:80-81`),
+   理由写在映射表里 —— 客户端做的是**整表替换**,直接丢掉会让用户看着任务凭空消失:
+
+
+`acp_adapter/events.py:62 @ 863e313`
+
+```python
+    status_map = {
+        "pending": "pending",
+        "in_progress": "in_progress",
+        "completed": "completed",
+        # ACP plans only support pending/in_progress/completed. Preserve
+        # cancelled tasks as terminal entries instead of dropping them and
+        # making the client's full-list replacement lose visible context.
+        "cancelled": "completed",
+    }
+```
+
 3. **`_json_loads_maybe_prefix`**(:28):hermes 的工具有时在 JSON 后面追加人读的提示
    (`{...}\n\n[Hint: ...]`),所以用 `JSONDecoder().raw_decode` 解第一个 JSON 值。
 
@@ -748,8 +870,18 @@ cd /home/user/hermes-agent && grep -rn 'read_text_file\|write_text_file\|create_
   任何异常都回落成一个「最小但合法」的 start 事件(:1067-1070)。注释说明这与
   `agent/display.py` 的 `get_cute_tool_message` 是同一个理由 —— 模型可能给出不符 schema 的参数
   (非字符串的 `command`/`path`),而 start 事件在实时回调**和历史回放**两条路上都会走。
-- **失败判定刻意保守**(`_tool_result_failed`,:213):只认三类信号 ——
-  `"Error executing tool '"` 前缀(内核工具执行器唯一产出的包装,普通输出造不出来)、
+- **失败判定刻意保守**(`_tool_result_failed`,`acp_adapter/tools.py:213`):只认三类信号 ——
+  首先是内核工具执行器唯一产出的那个包装前缀(普通工具输出造不出来):
+
+
+`acp_adapter/tools.py:226 @ 863e313`
+
+```python
+    if isinstance(result, str) and result.startswith("Error executing tool '"):
+        return True
+```
+
+  其次是
   结构化 `success/ok is False`、非零 `exit_code/returncode`;
   再加一条窄口子:**只有** `_POLISHED_TOOLS` 里的工具,`{"error": ...}` 且无 `content` 才算失败。
   理由:纯文本里出现 "error" 太常见(测试失败、命令打诊断),不该在 Zed 里标红。
@@ -776,7 +908,19 @@ ACP 的 diff 内容块;只在 `skill_manage` 上用(:1014-1027),因为 `skill_ma
 3. **走链有界**:`_MAX_WALK = 100`(:19)+ `seen` 集合防环(:60、:62)。
 
 判据的精细处:`parent_session_id` 这一列被压缩子会话、delegate 子会话、branch 子会话**共用**,
-所以 `compressionDepth` 只数 `parent.end_reason == 'compression'` 的那些跳(:72-73);
+所以 `compressionDepth` 只数 `end_reason == 'compression'` 的那些跳:
+
+
+`acp_adapter/provenance.py:70 @ 863e313`
+
+```python
+            break
+        root_id = cursor_parent
+        if prow.get("end_reason") == "compression":
+            compression_depth += 1
+        cursor_parent = prow.get("parent_session_id")
+```
+
 `sessionKind` 看**直接父**的 `end_reason`(:78-85);`rotated` 只在 `prompt()` 传了
 `previous_hermes_session_id` 且与当前不同时为真(:87-90),这时才补
 `reason="compression"` / `creatorKind="compression"`(:104-106)。
@@ -820,8 +964,25 @@ CLI, gateway, and other sessions leave it unset and therefore bypass this guard.
 
 **编辑提案的构造是三条独立路径**(每条都可能抛,抛了就 fail-closed 拒绝,`maybe_require_edit_approval` :244-248):
 - `write_file` → `_proposal_for_write_file`(:82):`old_text` 读现有文件(不存在则 None,即新建)。
-- `patch` + `mode="replace"` → `_proposal_for_patch_replace`(:98):**真的跑一遍**
-  `tools.fuzzy_match.fuzzy_find_and_replace`(:111-118)算出 `new_text`,匹配不到就抛 ——
+- `patch` + `mode="replace"` → `_proposal_for_patch_replace`(`acp_adapter/edit_approval.py:98`):
+  **在审批之前真的跑一遍**替换算出 `new_text`,匹配不到就抛:
+
+
+`acp_adapter/edit_approval.py:111 @ 863e313`
+
+```python
+    from tools.fuzzy_match import fuzzy_find_and_replace
+
+    new_text, match_count, _strategy, error = fuzzy_find_and_replace(
+        old_text,
+        str(old_string),
+        str(new_string),
+        bool(arguments.get("replace_all", False)),
+    )
+    if error or match_count == 0:
+        raise ValueError(error or f"Could not find match for old_string in {path}")
+```
+
   所以「拒绝的 patch 不可能改到文件」这条保证是靠**先算后审**实现的,不是靠事后回滚。
 - `patch` + `mode="patch"`(V4A 格式)→ `_proposal_for_patch_v4a`(:155):
   正则抽 `*** Update/Add/Delete File:` 与 `*** Move File: a -> b`(:133-151);
@@ -981,8 +1142,17 @@ ACP 把层次做**对**了,这一点要给足信用。闸 5 **不在 ACP adapter
   `tools/thread_context.py:78` 的 `propagate_context_to_thread` 复制上下文),
   甚至 hermes 把自己工具当 MCP 服务器暴露那条路(`agent/transports/hermes_tools_mcp_server.py:214`)。
   换句话说:**它覆盖的是调用点,而不是 ACP 这个界面。**
-- **它对别人零影响**:CLI / gateway 不绑那个 ContextVar,`requester is None` 直接返回
-  (acp_adapter/edit_approval.py:240-242)。这是「装深一层但不影响其他通道」的标准做法:
+- **它对别人零影响**:CLI / gateway 不绑那个 ContextVar,函数第一件事就是原路返回。
+
+`acp_adapter/edit_approval.py:240 @ 863e313`
+
+```python
+    requester = get_edit_approval_requester()
+    if requester is None:
+        return None
+```
+
+  这是「装深一层但不影响其他通道」的标准做法:
   把钩子装在最深的公共点,把**开关**放在最外层的会话上下文里。
 - 失败模式也被想过:`model_tools.py:1372-1389` 里,闸本身抛异常时,
   **只有** `write_file` / `patch` 会被 fail-closed 拦掉,其余工具继续 —— 又一次按名字。
@@ -1023,9 +1193,21 @@ ACP 把层次做**对**了,这一点要给足信用。闸 5 **不在 ACP adapter
 
 **■1 「Deny always」按钮的行为和「Deny」完全一样。**
 `acp_adapter/permissions.py:26` 把 `deny_always` 映射成 `"deny"`(§3.7 的逐字块),
-而 hermes 的审批语义里根本没有「永久拒绝」这一档:`tools/approval.py:3379-3384` 只对
-`choice == "session"` / `"always"` 做持久化(`approve_session` / `approve_permanent` /
-`save_permanent_allowlist`),`"deny"` 只返回一条「Do NOT retry」的阻断消息,不写任何规则。
+而 hermes 的审批语义里根本没有「永久拒绝」这一档 —— 持久化只发生在 `session` / `always` 两个分支上:
+
+`tools/approval.py:3396 @ 863e313`
+
+```python
+    if choice == "session":
+        approve_session(session_key, pattern_key)
+    elif choice == "always":
+        approve_session(session_key, pattern_key)
+        approve_permanent(pattern_key)
+        save_permanent_allowlist(_permanent_approved)
+```
+
+(gateway 分支在 `tools/approval.py:3318-3323`、execute_code 分支在 `:4451-4456`,三处形状相同。)
+`"deny"` 只返回一条「Do NOT retry」的阻断消息(`tools/approval.py:3381-3391`),不写任何规则。
 配置里确实有持久拒绝(`approvals.deny`,`tools/approval.py:542` 的 `_match_user_deny_rule`),
 但这个按钮不写它。**用户点了 "Deny always",下一次同样的命令还会再问。**
 标签比效果宽,这正是审批 UI 最不该有的偏差。
