@@ -25,6 +25,16 @@
   内置主题 / 字体   8 / 14
   profile 作用域前缀 17 条
 记号                ■ 4 条、▲ 3 条、◇ 3 条、◎ 1 条
+引用校验            citations=79  OK=57  MISMATCH=0  BLOCK-DRIFT=0  UNCHECKED=22
+                    可校验比例 72.2%(过 70% 下限)
+                    table_anchors=11  OK=11(表格行内锚点全部带声明式摘录)
+```
+
+复核命令:
+
+```verify
+cd /home/user/hermes-study && python3 scripts/verify_citations.py /home/user/hermes-agent \
+  notes/r10-raw-web-dashboard.md
 ```
 
 ---
@@ -622,7 +632,7 @@ not-a-path strings : 1
 | 2 | WS | `/api/console` | `web/src/components/HermesConsoleModal.tsx:403`:`        const url = await api.buildWsUrl("/api/console", params);` | 运维控制台弹窗 |
 | 3 | WS | `/api/events` | `web/src/components/ChatSidebar.tsx:303`:`      const url = await buildWsUrl("/api/events", { channel });` | Chat 侧栏的结构化事件订阅 |
 | 4 | WS | `/api/ws` | `web/src/lib/gatewayClient.ts:59`:`        path: "/api/ws",` | JSON-RPC 网关(连接态徽章、凭据告警、slash 命令) |
-| 5 | POST | `/api/chat/image-upload` | `web/src/lib/chatImagePaste.ts:145`:`  const res = await authedFetch(\`/api/chat/image-upload${qs}\`, {` | 粘贴图片上传 |
+| 5 | POST | `/api/chat/image-upload` | `web/src/lib/chatImagePaste.ts:145`:`const res = await authedFetch(` | 粘贴图片上传 |
 
 **「SPA 的网络出口只有这几处」是一条负结论,搜索面写出来**:对 `web/src/` 下**全部**
 非测试 `.ts`/`.tsx` 扫每一个建连原语的出现,不排除任何文件。
@@ -2021,7 +2031,7 @@ const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
 | 1. 点名到位 | **做到** | §2 逐个列出 131 个全路径 + 一句话角色,分 11 组,组内不省略;末尾按组求和 = 131,与 `G.txt` 一致 |
 | 2. 接缝穷举 | **做到** | 10 个接缝全部逐项列全:HTTP 端点 166(+5)、WS 4、路由 19+1、导航 17、api 方法 166、插槽 30/31/28、SDK 导出面、语言 17、主题 8 / 字体 14、profile 前缀 17。其中 4 个给了可重跑的 ` ```verify ` 命令(两个落库成 `data/r10/probes/` 下的探针) |
 | 3. 一条端到端链走通 | **做到** | §4:Cron「立即触发」8 跳,从按钮 JSX → 页面 handler → api 客户端 → `withManagementProfile` → `fetchJSON` 头注入 → FastAPI 认证中间件 → 路由 → `_trigger_cron_job_sync` → 回到 toast 与列表刷新,逐跳带锚点,跨到了 Python 内核 |
-| 4. 两处以上逐字取证 | **做到** | 15 个围栏块是逐字源码摘录(api.ts 4、App.tsx 1、CronPage 1、SystemPage 2、PluginsPage 1、SessionsPage 1、fuzzy.ts 1、usePlugins 1、README 2、Python 侧 4) |
+| 4. 两处以上逐字取证 | **做到,且远超下限** | 全文 55 个围栏块是逐字源码摘录;`verify_citations.py` 读数 `citations=79 OK=57 UNCHECKED=22`,**MISMATCH=0 / BLOCK-DRIFT=0**,可校验比例 **72.2%**(过 70% 下限);11 个表格行内锚点全部带声明式摘录且 `TABLE-OK` |
 | 5. 至少一条记号 | **做到** | ■ 4、▲ 3、◇ 3、◎ 1,共 11 条,逐条带锚点 |
 
 **没做到的部分,如实说**:判据 2 里"api 方法 166 个"我给了总数与页面映射的机械枚举,
@@ -2038,4 +2048,4 @@ const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
 | **H-R10G-a** | `web/src/pages/SessionsPage.tsx:1470`:`        const res = await fetch(api.exportSessionUrl(id), {` | 全 SPA 唯一一处绕过 `authedFetch` 的网络调用,丢掉了 `${BASE}` 反向代理前缀,在 URL-prefix 部署下导出会 404;需要一次带 `X-Forwarded-Prefix` 的运行时复现来定级 | R11A(与 dashboard 后端欠账同轮) |
 | **H-R10G-b** | `hermes_cli/web_server.py:5468`:`def _install_memory_provider_external_dependencies(` | `/api/memory/providers/{name}/setup` 除 pip 外还会 `shlex.split()` 执行 manifest 的 `check`/`install` 命令(`shell=False`,但 argv 可为 `bash -c …`),`_spec_is_safe` 的卫生检查只覆盖 pip 那一半;主线 ■-R10-01 定级时应纳入 | R11A |
 | **H-R10G-c** | `web/package.json:12`:`    "typecheck": "tsc -p . --noEmit",` | 指向 `files: []` + references 的 solution tsconfig,疑为空转(`build` 用的是正确的 `tsc -b`);本轮无法实测,需要一个能跑 npm 的轮次确认 | 任何能跑前端工具链的一轮 |
-| **H-R10G-d** | `web/src/plugins/slots.ts:60`:` *  these in their manifest's \`slots\` field get wired in automatically.` | 插槽三张名单(声明 30 / 实渲染 31 / 文档 28)两两不等,`sidebar`/`footer-left`/`footer-right` 三个名字文档与声明都有、代码零渲染 | R11 复盘(与 ▲ 计数一起处理) |
+| **H-R10G-d** | `web/src/plugins/slots.ts:18`:`/** Slot locations the built-in shell renders. Plugins declaring any of` | 插槽三张名单(声明 30 / 实渲染 31 / 文档 28)两两不等,`sidebar`/`footer-left`/`footer-right` 三个名字文档与声明都有、代码零渲染 | R11 复盘(与 ▲ 计数一起处理) |

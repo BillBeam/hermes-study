@@ -658,11 +658,14 @@ stderr 可能还没冲刷,常规手段留不下任何痕迹:
 | 终止信号 | `tui_gateway/entry.py:89` 的 `def _log_signal(signum: int, frame) -> None:` | 把**所有活线程的栈**写进崩溃日志——`SIGPIPE` 默认处置会在任意后台线程(TTS 播放、提示音、语音状态发射器)写向已停读的 stdout 时静默杀死进程,内核先收尸,解释器一行都跑不到 |
 | 退出原因 | `tui_gateway/entry.py:233` 的 `def _log_exit(reason: str) -> None:` | 四条退出路径全汇入这里,否则 TUI 只显示「gateway exited」而无线索 |
 
-**终止语义的取舍**(`tui_gateway/entry.py:99` 的 `Termination semantics: ``sys.exit(0)`` here used to race the worker`):
-`sys.exit(0)` 会和 worker 池竞争——一条持有 `_stdout_lock` 正在 flush 的线程能让解释器收尾
-无限期挂着。所以现在的做法是三层:记栈 → 起一个守护 `Timer`(默认 1s,
-`HERMES_TUI_GATEWAY_SHUTDOWN_GRACE_S` 可调)兜底 `os._exit(0)` → 显式调
-`tui_gateway/entry.py:158` 的 `_shutdown_sessions()` 把未落盘消息写进 state.db → 再 `sys.exit(0)`。
+**终止语义的取舍**:朴素的 `sys.exit(0)` 会和 worker 池竞争——一条持有 `_stdout_lock`
+正在 flush 的线程能让解释器收尾无限期挂着。现在的做法是三层:
+
+| 层 | 锚点 + 摘录 | 作用 |
+|---|---|---|
+| 问题声明 | `tui_gateway/entry.py:100` 的 `Termination semantics: ``sys.exit(0)`` here used to race the worker` | docstring 自陈这条竞争 |
+| 硬退出兜底 | `tui_gateway/entry.py:145` 的 `timer = _threading.Timer(_shutdown_grace_seconds(), _hard_exit)` | 守护 `Timer`,默认 1s(`HERMES_TUI_GATEWAY_SHUTDOWN_GRACE_S` 可调)后 `os._exit(0)` |
+| 显式落盘 | `tui_gateway/entry.py:158` 的 `_shutdown_sessions()` | 不等 atexit,直接把未落盘消息写进 state.db |
 
 **`_install_signal` 的线程守卫**:`signal.signal()` 只能在主线程调。
 桌面 / WebSocket 路径上 `server._build()` 跑在守护线程里,它会
@@ -1124,7 +1127,7 @@ decide whether to auto-continue the interrupted turn (see
 | 全部 best-effort | `tui_gateway/turn_marker.py:17` 的 `Every function is best-effort by design — marker bookkeeping must never` | I/O 错误降级成「没有标记」而不是抛出 |
 | `session_key` 会被压缩轮换 | `tui_gateway/server.py:9406` 的 `# session_key mid-turn, so remember the key we wrote under.` | 所以 `_retire_turn_marker(session, *keys)` 接受额外的 key |
 
-**自动续跑的三道闸**,`tui_gateway/server.py:7257 @ 863e313`
+**自动续跑的三道闸**,`tui_gateway/server.py:7255 @ 863e313`
 
 ```
     enabled, freshness_secs, max_attempts = _auto_continue_config()
@@ -1497,7 +1500,7 @@ echoes responses/events for inbound requests. No framing differences.
    中间只插了 `_disable_nagle` 与放到线程池的 `resolve_skin`)。
 3. **"No framing differences." —— 假。** 帧边界在 stdio 上是换行符,在 WS 上是 message 边界。
    更具体地,`_safe_send_many` 把一批 N 帧发成 **N 条独立 message**:
-   `tui_gateway/ws.py:234 @ 863e313`
+   `tui_gateway/ws.py:233 @ 863e313`
 
 ```
             try:
@@ -1758,4 +1761,4 @@ _LONG_HANDLERS = frozenset(
 | H-R10A-e | `tui_gateway/event_publisher.py:57` 的 `self._ws = ws_connect(url, open_timeout=connect_timeout, max_size=None)` | 这是同步阻塞连接、默认 2s 超时,且发生在 `gateway.ready` 之前;设了 `HERMES_TUI_SIDECAR_URL` 而对端不可达时 TUI 首帧被推迟最多 2s,文档只讲 best-effort 不讲启动代价。 | dashboard / web_server 片(它拥有 `/api/pub` 的另一端) |
 | H-R10A-f | `hermes_cli/web_server.py:17654` 的 `install_loop_noise_filter(asyncio.get_running_loop())` | `tui_gateway/loop_noise.py` 唯一的生产安装点在包外;`tui_gateway/ws.py` 自己从不安装,照它 `Mounting` 段落自建 FastAPI app 的人拿不到这层过滤。 | dashboard / web_server 片 |
 | H-R10A-g | `tui_gateway/ws.py:189` 的 `def _arm_token_flush(self) -> None:` | 它在 loop 线程无锁写 `self._token_flush_handle`,而 `write` 在 `_token_lock` 内排它;推演出一条能让两个定时器同时在飞并泄漏一个 `TimerHandle` 的交错,后果看似无害(多一次空 flush),未构造复现故未记 ■。 | 后续任何做 ws 并发 L1 精读的片 |
-| H-R10A-h | `tui_gateway/server.py:287` 的 `2, int(os.environ.get("HERMES_TUI_RPC_POOL_WORKERS") or "8")` | 池下限是 `max(2, …)`,而 `tests/tui_gateway/test_inline_rpc_gil_starvation.py:139` 的 `assert server._rpc_pool_workers >= 8, (` 只断言默认值;把环境变量设成 2 会让那条「前端轮询 RPC 不被饿死」的不变量失效,没有任何机制挡住。 | 配置 / 环境变量片 |
+| H-R10A-h | `tui_gateway/server.py:287` 的 `2, int(os.environ.get("HERMES_TUI_RPC_POOL_WORKERS") or "8")` | 池下限是 `max(2, …)`,而 `tests/tui_gateway/test_inline_rpc_gil_starvation.py:138` 的 `assert server._rpc_pool_workers >= 8, (` 只断言默认值;把环境变量设成 2 会让那条「前端轮询 RPC 不被饿死」的不变量失效,没有任何机制挡住。 | 配置 / 环境变量片 |

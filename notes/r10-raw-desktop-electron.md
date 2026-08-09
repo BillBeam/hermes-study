@@ -53,7 +53,7 @@ Chromium 浏览器和一个 Node.js 运行时打包在一起,分成两类进程:
 | `apps/desktop/electron/backend-env.ts` | 161 | 拼后端子进程的 PATH / PYTHONPATH / PYTHONUTF8;Hermes 托管 Node 的两种磁盘布局都进 PATH。 |
 | `apps/desktop/electron/backend-health.ts` | 169 | 就绪判定:轮询 `/api/health`,遇 404 或"网关形状的 401"回退 `/api/status`;带凭据探针收到 401/403 直接判需要重新登录。 |
 | `apps/desktop/electron/backend-probes.ts` | 221 | 候选运行时的冒烟探针:`<hermes> --version` 与 `python -c "import yaml; import dotenv; import hermes_cli.config"`,超时自动重试一次。 |
-| `apps/desktop/electron/backend-ready.ts` | 206 | 端口公告等待:解析 stdout 的 `HERMES_(BACKEND|DASHBOARD)_READY port=N`,或(Windows pythonw 无 stdout 时)轮询 ready 文件 JSON。 |
+| `apps/desktop/electron/backend-ready.ts` | 206 | 端口公告等待:解析 stdout 的 `HERMES_(BACKEND\|DASHBOARD)_READY port=N`,或(Windows pythonw 无 stdout 时)轮询 ready 文件 JSON。 |
 | `apps/desktop/electron/backend-start-failure.ts` | 72 | 纯判定:本地启动失败要 latch(锁死,防重装环),远端失败不 latch(多为瞬时);确认的 reauth 拒绝单独 latch。 |
 | `apps/desktop/electron/primary-backend-startup.ts` | 65 | 主后端启动编排:远端优先 → 首启选择门 → 更新互斥等待 → 本地 spawn,这几步的组合顺序。 |
 | `apps/desktop/electron/primary-connection-rehome.ts` | 35 | 连接模式切换时的"软换家":拆掉主后端并通知渲染层重连,而不重载窗口。 |
@@ -977,7 +977,8 @@ SIGTERM 下能活下来,并且**继续锁着 venv 的 shim 文件**,下一次更
 这是本片最值得记的一节。同一个问题——"拉起一个 Python 子进程并监管它"——在这个仓库里有
 **两套完全独立的实现**:
 
-- **Electron 侧**:`main.ts` + 7 个 `backend-*.ts`,监管的是 `hermes serve`(HTTP/WS 服务进程)。
+- **Electron 侧**:`main.ts` + 8 个 `backend-*.ts`(child / command / connection-state / env /
+  health / probes / ready / start-failure),监管的是 `hermes serve`(HTTP/WS 服务进程)。
 - **Python 侧**:`tui_gateway/host_supervisor.py`(577 行)监管
   `python -m tui_gateway.compute_host`(`tui_gateway/compute_host.py`,880 行),
   用 stdin/stdout 上的 NDJSON 帧通信。它在 `dashboard.turn_isolation` 开启时把 agent 回合
@@ -997,7 +998,7 @@ SIGTERM 下能活下来,并且**继续锁着 venv 的 shim 文件**,下一次更
 | 崩溃循环上限 | 只有 ready **之前**的失败会 latch;ready **之后**的崩溃**没有任何计数器** | 3 次 / 300s 窗口,超了永久停 | **疑似漂移,见 §6 ■-3** |
 | 孤儿回收 | Windows 树杀;`isForeignBackendToken` 识别"端口被别人占了" | 注册表文件 + `reconcile_startup_orphan()`,含 PID 复用防护 | **不对等**:Electron 侧没有跨进程注册表,启动时不回收上一次残留的后端 |
 | 在飞请求的兜底 | 无需(每个 fetch 自带 `resolveTimeoutMs` 超时) | `_fail_pending_turns` 主动给每个在飞 turn 回 `turn.error` | 有意 |
-| 关机 | SIGTERM / 树杀,**不等** | 先发 `shutdown` 帧 + `wait(10s)`,失败才 terminate → kill | **不对等**,见下 |
+| 关机 | `before-quit` 里 SIGTERM / Windows 树杀,**发完就走、不等它退** | 先发 `shutdown` 帧 + `wait(10s)`,超时才 terminate → kill | **不对等**:桌面唯一会等的是 SSH 拆除(`event.preventDefault()` + 最多 4s),后端子进程本身没有优雅期 |
 
 两侧的常量放在一起看:
 
@@ -1058,9 +1059,21 @@ function isForeignBackendToken({ servedToken, spawnToken, childAlive }) {
 }
 ```
 
-**结论**:两套实现的**判死条件**都是"子进程退出",这是一致的;**重启策略**根本不同,而这个不同
-大部分是有意的(桌面的"重启"= 用户下一次操作时惰性重连,主动重启反而会跟 latch 机制打架),
-但**崩溃循环上限**这一项是真的对不上——两侧都写了"3 次",语义却不一样,详见 §6 ■-3。
+**结论**,按派工书要求逐项回答"判死条件与重启策略一样吗":
+
+- **判死条件:一样。** 两侧都是"子进程退出即判死",都不靠心跳判死
+  (Python 侧的 `hb` 帧是给上层看负载的,不参与判死)。差别只在远端后端——它没有子进程,
+  所以 Electron 侧额外造了一套 3 次/60s 的探测判死,Python 侧没有对应场景。
+- **重启策略:不一样,而且大部分是有意的。** Electron 侧不主动重启,因为桌面的"重启"天然等于
+  "用户下一次操作时惰性重连",主动重启反而会和三个 latch 打架(latch 存在的理由正是防止
+  渲染层的重试循环把安装脚本反复拉起)。Python 侧必须主动重启,因为一个 turn 正跑到一半时
+  子进程死了,没有任何 HTTP 超时会替它收尾——所以它还配了 `_fail_pending_turns`。
+- **一处真的对不上:崩溃循环上限。** 两侧都写了"3 次",语义却不同——Python 侧数的是
+  **子进程崩溃后的重启次数**(超了永久停),Electron 侧那三个"3"数的是修复点击、
+  渲染进程重载、远端探测失败,**没有一个数后端 spawn**。详见 §6 ■-3。
+- **另一处不对等但影响较小:启动前的孤儿回收。** Python 侧有注册表文件 +
+  `reconcile_startup_orphan()`(含 PID 复用防护),Electron 侧只有"发现端口被别人占了就拒绝
+  它的 token",不清理。
 
 ### 5.3 多 profile 后端池
 
@@ -1842,5 +1855,5 @@ cd /home/user/hermes-agent && cmp apps/desktop/electron/entitlements.mac.plist a
 | H-R10H-g | `apps/desktop/electron/main.ts:3912`:`if (!activeRuntime.hasValidMarker) {` | 代码明确忽略缺失的 bootstrap marker,而 `apps/desktop/README.md:184` 与 `website/docs/user-guide/desktop.md:313` 都教用户删这个 marker 来"强制干净首启" | 两份文档同一处过时,值得作为"自绘地图腐烂"的跨轮样本计入 ▲ |
 | H-R10H-h | `apps/desktop/electron/backend-probes.ts:190`:`return typeof hermesOverride === 'string' && hermesOverride.trim().length > 0` | `HERMES_DESKTOP_HERMES` 跳过 `--version` 探针,与 `apps/desktop/README.md:114` 的"候选一律先探针"冲突(代码是有意的) | 若要修,改文档而不是改代码 |
 | H-R10H-i | `apps/desktop/electron/main.ts:1065`:`const backendPool = new Map()` | 多 profile 后端池(≤3 个额外 Python 子进程)在任何文档里零命中 | 成品章值得单开一小节:它是"一个桌面应用同时监管四个 Python 后端"这件事 |
-| H-R10H-j | `apps/desktop/electron/preload.ts:126`:`return webUtils.getPathForFile(file) || ''` | 152 个暴露项里唯一一个不经过主进程、直接在 preload 里调 Electron API 的 | 若 R10B 要统计"渲染层能力面",这一条不在 IPC 表里,容易漏 |
+| H-R10H-j | `apps/desktop/electron/preload.ts:126`:`return webUtils.getPathForFile(file)` | 152 个暴露项里唯一一个不经过主进程、直接在 preload 里调 Electron API 的 | 若 R10B 要统计"渲染层能力面",这一条不在 IPC 表里,容易漏 |
 
