@@ -350,7 +350,7 @@ def parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
     frontmatter: Dict[str, Any] = {}
 
     # Strip only a leading BOM; a BOM mid-content is data, not a marker.
-    if content.startswith("﻿"):
+    if content.startswith("\ufeff"):
         content = content[1:]
     body = content
 
@@ -1053,10 +1053,9 @@ scaffolding 标记常量**。
 slash 面用的是**完整** frontmatter 描述(`/help` 列表、Telegram BotCommand 菜单)。
 这个不一致是被显式记录下来的:
 
-`agent/skill_commands.py:508 @ 863e313`
+`agent/skill_commands.py:509 @ 863e313`
 
 ```python
-
         ``description`` is the skill's full SKILL.md frontmatter
         ``description:`` field. Note: the system prompt skill index
         truncates this to the first 57 chars; see ``extract_skill_description``.
@@ -1314,10 +1313,9 @@ skill 目录段:
 
 config 注入是**整块 try/except 吞掉**的(注释直说 non-critical):
 
-`agent/skill_commands.py:246 @ 863e313`
+`agent/skill_commands.py:247 @ 863e313`
 
 ```python
-
         # The loaded_skill dict contains the raw content which includes frontmatter
         raw_content = str(loaded_skill.get("raw_content") or loaded_skill.get("content") or "")
         if not raw_content:
@@ -1761,10 +1759,9 @@ _MAX_STACKED_SKILLS = 5
 
 ### 5.7 `-s` 预载:唯一进系统提示的正文,以及它的两道补丁
 
-`agent/skill_commands.py:752 @ 863e313`
+`agent/skill_commands.py:753 @ 863e313`
 
 ```python
-
     Returns (prompt_text, loaded_skill_names, missing_identifiers).
 
     Disabled skills are treated the same as missing ones: this loads via a
@@ -1878,10 +1875,9 @@ reload note 用的是完整描述,系统提示用的是 57+`...`。同一个 ski
 438 行,是四个文件里概念最简单的一个:**一个 bundle 就是一组 skill 名字 + 一句可选指令**。
 它解决的**不是**依赖问题,也**不是**安装问题——纯粹是"这三个 skill 我总是一起用"的**快捷方式**。
 
-`agent/skill_bundles.py:24 @ 863e313`
+`agent/skill_bundles.py:25 @ 863e313`
 
 ```python
-
 Conflict resolution
 -------------------
 If a bundle and a skill share the same slash name, the bundle wins. The
@@ -2030,10 +2026,9 @@ def scan_bundles() -> Dict[str, Dict[str, Any]]:
 
 ### 6.3 装配:三种"少装了"的原因,分别报告
 
-`agent/skill_bundles.py:268 @ 863e313`
+`agent/skill_bundles.py:269 @ 863e313`
 
 ```python
-
     Disabled skills are also skipped: bundles load members via
     ``_load_skill_payload`` directly, bypassing the scan-time disabled
     filter in ``get_skill_commands()``, so the disabled list must be
@@ -2318,10 +2313,9 @@ _SKILL_VIEW_PRUNE_MIN_CHARS = 5000
 
 ### 7.6 另一个预算:Telegram 命令菜单槽位
 
-`hermes_cli/commands.py:633 @ 863e313`
+`hermes_cli/commands.py:634 @ 863e313`
 
 ```python
-
 # Telegram allows up to 100 BotCommands. Hermes ships ~50 built-in commands;
 # a 60-slot default keeps every built-in plus common skill commands visible in
 # the `/` menu while staying comfortably under Telegram's ~4KB payload limit.
@@ -2510,10 +2504,9 @@ print(repr(run_inline_shell('sleep 5', None, 1)))
 
 webhook 那一路只处理单 skill,且只装**第一个**匹配上的:
 
-`gateway/platforms/webhook.py:763 @ 863e313`
+`gateway/platforms/webhook.py:764 @ 863e313`
 
 ```python
-
         # Inject skill content if configured.
         # We call build_skill_invocation_message() directly rather than
         # using /skill-name slash commands — the gateway's command parser

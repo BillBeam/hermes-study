@@ -1709,14 +1709,14 @@ R4 精读过的 6 种后端里,这里只接了 3 种(缺 ssh / daytona / singula
                     f.flush()
                     
                     print(f"✅ Task {i} completed (api_calls={result['api_calls']})")
-                ```
+```
 
 **`'w'` 模式** —— 每次跑覆盖上次结果;**串行** —— 一次一个任务;
 **`flush()` 无 `fsync()`** —— 比 batch_runner 弱一档。它明确不是生产工具。
 
 失败的任务会写一条**空 conversations** 的占位记录:
 
-`mini_swe_runner.py:609:620 @ 863e313`
+`mini_swe_runner.py:609-620 @ 863e313`
 ```python
                 except Exception as e:
                     self.logger.error("Error on task %s: %s", i, e)
@@ -1877,9 +1877,7 @@ XML,不是并列字段;而且**第一个 turn 一定是 system**:
 同一文档的 metadata 样例也是编的:
 
 `website/docs/developer-guide/trajectory-format.md:45 @ 863e313`
-> ```
 >   "metadata": { "prompt_source": "gsm8k", "difficulty": "hard" },
-> ```
 
 代码里 `metadata` 是**硬编码的三个键**,与数据集行的内容无关:
 
@@ -1927,9 +1925,7 @@ Probabilities should sum to 100, but the system will normalize if they don't.
 文档侧(`batch-processing.md:101`)反而写对了:
 
 `website/docs/user-guide/features/batch-processing.md:101 @ 863e313`
-> ```
 > In the current implementation, distributions assign a probability to **each individual toolset**. The sampler flips each toolset independently, then guarantees that at least one toolset is enabled. This is different from a hand-authored table of prebuilt combinations.
-> ```
 
 所以这不是 ▲(网站文档是对的),而是**模块自己的 docstring 与自己的实现矛盾**。
 
@@ -2005,12 +2001,10 @@ RuntimeError : Failed to load tokenizer 'moonshotai/Kimi-K2-Thinking': No module
 
 四个键,没有 `per_trajectory_timeout`。而样例 YAML 明确提供了它:
 
-`datagen-config-examples/trajectory_compression.yaml:85-87 @ 863e313`
-> ```
+`datagen-config-examples/trajectory_compression.yaml:88-90 @ 863e313`
 >   # Timeout per trajectory in seconds (skip if takes longer)
 >   # Helps avoid hanging on problematic entries
 >   per_trajectory_timeout: 300  # 5 minutes
-> ```
 
 **复现**(把样例 YAML 的该键改成 7 再加载):
 
@@ -2048,14 +2042,16 @@ cd /home/user/hermes-agent && grep -n "num_workers\|skip_under_target\|save_over
 
 **■-4 `batch_runner.py:1022` 的告警字符串是双重编码的乱码。**
 
-`batch_runner.py:1017-1022 @ 863e313`
+出问题的是第 1022 行。**本条不逐字转录那一行**——它含不可打印字节(`0x8F`)与 NBSP,
+任何转录都会失真,所以下面只给它的**前 5 行上下文**,那一行本身用字节判据呈现。
+
+`batch_runner.py:1017-1021 @ 863e313`
 ```python
         # Save final checkpoint (best-effort; incremental writes already happened)
         try:
             checkpoint_data["completed_prompts"] = sorted(completed_prompts_set)
             self._save_checkpoint(checkpoint_data, lock=checkpoint_lock)
         except Exception as ckpt_err:
-            print(f"âš ï¸  Warning: Failed to save final checkpoint: {ckpt_err}")
 ```
 
 对比同文件里正确的那一处(`batch_runner.py:982`,§2.6 已引):
@@ -2200,9 +2196,7 @@ print('=> the call at line 1237 resolves to that parameter, not the module funct
 **◎-1 per-prompt 镜像覆盖实际支持 4 种后端,文档只写 3 种。**
 
 `website/docs/user-guide/features/batch-processing.md:52 @ 863e313`
-> ```
 > - `image` or `docker_image`: A container image to use for this prompt's sandbox (works with Docker, Modal, and Singularity backends)
-> ```
 
 代码注册了 4 个键,含 Daytona:
 

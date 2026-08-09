@@ -260,7 +260,7 @@ def _memory_skill_edges(memory_cards: list[dict[str, Any]], skills: list[SkillNo
 - **没有老化 / 淘汰**:`recency_ink`(渲染侧)只影响**颜色亮度**,不剔除节点。
 - **只有内容截断**:标题截 80 字符、正文截 1200 字符。
 
-`agent/learning_graph.py:213 @ 863e313`
+`agent/learning_graph.py:216 @ 863e313`
 ```python
                     "title": (first[:80] + "…") if len(first) > 80 else first,
                     "body": chunk[:1200],
@@ -658,7 +658,7 @@ path")。重实现时这是一个「一个策略两处落地」的典型味道�
 
 这段策略注释本身就是设计文档,值得整段抄:
 
-`agent/background_review.py:36 @ 863e313`
+`agent/background_review.py:35 @ 863e313`
 ```python
 # The review fork runs on the MAIN model by default ("auto"), replaying the
 # full conversation — already warm in the prompt cache, so cheap cache reads.
@@ -828,7 +828,7 @@ prefix cache。** 换小模型反而要额外压摘要来抵消冷写。
 
 模块头对安全边界的承诺:
 
-`agent/background_review.py:11 @ 863e313`
+`agent/background_review.py:10 @ 863e313`
 ```
 The fork inherits the parent's live runtime (provider, model, base_url,
 credentials, cached system prompt) so it hits the same prefix cache and
@@ -1128,7 +1128,7 @@ wall-clock 超时**,只有 `max_iterations=16` 这个迭代预算。
 文档在 `website/docs/user-guide/features/memory.md` 的表格里说对了这一点(「The review
 still runs and still writes」),但网关侧还有一层**延迟投递**是文档没提的:
 
-`gateway/run.py:25654 @ 863e313`
+`gateway/run.py:25651 @ 863e313`
 ```
                     # Release deferred bg-review notifications now that the
                     # first response has been delivered.  Pop from the
@@ -1272,7 +1272,7 @@ computeRecency`(`:83`)、`derive_palette` ← `color.ts computePalette`(`:186`)�
 
 ### 6.2 输出不是字符串,是「样式段」
 
-`agent/learning_graph_render.py:9 @ 863e313`
+`agent/learning_graph_render.py:10 @ 863e313`
 ```
 Grids are emitted as style runs — ``[text, style, alpha, hex?]`` — so each
 consumer maps the semantic style + brightness onto its own palette; the
@@ -1366,7 +1366,7 @@ async def get_learning_graph(profile: Optional[str] = None):
 `async def` 里直接调同步的 `build_learning_graph()`(全程 `rglob` + 逐文件 `read_text`),
 **没有 `run_in_threadpool`**。同文件里同类端点是**offload 的**,而且注释专门解释了为什么:
 
-`hermes_cli/web_server.py:6294 @ 863e313`
+`hermes_cli/web_server.py:6295 @ 863e313`
 ```python
         def _build_payload_scoped() -> dict:
             # Keep the profile override inside the worker thread so the full

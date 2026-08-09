@@ -734,7 +734,22 @@ Authorization header -> Bearer eyJ-FAKE-NOUS-BEARER
    也就是说 `SyncClient.__init__` 除 `rstrip("/")` 外不做任何 URL 检查——
    这条命令重跑给出的正是这个结论,而不是「零命中」。
 3. **可达性**:`sync.base_url` 是 `config.yaml` 的根键,而 `sync` **不在** `DEFAULT_CONFIG`、
-   也不在 `_EXTRA_KNOWN_ROOT_KEYS` 里;配置校验对未知根键**故意不告警**:
+   也不在 `_EXTRA_KNOWN_ROOT_KEYS` 里(搜索面:直接问运行时那个已算好的集合,
+   而不是 grep 源码字面——后者会被注释和字符串干扰):
+   ```verify
+   cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python -c "
+   import sys; sys.path.insert(0,'.')
+   from hermes_cli.config import _KNOWN_ROOT_KEYS, DEFAULT_CONFIG, _EXTRA_KNOWN_ROOT_KEYS
+   print('sync in DEFAULT_CONFIG      :', 'sync' in DEFAULT_CONFIG)
+   print('sync in _EXTRA_KNOWN_ROOT   :', 'sync' in _EXTRA_KNOWN_ROOT_KEYS)
+   print('sync in _KNOWN_ROOT_KEYS    :', 'sync' in _KNOWN_ROOT_KEYS)"
+   ```
+   ```console
+   sync in DEFAULT_CONFIG      : False
+   sync in _EXTRA_KNOWN_ROOT   : False
+   sync in _KNOWN_ROOT_KEYS    : False
+   ```
+   而配置校验对未知根键**故意不告警**:
    `hermes_cli/config.py:2036 @ 863e313`
    ```python
     # ── Root-level keys that look misplaced ──────────────────────────────
@@ -1528,17 +1543,24 @@ def register_blueprint_suggestion(spec: BlueprintSpec) -> Optional[Dict[str, Any
 搜索面(全仓、全扩展名、只排除 `.git/`):
 
 ```verify
-cd /home/user/hermes-agent && grep -rn "export_blueprint" . 2>/dev/null | grep -v "\.git/"
+cd /home/user/hermes-agent && grep -rnE "export_blueprint|create_blueprint_job" . 2>/dev/null | grep -v "\.git/"
 ```
 
 ```console
+./tests/tools/test_blueprints.py:17:    create_blueprint_job,
 ./tests/tools/test_blueprints.py:18:    export_blueprint,
+./tests/tools/test_blueprints.py:119:            job = create_blueprint_job(spec, origin={"platform": "telegram"})
 ./tests/tools/test_blueprints.py:137:        md = export_blueprint(job, "# Morning Brief\n\nDoes the morning digest.")
 ./tests/tools/test_blueprints.py:156:        md = export_blueprint(job, "body")
 ./tests/tools/test_blueprints.py:162:        spec = parse_blueprint(export_blueprint(job, "body"))
+./tools/blueprints.py:24:  * ``create_blueprint_job(spec, ...)`` -> the created cron job dict
 ./tools/blueprints.py:25:  * ``export_blueprint(job, body)``      -> a shareable SKILL.md string
+./tools/blueprints.py:46:    "create_blueprint_job",
 ./tools/blueprints.py:48:    "export_blueprint",
+./tools/blueprints.py:180:    Both the direct ``create_blueprint_job`` path and the suggestion path
+./tools/blueprints.py:197:def create_blueprint_job(
 ./tools/blueprints.py:246:def export_blueprint(job: Dict[str, Any], body: str, *, blueprint_name: Optional[str] = None) -> str:
+./tools/blueprints.py:249:    The inverse of ``create_blueprint_job``: take a cron job a user already built
 ```
 
 (命中只有:定义处 `tools/blueprints.py`、`__all__` 与 docstring、以及 `tests/tools/test_blueprints.py`。

