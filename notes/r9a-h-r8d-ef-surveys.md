@@ -449,7 +449,7 @@ skills/productivity/google-workspace/scripts/setup.py:470:                f"http
     providers/base.py:232                所有 provider 的默认 fetch_models
     plugins/model-providers/anthropic/__init__.py:32  x-api-key
     hermes_cli/azure_detect.py:163 / :274
-    hermes_cli/models.py:41              models.py 的目录抓取统一出口(11 处经它)
+    hermes_cli/models.py:41              models.py 的目录抓取统一出口(10 处经它)
     另:plugins/model-providers/custom/__init__.py:81 base_url 完全由用户配置,
         但它 super().fetch_models(...) 回到基类 → 间接走封装。判为安全。
 

