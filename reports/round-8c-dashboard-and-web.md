@@ -354,12 +354,29 @@ CLI+GUI 两层壳合计只有 4 个,而唯一的行为分叉恰在壳里且零�
 | 编号 | 建议轮次 | 锚点 | 一句话现象 |
 |---|---|---|---|
 | **H-R8C-a** | R8D | `scripts/verify_citations.py` 的 `block_drift()`;积压分布见 §8 建议 1 | 全块比对新增后扫出 **115 处历史 BLOCK-DRIFT**(R8C 自己的 3 处已修),该检查**暂不阻断**;升格前需先清这 115 处 |
-| **H-R8C-b** | R8D | `hermes_cli/web_server.py:2488`(`upload-stream`)、`:2552`(`mkdir`) | 与 `:2453` 的 `upload` 同族、同样不调 `_is_sensitive_path`(全仓仅三个调用点已取证),**推定同样可写敏感名但未实测** |
+| **H-R8C-b** | R8D | `hermes_cli/web_server.py:2487`(`upload-stream`)、`:2552`(`mkdir`) | 与 `:2453` 的 `upload` 同族、同样不调 `_is_sensitive_path`(全仓仅三个调用点已取证),**推定同样可写敏感名但未实测** |
 | **H-R8C-c** | R8D | `hermes_cli/web_server.py:2453` 写入的磁盘文件;读取方在 `tools/approval.py` | ■-R8C-03 只证明**文件被改**,**没有**接着跑一次 agent 验证 `approvals.deny` 真的松了;中间可能有缓存或重载条件 |
-| **H-R8C-d** | R8D / R9 | `hermes_cli/env_loader.py:667`(无锁写 `_SECRET_SOURCES`)vs `:235`(有锁写) | ■-R8C-01 只复现了另外两个全局;`_SECRET_SOURCES` 同样两路无锁/有锁地写,**后果推定更轻但未验证** |
+| **H-R8C-d** | R8D / R9 | `hermes_cli/env_loader.py:666`(无锁写 `_SECRET_SOURCES`)vs `:235`(有锁写) | ■-R8C-01 只复现了另外两个全局;`_SECRET_SOURCES` 同样两路无锁/有锁地写,**后果推定更轻但未验证** |
 | **H-R8C-e** | R9 | `hermes_cli/web_routers/cron.py:143`(无 scope 的 `load_config()`)vs `:169`(跨 profile 搜) | `/api/cron/fire` 的 JWT 用**本进程**配置校验,却能触发**任意 profile** 的 job |
 | **H-R8C-f** | R9 | `hermes_cli/web_server.py:12801` 起的 Operations 簇;`/api/ops/import` | backup 打包整个 HERMES_HOME(含 `.env`/`auth.json`),import 覆盖凭据与配置,**来源校验仅"zip 里出现过某个 basename"**,无签名无出处 |
 | **H-R8C-g** | R9 | `hermes_cli/web_server.py`「provider / 记忆后端」簇(见 `notes/r8c-raw-status-actions.md` §11 第 2 条) | dashboard 会 **pip install 任意依赖**,是该面第二个"改本机"的入口,且**不在动作台账里** |
 | **H-R8C-h** | R11 复盘 | `tests/cron/test_scheduler.py:1608` 的空类 `TestHomeTargetEnvVarRegistry` | 空守卫类只是表象;**更该查的是它 docstring 写的不变量方向与真实 bug 相反**(本卷 §5.5)——全仓还有 13 个空 `Test*` 类,有几个也守错了方向? |
 
 *(本轮结清的 6 条移交项 + R8A 埋的第 3 条,不再向后移交。)*
+
+---
+
+## 勘误(R9B 追加)
+
+R9B 把表格行内锚点纳入机械校验(H-R9A-h,见 `scripts/verify_citations.py` 的
+「Table-row anchors」一节)。该检查在本报告 §移交表里查出 **2 处行号漂移**,
+按 CLAUDE.md「reports/ 正文不静默改写,唯一例外是引用行号」就地改正,并在此点名:
+
+| 位置 | 原写 | 改为 | 依据 |
+|---|---|---|---|
+| H-R8C-b 行 | `hermes_cli/web_server.py:2488` | `hermes_cli/web_server.py:2487` | 行内声明的摘录是 `upload-stream`,它在路由装饰器 `@app.post("/api/files/upload-stream")` 那一行,即 `:2487`;`:2488` 是紧随其后的 `async def upload_managed_file_stream(` |
+| H-R8C-d 行 | `hermes_cli/env_loader.py:667` | `hermes_cli/env_loader.py:666` | 行内声明的摘录是 `_SECRET_SOURCES`,赋值语句 `_SECRET_SOURCES[name] = applied.source` 在 `:666`;`:667` 是下一行 `if name in os.environ:` |
+
+**两处都只改行号,结论与叙述一字未动。** 这两条正是 H-R9A-h 所说
+「移交表格行内的锚点恒记 UNCHECKED、从不被任何一次校验碰过」的实例:
+它们从 R8C 起一直在册,历经 R8D / R9A 两轮引用关卡全绿,**因为没有任何一次校验读过它们**。

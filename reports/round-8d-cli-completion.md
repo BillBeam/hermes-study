@@ -423,7 +423,7 @@ CLAUDE.md 已记的 6 条环境限制在这 75 条里**全部出现且各占 1 �
 |---|---|---|---|
 | **H-R8D-a** | R8E(建议新开) | `assign_layers.py` 里 round=`UNCLAIMED` 的 171 个文件;清单见 `notes/r8d-02-coverage-audit.md` §5–§6 | 171 个 L1 文件 / 104,656 行从未被任何一轮认领,含 R6 计划点名的 skills 全链与学习闭环全部 |
 | **H-R8D-b** | R8E / R9 | `hermes_cli/kanban_db.py:1382-2840` 与 `:6757-9180` | 本轮判 L2 的文件里含 3,881 行通用机制(SQLite 灾难自愈 + 进程监管器),与任务板业务无关,按判据该 L1 |
-| **H-R8D-c** | R9 | `hermes_cli/env_loader.py:667` 无锁写 `_SECRET_SOURCES`,`:235` 有锁写 | 同一全局两条写路径锁纪律不一致,后果推定轻于 ■-R8C-01 已复现的两个,**未验证** |
+| **H-R8D-c** | R9 | `hermes_cli/env_loader.py:666` 无锁写 `_SECRET_SOURCES`,`:235` 有锁写 | 同一全局两条写路径锁纪律不一致,后果推定轻于 ■-R8C-01 已复现的两个,**未验证** |
 | **H-R8D-d** | R9 | `agent/proxy_sources/iron_proxy.py`(2,494 行,属 UNCLAIMED) | `hermes egress` 的实现本体未读,"出站流量到底被怎么约束"本轮**没有答案** |
 | **H-R8D-e** | R9 | `hermes_cli/models.py:4612` | Bearer 令牌走裸 `urlopen`,而 `base_url` 是配置可控的;全仓 60+ 个裸 `urlopen` 里还有多少带凭据**未普查** |
 | **H-R8D-f** | R9 | `hermes_cli/managed_scope.py:49` 的 `PYTEST_CURRENT_TEST` | 全仓还有多少安全判断挂在这个环境变量上,**本轮未取证** |
@@ -433,3 +433,18 @@ CLAUDE.md 已记的 6 条环境限制在这 75 条里**全部出现且各占 1 �
 | **H-R8D-j** | R11A | `pyproject.toml` 的 extra 定义;现象见本报告 §9.2 | `pip install -e ".[dev]"` 装不出全绿套件——`acp`/`daytona`/`anthropic`/`fal`/`hindsight`/`ssh`/`modal`/媒体各有自己的 extra,合计 31 文件 75 用例失败 + 12 文件收集失败;**贡献者指南未交代跑通全套所需的 extra 集合**。R11A 读 `scripts/`(测试基建)时应把这份集合确定下来并写进 CLAUDE.md |
 
 *(R8C 移交的 6 条里,归本轮的 3 条已在 §5 结清,不再向后移交。)*
+
+---
+
+## 勘误(R9B 追加)
+
+R9B 把表格行内锚点纳入机械校验(H-R9A-h,见 `scripts/verify_citations.py` 的
+「Table-row anchors」一节)。该检查在本报告 §移交表里查出 **1 处行号漂移**,
+按 CLAUDE.md「reports/ 正文不静默改写,唯一例外是引用行号」就地改正,并在此点名:
+
+| 位置 | 原写 | 改为 | 依据 |
+|---|---|---|---|
+| H-R8D-c 行 | `hermes_cli/env_loader.py:667` | `hermes_cli/env_loader.py:666` | 行内声明的摘录是 `_SECRET_SOURCES`,赋值语句 `_SECRET_SOURCES[name] = applied.source` 在 `:666`;`:667` 是下一行 `if name in os.environ:` |
+
+**只改行号,结论与叙述一字未动。** 该锚点由 R8C 的 H-R8C-d 传下,两轮之间原样复制,
+漂移也一并复制——正是 H-R9A-h 指出的形态:**移交表格里的锚点从不被任何一次校验碰过。**
