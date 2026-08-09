@@ -464,9 +464,79 @@ patch      -> error: None | success keys: ['success', 'diff', 'files_modified', 
 读禁清单是仓库对外声明的一条控制(拒绝语里还写了替代做法),`patch` 把它整条绕过去了。
 断言成立,且与 §4.2 是同一个文件上的两个独立缺口(§4.2 是可写,本条是可读)。
 
-### 4.5 复核结论
+### 4.5 C 片 · 模型可经 cron `no_agent` 排定无人值守的任意代码执行,绕开审批闸
 
-**抽验四条,四条全部复现,无一需要下调强度。** 四条分属两片、四种性质
-(shell 引号错误 / 文档-代码矛盾 / 路径边界差一层 / 守卫只装在一条路径上),
+C 片自己把这一条标为「待主线复核」,本节复核。**结论:成立,主线独立复现全链。**
+
+链条三段,每段各自不设闸:
+
+`tools/cronjob_tools.py:756-760 @ 863e313`
+
+```python
+            elif not prompt and not canonical_skills:
+                return tool_error("create requires either prompt or at least one skill", success=False)
+            if prompt:
+                scan_error = _scan_cron_prompt(prompt)
+                if scan_error:
+                    return tool_error(scan_error, success=False)
+```
+
+**`_scan_cron_prompt` 只在 `prompt` 非空时跑**,而 `no_agent=True` 允许完全没有 prompt。
+路径校验只管路径、不读内容:
+
+`tools/cronjob_tools.py:534 @ 863e313`
+
+```python
+    if raw.startswith(("/", "~")) or (len(raw) >= 2 and raw[1] == ":"):
+```
+
+执行侧把 scripts 目录当可信区:
+
+`cron/scheduler.py:2286-2289 @ 863e313`
+
+```python
+    # Pick an interpreter by extension.  Bash for .sh/.bash, Python for
+    # everything else.  We deliberately do NOT honour the file's own
+    # shebang: the scripts dir is trusted, but keeping the interpreter
+    # choice explicit here keeps the allowed surface small and auditable.
+```
+
+**主线复核负结论的搜索面**(负结论的可信度就等于这次搜索的完备性):
+
+```verify
+cd /home/user/hermes-agent && ls cron/*.py | wc -l &&   grep -rn "approval\|check_dangerous_command\|check_hardline\|requires_approval" cron/*.py
+```
+
+```text
+9
+cron/scheduler.py:3143:        # Scope cron approval policy to this job. Keep the token so the finally
+```
+
+**`cron/` 下 9 个 `.py` 文件里,四个审批标识符的唯一命中是一行注释,没有任何审批函数调用。**
+(C 片原写「全部 8 个」,与它自己紧跟列出的 9 个文件名不符,已就地更正——
+**搜索面的数字写错,正是负结论最不能有的瑕疵**。)
+
+主线端到端实跑(临时 HERMES_HOME;载荷改成只写一个 marker,不碰任何真实文件):
+
+```text
+1) 写脚本到 ~/.hermes/scripts/ 的写闸判定 -> None
+2) 无 prompt 建 job ->  success: True | no_agent: True
+3) fire 执行       -> (True, 'nothing to report')
+4) marker 是否落地  -> True | owned
+```
+
+**四步全通。** 定性上同意 C 片的判断:这不是「忘了加校验」,而是审批模型的形状问题——
+危险命令闸扫的是**命令字符串的形状**,而 `bash x.sh` 这个字符串永远无害。
+`no_agent` 把这个既有缺口做成了**定时、无人值守、跨会话存活**的版本,
+而它绕开的恰恰是"为无人值守而更保守"的 `approvals.cron_mode: deny`。
+
+**同意 C 片不判 ▲**:`security.md:47` 那句说的是 "trigger a dangerous-command prompt",
+而脚本路径根本不触发提示,**字面为真**。按 CLAUDE.md「字面为真就不是 ▲」,记 **■** 不记 ▲。
+
+### 4.6 复核结论
+
+
+**抽验五条,五条全部复现,无一需要下调强度。** 五条分属三片、五种性质
+(shell 引号错误 / 文档-代码矛盾 / 路径边界差一层 / 守卫只装在一条路径上 / 审批模型形状缺口),
 覆盖面上算是有代表性的抽样;但**抽验不是全验**——各片其余断言以其底稿自证为准,
 主线未逐条重跑,如实记在这里。

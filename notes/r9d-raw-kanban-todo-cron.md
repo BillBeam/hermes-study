@@ -1337,7 +1337,7 @@ cd /home/user/hermes-agent && grep -rn "approval\|check_dangerous_command\|check
 cron/scheduler.py:3143:        # Scope cron approval policy to this job. Keep the token so the finally
 ```
 
-搜索面 = `cron/` 目录下全部 8 个 `.py` 文件(`__init__.py`、`blueprint_catalog.py`、
+搜索面 = `cron/` 目录下全部 **9** 个 `.py` 文件(原写 8,与紧跟其后自己列出的文件名个数不符,主线复核时更正)(`__init__.py`、`blueprint_catalog.py`、
 `executions.py`、`jobs.py`、`lifecycle_guard.py`、`scheduler.py`、`scheduler_provider.py`、
 `suggestion_catalog.py`、`suggestions.py`),模式 = 上述四个标识符的字面/子串匹配,
 未排除任何文件。唯一命中是一行**注释**(设置 ContextVar 的那处),**没有任何审批函数调用**。
