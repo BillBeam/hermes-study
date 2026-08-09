@@ -395,7 +395,10 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home
 
 ```verify
 /home/user/hermes-venv/bin/pip list 2>/dev/null | tail -n +3 | wc -l
+ls -d /home/user/hermes-venv/lib/python*/site-packages/*.dist-info | wc -l
 ```
+
+两条都实测为 **87**(与 R8B 记录的 87 个包一致,本轮**未装任何包**)。Python 3.11.15。
 
 覆盖分布(这是本节的重点):
 
@@ -943,3 +946,165 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home
 |---|---|---|---|
 | **H-R9C-a** | **改判**:env 分支非缺陷(推翻);stored 分支降级为设计缺口;**新增 ■ = 裸 `urlopen` 跨源重定向泄漏 Bearer**,与 H-R9A-a 同型 | `hermes_cli/nous_billing.py:413`:`with urllib.request.urlopen(req, timeout=timeout) as resp:`;对照 `hermes_cli/urllib_security.py:112` 的 `open_credentialed_url`;策略依据 `hermes_cli/auth.py:2340`:`gated by ``_NOUS_PORTAL_ALLOWED_HOSTS``: that allowlist exists to reject` | 跑 `redirect_probe.py`(见 1.5),看 B 端是否收到 `Authorization`;再跑上面那 6 个测试文件确认 49/0 |
 | **H-R9C-b** | **关闭并改述**:补读完成、落盘卫生合格、`.env` **在**禁读清单里(原担心形态不成立);**新增 ■ = `cmd_setup` 验证前落盘** | `hermes_cli/secrets_cli.py:195`:`save_env_value(token_env, token)`;禁清单 `agent/file_safety.py:278`:`".env",`;反例承诺 `hermes_cli/secrets_cli.py:374`:`persists it to .env — so a bad paste never bricks the working token.` | 跑 `env_deny_probe.py` 看 `read_blocked=True` / `mode=0o600`;跑 `setup_overwrite_probe.py` 看 rc=1 而 `.env` 已被改 |
+
+---
+
+# 五、附录:三个复现脚本全文(主线可原样落盘重跑)
+
+下面三段**不是基线源码**,是本轮为取证写的一次性探针。主线把它们存成同名 `.py`
+放在任意可写目录(不要放进基线仓库),按各节给出的 `verify` 命令跑即可。
+
+## A. `redirect_probe.py` —— 跨源 302 是否带走 Bearer(1.5 用)
+
+```text
+"""Probe: does hermes_cli.nous_billing._request leak Authorization across a
+cross-host redirect? Two loopback servers; A 302-redirects to B.
+127.0.0.1 and localhost are different origins for url_origin().
+"""
+import json, sys, threading, urllib.request
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+sys.path.insert(0, "/home/user/hermes-agent")
+
+captured = {}
+
+
+def make_handler(name, redirect_to=None):
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):
+            captured.setdefault(name, []).append(dict(self.headers))
+            if redirect_to:
+                self.send_response(302)
+                self.send_header("Location", redirect_to + self.path)
+                self.end_headers()
+            else:
+                body = json.dumps({"ok": True}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+    return H
+
+
+srv_b = HTTPServer(("127.0.0.1", 0), make_handler("B"))
+port_b = srv_b.server_address[1]
+srv_a = HTTPServer(("127.0.0.1", 0), make_handler("A", f"http://localhost:{port_b}"))
+port_a = srv_a.server_address[1]
+for s in (srv_a, srv_b):
+    threading.Thread(target=s.serve_forever, daemon=True).start()
+
+import hermes_cli.nous_billing as nb
+
+nb._token_cache = (9e18, "SECRET-BEARER-TOKEN", f"http://127.0.0.1:{port_a}")
+try:
+    nb._request("GET", "/api/billing/probe")
+except Exception as exc:
+    print("request raised:", type(exc).__name__, exc)
+
+print("A saw Authorization:", captured.get("A", [{}])[0].get("Authorization"))
+print("B saw Authorization:", captured.get("B", [{}])[0].get("Authorization") if captured.get("B") else "<B never hit>")
+
+# contrast: open_credentialed_url
+from hermes_cli.urllib_security import open_credentialed_url
+captured.clear()
+req = urllib.request.Request(
+    f"http://127.0.0.1:{port_a}/api/billing/probe",
+    headers={"Authorization": "Bearer SECRET-BEARER-TOKEN", "Accept": "application/json"},
+)
+with open_credentialed_url(req, timeout=5) as r:
+    r.read()
+print("[open_credentialed_url] A saw Authorization:", captured.get("A", [{}])[0].get("Authorization"))
+print("[open_credentialed_url] B saw Authorization:", captured.get("B", [{}])[0].get("Authorization") if captured.get("B") else "<B never hit>")
+```
+
+## B. `env_deny_probe.py` —— `.env` 落盘权限位与读禁清单(2.3 / 2.4 用)
+
+```text
+"""Probe: is the file secrets_cli lands the BWS token in (~/.hermes/.env)
+covered by the agent read-deny list? And what mode does it get?
+"""
+import os, stat, sys, tempfile
+from pathlib import Path
+
+home = tempfile.mkdtemp(prefix="hermes-home-")
+os.environ["HERMES_HOME"] = home
+os.environ.setdefault("HERMES_DISABLE_LAZY_INSTALLS", "1")
+sys.path.insert(0, "/home/user/hermes-agent")
+
+from hermes_cli.config import get_env_path, save_env_value
+from agent.file_safety import get_read_block_error, is_write_denied
+
+save_env_value("BWS_ACCESS_TOKEN", "0.deadbeef.secret-token-value")
+
+p = get_env_path()
+print("env path      :", p)
+print("exists        :", p.exists())
+print("mode          :", oct(stat.S_IMODE(p.stat().st_mode)))
+print("content       :", p.read_text().strip())
+print("read_blocked  :", bool(get_read_block_error(str(p))))
+print("write_denied  :", is_write_denied(str(p)))
+print("block msg     :", (get_read_block_error(str(p)) or "")[:90])
+
+# a project-local .env elsewhere on disk
+other = Path(tempfile.mkdtemp()) / ".env"
+other.write_text("X=1\n")
+print("project .env read_blocked:", bool(get_read_block_error(str(other))))
+
+# contrast with the bitwarden caches R9C examined
+for rel in ("cache/bws_cache.json", "cache/bws_cache.enc.json", "cache/op_cache.json"):
+    fp = Path(home) / rel
+    fp.parent.mkdir(parents=True, exist_ok=True)
+    fp.write_text("{}")
+    print(f"{rel:28s} read_blocked={bool(get_read_block_error(str(fp)))} write_denied={is_write_denied(str(fp))}")
+```
+
+## C. `setup_overwrite_probe.py` —— `setup` 验证前落盘(2.5 用)
+
+```text
+"""Probe: does `hermes secrets bitwarden setup` overwrite a WORKING token in
+.env with a bad paste before the token has been validated?
+
+Contrast with cmd_token, whose docstring promises "only then persists it to
+.env — so a bad paste never bricks the working token".
+"""
+import argparse, os, sys, tempfile, types
+from pathlib import Path
+
+home = tempfile.mkdtemp(prefix="hermes-home-")
+os.environ["HERMES_HOME"] = home
+os.environ.setdefault("HERMES_DISABLE_LAZY_INSTALLS", "1")
+sys.path.insert(0, "/home/user/hermes-agent")
+
+from hermes_cli.config import get_env_path, save_env_value
+import hermes_cli.secrets_cli as sc
+
+# 1) a working token is already on disk
+save_env_value("BWS_ACCESS_TOKEN", "0.GOOD-WORKING-TOKEN")
+print("before        :", get_env_path().read_text().strip())
+
+# 2) stub out everything that would touch the network / the bws binary
+sc.bw.find_bws = lambda install_if_missing=False: Path("/usr/bin/bws")
+sc.bw.install_bws = lambda force=False: Path("/usr/bin/bws")
+sc._bws_version = lambda _p: "1.0.0"
+
+
+def _fail_fetch(**kw):
+    raise RuntimeError("401 Unauthorized: access token is invalid")
+
+
+sc.bw.fetch_bitwarden_secrets = _fail_fetch
+
+args = argparse.Namespace(
+    access_token="0.BAD-PASTED-TOKEN",
+    project_id="11111111-2222-3333-4444-555555555555",
+    server_url="https://vault.bitwarden.eu",
+)
+rc = sc.cmd_setup(args)
+print("cmd_setup rc  :", rc)
+print("after         :", get_env_path().read_text().strip())
+print("good token still on disk:", "GOOD-WORKING-TOKEN" in get_env_path().read_text())
+```
