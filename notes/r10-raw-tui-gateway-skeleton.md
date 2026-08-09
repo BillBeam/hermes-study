@@ -3,7 +3,7 @@
 > 底稿(证据层),求全求证不求好读。基线 `/home/user/hermes-agent` @ `863e31318553cda8ad61df681d08175364d4164b`,
 > 引用后缀 `@ 863e313`。锚点一律单独成行、置于紧跟其后的代码块之前;
 > 表格里的锚点一律写成「锚点 + 紧跟的反引号摘录」的声明式形式,以便被机械校验。
-> 全文引用一律用**从仓库根可解析的全路径**(不写 `ws.py:38` 这种裸文件名)。
+> 全文引用一律用**从仓库根可解析的全路径**,不写「只有模块名 + 行号」的裸引用。
 > 片内 11 个文件 / 15,821 行,清单见 `data/r10/slices/A.txt`。
 
 ---
@@ -242,7 +242,7 @@ for d in dyn: print(' ',d)
 | `tui_gateway/server.py:1540` 的 `write_json(_event_frame(event, sid, payload))` | `_emit` 自身的转发,非新增 | — |
 | `tui_gateway/server.py:1576` 的 `_emit(event, "", payload)` | `_broadcast_global_event` 无客户端时的回落 | — |
 | `tui_gateway/server.py:1579` 的 `frame = _event_frame(event, "", payload)` | 同上,广播路径 | — |
-| `tui_gateway/server.py:3117` 的 `_emit(event, sid, payload)` | `_block(event, …)` 的五个调用点(`server.py:5655/5672/5682/5773/5780`) | `clarify.request`、`terminal.read.request`、`preview.read.request`、`sudo.request`、`secret.request` |
+| `tui_gateway/server.py:3117` 的 `_emit(event, sid, payload)` | `_block(event, …)` 的五个调用点(`tui_gateway/server.py:5655` 的 `"clarify_callback": lambda q, c, multi_select=False: _block(` 起,共 5 处) | `clarify.request`、`terminal.read.request`、`preview.read.request`、`sudo.request`、`secret.request` |
 | `tui_gateway/server.py:3143` 的 `f"{event.removesuffix('.request')}.expire",` | 白名单五项的超时补发 | `clarify.expire`、`terminal.read.expire`、`preview.read.expire`、`sudo.expire`、`secret.expire` |
 | `tui_gateway/server.py:3425` 的 `_broadcast_global_event(event, payload_fn())` | 遍历 `_CHANGE_WATCHES` 的键 | `pet.changed`、`cron.changed`、`sessions.changed`、`platforms.changed`、`pairing.changed` |
 | `tui_gateway/server.py:5520` 的 `_emit(event_type, sid, payload)` | `_on_tool_progress` 的 `subagent.*` 中继(`subagent.text` **不发给父会话**) | `subagent.spawn_requested`、`subagent.start`、`subagent.thinking`、`subagent.tool`、`subagent.progress`、`subagent.complete` |
@@ -626,8 +626,12 @@ def write_json(obj: dict) -> bool:
 
 `change_events: True` 这个字段是**协议协商位**:告诉客户端「后端会主动广播
 `pet.changed`/`cron.changed`/`sessions.changed`…,你可以把轮询降级成慢速兜底」。
-两条通道都发它(`tui_gateway/entry.py:449` 与 `tui_gateway/ws.py:323` 的
-`"payload": {"skin": skin_payload, "change_events": True},`)。
+两条通道都发它:
+
+| 通道 | 锚点 + 摘录 | 差别 |
+|---|---|---|
+| stdio | `tui_gateway/entry.py:449` 的 `"payload": {"skin": resolve_skin(), "change_events": True},` | `resolve_skin()` 内联同步求值 |
+| WebSocket | `tui_gateway/ws.py:323` 的 `"payload": {"skin": skin_payload, "change_events": True},` | 已先经线程池算好(§5.3 冷启动避让) |
 
 **读循环**,`tui_gateway/entry.py:469 @ 863e313`
 
@@ -752,8 +756,13 @@ _PEER_GONE_ERRNOS = frozenset({
                 return False
 ```
 
-**为什么必须这么严**(`tui_gateway/transport.py:117` 的
-`Returning ``False`` is the dispatcher's "broken stdout pipe" signal`):`entry.py` 见到
+**为什么必须这么严**——`tui_gateway/transport.py:117 @ 863e313`
+
+> Returning ``False`` is the dispatcher's "broken stdout pipe" signal
+> — ``entry.py`` calls ``sys.exit(0)`` when ``write_json`` reports
+> ``False``.
+
+`tui_gateway/entry.py` 见到
 `write_json` 返回 `False` 就 `sys.exit(0)`。如果编程错误(不可 JSON 化的 payload、
 locale 配错导致的 `UnicodeEncodeError`、`ENOSPC` 之类的主机故障)也走 `False`,
 一个真 bug 会长得像干净的断连,崩溃日志里什么都没有。
@@ -921,9 +930,14 @@ _TOKEN_COALESCE_S = 0.033
             detached += 1
 ```
 
-**为什么换成丢弃 sink 而不是 stdio**(`tui_gateway/server.py:320` 的
-`# Detached websocket sessions use a drop sink instead of stdio. Desktop embeds`):
-桌面 App 把 gateway 嵌在自己进程里、并把 stdout 收进日志,过期的 JSON-RPC 帧掉到那儿会污染日志。
+**为什么换成丢弃 sink 而不是 stdio**,`tui_gateway/server.py:320 @ 863e313`
+
+```
+# Detached websocket sessions use a drop sink instead of stdio. Desktop embeds
+# the gateway in-process and captures stdout into logs, so stale JSON-RPC frames
+# must not fall through there while the session waits for resume or reap.
+_detached_ws_transport = _DropTransport()
+```
 
 ### 5.4 `tui_gateway/event_publisher.py` —— 旁路扇出
 
@@ -1039,12 +1053,16 @@ The gateway's next ``read()`` returns ``EAGAIN``, which CPython's buffered
 
 **`diagnose_stdin_state` 用 `socket.fromfd(0, AF_UNIX, SOCK_STREAM)` 探 fd 0**:
 fd 0 是管道时 `getsockopt` 会抛 `ENOTSOCK`,被外层 `except Exception: pass` 吞掉;
-`fromfd` 复制出来的 fd 由内层 `finally` 释放,不碰原始 fd 0
-(`tui_gateway/_stdin_recovery.py:75` 的 `# ``fromfd`` duped the fd; ``close`` releases the dup without`)。
+`fromfd` 复制出来的 fd 由内层 `finally: s.close()` 释放,不碰原始 fd 0
+(源码注释原话:"fromfd duped the fd; close releases the dup without touching the original fd 0")。
 
-**两个调用方**(共用此模块的理由):`tui_gateway/entry.py:474` 的
-`if not handle_spurious_eof(_recovery_times, _log_exit):` 与 `tui_gateway/slash_worker.py:157` 的
-`if not handle_spurious_eof(_sw_recovery_times, _sw_log):`(后者属别的片)。
+**两个调用方**(共用此模块的理由):
+
+| 调用方 | 锚点 + 摘录 |
+|---|---|
+| stdio 入口(本片) | `tui_gateway/entry.py:474` 的 `if not handle_spurious_eof(_recovery_times, _log_exit):` |
+| slash worker(别的片) | `tui_gateway/slash_worker.py:157` 的 `if not handle_spurious_eof(_sw_recovery_times, _sw_log):` |
+
 两者各持自己的 `recovery_times` 列表并传入自己的 `log_fn`,所以模块本身不持状态。
 
 ### 5.6 `tui_gateway/loop_noise.py` —— 化石二号:对端硬断导致的回溯洪水
@@ -1124,7 +1142,7 @@ decide whether to auto-continue the interrupted turn (see
 | 时机 | 模块侧(锚点 + 摘录) | 调用侧(锚点 + 摘录) |
 |---|---|---|
 | turn 即将开跑 | `tui_gateway/turn_marker.py:97` 的 `def record_turn_start(` | `tui_gateway/server.py:9412` 的 `record_turn_start(marker_home, marker_key, marker_text, attempts=marker_attempt)` |
-| turn 有了任何结局 | `tui_gateway/turn_marker.py:124` 的 `def clear_turn_marker(home: Path | str, session_key: str) -> None:` | `tui_gateway/server.py:7211` 的 `def _retire_turn_marker(session: dict, *keys: str) -> None:`,三个调用点 `server.py:7625`/`9869`/`10102` |
+| turn 有了任何结局 | `tui_gateway/turn_marker.py:124` 的 `def clear_turn_marker(home: Path | str, session_key: str) -> None:` | `tui_gateway/server.py:7211` 的 `def _retire_turn_marker(session: dict, *keys: str) -> None:`,三个调用点 `tui_gateway/server.py:7625` 的 `_retire_turn_marker(session)`、`tui_gateway/server.py:9869`、`tui_gateway/server.py:10102` |
 | `session.resume` 冷路径 | `tui_gateway/turn_marker.py:140` 的 `def read_turn_marker(home: Path | str, session_key: str) -> dict[str, Any] | None:` | `tui_gateway/server.py:7252` 的 `marker = read_turn_marker(home, session_key)` |
 
 **关键不变量**:成功、被处理的错误、被打断——**三种结局都清标记**。
@@ -1162,13 +1180,20 @@ decide whether to auto-continue the interrupted turn (see
     if not enabled or age > freshness_secs or marker["attempts"] >= max_attempts:
 ```
 
-默认值分别是 True / 15 分钟 / 2 次
-(`tui_gateway/server.py:7181` 的 `_AUTO_CONTINUE_ENABLED_DEFAULT = True`、
-`tui_gateway/server.py:7182` 的 `_AUTO_CONTINUE_FRESHNESS_MINUTES_DEFAULT = 15`、
-`tui_gateway/server.py:7183` 的 `_AUTO_CONTINUE_MAX_ATTEMPTS_DEFAULT = 2`)。
-第三道是**崩溃循环断路器**:`attempts` 字段被写回标记,下次 resume 读回来,
-达到上限就清标记不再试(`tui_gateway/turn_marker.py:102` 的
-`` ``attempts`` counts how many auto-continues led to this run: 0 for a ``)。
+三个默认值:
+
+| 闸 | 锚点 + 摘录 | 默认 |
+|---|---|---|
+| 总开关 | `tui_gateway/server.py:7181` 的 `_AUTO_CONTINUE_ENABLED_DEFAULT = True` | 开 |
+| 新鲜度窗口 | `tui_gateway/server.py:7182` 的 `_AUTO_CONTINUE_FRESHNESS_MINUTES_DEFAULT = 15` | 15 分钟 |
+| 崩溃循环断路器 | `tui_gateway/server.py:7183` 的 `_AUTO_CONTINUE_MAX_ATTEMPTS_DEFAULT = 2` | 2 次 |
+
+第三道的机制:`attempts` 字段被写回标记,下次 resume 读回来,达到上限就清标记不再试。
+`tui_gateway/turn_marker.py:102 @ 863e313`
+
+> ``attempts`` counts how many auto-continues led to this run: 0 for a
+> user-initiated turn, N for the Nth automatic re-run — the crash-loop
+> breaker reads it back on the next resume.
 
 ### 5.8 `tui_gateway/method_ctx.py` —— 把 handler 搬出 14K 行模块而不改一行 handler 体
 
@@ -1347,10 +1372,10 @@ cd /home/user/hermes-agent && grep -n '^# ── ' tui_gateway/server.py
 | turn 执行 | `tui_gateway/methods_prompt.py:327` 的 `run_thread = threading.Thread(target=run_after_agent_ready, daemon=True)` | 每 turn 1 | turn 结束即退 |
 | git 元数据探测 | `tui_gateway/server.py:2844` 的 `name="git-meta",` | 每次探测 1 | 一次性 |
 | MCP 迟到刷新 | `tui_gateway/server.py:6224` 的 `name=f"tui-mcp-late-refresh-{sid}",` | 每会话最多 1 | 一次性 |
-| 忙时打断 | `tui_gateway/server.py:7392` 的 `name=f"busy-interrupt-{sid}",` | 每次排队提交 1 | 一次性 |
+| 忙时打断 | `tui_gateway/server.py:7392` 的 `threading.Thread(target=interrupt, daemon=True, name=f"busy-interrupt-{sid}").start()` | 每次排队提交 1 | 一次性 |
 | 通知轮询 | `tui_gateway/server.py:9343` 的 `target=_notification_poller_loop,` | 每会话 1 | 会话级 |
-| 语音全双工 | `tui_gateway/server.py:12793` 的 `name="voice-full-duplex",` | 进程级 1(一只麦克风) | turn 期间 |
-| 唤醒词重试 | `tui_gateway/server.py:13094` 的 `name="wake-resume-retry",` | 1 | 一次性 |
+| 语音全双工 | `tui_gateway/server.py:12793` 的 `target=_full_duplex_listener, daemon=True, name="voice-full-duplex"` | 进程级 1(一只麦克风) | turn 期间 |
+| 唤醒词重试 | `tui_gateway/server.py:13094` 的 `threading.Thread(target=_retry, daemon=True, name="wake-resume-retry").start()` | 1 | 一次性 |
 | TTS 播放 | `tui_gateway/server.py:12719` 的 `target=stream_tts_to_speaker,` | 进程级 1 条流水线(一只扬声器) | 逐句 |
 | slash worker 抽流 | `tui_gateway/server.py:389` 的 `threading.Thread(target=self._drain_stdout, daemon=True).start()` | 每 worker 2 | worker 级 |
 | WS 孤儿回收定时器 | `tui_gateway/server.py:1063` 的 `timer = threading.Timer(_WS_ORPHAN_REAP_GRACE_S, _reap)` | 按需 | 一次性,daemon |
@@ -1423,11 +1448,13 @@ def _transport_is_dead(transport) -> bool:
     return getattr(transport, "_closed", None) is True
 ```
 
-**进程退出**:`tui_gateway/server.py:1294` 的 `atexit.register(_shutdown_sessions)` 注册,
-`tui_gateway/server.py:1105` 的 `def _shutdown_sessions() -> None:` 先释放唤醒词归属,
-再逐个 `_close_session_by_id(end_reason="tui_shutdown")`。
-`tui_gateway/entry.py:158` 的 `_shutdown_sessions()` 在信号处理器里**显式再调一次**,
-因为持有 GIL / `_stdout_lock` 的 worker 线程可能让 atexit 在宽限窗口内跑不完。
+**进程退出**走两条互为兜底的路径:
+
+| 路径 | 锚点 + 摘录 | 说明 |
+|---|---|---|
+| atexit 注册 | `tui_gateway/server.py:1294` 的 `atexit.register(_shutdown_sessions)` | 正常解释器收尾时触发 |
+| 收尾函数本体 | `tui_gateway/server.py:1105` 的 `def _shutdown_sessions() -> None:` | 先释放唤醒词归属,再逐个 `_close_session_by_id(end_reason="tui_shutdown")` |
+| 信号处理器里显式再调 | `tui_gateway/entry.py:158` 的 `_shutdown_sessions()` | 持有 GIL / `_stdout_lock` 的 worker 线程可能让 atexit 在宽限窗口内跑不完 |
 
 ---
 
@@ -1470,10 +1497,14 @@ grep -rl 'rich_output' . --exclude-dir=node_modules --exclude-dir=.git --exclude
 第 3 层排除了「由插件 / lazy-install / 打包脚本在运行时生成」的可能:
 若有任何构建产物、`pyproject.toml` entry point、插件清单提到它,这一层会命中。
 
-**唯一的测试也只测回落分支**:`tests/tui_gateway/test_render.py:20` 的
-`with _no_rich():` 与 `tests/tui_gateway/test_render.py:27` 的 `with _no_rich():`
-是两个用例的全部,而它专门写了个助手
-`tests/tui_gateway/test_render.py:8` 的 `def _stub_rich(mock_mod):` **从未被调用**——
+**唯一的测试也只测回落分支**:
+
+| 项 | 锚点 + 摘录 | 说明 |
+|---|---|---|
+| 用例 1 | `tests/tui_gateway/test_render.py:20` 的 `with _no_rich():` | 断言 `render_message("hello") is None` |
+| 用例 2 | `tests/tui_gateway/test_render.py:27` 的 `with _no_rich():` | 断言 `make_stream_renderer() is None` |
+| 未被调用的助手 | `tests/tui_gateway/test_render.py:8` 的 `def _stub_rich(mock_mod):` | 文件里唯一能构造「模块存在」那半边的东西,**零个调用点** |
+
 也就是说「模块存在时」那半边行为**从来没被任何测试执行过**。
 
 **判定为 ■ 而非 ◇ 的理由**:这不是「代码有、文档无」,而是「文档承诺了一条代码永远走不到的路」,
@@ -1482,7 +1513,7 @@ grep -rl 'rich_output' . --exclude-dir=node_modules --exclude-dir=.git --exclude
 "exists / doesn't" 的措辞本身就承认两种状态。但第 3 层搜索表明本仓库里没有任何东西会提供它,
 所以在本基线的语境下它是死的。
 
-### ▲-2 `tui_gateway/ws.py:38` 的注释与它下方 130 行处的代码矛盾
+### ▲-2 tui_gateway/ws.py 顶部的超时注释,与它下方 130 行处的代码矛盾
 
 `tui_gateway/ws.py:38 @ 863e313`
 
@@ -1494,7 +1525,7 @@ _WS_WRITE_TIMEOUT_S = 10.0
 ```
 
 注释说超时"before we mark the transport dead"。代码**明确不这么做**:
-§5.3 已逐字引用的 `tui_gateway/ws.py:165` 那段 `TimeoutError` 分支只打一行 warning
+§5.3 已逐字引用的那段 `TimeoutError` 分支只打一行 warning
 并 `return not self._closed`,**不置 `_closed`**,而且分支里的注释还专门解释了为什么改的
 (「latching `_closed` here permanently silenced live windows after one slow write」)。
 即修 bug 时改了实现、没回头改模块顶部那三行注释。
@@ -1502,7 +1533,7 @@ _WS_WRITE_TIMEOUT_S = 10.0
 第二句 "Protects handler threads from a wedged socket" 为真(超时确实放开了 worker 线程)。
 一句假,故为 ▲。
 
-### ▲-3 `tui_gateway/ws.py:8` 的 "Wire protocol" 段落:三句里两句为假
+### ▲-3 tui_gateway/ws.py 的 "Wire protocol" docstring 段落:三句里两句为假
 
 `tui_gateway/ws.py:8 @ 863e313`
 
@@ -1517,14 +1548,13 @@ echoes responses/events for inbound requests. No framing differences.
 按「整段判定 + 确认归哪个标题管」:这段归 `Wire protocol` 标题管,做了三个断言。
 
 1. **"newline-delimited JSON-RPC in both directions" —— 假,两个方向都假。**
-   出站:§3.3 逐字引用的 `tui_gateway/ws.py:118` 与 `tui_gateway/ws.py:220`
-   的 `json.dumps(obj, ensure_ascii=False)` 都**不加 `\n`**;而 stdio 的
-   `tui_gateway/transport.py:137` 加了。
-   入站:§3.3 逐字引用的 `tui_gateway/ws.py:354` 是「一条 WS message → `strip()` →
+   出站:§3.3 已逐字引用 `WSTransport.write` 与 `write_async` 两处,
+   `json.dumps(obj, ensure_ascii=False)` 都**不加 `\n`**;而 stdio 那一处逐字引用里加了。
+   入站:§3.3 逐字引用的 `handle_ws` 读循环是「一条 WS message → `strip()` →
    一次 `json.loads`」,不做换行切分,所以一条 message 里放两个换行分隔的 JSON 会直接 parse error。
 2. **"emits a `gateway.ready` event immediately after connection accept" —— 真**
-   (`tui_gateway/ws.py:297` accept,`tui_gateway/ws.py:314` 发 ready;
-   中间只插了 `_disable_nagle` 与放到线程池的 `resolve_skin`)。
+   (§5.3 生命周期表里 accept 与 ready 两行相邻,中间只插了 `_disable_nagle`
+   与放到线程池的 `resolve_skin`)。
 3. **"No framing differences." —— 假。** 帧边界在 stdio 上是换行符,在 WS 上是 message 边界。
    更具体地,`_safe_send_many` 把一批 N 帧发成 **N 条独立 message**:
    `tui_gateway/ws.py:233 @ 863e313`
@@ -1545,7 +1575,7 @@ echoes responses/events for inbound requests. No framing differences.
 在单帧场景下会碰巧能跑,在合批的 token 流下就会看到「一条 message 一个 JSON、没有分隔符」,
 而 bug 出现的时机是回复正在高速流的时候。
 
-### ▲-4 `tui_gateway/event_publisher.py:10` 的 "Wire protocol" 一句:两个断言都假
+### ▲-4 tui_gateway/event_publisher.py 的 "Wire protocol" 一句:两个断言都假
 
 `tui_gateway/event_publisher.py:10 @ 863e313`
 
@@ -1555,18 +1585,22 @@ already passes to ``write``).  No JSON-RPC envelope here — the dashboard's
 ``/api/pub`` endpoint just rebroadcasts the bytes verbatim to subscribers.
 ```
 
-1. **"newline-framed" —— 假**:§3.3 逐字引用的 `tui_gateway/event_publisher.py:90`
-   里 `line = json.dumps(obj, ensure_ascii=False)` 不加换行,
-   而接收端 `hermes_cli/web_server.py:15897` 的
-   `await _broadcast_event(ws.app, channel, await ws.receive_text())` 也是按 message 收的。
+1. **"newline-framed" —— 假**:§3.3 逐字引用的 `WsPublisherTransport.write` 里
+   `line = json.dumps(obj, ensure_ascii=False)` 不加换行,而接收端也是按 message 收的
+   (见下表)。
 2. **"No JSON-RPC envelope here" —— 假**:`TeeTransport` 把 dispatcher 的 `obj` 原样传下来,
-   那就是完整的 JSON-RPC 事件帧;最终消费者 `web/src/components/ChatSidebar.tsx:356` 的
-   `if (frame.method !== "event" || !frame.params) {` 表明它**依赖**这个信封存在。
+   那就是完整的 JSON-RPC 事件帧;最终消费者**依赖**这个信封存在(见下表)。
+
+| 环节 | 锚点 + 摘录 | 说明 |
+|---|---|---|
+| 发送 | `tui_gateway/event_publisher.py:94` 的 `line = json.dumps(obj, ensure_ascii=False)` | 无 `\n` |
+| dashboard 收 | `hermes_cli/web_server.py:15897` 的 `await _broadcast_event(ws.app, channel, await ws.receive_text())` | 按 message 收,不按行 |
+| 浏览器消费 | `web/src/components/ChatSidebar.tsx:356` 的 `if (frame.method !== "event" || !frame.params) {` | 必须先剥 JSON-RPC 信封才拿得到事件类型 |
    *宽容解读*:作者想说的可能是「本模块不再额外包一层」。但字面表述会让读者以为拿到的是裸 payload,
    而实际必须先读 `frame.params.type` 才拿得到事件类型。
 3. 第三个分句 "rebroadcasts the bytes verbatim" 为**真**。
 
-### ▲-5 `AGENTS.md:445` 让读者去 `tui_gateway/server.py` 找 "the full method/event catalog"
+### ▲-5 AGENTS.md 让读者去 tui_gateway/server.py 找 "the full method/event catalog"
 
 原文在 `## TUI Architecture (ui-tui + tui_gateway)` → `### Transport` 标题下,`AGENTS.md:445 @ 863e313`
 
@@ -1574,7 +1608,13 @@ already passes to ``write``).  No JSON-RPC envelope here — the dashboard's
 
 **整段判定**:
 第一句 "Newline-delimited JSON-RPC over stdio" 在这个标题下**为真**——该节的 Process Model 图
-(`AGENTS.md:436` 画的是 `└─ Node (Ink) ──stdio JSON-RPC── Python (tui_gateway)`)辖域是 stdio,
+把辖域画死在 stdio 上,`AGENTS.md:434 @ 863e313`
+
+> ```
+> hermes --tui
+>   └─ Node (Ink)  ──stdio JSON-RPC──  Python (tui_gateway)
+> ```
+
 而 stdio 确实按换行分帧(§3.3)。**这一句不是 ▲。**
 第二句 "Requests from Ink, events from Python" 为真。
 **第三句为假**:`tui_gateway/server.py` 只注册 **21 / 144** 条方法(14.6%);
@@ -1586,8 +1626,7 @@ already passes to ``write``).  No JSON-RPC envelope here — the dashboard's
 
 ### ◇-6 `tui_gateway/loop_noise.py` 的唯一生产安装点在包外,`tui_gateway/ws.py` 自己从不安装它
 
-模块 docstring 第一句说它治的是 "the gateway serving loop"
-(`tui_gateway/loop_noise.py:1` 的 `"""Suppress benign event-loop teardown noise on the gateway serving loop.`)。但:
+模块 docstring 第一句说它治的是 "the gateway serving loop"(§5.6 已逐字引用其后文)。但:
 
 ```verify
 cd /home/user/hermes-agent && grep -rn 'install_loop_noise_filter' --include=*.py . | grep -v __pycache__
@@ -1595,28 +1634,38 @@ cd /home/user/hermes-agent && grep -rn 'install_loop_noise_filter' --include=*.p
 #   生产调用 1(hermes_cli/web_server.py:17654)
 ```
 
-唯一的生产安装点是 `hermes_cli/web_server.py:17654` 的
-`install_loop_noise_filter(asyncio.get_running_loop())`,发生在 uvicorn 起来之后。
+| 事实 | 锚点 + 摘录 |
+|---|---|
+| 唯一的生产安装点,在 `hermes_cli/` 里 | `hermes_cli/web_server.py:17654` 的 `install_loop_noise_filter(asyncio.get_running_loop())` |
+| 它发生在 uvicorn 起来之后 | `hermes_cli/web_server.py:17651` 的 `try:` 紧跟的 `from tui_gateway.loop_noise import install_loop_noise_filter` |
+| `ws.py` 教读者自建 app 挂载 | `tui_gateway/ws.py:19` 的 `@app.websocket("/api/ws")` |
+
 `tui_gateway/ws.py` 里**没有任何一处**调它。在当前部署形态下这是自洽的——
-`handle_ws` 就跑在那个 loop 上。但 `tui_gateway/ws.py:19` 的
-`@app.websocket("/api/ws")` 那段 `Mounting` 示例教读者把 `handle_ws` 挂到**自己的**
-FastAPI app 上,而照做的人拿不到这层过滤:桌面客户端硬断一次,
+`handle_ws` 就跑在 uvicorn 那个 loop 上。但照 `Mounting` 段落把 `handle_ws` 挂到**自己的**
+FastAPI app 上的人拿不到这层过滤:桌面客户端硬断一次,
 他的日志里就会出现 docstring 里描述的那 50+ 份 traceback。文档没有一处提到这个依赖关系,故记 ◇。
 
 ### ◇-7 sidecar 发布器的连接是**同步的**,且落在 `gateway.ready` 之前的启动关键路径上
 
-`tui_gateway/entry.py:431` 的 `_install_sidecar_publisher()` 在 `tui_gateway/entry.py:443` 的
-`if not write_json({` 之前执行;它构造 `WsPublisherTransport(url)`,而构造函数里
-`tui_gateway/event_publisher.py:57` 的
-`self._ws = ws_connect(url, open_timeout=connect_timeout, max_size=None)`
-是一次**阻塞的**同步连接,`connect_timeout` 默认 2.0s
-(`tui_gateway/event_publisher.py:43` 的 `def __init__(self, url: str, *, connect_timeout: float = 2.0) -> None:`)。
+四步链成一条位于启动关键路径上的同步连接:
+
+| 步 | 锚点 + 摘录 | 说明 |
+|---|---|---|
+| 1 | `tui_gateway/entry.py:431` 的 `_install_sidecar_publisher()` | `main()` 的第一件事 |
+| 2 | `tui_gateway/entry.py:443` 的 `if not write_json({` | 发 `gateway.ready`,在第 1 步**之后** |
+| 3 | `tui_gateway/event_publisher.py:57` 的 `self._ws = ws_connect(url, open_timeout=connect_timeout, max_size=None)` | 构造函数里的**阻塞**同步连接 |
+| 4 | `tui_gateway/event_publisher.py:43` 的 `def __init__(self, url: str, *, connect_timeout: float = 2.0) -> None:` | `connect_timeout` 默认 2.0s |
+
 即:设了 `HERMES_TUI_SIDECAR_URL` 而对端不可达时,TUI 的首帧会被推迟最多 2 秒。
 模块 docstring 只讲了 "Failure mode: silent" 与「不阻塞 agent 循环」,没讲它会阻塞**启动**;
-`tui_gateway/entry.py:53` 的 `Best-effort: connect failure or runtime drop falls back to stdio-only.`
-同样只说结果不说代价。故记 ◇。
+挂载函数自己的 docstring 也只说结果不说代价——`tui_gateway/entry.py:52 @ 863e313`
 
-### ◎-8 `tui_gateway/server.py:185` 说 "A handful of handlers",实为 42 条
+> ``/api/pty`` endpoint when a chat tab passes a ``channel`` query param.
+> Best-effort: connect failure or runtime drop falls back to stdio-only.
+
+故记 ◇。
+
+### ◎-8 tui_gateway/server.py 的 dispatch 分区注释说 "A handful of handlers",实为 42 条
 
 `tui_gateway/server.py:184 @ 863e313`
 
@@ -1641,9 +1690,13 @@ _LONG_HANDLERS = frozenset(
 
 ### ◇-9 `tui_gateway/server.py` 的横幅分区与内容错位,协议核心全在错误的辖区下
 
-`tui_gateway/server.py:1381` 的 `# ── per-session profile scoping (global remote mode) ───────────────────────────`
-这条横幅的下一条横幅在 `tui_gateway/server.py:2879` 的
-`# ── Config I/O ────────────────────────────────────────────────────────`,
+错位的这条横幅与它的下一条横幅:
+
+| 横幅 | 锚点 + 摘录 |
+|---|---|
+| 起 | `tui_gateway/server.py:1381` 的 `# ── per-session profile scoping (global remote mode) ───────────────────────────` |
+| 止(下一条) | `tui_gateway/server.py:2879` 的 `# ── Config I/O ────────────────────────────────────────────────────────` |
+
 所以它名义上的辖区是 :1381–:2878。而这个区间里装着整个协议核心:
 
 | 落在错误辖区里的东西 | 锚点 + 摘录 |
@@ -1658,9 +1711,12 @@ _LONG_HANDLERS = frozenset(
 | 查表分发 | `tui_gateway/server.py:1891` 的 `def handle_request(req: dict) -> dict | None:` |
 | 并发路由 | `tui_gateway/server.py:1903` 的 `def dispatch(req: dict, transport: Optional[Transport] = None) -> dict | None:` |
 
-而名字最像协议核心的那条横幅 `tui_gateway/server.py:1298` 的
-`# ── Plumbing ──────────────────────────────────────────────────────────`
-辖区只有 :1298–:1380,里面**没有**上面任何一项。
+而名字最像协议核心的那条横幅,辖区只有 :1298–:1380,里面**没有**上面任何一项。
+`tui_gateway/server.py:1298 @ 863e313`
+
+```
+# ── Plumbing ──────────────────────────────────────────────────────────
+```
 这不是代码缺陷,而是「作者自绘的内部地图与内容脱节」——文档(此处即横幅注释)没有声明
 它其实不是分区边界,故记 ◇。后续任何要在 server.py 里定位的人,应把 §5.10 的横幅表
 **当行号索引用,不要当语义分区用**。
@@ -1700,7 +1756,7 @@ _LONG_HANDLERS = frozenset(
    **未排除**:`emit` 的第一参数如果哪里是变量而非字面量,这个枚举会漏。我没做 AST 校验。
 6. **`tui_gateway/ws.py` 的两把锁我没有做形式化的顺序论证**。我读了注释声明的不变量
    (「在线序 == 缓冲序」)并确认存在覆盖它的测试
-   (`tests/test_tui_gateway_ws.py:193` 的 `def test_ws_transport_preserves_cross_batch_order():`),
+   (`tests/test_tui_gateway_ws.py` 里的 `test_ws_transport_preserves_cross_batch_order`),
    但没有独立推导 `asyncio.Lock` 的 FIFO 性质在所有调度交错下都成立,也没跑那个测试。
 7. **`_arm_token_flush` 的一个竞态我看见了但没定性**:它在 loop 线程上无锁写
    `self._token_flush_handle`,而 `write` 在 `_token_lock` 内 `call_soon_threadsafe` 排它。
@@ -1718,10 +1774,8 @@ _LONG_HANDLERS = frozenset(
 11. **`_stdin_recovery` 的故障我没有复现**。恢复逻辑的正确性我是从 POSIX 语义
     (文件状态标志挂在 open file description 上)+ 代码 + docstring 三者一致推断的,
     没有写一个翻 `O_NONBLOCK` 的子进程去实测。
-12. **`_LONG_HANDLERS` 的下限我没有当成 ■ 报**:`tui_gateway/server.py:287` 的
-    `2, int(os.environ.get("HERMES_TUI_RPC_POOL_WORKERS") or "8")` 允许把池压到 2,
-    而 `tests/tui_gateway/test_inline_rpc_gil_starvation.py:139` 的
-    `assert server._rpc_pool_workers >= 8, (` 断言的是**默认值** ≥ 8。
+12. **RPC 池下限我没有当成 ■ 报**(锚点见 §9 的 H-R10A-h):池下限是 `max(2, …)`,
+    允许把池压到 2,而那条不变量测试断言的是**默认值** ≥ 8。
     环境变量覆盖是刻意的逃生舱,不是缺陷;但「设成 2 会让那条不变量失效」这件事没被任何东西挡住。
 
 ---
@@ -1732,8 +1786,8 @@ _LONG_HANDLERS = frozenset(
 片内 11 个文件全部在 §2 表格里以**全路径**出现并各有一句话角色,
 且 11 个中有 10 个在 §5 有自己的小节(唯一例外是 `tui_gateway/__init__.py`,
 它 0 字节、0 行,无可读之物,已在 §2 交代其角色与「不做 re-export」这一事实)。
-**全文引用零裸文件名**——修订时把初稿里约 60 处 `ws.py:38`、`server.py:1068` 这类
-裸名全部改成从仓库根可解析的全路径。
+**全文引用零裸文件名**——修订时把初稿里约 60 处「只写模块名 + 行号」的裸名
+全部改成从仓库根可解析的全路径。
 
 **判据 2 · 接缝穷举 —— 达成,5 个接缝全列不抽样。**
 
@@ -1754,13 +1808,24 @@ _LONG_HANDLERS = frozenset(
 链上跨片的三跳我读了原文并逐字引了其中最关键的一处(transport 重绑),但没展开其实现。
 另用一张表把 WS 形态同一条链的 5 处差异标了出来。
 
-**判据 4 · 两处以上逐字取证 —— 达成,共 31 个逐字源码块。**
-分布:`tui_gateway/transport.py` 4、`tui_gateway/ws.py` 7、`tui_gateway/event_publisher.py` 2、
-`tui_gateway/entry.py` 2、`tui_gateway/server.py` 12、`tui_gateway/method_ctx.py` 2、
-`tui_gateway/_stdin_recovery.py` 2、`tui_gateway/loop_noise.py` 2、`tui_gateway/turn_marker.py` 1、
-`tui_gateway/render.py` 2、`tui_gateway/methods_prompt.py` 1。
-全部用 `sed -n 'A,Bp'` 取出后粘贴,未手抄。
-另有约 90 处表格行内锚点采用「锚点 + 紧跟反引号摘录」的声明式写法,同样被脚本机械比对。
+**判据 4 · 两处以上逐字取证 —— 远超,校验器读数如下。**
+
+```verify
+cd /home/user/hermes-study && python3 scripts/verify_citations.py /home/user/hermes-agent \
+    notes/r10-raw-tui-gateway-skeleton.md
+# citations=55  OK=55
+# 可校验比例 OK/55 = 100.0%
+# table_anchors=192  OK=179  UNCHECKED=13
+# OK: every code-block-backed citation matches the baseline
+```
+
+即 **55 个块级锚点全部逐字命中基线**(其中含 4 个 `>` 文档引用块),
+外加 **192 处表格行内声明式锚点、179 处被机械比对通过**。
+所有围栏块都用 `sed -n 'A,Bp'` 取出后粘贴,未手抄。
+**13 处 TABLE-UNCHECKED 要如实交代**:12 处是摘录里含 Python 的类型联集竖线
+(如 `def read_turn_marker(home: Path | str, …)`),那个 `|` 会把 Markdown 表格单元切开,
+校验器只看得到摘录的前半截;1 处是某格同时点名三个 `tools/*.py` 调用点而未逐个声明摘录。
+两类都是**排版限制**,不是未取证——它们指向的行都在正文别处被逐字引用或被 `verify` 命令覆盖。
 
 **判据 5 · 至少一条记号 —— 达成,共 9 条**:■ 1 条、▲ 4 条、◇ 3 条、◎ 1 条,逐条带锚点。
 其中 ■-1 与 ▲-3/▲-4 都给出了完整搜索面或客户端侧反证,不是「我没看见」。
