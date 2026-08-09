@@ -457,3 +457,35 @@ OK: every code-block-backed citation matches the baseline
 
 7. **【M-25】本报告漏报全局进度,现补报:处理 50 个文件;`R1-inventoried` 由 8172 降至 8122。**
    这是 R7 起中断的第五轮,R8-fix 已恢复该制度。
+
+---
+
+## 勘误(R8C 复核,2026-08-08)
+
+1. **【定性下调】上面勘误第 1 条把后果写成「静默消失」,不成立。缺陷本身成立,严重性下调。**
+
+   R8C 主线直接调 `read_raw_config()`(即 `_update_config_for_provider` 走的那一个)
+   喂一个缩进坏掉的 `config.yaml` 实测:它在返回 `{}` **之前**已经做了两件事——
+   往 stderr 与日志各打一条指名道姓的告警("每一条用户覆盖都正在被忽略、修好 YAML 再重启"),
+   并把原文件**逐字备份**到 `config.yaml.corrupt.<时间戳>.bak`(实测逐字相同)。
+   备份由 `_warn_config_parse_failure`(`hermes_cli/config.py:99`)完成,
+   它的 docstring 明写这份快照就是为了让用户内容"survives any later rewrite of
+   `config.yaml` by the setup wizard or `hermes config set`"——**上游早就想到了下游会整文件覆盖。**
+
+   **准确表述**:落盘文件会被截断成只剩本次写入那一段;过程中**有明确告警**,
+   原文件**有逐字备份**;用户需自己看见告警并手工恢复。
+   **仍是缺陷(fail-closed 明显优于 warn-then-truncate),但既不静默、也不丢数据。**
+
+   **为什么这不只是措辞**:「静默丢数据」与「告警+留备份后截断」是两个严重级别,
+   修复优先级差一档。R8-fix 那一卡把本条当作"本轮唯一真正的方法论教训",
+   理由是"负结论错了会关闭调查"——**那句话完全正确,而它自己犯的是对偶的错:
+   一个正结论的严重性被高估,同样会误导下一轮的优先级排序。**
+
+   漏掉的原因:原判把 `read_raw_config()` 当成"解析失败 → 返回 `{}`"的黑盒一跳带过,
+   只读返回值、没读它返回之前做了什么。**链条上每一跳都要读完。**
+   完整实测见 `notes/r8c-90-rulings.md` §7。
+
+2. **【编号】上面勘误第 1 条所立的 ■ 编号,与本报告正文 `:181` 既有的 ■-R8B-08
+   (「35 个方法名的隐式跨文件接口」)撞号,现改号为 ■-R8B-12。**
+   本报告正文那条**保持 ■-R8B-08 不动**(先占号方)。详见
+   `reports/round-8-fix-review-1.md` 勘误第 1 条与 `notes/r8b-90-handover-rulings.md` §1.0。

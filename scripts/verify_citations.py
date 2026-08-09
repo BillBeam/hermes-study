@@ -52,6 +52,25 @@ rewritten in place to the true line number (a `N-M` range is shifted by the same
 delta, preserving its length). Ambiguous or not-found cases are never touched —
 they are left for a human. Always re-run without --fix afterwards to confirm.
 
+Per-file UNCHECKED ratio hint (R8C)
+-----------------------------------
+UNCHECKED is not a failure, and legitimately so: a prose reference to a region is
+a valid thing to write. But UNCHECKED is also exactly what a *layout* mistake
+looks like from in here. The gate pairs a citation with the block that FOLLOWS
+it; an author who puts the anchor *after* its code block produces a file whose
+every citation is UNCHECKED, and the gate says OK. That is the failure mode this
+hint exists to surface: when a single file is at or above UNCHECKED_HINT_RATIO
+(and carries at least UNCHECKED_HINT_MIN citations, so a 1-of-1 file cannot trip
+it), the run prints a "疑似锚点排版不合规" note naming the file.
+
+It is a HINT, not a failure — it does not change the exit code. A file can
+legitimately be nearly all prose. Making it blocking would push authors to
+manufacture code blocks to clear a gate, which is worse than the disease.
+
+The run also prints 可校验比例 = OK / (OK + UNCHECKED + failures), the metric R8A
+put a 70% floor under. The floor is a reporting standard, not a script gate:
+the script computes and prints the number so the round report cannot fudge it.
+
 Usage:
     python3 scripts/verify_citations.py <baseline_repo> <note.md> [note.md ...]
     python3 scripts/verify_citations.py /home/user/hermes-agent notes/r7c-*.md
@@ -63,6 +82,11 @@ from pathlib import Path
 
 WINDOW = 40  # how far to search for the real location when a citation misses
 STUDY_ROOT = Path(__file__).resolve().parent.parent  # this study repo
+
+# Per-file UNCHECKED-ratio hint (see module docstring). Non-blocking.
+UNCHECKED_HINT_RATIO = 0.90
+UNCHECKED_HINT_MIN = 5  # below this many citations the ratio says nothing
+VERIFIABLE_FLOOR = 0.70  # R8A's reporting floor for OK / all citations
 
 # `gateway/run.py:1234 @ 863e313`  /  **`cron/jobs.py:10-20`**  /  path:1234
 CITE = re.compile(
@@ -115,6 +139,56 @@ def block_locator(block):
             return CITE.search(b)
         return None
     return None
+
+
+# Lines an excerpt uses to say "I skipped some source here".
+ELISION = re.compile(r"^\s*(?:#\s*)?(?:\.\.\.|…|<snip>|\[\.\.\.\])\s*$")
+
+
+def block_drift(block, src, start):
+    """Compare a fenced block's lines 2..N against the source, not just line 1.
+
+    The gate has always compared ONLY the block's first non-blank line against
+    the cited line. Every line after it was unverified — an excerpt could drop a
+    closing ``\"\"\"``, rename an identifier, or paraphrase a value, and the run
+    stayed green. R8C found two such blocks in one round's draft; there was no
+    mechanism that could have caught them.
+
+    Returns a short human-readable report of the differing lines, or "" when the
+    block tracks the source verbatim. Comparison stops at the first elision
+    marker (``...``), which is an author declaration that the excerpt jumps.
+
+    Reported as BLOCK-DRIFT, which does NOT fail the run yet — same staging the
+    citation gate itself went through (added R7C, promoted to blocking in R8A).
+    Promote once the corpus is clean.
+    """
+    body = list(block)
+    while body and not body[-1].strip():
+        body.pop()
+    # skip the leading locator comment and any leading blanks, the same way
+    # first_source_line does, so index 0 lines up with the cited line.
+    k = 0
+    while k < len(body) and (not body[k].strip() or LOCATOR.match(body[k])):
+        k += 1
+    diffs = []
+    for off, text in enumerate(body[k:]):
+        if ELISION.match(text):
+            break
+        n = start - 1 + off
+        if n >= len(src):
+            diffs.append((off + 1, text, "<源码已到文件尾>"))
+            break
+        if norm(src[n]) != norm(text):
+            diffs.append((off + 1, text, src[n]))
+    if not diffs:
+        return ""
+    head = diffs[0]
+    more = f"  (共 {len(diffs)} 行不符)" if len(diffs) > 1 else ""
+    return (
+        f"      块内第 {head[0]} 行与 {start + head[0] - 1} 行不符{more}\n"
+        f"      引用: {norm(head[1])[:100]}\n"
+        f"      基线: {norm(head[2])[:100]}"
+    )
 
 
 def read_block(lines, j):
@@ -262,6 +336,12 @@ def check_note(repo: Path, note: Path, fix: bool = False):
                 )
             elif line_matches(src[start - 1]):
                 results.append(("OK", ""))
+                # The first line matched. Everything AFTER it in the block has
+                # never been checked by anything (R8C). See block_drift().
+                if kind == "fence":
+                    d = block_drift(block, src, start)
+                    if d:
+                        results.append(("BLOCK-DRIFT", f"{note.name}:{i+1}  {path}:{start}\n{d}"))
             else:
                 # where does it actually live?
                 lo, hi = max(0, start - 1 - WINDOW), min(len(src), start - 1 + WINDOW)
@@ -320,23 +400,64 @@ def main() -> None:
 
     tally = {}
     problems = []
+    per_file = {}  # path -> {status: count}
     for arg in argv[1:]:
         note = Path(arg)
         if not note.is_file():
             print(f"skip (not a file): {note}")
             continue
+        seen = per_file.setdefault(str(note), {})
         for status, detail in check_note(repo, note, fix=fix):
             tally[status] = tally.get(status, 0) + 1
+            seen[status] = seen.get(status, 0) + 1
             if status not in ("OK", "UNCHECKED"):
                 problems.append(f"[{status}] {detail}")
+    # BLOCK-DRIFT rides along on a citation that already counted as OK, so it
+    # must not inflate the citation total or dilute the verifiable ratio.
+    drift = tally.pop("BLOCK-DRIFT", 0)
+    for counts in per_file.values():
+        counts.pop("BLOCK-DRIFT", None)
 
     for p in problems:
         print(p)
+
+    # Files that are almost entirely UNCHECKED. Usually that means the anchors
+    # were written AFTER their code blocks, so the gate never paired them up and
+    # silently checked nothing. See module docstring — hint only, never fatal.
+    suspects = []
+    for path, counts in sorted(per_file.items()):
+        n = sum(v for k, v in counts.items() if k != "FIXED")
+        if n < UNCHECKED_HINT_MIN:
+            continue
+        ratio = counts.get("UNCHECKED", 0) / n
+        if ratio >= UNCHECKED_HINT_RATIO:
+            suspects.append((path, counts.get("UNCHECKED", 0), n, ratio))
+    if suspects:
+        print(
+            f"\nHINT: 疑似锚点排版不合规 —— 以下文件 UNCHECKED 占比 >= {UNCHECKED_HINT_RATIO:.0%}"
+        )
+        print("      按制度锚点 `路径:行号 @ 863e313` 应单独成行、置于代码块/引用块**之前**;")
+        print("      写在块后会让每一条引用都配不上块,于是全部记 UNCHECKED —— 关卡看起来是绿的,")
+        print("      实际一条都没校验。请逐条确认是真散文引用,还是锚点放错了位置。")
+        for path, u, n, ratio in suspects:
+            print(f"      - {path}: UNCHECKED {u}/{n} = {ratio:.1%}")
+        print("      (提示不影响退出码。)")
+
     total = sum(tally.values())
     print(
         f"\ncitations={total}  "
         + "  ".join(f"{k}={v}" for k, v in sorted(tally.items()))
     )
+    checkable = total - tally.get("FIXED", 0)
+    if checkable:
+        rate = tally.get("OK", 0) / checkable
+        flag = "" if rate >= VERIFIABLE_FLOOR else f"  << 低于 {VERIFIABLE_FLOOR:.0%} 下限"
+        print(f"可校验比例 OK/{checkable} = {rate:.1%}{flag}")
+    if drift:
+        print(
+            f"BLOCK-DRIFT={drift}  (代码块首行之后的行与基线不符;**暂不阻断**,"
+            f"见脚本 block_drift() 的说明)"
+        )
     bad = total - tally.get("OK", 0) - tally.get("UNCHECKED", 0) - tally.get("FIXED", 0)
     if bad:
         print(f"FAIL: {bad} citation(s) need fixing")
