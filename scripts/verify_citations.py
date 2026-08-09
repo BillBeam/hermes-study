@@ -153,11 +153,67 @@ UNCHECKED_HINT_RATIO = 0.90
 UNCHECKED_HINT_MIN = 5  # below this many citations the ratio says nothing
 VERIFIABLE_FLOOR = 0.70  # R8A's reporting floor for OK / all citations
 
+# Extensions an anchor may carry (R10B / H-R10-a).
+#
+# Until R10B this read `py|md|yaml|yml|toml|c|sh|json|ts|tsx|js`. An anchor whose
+# extension was not on it did not become UNCHECKED — it was not recognised as a
+# citation *at all*, so it was neither verified nor counted, which is strictly
+# more hidden than UNCHECKED. A full-corpus scan
+# (`data/r10b/probes/cite_ext_scan.py`) found 17 such anchors in 8 distinct paths
+# (.h 13 / .mjs 2 / .nix 2) plus a second gap H-R10-a had not named: 6 `.mdx`
+# anchors into `website/docs/` — the very tree CLAUDE.md designates as the
+# author's self-drawn map, i.e. the doc side of every ▲ ruling — and 1 `.txt`.
+#
+# Ordering is longest-first (`mdx` before `md`, `tsx` before `ts`, `mjs` before
+# `js`) so the alternation cannot settle on a prefix.
+CITE_EXTS = "py|mdx|md|yaml|yml|toml|c|h|sh|json|tsx|ts|mjs|js|nix|rs|txt"
+
 # `gateway/run.py:1234 @ 863e313`  /  **`cron/jobs.py:10-20`**  /  path:1234
+#
+# The leading `\.?` is the sibling defect the same note reported alongside
+# H-R10-a: the path had to start with a word character, so `.github/…` was
+# parsed as `github/…`, which resolves nowhere — a dot-directory anchor could
+# never be verified. Measured on the whole corpus, allowing the dot changes the
+# parse of exactly 2 occurrences and both go from unresolvable to resolvable.
 CITE = re.compile(
-    r"(?P<path>[A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:py|md|yaml|yml|toml|c|sh|json|ts|tsx|js))"
+    r"(?P<path>\.?[A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:" + CITE_EXTS + r"))"
     r":(?P<start>\d+)(?:-(?P<end>\d+))?"
 )
+
+# `sqlite.org:443` is shaped exactly like `path:line`, and H-R10-a warned that a
+# naive widening would start "verifying" hostnames. The extension whitelist is
+# the primary defence and it holds: the same corpus scan finds 49 host:port-ish
+# tokens (`127.0.0.1:18789` x31, `sqlite.org:443` x4, `api.openai.com:443`,
+# `homeassistant.local:8123`, `x.test:80`, even `n.lineno:4`) and **not one** of
+# them ends in a whitelisted extension.
+#
+# Three whitelisted extensions are nevertheless also ccTLDs, so keep a second,
+# declared guard for exactly that overlap: `name.sh:N` with no directory part is
+# genuinely ambiguous between a script and a Saint-Helena hostname, and no rule
+# can separate them from the text alone. Such a token counts as a citation only
+# when it shows one more bit of evidence that it names a file — a `/`, or a `_`,
+# or it resolves in one of the two trees. Measured blast radius on the corpus at
+# the time this landed: exactly one anchor, `build.sh:4-6` in
+# notes/r10-raw-native-vendor.md, which was a real citation written without its
+# directory; it was qualified to `native/fts5_cjk/build.sh:4-6` in the same
+# commit rather than left for the guard to hide. Dropping a real anchor would
+# reintroduce, in miniature, the exact invisibility this change exists to remove.
+TLD_LIKE_EXTS = {"sh", "js", "rs"}
+
+
+def is_path_citation(m, resolve) -> bool:
+    """False when *m* is more plausibly a `host:port` than a `path:line`."""
+    path = m.group("path")
+    if path.rsplit(".", 1)[-1].lower() not in TLD_LIKE_EXTS:
+        return True
+    if "/" in path or "_" in path:
+        return True
+    return resolve(path).is_file()
+
+
+def citations(text: str, resolve):
+    """Every citation in *text*, host:port lookalikes removed."""
+    return [m for m in CITE.finditer(text) if is_path_citation(m, resolve)]
 FENCE = re.compile(r"^\s*```(?P<lang>[A-Za-z0-9_+-]*)")
 QUOTE = re.compile(r"^\s*>\s?(?P<body>.*)$")
 
@@ -372,7 +428,7 @@ def check_table_row(repo, note, lineno: int, line: str, resolve):
     """Verify anchors written inside a Markdown table row. See module docstring."""
     results = []
     for cell in table_cells(line):
-        cites = list(CITE.finditer(cell))
+        cites = citations(cell, resolve)
         if not cites:
             continue
         tag = f"{note.name}:{lineno}"
@@ -531,7 +587,7 @@ def check_note(repo: Path, note: Path, fix: bool = False):
             i += 1
             continue
 
-        cands = list(CITE.finditer(line))
+        cands = citations(line, resolve)
         if not cands:
             i += 1
             continue

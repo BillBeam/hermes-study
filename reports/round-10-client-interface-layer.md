@@ -487,7 +487,7 @@ HEAD 全程 `863e31318553cda8ad61df681d08175364d4164b`。
    已 `--amend` 剥除,此后每次提交自查。
    *历史情况如实报:`main` 上已有 **148** 个提交带该尾部(R9B 及更早;R9C/R9D 已停用)。
    **本轮不重写已推送的共享历史**——重写的风险高于这条违反本身。*
-8. **一个关卡自身的口子,两片互不通气地各自撞见。** `scripts/verify_citations.py:158` 的
+8. **一个关卡自身的口子,两片互不通气地各自撞见。** `scripts/verify_citations.py:169` 的
    `CITE` 正则扩展名白名单是 `py|md|yaml|yml|toml|c|sh|json|ts|tsx|js`,**不含 `h`/`mjs`/`nix`/`rs`**。
    这些锚点**连"引用"都不算**——既不校验,也不计入 UNCHECKED,**比 UNCHECKED 更隐蔽**。
    全语料量化:白名单外的真锚点 **16 处**(`.h` 13 / `.mjs` 2 / `.nix` 1)。
@@ -517,7 +517,7 @@ HEAD 全程 `863e31318553cda8ad61df681d08175364d4164b`。
 
 | 移交项 | 去向 | 锚点 | 现象 |
 |---|---|---|---|
-| **H-R10-a** | R11A | `scripts/verify_citations.py:158`:`r"(?P<path>[A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:py\|md\|yaml\|yml\|toml\|c\|sh\|json\|ts\|tsx\|js))"` | 扩展名白名单不含 `h`/`mjs`/`nix`/`rs`,这些锚点连"引用"都不算,不校验也不计 UNCHECKED;放宽时须避免把 `sqlite.org:443` 当锚点 |
+| **H-R10-a** | R11A(**实由 R10B 结清**) | `scripts/verify_citations.py:169`:`CITE_EXTS = "py\|mdx\|md\|yaml\|yml\|toml\|c\|h\|sh\|json\|tsx\|ts\|mjs\|js\|nix\|rs\|txt"` | 扩展名白名单不含 `h`/`mjs`/`nix`/`rs`,这些锚点连"引用"都不算,不校验也不计 UNCHECKED;放宽时须避免把 `sqlite.org:443` 当锚点 |
 | **H-R10-b** | R11 复盘 | 本报告 §8.1 | L2 轮的 70% 块级下限与判据 2 结构冲突;提案改用「表格锚点声明率」,片 C 是 33/39 = 84.6% vs 块级 30.6% |
 | **H-R10-c** | R11 复盘 | 本报告 §4 与 `data/r10/probes/handover_census.py` | 移交项的结清记录有两个存放地(报告定案表 / 底稿散文),机械普查只看得到前者,4 条已结清项长期显示 OPEN |
 | **H-R10-d** | R11A | `hermes_cli/web_server.py:5524`:`shell=True` | manifest 的 `install` 字段以 `bash -c` 执行、无过滤;需连同 ■-R8D-02 重验「谁能写 `$HERMES_HOME/plugins/`」才能定级 |
@@ -540,3 +540,28 @@ HEAD 全程 `863e31318553cda8ad61df681d08175364d4164b`。
 3. **L3 仍是零先例**,`R11B` 的 12 片是外推。建议 R10B 顺手吃下 REMAINDER 里那 13 个 L3 文件
    (`apps/desktop/src/i18n/`,17,378 行)并**显式报数**,给 L3 建立第一个数据点。
 4. **H-R10-a(关卡口子)建议在 R11A 开工杂项阶段就修**,它是所有后续轮的公共设施。
+
+---
+
+## 勘误(R10B 补记)
+
+本报告正文不静默改写;唯一例外是引用行号漂移必须就地改正,否则校验器过不了——
+**每一处都在此点名**(CLAUDE.md「历史产出的改法」)。
+
+R10B 在开工杂项里结清了本报告 §11.8 / §13 提出的 **H-R10-a**,改动了
+`scripts/verify_citations.py` 的 `CITE` 正则。该文件是本报告自己引用的对象,
+于是本报告里两处指向它的锚点当场失效:
+
+| 处 | 原锚点与摘录 | 改为 | 说明 |
+|---|---|---|---|
+| §11.8 正文 | `scripts/verify_citations.py:158`(白名单所在行) | `scripts/verify_citations.py:169` | 白名单已提取为具名常量 `CITE_EXTS`,行号随之移动 |
+| §13 移交表 H-R10-a 行 | `:158` + 旧正则字面量作声明式摘录 | `:169` + `CITE_EXTS = "..."` 新字面量 | 旧字面量在基线**已不存在**,留着就是一条断言错位置的锚点 |
+
+**只改了行号与随之失效的摘录字面量,结论文字一字未动。** H-R10-a 的去向列
+原写 R11A,已注明「实由 R10B 结清」——去向是当时的计划,结清是后来的事实,两者都留在表里。
+
+*另记一条口径差,不是错误:§11.8 报「白名单外的真锚点 **16 处**(`.h` 13 / `.mjs` 2 / `.nix` 1)」,
+R10B 用 `data/r10b/probes/cite_ext_scan.py` 全语料重扫得 **17 处**(`.h` 13 / `.mjs` 2 / `.nix` 2)。
+差的那 1 处是 `notes/r9a-raw-research-pipeline.md` 里的 `nix/lib.nix` —— R10 的扫描面是
+chapters + 当轮 notes,R10B 的扫描面是 `chapters/` + `notes/` + `reports/` + `reviews/` 全部。
+**两个数都对,分母不同**,按「同一指标的多次测量须分别标注读数」记在此处。*
