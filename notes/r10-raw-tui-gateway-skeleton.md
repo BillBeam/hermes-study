@@ -835,9 +835,8 @@ _TOKEN_COALESCE_S = 0.033
 | `_token_lock` | `tui_gateway/ws.py:101` 的 `self._token_lock = threading.Lock()` | 缓冲区 + armed 标志,对抗 worker 线程 |
 | `_send_lock` | `tui_gateway/ws.py:108` 的 `self._send_lock = asyncio.Lock()` | 多个批次在 loop 上串行落到 socket 上(loop 从卡顿恢复时可能同时排着好几批) |
 
-「排入 send 的动作放在 `_token_lock` 里面」是为了让**在线序 == 缓冲序**,
-即使合批定时器和非流式 flush 同一瞬间触发(`tui_gateway/ws.py:147` 的
-`# scheduled INSIDE the lock so the on-the-wire order matches the buffer`)。
+| 排入 send 的动作放在 `_token_lock` 里面 | `tui_gateway/ws.py:147` 的 `# scheduled INSIDE the lock so the on-the-wire order matches the buffer` | 让**在线序 == 缓冲序**,即使合批定时器和非流式 flush 同一瞬间触发 |
+| 一批 N 帧发成 N 条 message | `tui_gateway/ws.py:234` 的 `for line in lines:` | `_safe_send_many` 是「一批不可分割、按缓冲序上线」的单位,不是「一条含 N 行的 message」 |
 
 **loop 卡顿不等于 socket 死了**,`tui_gateway/ws.py:165 @ 863e313`
 
@@ -863,8 +862,16 @@ _TOKEN_COALESCE_S = 0.033
 **事故经过**:委派(delegation)一次跑 N 个子代理,GIL 被压住,事件循环卡住 >10s;
 一次超时就把 `_closed` 置位,此后这个 transport **永久静默**——用户看到的现象是
 「子代理窗口一个 token 都不流」。修法是:超时只放开 worker 线程、保留 transport 活性,
-真的 socket 错误由 `_safe_send_many` 在写失败时置位
-(`tui_gateway/ws.py:242` 的 `self._closed = True`)。
+真的 socket 错误才置位——`tui_gateway/ws.py:238 @ 863e313`
+
+```
+            except Exception as exc:
+                # Latch while still holding the writer lock so queued batches
+                # observe the failure before they get a chance to touch the
+                # socket.
+                self._closed = True
+```
+
 **注意:模块顶部的注释还是旧版说法,见 §6 ▲-2。**
 
 **`handle_ws` 的生命周期**:
@@ -881,19 +888,19 @@ _TOKEN_COALESCE_S = 0.033
 | 读循环 | `tui_gateway/ws.py:339` 的 `while True:` | receive → parse → 派发 → 写响应 |
 | 拆除 | `tui_gateway/ws.py:433` 的 `server.unregister_live_transport(transport)` | 注销名册 → `transport.close()` → 释放唤醒词归属 → 回收/剥离会话 → `ws.close()` → 打一行统计 |
 
-**读循环是串行的**(`tui_gateway/ws.py:392` 的
-`resp = await asyncio.to_thread(server.dispatch, req, transport)`):每条请求都 `await`,
-所以**内联** handler 会挡住同一 socket 上的下一条 RPC。这不是疏漏而是已知取舍:
-修法是把前端会轮询的 RPC 全部塞进 `_LONG_HANDLERS`,让 `dispatch` 立刻返回 `None`。
-这条不变量被钉成了断言:`tests/tui_gateway/test_inline_rpc_gil_starvation.py:92` 的
-`assert method in server._LONG_HANDLERS, (`,以及
-`tests/tui_gateway/test_inline_rpc_gil_starvation.py:139` 的
-`assert server._rpc_pool_workers >= 8, (`。
+**读循环是串行的**:每条请求都 `await`,所以**内联** handler 会挡住同一 socket 上的下一条 RPC。
+这不是疏漏而是已知取舍——修法是把前端会轮询的 RPC 全部塞进 `_LONG_HANDLERS`,
+让 `dispatch` 立刻返回 `None`。这条不变量已被钉成断言:
 
-**拆除路径故意全部走线程池**(`tui_gateway/ws.py:454` 的
-`reaped_sessions, detached_sessions = await asyncio.to_thread(`):
-`_close_session_by_id` 会做阻塞的 `worker.close()`(终止子进程 + 等待)加一次同步 DB 写,
-内联的话会把 uvicorn 的事件循环冻住,连带冻住这台机器上**其它所有**活连接。
+| 事实 | 锚点 + 摘录 |
+|---|---|
+| 读循环逐条 `await` | `tui_gateway/ws.py:392` 的 `resp = await asyncio.to_thread(server.dispatch, req, transport)` |
+| 前端轮询 RPC 必须走池 | `tests/tui_gateway/test_inline_rpc_gil_starvation.py:92` 的 `assert method in server._LONG_HANDLERS, (` |
+| 池至少 8 个 worker | `tests/tui_gateway/test_inline_rpc_gil_starvation.py:138` 的 `assert server._rpc_pool_workers >= 8, (` |
+| 拆除也不许内联 | `tui_gateway/ws.py:454` 的 `reaped_sessions, detached_sessions = await asyncio.to_thread(` |
+
+最后一行的理由:`_close_session_by_id` 会做阻塞的 `worker.close()`(终止子进程 + 等待)
+加一次同步 DB 写,内联的话会把 uvicorn 的事件循环冻住,连带冻住这台机器上**其它所有**活连接。
 
 **断连后会话不立即销毁**,`tui_gateway/server.py:1084 @ 863e313`
 
