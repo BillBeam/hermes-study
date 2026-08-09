@@ -203,7 +203,7 @@ cd /home/user/hermes-agent && grep -rn "portal_base_url" --include=*.py . | grep
 | 1 | `hermes_cli/auth.py:8796` 的 `_nous_device_code_login` | 函数参数 → `--portal-url` 命令行标志 → env → 注册表默认值 | 否(操作者来源,按设计不该过) |
 | 2 | `hermes_cli/auth.py:8880`:`"portal_base_url": portal_base_url,` | 同上,登录成功后落 auth.json | 否(同上) |
 | 3 | `hermes_cli/auth.py:5982`:`state["portal_base_url"] = portal_base_url` | **已过白名单**的那个变量(`:5893-5905`) | **是** |
-| 4 | `hermes_cli/auth.py:6482` 的 `_resolve_effective_routing_metadata` 回写 | **已过白名单**(`:6246-6266`) | **是** |
+| 4 | `hermes_cli/auth.py:6482`:`state["portal_base_url"] = portal_base_url`(`_resolve_effective_routing_metadata` 的回写) | **已过白名单**(见上面 1.3 引的 `:6238` 注释块) | **是** |
 | 5 | `hermes_cli/auth.py:5352`:`"portal_base_url",` (`_merge_shared_nous_oauth_state` 的键列表) | 跨 profile 的**本地共享文件**,该文件由 `_write_shared_nous_state` 写,值取自上面已净化的 state | 间接是 |
 
 `--portal-url` 这个标志的四个注册点(搜索面:`grep -rn '"--portal-url"' --include=*.py .`,
@@ -239,13 +239,22 @@ cd /home/user/hermes-agent && grep -rn "portal_base_url" --include=*.py . | grep
 `_save_provider_state_to_source` / `set_provider_auth_state` 全部调用方的复核
 (`grep -rn "save_provider_state\|set_provider_auth_state" --include=*.py . | grep -v "^./tests/"`,
 命中 24 处,已逐条看过 `state` 的构造来源)。**排除项**:`tests/` 下的 fixture(它们直接构造
-带任意 host 的 auth.json,是测试意图,不是产品路径);`apps/desktop` 的
-`resolvePortalBaseUrl()`(`apps/desktop/electron/main.ts:6489`,只读两个 env,连 stored 都不读)。
+带任意 host 的 auth.json,是测试意图,不是产品路径);桌面端只读 env、连 stored 都不读——
+
+`apps/desktop/electron/main.ts:6489 @ 863e313`
+
+```typescript
+function resolvePortalBaseUrl() {
+  const raw = process.env.HERMES_PORTAL_BASE_URL || process.env.NOUS_PORTAL_BASE_URL || DEFAULT_NOUS_PORTAL_URL
+
+  return String(raw).trim().replace(/\/+$/, '')
+}
+```
 
 **所以:要让一个恶意 host 进入 `state["portal_base_url"]`,攻击者必须能写
 `~/.hermes/auth.json` 或跨 profile 共享存储——那是本地文件写权限,已经越过了这条防线要防的边界。**
-`auth.py:6238-6241` 的注释把这个字段当成"网络来源、可能被投毒"来防,属于**纵深防御**,
-不代表本基线里真有那条投毒路径。
+上面 1.3 引的那段 "poisoned value can't exfiltrate the bearer" 注释,把这个字段当成
+"网络来源、可能被投毒"来防,属于**纵深防御**,不代表本基线里真有那条投毒路径。
 
 **第 3 问结论:** 存储字段 `portal_base_url` 在本基线内**只有操作者来源**(命令行 `--portal-url` /
 env / 默认值 / 本地共享文件)。按 R9C"用户亲手填的地址不算 ■"的判法,
@@ -265,10 +274,17 @@ env / 默认值 / 本地共享文件)。按 R9C"用户亲手填的地址不算 �
         with urllib.request.urlopen(req, timeout=timeout) as resp:
 ```
 
-**搜索面**:`grep -rn "open_credentialed_url" --include=*.py .` 命中 16 处,产品侧调用方只有
-`providers/base.py:218`、`hermes_cli/azure_detect.py:49`、`hermes_cli/models.py:25`、
-`plugins/model-providers/anthropic/__init__.py:7`——**`hermes_cli/nous_billing.py` 与
-`hermes_cli/nous_account.py` 都不在其中**。
+**搜索面**:`grep -rn "open_credentialed_url" --include=*.py .` 命中 16 处(其中 5 处在
+`tests/`、2 处是 `hermes_cli/urllib_security.py` 自身的定义与 `__all__`),产品侧**调用方只有 4 个**:
+
+| 产品侧调用方(声明式锚点) |
+|---|
+| `providers/base.py:218`:`from hermes_cli.urllib_security import open_credentialed_url` |
+| `hermes_cli/azure_detect.py:49`:`from hermes_cli.urllib_security import open_credentialed_url` |
+| `hermes_cli/models.py:25`:`from hermes_cli.urllib_security import open_credentialed_url` |
+| `plugins/model-providers/anthropic/__init__.py:7`:`from hermes_cli.urllib_security import open_credentialed_url` |
+
+**`hermes_cli/nous_billing.py` 与 `hermes_cli/nous_account.py` 都不在其中。**
 
 仓库自己的安全 opener 做的正是"跨源就摘头":
 
@@ -401,10 +417,11 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home
 
 **改判 + 拆分定案。原移交项把两件事捆在一句话里,一半推翻、一半加重。**
 
-1. **推翻**:"读**环境变量**时不查白名单"是缺陷 —— **不成立**。这是 `auth.py:2338-2342`
+1. **推翻**:"读**环境变量**时不查白名单"是缺陷 —— **不成立**。这是
+   `hermes_cli/auth.py:2337`(`_nous_portal_env_override` docstring,见 1.3)
    明文规定的策略(操作者来源可信、必须绕过白名单),由 2026-07 的真实事故催生,有专门回归测试。
    两个模块在这一半上是**一致**的,不是分歧。
-2. **降级**:"读**存储字段**时不查白名单,而 `auth.py:5900` 查" —— 分歧属实,但
+2. **降级**:"读**存储字段**时不查白名单,而 `hermes_cli/auth.py:5900` 查" —— 分歧属实,但
    **不判 ■,判"设计缺口(纵深防御不对齐)"**。理由:`portal_base_url` 在本基线内没有网络写入路径
    (搜索面见 1.4),要投毒必须先有本地文件写权限;而且 step-up 路径上有测试把"stored 值原样使用"
    钉成了期望行为。按 R9C"用户亲手填的地址不算 ■"的判法,这里连"用户亲手填"都算宽的
@@ -413,12 +430,17 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home
    而非 `open_credentialed_url`,**跨源 302 会把 `billing:manage` 的 Bearer JWT 原样送到新目的地**,
    已实测复现。这条**不依赖任何本地写权限**,是 H-R9C-a 真正该留下的那条。
    与 R9C 的 H-R9A-a **同型**,建议主线合并成同一条处置(统一换 `open_credentialed_url`),
-   并把 `hermes_cli/nous_account.py:567-574` 作为第三个同型站点一并处理。
+   并把 1.5 末尾那个 `_fetch_nous_account_info` 作为第三个同型站点一并处理。
 
-记号归属:**■**(第 3 点)+ **◇**(第 2 点:代码里 env 绕过白名单这一设计,
-`website/docs/reference/environment-variables.md:128` 只写了 "Override Nous Portal URL
-(for development/testing)",没说它同时绕过主机白名单——字面为真,故**不是 ▲**;
-按"代码有、文档无"记 ◇)。
+记号归属:**■**(第 3 点)+ **◇**(第 2 点)。◇ 的依据是文档侧对 env 覆盖只写了用途、
+没写它同时绕过主机白名单:
+
+`website/docs/reference/environment-variables.md:128 @ 863e313`
+
+> | `HERMES_PORTAL_BASE_URL` | Override Nous Portal URL (for development/testing) |
+
+这句**字面为真**(它确实是"覆盖 Portal URL,供开发/测试用"),所以**不是 ▲**;
+按"代码有、文档无"记 ◇。
 
 ---
 
@@ -501,9 +523,22 @@ Subcommands:
     console.print(f"  [green]✓[/green] stored in {get_env_path()} as {token_env}")
 ```
 
-2. **非机密的开关/项目 ID/区域 → `~/.hermes/config.yaml`**(`save_config(cfg)`,
-   `hermes_cli/secrets_cli.py:295`)。**拉下来的密钥值本身不经过本文件落盘**——
-   `sync --apply` 只写进程内存:
+2. **非机密的开关/项目 ID/区域 → `~/.hermes/config.yaml`**:
+
+`hermes_cli/secrets_cli.py:288 @ 863e313`
+
+```python
+    secrets_cfg["enabled"] = True
+    secrets_cfg["project_id"] = project_id
+    secrets_cfg["server_url"] = server_url
+    secrets_cfg.setdefault("access_token_env", token_env)
+    secrets_cfg.setdefault("cache_ttl_seconds", 300)
+    secrets_cfg.setdefault("override_existing", True)
+    secrets_cfg.setdefault("auto_install", True)
+    save_config(cfg)
+```
+
+**拉下来的密钥值本身不经过本文件落盘**——`sync --apply` 只写进程内存:
 
 `hermes_cli/secrets_cli.py:502 @ 863e313`
 
@@ -532,7 +567,15 @@ Subcommands:
         env["BWS_SERVER_URL"] = server_url
 ```
 
-**`status` 不打印令牌**,只打印布尔("Token in env: yes/no",`hermes_cli/secrets_cli.py:334`)。
+**`status` 不打印令牌**,只打印布尔:
+
+`hermes_cli/secrets_cli.py:332 @ 863e313`
+
+```python
+    table.add_row("Enabled",         _yn(enabled))
+    table.add_row("Token env var",   token_env)
+    table.add_row("Token in env",    _yn(token_set))
+```
 
 ## 2.3 落盘的权限位与原子性
 
@@ -630,12 +673,22 @@ cache/op_cache.json          read_blocked=False write_denied=False
 ```
 
 **mode = 0600,明文存储**(`.env` 本来就是明文格式)。写入前还有两道键名闸:
-`_ENV_VAR_NAME_RE`(`hermes_cli/config.py:158`)与 `_reject_denylisted_env_var`
-(`hermes_cli/config.py:219`),后者挡掉 `LD_PRELOAD` / `PYTHONPATH` / `PATH` / `EDITOR` /
-`HERMES_HOME` 这类会影响子进程执行或 Hermes 运行时位置的键名。
-这一点对 `secrets_cli` 是有意义的:`access_token_env` 是**从 config.yaml 读来的可配置键名**
-(`hermes_cli/secrets_cli.py:181`),如果没有这两道闸,一个被改坏的 config 就能借
-`save_env_value` 往 `.env` 里写 `PATH=`。**实测已确认这条闸生效**(见 2.5 的残留项说明)。
+
+| 闸(声明式锚点) | 作用 |
+|---|---|
+| `hermes_cli/config.py:158`:`_ENV_VAR_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")` | 键名必须是合法 POSIX 变量名 |
+| `hermes_cli/config.py:219`:`def _reject_denylisted_env_var(key: str) -> None:` | 挡掉 `LD_PRELOAD` / `PYTHONPATH` / `PATH` / `EDITOR` / `HERMES_HOME` 这类会影响子进程执行或 Hermes 运行时位置的键名 |
+
+这一点对 `secrets_cli` 是有意义的:令牌键名不是写死的,而是**从 config.yaml 读来的可配置值**——
+
+`hermes_cli/secrets_cli.py:181 @ 863e313`
+
+```python
+    token_env = secrets_cfg.get("access_token_env", "BWS_ACCESS_TOKEN")
+```
+
+如果没有那两道闸,一个被改坏的 config 就能借 `save_env_value` 往 `.env` 里写 `PATH=`。
+(本条属**静态对读推出**,未实测,见第三节 U-3。)
 
 ## 2.4 交叉核对:落盘点在不在 agent 的读禁清单里(第 3 问,实证)
 
@@ -676,9 +729,21 @@ cache/op_cache.json          read_blocked=False write_denied=False
         )
 ```
 
-其中 `_BLOCKED_PROJECT_ENV_BASENAMES` 含 `.env` / `.env.local` / `.env.development` /
-`.env.production` / `.env.test` / `.env.staging` / `.envrc`
-(`agent/file_safety.py:183` 的 `_BLOCKED_PROJECT_ENV_BASENAMES: set[str] = {`)。
+其中的 basename 集合:
+
+`agent/file_safety.py:183 @ 863e313`
+
+```python
+_BLOCKED_PROJECT_ENV_BASENAMES: set[str] = {
+    ".env",
+    ".env.local",
+    ".env.development",
+    ".env.production",
+    ".env.test",
+    ".env.staging",
+    ".envrc",
+}
+```
 
 **实证结论(上节 `env_deny_probe.py` 输出,两边对读):**
 
@@ -695,9 +760,18 @@ cache/op_cache.json          read_blocked=False write_denied=False
 明文值缓存(`bws_cache.json`)禁读、加密缓存(`bws_cache.enc.json`)禁写。
 真正漏的两处 R9C 已经立了案,与本文件无关:`op_cache.json` 两边都不拦(R9C ■-1)、
 配置侧 `terminal.credential_files` 不走禁清单(R9C ■-2,`.env` 可被挂进沙箱)。
-**注意口径**:`agent/file_safety.py:217-230` 的模块说明自己写明这**不是安全边界**
-(terminal 工具同 OS 用户,`cat` 得到),是纵深防御。所以"在清单里"= 该有的防线都在,
-不等于 agent 绝对读不到。
+**注意口径**:`get_read_block_error` 自己的 docstring 就写明这**不是安全边界**——
+
+`agent/file_safety.py:217 @ 863e313`
+
+```python
+    **This is NOT a security boundary.** The terminal tool runs as the
+    same OS user with shell access; the agent can still ``cat auth.json``
+    or ``cat ~/.hermes/.env`` and exfiltrate the file. The read-deny exists
+    as defense-in-depth that:
+```
+
+所以"在清单里"= 该有的防线都在,不等于 agent 绝对读不到。
 
 ## 2.5 补读发现的一条 ■:`setup` 在令牌未验证前就覆盖了正在工作的令牌
 
@@ -714,11 +788,32 @@ cache/op_cache.json          read_blocked=False write_denied=False
     """
 ```
 
-代码确实如此:`hermes_cli/secrets_cli.py:404` 起先 `_list_projects` 探测,
-失败就 `return 1`(`:416` 打印 "New token was rejected — nothing was changed."),
-成功才在 `:432` 落盘。
+代码确实如此——先探测,失败就直接返回:
 
-**但 `cmd_setup` 是相反的顺序:`:195` 先落盘,`:220` / `:258` 才验证。**
+`hermes_cli/secrets_cli.py:404 @ 863e313`
+
+```python
+    if not args.no_verify:
+        binary = bw.find_bws(install_if_missing=True)
+        if binary is None:
+            console.print(
+                "[red]bws binary not available — cannot verify.  "
+                "Re-run with --no-verify to store anyway.[/red]"
+            )
+            return 1
+        console.print("Verifying against Bitwarden…")
+        projects = _list_projects(binary, token, console, server_url=server_url)
+        if projects is None:
+            console.print(
+                "[red]✗ New token was rejected — nothing was changed.[/red]"
+            )
+            return 1
+```
+
+成功才在后面的 `hermes_cli/secrets_cli.py:432`:`save_env_value(token_env, token)` 落盘。
+
+**但 `cmd_setup` 是相反的顺序:先落盘(`hermes_cli/secrets_cli.py:195`:`save_env_value(token_env, token)`),
+后验证(`hermes_cli/secrets_cli.py:258`:`secrets, warnings = bw.fetch_bitwarden_secrets(`)。**
 而 `setup` 并不是"只跑一次"的命令——本文件自己在多处引导用户**重跑它**:
 
 `hermes_cli/secrets_cli.py:426 @ 863e313`
@@ -747,8 +842,15 @@ good token still on disk: False
 ```
 
 **命令返回 1、屏幕上明说"Fetch failed",但磁盘上那个能用的令牌已经被无声换成了坏的。**
-下一次 Hermes 启动会拿坏令牌去拉密钥并失败。BSM 令牌**创建后无法再取回**
-(`hermes_cli/secrets_cli.py:129` 的 `"Copy the token (starts with [cyan]0.[/cyan]…) — it cannot be retrieved later."`),
+下一次 Hermes 启动会拿坏令牌去拉密钥并失败。而 BSM 令牌**创建后无法再取回**——
+这一点是向导自己在第一屏告诉用户的:
+
+`hermes_cli/secrets_cli.py:129 @ 863e313`
+
+```python
+            "Copy the token (starts with [cyan]0.[/cyan]…) — it cannot be retrieved later.",
+```
+
 所以用户手上未必还有那个旧值——需要回 Bitwarden 后台重新签发。
 
 严重度:**■(可恢复,不涉密泄)**。它不泄漏凭据,只破坏可用性,且用户重跑正确令牌即可修复;
@@ -777,8 +879,8 @@ cd /home/user/hermes-agent && grep -rn "cmd_setup\|secrets_cli" tests/ --include
 命中中与本文件相关的只有 `tests/hermes_cli/test_secrets_bitwarden_non_tty.py`(2 个用例,
 只测非 TTY 缺参报错)与 `tests/hermes_cli/test_secrets_token_rotation.py`(2 个用例)。
 **没有任何用例断言"验证失败时 `.env` 保持不变"**——连 `cmd_token` 那条被写进 docstring 的
-承诺也没有测试钉住(`test_secrets_token_rotation.py:56` 的
-`def test_bw_token_no_verify_skips_probe(bw_env, monkeypatch):` 测的是跳过探测那条路径)。
+承诺也没有测试钉住(`tests/hermes_cli/test_secrets_token_rotation.py:56` 的
+`def test_bw_token_no_verify_skips_probe(bw_env, monkeypatch):` 测的是**跳过**探测那条路径)。
 排除项:`tests/hermes_cli/test_setup_reconfigure.py` / `test_setup_noninteractive.py` /
 `test_memory_setup.py` 里的 `cmd_setup` 是**别的模块**的同名函数(`hermes_cli.main` 的安装向导 /
 memory 向导),与本文件无关。
@@ -830,7 +932,7 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home
 | U-2 | 我读了 130 处非测试 `portal_base_url` 命中来支撑"无网络写入路径",但**没有**穷举 `state` 这个 dict 的所有别名传递(例如经 `**kwargs` 展开后再写回)。若存在这样的路径,1.4 的负结论会被推翻 | **静态对读推出** | `hermes_cli/auth.py:5346`:`for key in (` (`_merge_shared_nous_oauth_state` 的键复制循环) |
 | U-3 | `_reject_denylisted_env_var` 能挡住把 `access_token_env` 配成 `PATH` 这类攻击,是**读代码推出**的;我只实测了正常键名 `BWS_ACCESS_TOKEN` 落盘成功,**没有**实测一个被改坏的 `config.yaml` 走完 `cmd_setup` | **静态对读推出** | `hermes_cli/config.py:219`:`def _reject_denylisted_env_var(key: str) -> None:` |
 | U-4 | `cmd_setup` 的 ■ 我是用桩函数(替换 `bw.find_bws` / `bw.fetch_bitwarden_secrets`)复现的,**没有**真的装 `bws` 二进制跑一遍(离线容器,且不应下载二进制)。桩替换的是网络与外部进程,被测的落盘顺序是真实代码 | **实跑复现(桩掉外部依赖)** | `hermes_cli/secrets_cli.py:195`:`save_env_value(token_env, token)` |
-| U-5 | `hermes_cli/nous_account.py:567-574` 的同型泄漏点**未单独实测**,只做了静态同型比对 | **静态对读推出** | `hermes_cli/nous_account.py:563`:`def _fetch_nous_account_info(` |
+| U-5 | `_fetch_nous_account_info` 里那个同型泄漏点**未单独实测**,只做了静态同型比对 | **静态对读推出** | `hermes_cli/nous_account.py:574`:`with urllib.request.urlopen(req, timeout=8) as resp:` |
 | U-6 | 本文对 `hermes_cli/secrets_cli.py` 是**结构级**理解,`_resolve_server_url`(`:669-745`)的交互分支未逐行读 | **知悉用途** | `hermes_cli/secrets_cli.py:669`:`def _resolve_server_url(` |
 
 ---

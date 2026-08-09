@@ -37,6 +37,8 @@
 我们逐件看它怎么被绕过——**三次绕过都不需要漏洞利用技巧,只需要换一个工具名**。
 
 **第一件:读凭据库。** `<HERMES_HOME>/auth.json` 是 hermes 存放各家 API 密钥的主文件。
+(本章出现的 `auth.json` / `.anthropic_oauth.json` / `op_cache.json` / `bws_cache.json` 都是
+**运行时在 `HERMES_HOME` 下生成的数据文件**,不是仓库里的源码文件,故不给仓库路径。)
 `read_file` 工具会拒绝:
 
 ```text
@@ -137,7 +139,6 @@ flowchart TB
     WEB -. "x_search 不在白名单" .-> UT
     FS -. "sed -i 不触发" .-> VF
 
-    classDef gap stroke-dasharray: 5 5
 ```
 
 **图里那五条虚线,就是本章的全部主题**:每一条都是"效果发生了,但守卫没被触发",
@@ -294,7 +295,7 @@ shell 单引号里的 `\"` 是**字面量反斜杠加引号**,不是转义。tra
 这两者对模型是完全不同的信息,混了就等于撒谎。
 
 **第三:编辑造成的行号平移单独处理。** 基线诊断记的是编辑**前**的行号,新诊断是编辑**后**的。
-直接做集合差会把"同一个错在新位置又出现一次"误判成"新错"。`range_shift.py` 用 difflib 的 opcodes
+直接做集合差会把"同一个错在新位置又出现一次"误判成"新错"。`agent/lsp/range_shift.py` 用 difflib 的 opcodes
 造一张分段线性映射,**在做差之前**先把基线搬进编辑后的坐标系。
 
 **第四:诊断噪音三段裁剪。** 只报本次编辑新引入的(delta)→ 只留 ERROR →
@@ -561,7 +562,7 @@ webhook 平台的工具集保留了它,但 webhook 的默认投递只写日志�
 **对照 §3.3 那条判"不是 ▲"的**:配置文档说 `cron_mode` 管"触发危险命令提示时"的行为,
 而脚本路径**根本不触发提示**——那句话的前件从未被满足,它没说错话,缺陷在别处。
 
-| | `hooks.md:670` | `security.md:47`(cron) |
+| | `website/docs/user-guide/features/hooks.md:670` | `website/docs/user-guide/security.md:47`(cron) |
 |---|---|---|
 | 文档给的条件 | "when the agent edited code" | "when they trigger a dangerous-command prompt" |
 | 缺陷场景下该条件 | **成立** | **不成立** |
