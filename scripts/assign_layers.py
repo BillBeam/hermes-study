@@ -65,15 +65,15 @@ RULES = [
     ("run_agent.py", "L1", "R2"),
     ("model_tools.py", "L1", "R3"),
     ("toolsets.py", "L1", "R3"),
-    ("toolset_distributions.py", "L1", "R9"),
+    ("toolset_distributions.py", "L1", "R9A"),
     ("hermes_state.py", "L1", "R5"),
     ("hermes_state_schema.py", "L1", "R5"),
     ("hermes_state_common.py", "L1", "R5"),
     ("hermes_state_search.py", "L1", "R5"),   # R5 修订:FTS5 会话检索归入"状态与持久化"轮(R5 卡片点名)
     ("hermes_state_portability.py", "L1", "R5"),
-    ("trajectory_compressor.py", "L1", "R9"),
-    ("batch_runner.py", "L1", "R9"),
-    ("mini_swe_runner.py", "L1", "R9"),
+    ("trajectory_compressor.py", "L1", "R9A"),
+    ("batch_runner.py", "L1", "R9A"),
+    ("mini_swe_runner.py", "L1", "R9A"),
     ("hermes_constants.py", "L1", "R2"),
     # R2 机制簇:回合主循环与模型接入(显式列举,R2 轮定稿)
     ("agent/conversation_loop.py", "L1", "R2"),
@@ -135,10 +135,11 @@ RULES = [
     ("agent/coding_context.py", "L1", "R5"),
     ("agent/manual_compression_feedback.py", "L1", "R5"),
     # R9 修订:委派/多智能体并入研究管线轮(R2 轮方案修订)
-    ("agent/moa_loop.py", "L1", "R9"),
-    ("agent/moa_trace.py", "L1", "R9"),
-    ("agent/subagent_lifecycle.py", "L1", "R9"),
-    ("agent/delegation_context.py", "L1", "R9"),
+    # R9A 改挂:研究管线轮不再单列,并入 R9A 的委派簇(理由见下方 R9 机制簇注释块)。
+    ("agent/moa_loop.py", "L1", "R9A"),
+    ("agent/moa_trace.py", "L1", "R9A"),
+    ("agent/subagent_lifecycle.py", "L1", "R9A"),
+    ("agent/delegation_context.py", "L1", "R9A"),
     # R3 机制簇涉及的 agent/ 文件(工具护栏、结果分类、子进程 secret 卫生)
     ("agent/tool_guardrails.py", "L1", "R3"),
     ("agent/tool_result_classification.py", "L1", "R3"),
@@ -159,6 +160,150 @@ RULES = [
     # 的 L1 量还大一倍半,其中包括 R6 计划里点名的"skills 全链"与"学习闭环"全部。
     # 改成显式的 UNCLAIMED,于是任何一轮按 round 列报数时它都会自己跳出来。
     # 依据与逐文件清单见 notes/r8d-02-coverage-audit.md。
+    # ------------------------------------------------------------------
+    # R9 机制簇:R8D 核出的 179 个"从未被任何一轮认领"的 L1 文件(111,926 行)。
+    # R8D 已把兜底桶从区间占位符 "R3-R7" 改成 UNCLAIMED,让它们在报数时跳出来;
+    # R9 这一步是给它们**逐个显式定轮**,于是 UNCLAIMED 桶归零、计划列恢复可读。
+    #
+    # 单轮装不下(111,926 行 ≈ 历史单轮 L1 量的 2.6 倍),按 R7→R7B/R7C、
+    # R8→R8A..D 的先例切四片。切片判据沿用 R8A 定的那一条——
+    # **哪些文件必须同时摆在眼前,一个机制才讲得清**:
+    #   R9A 能力的组织、扩展与委派  37 文件 / 38,893 行
+    #   R9B 多模态与呈现            46 文件 / 27,325 行
+    #   R9C 传输、凭据与可观测      47 文件 / 19,274 行
+    #   R9D 代码智能与工具面        49 文件 / 26,434 行
+    # 四片文件数 37..49、行数 19k..39k,均落在历史单轮区间内
+    # (历史 L1 单轮:15..52 文件 / 21,893..68,645 行)。
+    # 原 round=R9 的"研究管线"12 个文件不再单列:它们就是 R9A 的委派簇本身
+    # (batch_runner / mini_swe_runner / trajectory_compressor / toolset_distributions
+    #  + datagen-config-examples/),两条编号线并行只会让报数出现两个 R9。
+    # 逐文件依据与簇内叙述见 notes/r9a-01-scope-and-split.md。
+    # ------------------------------------------------------------------
+    # R9A · skills 全链(4 文件 / 2328 行)
+    ("agent/skill_utils.py", "L1", "R9A"),
+    ("agent/skill_commands.py", "L1", "R9A"),
+    ("agent/skill_bundles.py", "L1", "R9A"),
+    ("agent/skill_preprocessing.py", "L1", "R9A"),
+    # R9A · 学习闭环(11 文件 / 7352 行)
+    ("agent/curator.py", "L1", "R9A"),
+    ("agent/insights.py", "L1", "R9A"),
+    ("agent/background_review.py", "L1", "R9A"),
+    ("agent/curator_backup.py", "L1", "R9A"),
+    ("agent/learning_graph_render.py", "L1", "R9A"),
+    ("agent/verification_evidence.py", "L1", "R9A"),
+    ("agent/learning_graph.py", "L1", "R9A"),
+    ("agent/verification_stop.py", "L1", "R9A"),
+    ("agent/learning_mutations.py", "L1", "R9A"),
+    ("agent/learn_prompt.py", "L1", "R9A"),
+    ("agent/verify_hooks.py", "L1", "R9A"),
+    # R9A · 委派/MoA/研究管线(agent/ 半边共 5 文件 / 3,308 行;其中 moa_loop /
+    # moa_trace / subagent_lifecycle / delegation_context 四个早有显式规则,
+    # 已在上方就地改挂 R9A —— 在这里重列会成为永不命中的死规则,故只列剩下这一个。)
+    ("agent/trajectory.py", "L1", "R9A"),
+    # R9A · 出网约束(2 文件 / 2502 行)
+    ("agent/proxy_sources/iron_proxy.py", "L1", "R9A"),
+    ("agent/proxy_sources/__init__.py", "L1", "R9A"),
+    # R9B · 多模态(9 文件 / 2807 行)
+    ("agent/image_routing.py", "L1", "R9B"),
+    ("agent/video_gen_provider.py", "L1", "R9B"),
+    ("agent/image_gen_provider.py", "L1", "R9B"),
+    ("agent/tts_provider.py", "L1", "R9B"),
+    ("agent/transcription_provider.py", "L1", "R9B"),
+    ("agent/image_gen_registry.py", "L1", "R9B"),
+    ("agent/tts_registry.py", "L1", "R9B"),
+    ("agent/video_gen_registry.py", "L1", "R9B"),
+    ("agent/transcription_registry.py", "L1", "R9B"),
+    # R9B · pet(11 文件 / 3653 行)
+    ("agent/pet/generate/atlas.py", "L1", "R9B"),
+    ("agent/pet/render.py", "L1", "R9B"),
+    ("agent/pet/store.py", "L1", "R9B"),
+    ("agent/pet/generate/orchestrate.py", "L1", "R9B"),
+    ("agent/pet/generate/imagegen.py", "L1", "R9B"),
+    ("agent/pet/generate/prompts.py", "L1", "R9B"),
+    ("agent/pet/constants.py", "L1", "R9B"),
+    ("agent/pet/manifest.py", "L1", "R9B"),
+    ("agent/pet/state.py", "L1", "R9B"),
+    ("agent/pet/__init__.py", "L1", "R9B"),
+    ("agent/pet/generate/__init__.py", "L1", "R9B"),
+    # R9B · 显示与本地化(8 文件 / 2882 行)
+    ("agent/display.py", "L1", "R9B"),
+    ("agent/markdown_tables.py", "L1", "R9B"),
+    ("agent/i18n.py", "L1", "R9B"),
+    ("agent/onboarding.py", "L1", "R9B"),
+    ("agent/thread_scoped_output.py", "L1", "R9B"),
+    ("agent/portal_tags.py", "L1", "R9B"),
+    ("agent/battery.py", "L1", "R9B"),
+    ("agent/reactions.py", "L1", "R9B"),
+    # R9C · 传输层(16 文件 / 8811 行)
+    ("agent/transports/codex_app_server_session.py", "L1", "R9C"),
+    ("agent/relay_llm.py", "L1", "R9C"),
+    ("agent/plugin_llm.py", "L1", "R9C"),
+    ("agent/relay_runtime.py", "L1", "R9C"),
+    ("agent/transports/chat_completions.py", "L1", "R9C"),
+    ("agent/copilot_acp_client.py", "L1", "R9C"),
+    ("agent/transports/codex.py", "L1", "R9C"),
+    ("agent/transports/codex_app_server.py", "L1", "R9C"),
+    ("agent/transports/codex_event_projector.py", "L1", "R9C"),
+    ("agent/transports/hermes_tools_mcp_server.py", "L1", "R9C"),
+    ("agent/transports/anthropic.py", "L1", "R9C"),
+    ("agent/transports/types.py", "L1", "R9C"),
+    ("agent/transports/bedrock.py", "L1", "R9C"),
+    ("agent/relay_tools.py", "L1", "R9C"),
+    ("agent/transports/base.py", "L1", "R9C"),
+    ("agent/transports/__init__.py", "L1", "R9C"),
+    # R9C · 凭据源与出网(9 文件 / 3451 行)
+    ("agent/secret_sources/bitwarden.py", "L1", "R9C"),
+    ("agent/secret_sources/onepassword.py", "L1", "R9C"),
+    ("agent/secret_sources/command.py", "L1", "R9C"),
+    ("agent/secret_sources/registry.py", "L1", "R9C"),
+    ("agent/secret_sources/base.py", "L1", "R9C"),
+    ("agent/secret_sources/_cache.py", "L1", "R9C"),
+    ("agent/ssl_guard.py", "L1", "R9C"),
+    ("agent/ssl_verify.py", "L1", "R9C"),
+    ("agent/secret_sources/__init__.py", "L1", "R9C"),
+    # R9C · 可观测与计费(17 文件 / 5461 行)
+    ("agent/credits_tracker.py", "L1", "R9C"),
+    ("agent/monitoring/gateway_health_export.py", "L1", "R9C"),
+    ("agent/outbound_webhooks.py", "L1", "R9C"),
+    ("agent/billing_view.py", "L1", "R9C"),
+    ("agent/subscription_view.py", "L1", "R9C"),
+    ("agent/monitoring/gateway_health.py", "L1", "R9C"),
+    ("agent/trace_upload.py", "L1", "R9C"),
+    ("agent/billing_usage.py", "L1", "R9C"),
+    ("agent/monitoring/otlp_exporter.py", "L1", "R9C"),
+    ("agent/monitoring/emitter.py", "L1", "R9C"),
+    ("agent/monitoring/cron_health.py", "L1", "R9C"),
+    ("agent/aux_accounting.py", "L1", "R9C"),
+    ("agent/billing_links.py", "L1", "R9C"),
+    ("agent/monitoring/events.py", "L1", "R9C"),
+    ("agent/monitoring/redaction.py", "L1", "R9C"),
+    ("agent/monitoring/policy.py", "L1", "R9C"),
+    ("agent/monitoring/__init__.py", "L1", "R9C"),
+    # R9D · 代码智能与文件(12 文件 / 5401 行)
+    ("agent/lsp/servers.py", "L1", "R9D"),
+    ("agent/lsp/client.py", "L1", "R9D"),
+    ("agent/lsp/manager.py", "L1", "R9D"),
+    ("agent/file_safety.py", "L1", "R9D"),
+    ("agent/lsp/install.py", "L1", "R9D"),
+    ("agent/lsp/cli.py", "L1", "R9D"),
+    ("agent/lsp/eventlog.py", "L1", "R9D"),
+    ("agent/lsp/workspace.py", "L1", "R9D"),
+    ("agent/lsp/protocol.py", "L1", "R9D"),
+    ("agent/lsp/range_shift.py", "L1", "R9D"),
+    ("agent/lsp/reporter.py", "L1", "R9D"),
+    ("agent/lsp/__init__.py", "L1", "R9D"),
+    # R9D · 平台工具(5 文件 / 992 行)
+    ("agent/web_search_registry.py", "L1", "R9D"),
+    ("agent/web_search_provider.py", "L1", "R9D"),
+    ("agent/browser_registry.py", "L1", "R9D"),
+    ("agent/browser_provider.py", "L1", "R9D"),
+    ("agent/kanban_stop.py", "L1", "R9D"),
+    # R9D · 工具面杂项(5 文件 / 1356 行)
+    ("agent/title_generator.py", "L1", "R9D"),
+    ("agent/think_scrubber.py", "L1", "R9D"),
+    ("agent/replay_cleanup.py", "L1", "R9D"),
+    ("agent/process_bootstrap.py", "L1", "R9D"),
+    ("agent/__init__.py", "L1", "R9D"),
     ("agent/*.py", "L1", "UNCLAIMED"),
     ("agent/**/*.py", "L1", "UNCLAIMED"),
     # R3 机制簇:工具基础设施与安全(显式列举,R3 轮定稿)
@@ -219,6 +364,76 @@ RULES = [
     ("tools/checkpoint_manager.py", "L1", "R5"),
     ("tools/memory_tool.py", "L1", "R5"),
     # R8D 改名,理由同 agent/ 的兜底桶(见上,以及 notes/r8d-02-coverage-audit.md)。
+    # R9 机制簇的 tools/ 半边(定轮依据同上,见 agent/ 段的注释块)。
+    # R9A · skills 全链(8 文件 / 13515 行)
+    ("tools/skills_hub.py", "L1", "R9A"),
+    ("tools/skills_sync_client.py", "L1", "R9A"),
+    ("tools/skills_tool.py", "L1", "R9A"),
+    ("tools/skill_manager_tool.py", "L1", "R9A"),
+    ("tools/skills_sync.py", "L1", "R9A"),
+    ("tools/skill_usage.py", "L1", "R9A"),
+    ("tools/blueprints.py", "L1", "R9A"),
+    ("tools/skill_provenance.py", "L1", "R9A"),
+    # R9A · 委派/MoA/研究管线(3 文件 / 5870 行)
+    ("tools/delegate_tool.py", "L1", "R9A"),
+    ("tools/async_delegation.py", "L1", "R9A"),
+    ("tools/delegation_live_log.py", "L1", "R9A"),
+    # R9B · 多模态(15 文件 / 17576 行)
+    ("tools/tts_tool.py", "L1", "R9B"),
+    ("tools/transcription_tools.py", "L1", "R9B"),
+    ("tools/voice_mode.py", "L1", "R9B"),
+    ("tools/vision_tools.py", "L1", "R9B"),
+    ("tools/image_generation_tool.py", "L1", "R9B"),
+    ("tools/wake_word.py", "L1", "R9B"),
+    ("tools/flux3_video_tool.py", "L1", "R9B"),
+    ("tools/video_generation_tool.py", "L1", "R9B"),
+    ("tools/tts_streaming.py", "L1", "R9B"),
+    ("tools/image_source.py", "L1", "R9B"),
+    ("tools/tts_text_normalize.py", "L1", "R9B"),
+    ("tools/xai_video_tools.py", "L1", "R9B"),
+    ("tools/fal_common.py", "L1", "R9B"),
+    ("tools/neutts_synth.py", "L1", "R9B"),
+    ("tools/audio_container.py", "L1", "R9B"),
+    # R9B · 显示与本地化(3 文件 / 407 行)
+    ("tools/terminal_hints.py", "L1", "R9B"),
+    ("tools/react_to_message_tool.py", "L1", "R9B"),
+    ("tools/focus_pane_tool.py", "L1", "R9B"),
+    # R9C · 凭据源与出网(5 文件 / 1551 行)
+    ("tools/credential_files.py", "L1", "R9C"),
+    ("tools/microsoft_graph_client.py", "L1", "R9C"),
+    ("tools/xai_http.py", "L1", "R9C"),
+    ("tools/microsoft_graph_auth.py", "L1", "R9C"),
+    ("tools/openrouter_client.py", "L1", "R9C"),
+    # R9D · 代码智能与文件(6 文件 / 5795 行)
+    ("tools/file_operations.py", "L1", "R9D"),
+    ("tools/file_tools.py", "L1", "R9D"),
+    ("tools/read_extract.py", "L1", "R9D"),
+    ("tools/working_diff.py", "L1", "R9D"),
+    ("tools/read_preview_tool.py", "L1", "R9D"),
+    ("tools/open_preview_tool.py", "L1", "R9D"),
+    # R9D · 平台工具(13 文件 / 10926 行)
+    ("tools/kanban_tools.py", "L1", "R9D"),
+    ("tools/send_message_tool.py", "L1", "R9D"),
+    ("tools/web_tools.py", "L1", "R9D"),
+    ("tools/cronjob_tools.py", "L1", "R9D"),
+    ("tools/discord_tool.py", "L1", "R9D"),
+    ("tools/yuanbao_tools.py", "L1", "R9D"),
+    ("tools/x_search_tool.py", "L1", "R9D"),
+    ("tools/homeassistant_tool.py", "L1", "R9D"),
+    ("tools/feishu_drive_tool.py", "L1", "R9D"),
+    ("tools/todo_tool.py", "L1", "R9D"),
+    ("tools/project_tools.py", "L1", "R9D"),
+    ("tools/feishu_doc_tool.py", "L1", "R9D"),
+    ("tools/thread_context.py", "L1", "R9D"),
+    # R9D · 工具面杂项(8 文件 / 1964 行)
+    ("tools/clarify_gateway.py", "L1", "R9D"),
+    ("tools/managed_tool_gateway.py", "L1", "R9D"),
+    ("tools/tool_backend_helpers.py", "L1", "R9D"),
+    ("tools/clarify_tool.py", "L1", "R9D"),
+    ("tools/hook_output_spill.py", "L1", "R9D"),
+    ("tools/budget_config.py", "L1", "R9D"),
+    ("tools/debug_helpers.py", "L1", "R9D"),
+    ("tools/__init__.py", "L1", "R9D"),
     ("tools/*.py", "L1", "UNCLAIMED"),
     ("tools/**/*.py", "L1", "UNCLAIMED"),
     # R7 机制簇:网关会话核心与多路复用(显式列举,R7 轮定稿)。
@@ -418,7 +633,7 @@ RULES = [
     ("optional-skills/**", "L3", "R6"),
     ("optional-mcps/**", "L3", "R6"),
     ("locales/**", "L3", "R11"),
-    ("datagen-config-examples/**", "L3", "R9"),
+    ("datagen-config-examples/**", "L3", "R9A"),
     ("website/**", "L3", "R11"),
     ("docs/**", "L3", "R11"),
     (".plans/**", "L3", "R11"),
