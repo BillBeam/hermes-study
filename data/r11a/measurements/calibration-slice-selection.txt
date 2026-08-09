@@ -1,0 +1,54 @@
+bucket        : 1080 files / 315887 lines (292.5 ln/file), 316 skill dirs
+cap           : 2000 lines/skill dir
+  bulk-data tail (over cap) :  35 skills   518 files  198362 lines  (62.8% of bucket, 383 ln/file)
+  短文档主体 (under cap)     : 281 skills   562 files  117525 lines  (37.2% of bucket, 209 ln/file)
+
+slice : 118 files / 17619 lines (149.3 ln/file) across 81 skill dirs
+        vs 短文档主体 209.1 ln/file -> 0.71x  (1.00 = representative)
+        covers 15.0% of the 短文档主体 by lines, 21.0% by files
+
+category                                   quota     got skills
+optional-mcps/blender                         14      88      1
+optional-mcps/comfy-cloud                     13      82      1
+optional-mcps/figma                            6      39      1
+optional-mcps/linear                           6      38      1
+optional-mcps/n8n                             13      81      1
+optional-mcps/unreal-engine                    9      54      1
+optional-skills                                4      24      1
+optional-skills/autonomous-ai-agents         216     307      2
+optional-skills/blockchain                   727     211      1
+optional-skills/communication                 17       1      1
+optional-skills/creative                    1857    1771      2
+optional-skills/data-science                  29       3      1
+optional-skills/devops                       370     237      1
+optional-skills/dogfood                       31       3      1
+optional-skills/email                         20     126      1
+optional-skills/finance                      813     968      1
+optional-skills/gaming                        66       3      1
+optional-skills/health                       334     357      2
+optional-skills/mcp                          225     413      2
+optional-skills/migration                     49       2      1
+optional-skills/mlops                       4534    4118      5
+optional-skills/payments                      69     124      1
+optional-skills/productivity                 857     475      3
+optional-skills/research                     912     984      4
+optional-skills/security                     954     891      3
+optional-skills/software-development         259     445      1
+optional-skills/web-development               72     132      2
+optional-skills/yuanbao                       17     108      1
+skills/apple                                  74      96      2
+skills/autonomous-ai-agents                  270       3      1
+skills/creative                             1621    1442      5
+skills/email                                 119       3      1
+skills/github                                461     497      4
+skills/index-cache                             0       3      1
+skills/media                                  70      94      2
+skills/mlops                                 570      90      4
+skills/note-taking                            10       3      1
+skills/productivity                         2135    2197      7
+skills/research                              557     536      4
+skills/smart-home                             19       3      1
+skills/social-media                           71       3      1
+skills/software-development                  529     564      3
+
+wrote data/r11a/slices/slice-L3-calibration.tsv  (118 files / 17619 lines)

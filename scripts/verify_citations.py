@@ -211,9 +211,103 @@ def is_path_citation(m, resolve) -> bool:
     return resolve(path).is_file()
 
 
+# ---------------------------------------------------------------------------
+# Extensionless anchors (R11A / H-R10B-a)
+#
+# The whitelist above is *structurally* incapable of reaching `.gitignore:3`,
+# `Dockerfile:12` or `docker/s6-rc.d/main-hermes/run:23-26`: there is no
+# extension to whitelist. Those anchors sat in exactly the state H-R10-a called
+# "more hidden than UNCHECKED" — not verified, and not counted either, so they
+# did not even show up as a gap in the numbers the gate prints.
+#
+# H-R10B-a states the fix must be an explicit filename list rather than a
+# looser regex. That is a design assertion, so it gets a measurement:
+# `data/r11a/probes/extless_name_census.py` runs the sniffed alternative
+# ("accept `word:digits` for any extensionless basename at 863e313") over the
+# whole corpus. It captures 26 real anchors and **one** string that is not an
+# anchor at all — `base:645` in reports/round-5, a shorthand for a `base.py`
+# line that resolves nowhere. One bad catch out of 27 is not a disaster, but it
+# is the wrong bad catch: `base`, `run`, `type`, `finish` and `dashboard` are
+# all real files at 863e313 (s6-rc service directories under `docker/s6-rc.d/`)
+# *and* ordinary English words, so the sniffed variant's error rate is a
+# property of this corpus's vocabulary, not a bound.
+#
+# So: declare the names, and guard the ambiguous ones the same way the ccTLD
+# overlap above is guarded — a token counts only when it shows one more bit of
+# evidence that it names a file.
+#
+# The list is every extensionless basename that exists at 863e313, minus the
+# three `contributors/emails/*` entries, which contain `@` and therefore cannot
+# be written as a path anchor in the first place. Names NOT at 863e313
+# (`CODEOWNERS`, `.editorconfig`, `.env`) are deliberately left out: the
+# baseline is pinned and never moves, so a name that is not in it can only ever
+# add false-positive surface.
+EXTLESS_NAMES = frozenset({
+    # dotfiles
+    ".dockerignore", ".envrc", ".gitattributes", ".gitignore", ".gitkeep",
+    ".mailmap", ".nojekyll", ".npmrc", ".nvmrc", ".prettierignore",
+    ".prettierrc", ".python-version",
+    # build / legal
+    "Dockerfile", "LICENSE", "Makefile", "NOTICE",
+    # container init and s6-rc service directories (docker/)
+    "015-supervise-perms", "02-reconcile-profiles",
+    "base", "dashboard", "finish", "hermes", "hermes-gateway",
+    "main-hermes", "run", "type",
+})
+
+# Longest-first so the alternation cannot settle on a prefix (`hermes` must not
+# win over `hermes-gateway`).
+_EXTLESS_ALT = "|".join(
+    re.escape(n) for n in sorted(EXTLESS_NAMES, key=len, reverse=True)
+)
+
+# `docker/s6-rc.d/main-hermes/run:23-26`  /  `.gitignore:3`  /  `Dockerfile:12`
+#
+# The lookbehind is load-bearing in a way the dotted `CITE` never needed: with
+# no extension to anchor on, `notbase:5` would otherwise match its `base:5`
+# tail. `CITE` gets away without one because a dotted suffix already pins the
+# right-hand edge of the token.
+CITE_EXTLESS = re.compile(
+    r"(?<![A-Za-z0-9_./-])"
+    r"(?P<path>(?:\.?[A-Za-z0-9_][A-Za-z0-9_.-]*/)*(?:" + _EXTLESS_ALT + r"))"
+    r":(?P<start>\d+)(?:-(?P<end>\d+))?"
+)
+
+
+def is_extless_citation(m, resolve) -> bool:
+    """False when *m* is more plausibly prose than a `path:line`.
+
+    Same shape as `is_path_citation`: a directory component, or the token
+    resolves to a real file. `docker/s6-rc.d/main-hermes/run:23-26` passes on
+    the first test and `LICENSE:5` on the second; bare `base:645` fails both,
+    because nothing named `base` sits at either repo's root — every `base` at
+    863e313 is nested under `docker/s6-rc.d/*/dependencies.d/`.
+    """
+    path = m.group("path")
+    if "/" in path:
+        return True
+    return resolve(path).is_file()
+
+
 def citations(text: str, resolve):
-    """Every citation in *text*, host:port lookalikes removed."""
-    return [m for m in CITE.finditer(text) if is_path_citation(m, resolve)]
+    """Every citation in *text*, host:port and prose lookalikes removed.
+
+    Sorted by position because callers rely on document order — `check_note`
+    takes `cands[-1]` as "the citation the following block belongs to".
+    """
+    found = [m for m in CITE.finditer(text) if is_path_citation(m, resolve)]
+    found += [m for m in CITE_EXTLESS.finditer(text) if is_extless_citation(m, resolve)]
+    found.sort(key=lambda m: m.start())
+    return found
+
+
+def any_anchor(text: str):
+    """An anchor of either kind, without the resolve-dependent guards.
+
+    Used where the question is only "is this token an anchor rather than an
+    excerpt", so the guards would be noise.
+    """
+    return CITE.search(text) or CITE_EXTLESS.search(text)
 FENCE = re.compile(r"^\s*```(?P<lang>[A-Za-z0-9_+-]*)")
 QUOTE = re.compile(r"^\s*>\s?(?P<body>.*)$")
 
@@ -223,7 +317,12 @@ NON_SOURCE_LANGS = {"text", "console", "verify", "shell-session"}
 # Notes sometimes open a fenced block with a locator comment naming the source,
 # e.g. `# gateway/shutdown_flush.py:228-249`. That is annotation, not source —
 # skip it and compare against the first real line of the excerpt.
-LOCATOR = re.compile(r"^\s*(?:#|//|--)\s*[A-Za-z0-9_][A-Za-z0-9_./-]*\.\w+:\d+")
+LOCATOR = re.compile(
+    r"^\s*(?:#|//|--)\s*(?:"
+    r"[A-Za-z0-9_][A-Za-z0-9_./-]*\.\w+"          # dotted path
+    r"|(?:\.?[A-Za-z0-9_][A-Za-z0-9_.-]*/)*(?:" + _EXTLESS_ALT + r")"  # extensionless
+    r"):\d+"
+)
 
 _SRC_CACHE: dict = {}
 
@@ -257,7 +356,7 @@ def block_locator(block):
         if not b.strip():
             continue
         if LOCATOR.match(b):
-            return CITE.search(b)
+            return any_anchor(b)
         return None
     return None
 
@@ -348,7 +447,7 @@ def cell_tokens(cell: str):
     """
     out = []
     for raw in BACKTICKED.findall(cell):
-        if CITE.search(raw):
+        if any_anchor(raw):
             continue
         t = norm(raw)
         if len(t) < TABLE_MIN_TOKEN or re.fullmatch(r"[\d\W_]+", t):
