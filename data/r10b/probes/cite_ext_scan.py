@@ -9,7 +9,8 @@ import re, sys, collections
 from pathlib import Path
 
 STUDY = Path(__file__).resolve().parents[3]  # data/r10b/probes/x.py -> repo root
-REPO = Path(sys.argv[1] if len(sys.argv) > 1 else "/home/user/hermes-agent")
+REPO = Path(sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("-")
+            else "/home/user/hermes-agent")
 
 # The pre-R10B whitelist, frozen here as the baseline of the comparison.
 OLD = "py|md|yaml|yml|toml|c|sh|json|ts|tsx|js"
@@ -33,9 +34,37 @@ ANY_RE = re.compile(r"(?P<path>[A-Za-z0-9_][A-Za-z0-9_./-]*\.(?P<ext>[A-Za-z0-9]
 
 FENCE = re.compile(r"^\s*```")
 
+# Measurement pollution, same family as named_coverage.py's (H-R9D-e): this
+# probe scans notes/ and reports/, and the round that WRITES UP the probe puts
+# `sqlite.org:443`, `127.0.0.1:18789` etc. into those very files as examples.
+# The host:port census then counts the write-up's own prose. So the write-up
+# must be excludable, and both readings reported. Default excludes are the two
+# R10B artifacts that discuss the gate; pass --exclude to add more, --no-exclude
+# for the raw reading.
+# Exclude this round's own write-up by PREFIX, not by a name list: a list has
+# to be remembered, and the very first draft of it already missed
+# notes/r10b-90-handover-rulings.md (which quotes `sqlite.org:443` from the
+# handover item it is ruling on, and so inflated the host:port census by 1).
+# Same failure mode as the hand-maintained report list in R10's handover census.
+EXCLUDE_PREFIXES = ("r10b-", "round-10b-")
+EXTRA_EXCLUDE = set()
+for i, a in enumerate(sys.argv):
+    if a == "--exclude" and i + 1 < len(sys.argv):
+        EXTRA_EXCLUDE.add(sys.argv[i + 1])
+NO_EXCLUDE = "--no-exclude" in sys.argv
+
+
+def excluded(name: str) -> bool:
+    if NO_EXCLUDE:
+        return False
+    return name in EXTRA_EXCLUDE or name.startswith(EXCLUDE_PREFIXES)
+
+
 def corpus():
     for d in ("chapters", "notes", "reports", "reviews"):
-        yield from sorted((STUDY / d).glob("*.md"))
+        for f in sorted((STUDY / d).glob("*.md")):
+            if not excluded(f.name):
+                yield f
 
 def resolve(p):
     t = REPO / p
@@ -64,6 +93,8 @@ for f in corpus():
             if len(naive_examples[ext]) < 6:
                 naive_examples[ext].add(m.group(0))
 
+print("corpus excludes: " + ("(none, --no-exclude)" if NO_EXCLUDE else
+      f"prefixes {EXCLUDE_PREFIXES} + {sorted(EXTRA_EXCLUDE) or []}"))
 print("=" * 72)
 print("A. Anchors NEWLY captured by the widened whitelist (h/mjs/nix/rs)")
 print("=" * 72)
@@ -97,8 +128,13 @@ for f in corpus():
             if NEW_RE.search(m.group(0)):
                 continue
             allnaive[m.group("path")] += 1
+real, fake = 0, 0
 for p, n in sorted(allnaive.items()):
-    print(f"  {'RESOLVES    ' if resolve(p).is_file() else 'not-a-path  '} x{n:<3d} {p}")
+    hit = resolve(p).is_file()
+    real, fake = (real + n, fake) if hit else (real, fake + n)
+    print(f"  {'RESOLVES    ' if hit else 'not-a-path  '} x{n:<3d} {p}")
+print(f"  ---- still-excluded occurrences: {real + fake}"
+      f"  (resolvable={real}, host:port-or-not-a-path={fake})")
 
 print()
 print("=" * 72)

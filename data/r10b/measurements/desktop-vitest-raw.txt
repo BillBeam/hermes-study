@@ -1,0 +1,102 @@
+########## vitest: desktop project=ui (jsdom) ##########
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ |ui| src/app/gateway/hooks/use-gateway-request.test.ts (2 tests) 23ms
+ ✓ |ui| src/components/assistant-ui/thread/timestamp.test.ts (4 tests) 6ms
+ ✓ |ui| src/store/compaction.test.ts (4 tests) 7ms
+ ✓ |ui| src/components/pane-shell/tree/renderer/lone-header.test.ts (4 tests) 6ms
+ ✓ |ui| src/components/pane-shell/pane-visibility.test.ts (3 tests) 25ms
+ ✓ |ui| src/lib/preview-targets.test.ts (4 tests) 8ms
+ ✓ |ui| src/components/pane-shell/tree/renderer/tab-strip-scroll.test.ts (5 tests) 5ms
+ ✓ |ui| src/components/assistant-ui/embeds/alert.test.tsx (4 tests) 7ms
+ ✓ |ui| src/lib/gateway-rpc.test.ts (4 tests) 6ms
+stderr | src/app/right-sidebar/terminal/use-terminal-font.test.tsx > useTerminalFontController > repaints an already-mounted xterm when the profile font changes
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ |ui| src/app/right-sidebar/terminal/use-terminal-font.test.tsx (1 test) 81ms
+ ✓ |ui| src/app/routes.test.ts (5 tests) 6ms
+ ✓ |ui| src/components/chat/shiki-highlighter.test.ts (6 tests) 7ms
+ ✓ |ui| src/app/chat/thread-loading.test.ts (3 tests) 5ms
+ ✓ |ui| src/app/settings/ssh-host-selection.test.ts (3 tests) 6ms
+ ✓ |ui| src/lib/remote-url.test.ts (3 tests) 5ms
+ ✓ |ui| src/app/chat/sidebar/session-row-state.test.ts (3 tests) 5ms
+ ✓ |ui| src/components/idle-mount.test.tsx (2 tests) 45ms
+ ✓ |ui| src/app/settings/with-active.test.ts (5 tests) 7ms
+ ✓ |ui| src/components/ui/row-button.test.tsx (3 tests) 43ms
+ ✓ |ui| src/store/keep-awake.test.ts (1 test) 5ms
+ ✓ |ui| src/store/layout-dismissed-projects.test.ts (3 tests) 5ms
+ ✓ |ui| src/components/ui/copy-button.test.tsx (1 test) 184ms
+ ✓ |ui| src/components/pane-shell/tree/pane-reload.test.ts (1 test) 268ms
+ ✓ |ui| src/app/overlays/panel.test.tsx (1 test) 289ms
+ ✓ |ui| src/app/right-sidebar/files/tree-sizing.test.ts (2 tests) 6ms
+ ✓ |ui| src/lib/sanitize.test.ts (5 tests) 6ms
+ ✓ |ui| src/app/shell/titlebar.test.ts (4 tests) 5ms
+ ✓ |ui| src/app/settings/billing/tier-art.test.ts (3 tests) 5ms
+ ✓ |ui| src/lib/input-modality.test.ts (3 tests) 7ms
+ ✓ |ui| src/lib/storage.test.ts (2 tests) 6ms
+ ✓ |ui| src/app/starmap/share-controls.test.tsx (1 test) 568ms
+     ✓ opens its dialog when the trigger has a tooltip  565ms
+ ✓ |ui| src/lib/markdown-code.test.ts (2 tests) 6ms
+ ✓ |ui| src/app/settings/gateway-settings.test.ts (3 tests) 5ms
+ ✓ |ui| src/components/assistant-ui/thread/user-message-selection.test.ts (2 tests) 9ms
+ ✓ |ui| src/lib/pool.test.ts (2 tests) 57ms
+ ✓ |ui| src/lib/json-format.test.ts (3 tests) 5ms
+ ✓ |ui| src/components/assistant-ui/thread/transcript-window.test.ts (3 tests) 5ms
+ ✓ |ui| src/lib/desktop-toolsets.test.ts (2 tests) 5ms
+ ✓ |ui| src/app/session/hooks/use-prompt-actions/rewind.test.ts (2 tests) 5ms
+
+ Test Files  396 passed (396)
+      Tests  3489 passed (3489)
+   Start at  13:54:23
+   Duration  245.23s (transform 12.52s, setup 47.47s, import 213.46s, tests 86.77s, environment 311.80s)
+
+########## vitest: desktop project=electron (node) ##########
+stderr | electron/git-review-ops.test.ts > gitFor accepts an internally resolved git binary path containing spaces
+Invalid value supplied for custom binary, restricted characters must be removed or supply the unsafe.allowUnsafeCustomBinary option
+
+ ✓ |electron| electron/desktop-installation.test.ts (7 tests) 13ms
+ ✓ |electron| electron/profile-delete-routing.test.ts (14 tests) 6ms
+ ✓ |electron| electron/link-title-window.test.ts (9 tests) 6ms
+ ✓ |electron| electron/windows-user-env.test.ts (10 tests) 7ms
+ ✓ |electron| electron/ssh-config.test.ts (9 tests) 7ms
+ ✓ |electron| electron/update-count.test.ts (10 tests) 7ms
+ ✓ |electron| electron/connection-apply.test.ts (7 tests) 9ms
+ ✓ |electron| scripts/assert-dist-built.test.mjs (5 tests) 11ms
+ ✓ |electron| electron/bootstrap-repair-guard.test.ts (8 tests) 4ms
+ ✓ |electron| electron/git-repo-scan.test.ts (5 tests) 12ms
+ ✓ |electron| electron/backend-start-failure.test.ts (7 tests) 5ms
+ ✓ |electron| scripts/write-build-stamp.test.mjs (6 tests) 5ms
+ ✓ |electron| electron/windows-system-ca.test.ts (4 tests) 8ms
+ ✓ |electron| electron/git-review-ops.test.ts (9 tests) 1256ms
+   ✓ reviewList caps the file payload returned to the renderer  820ms
+ ✓ |electron| electron/active-runtime-state.test.ts (7 tests) 5ms
+ ✓ |electron| electron/quit-guard.test.ts (8 tests) 6ms
+ ✓ |electron| electron/titlebar-overlay-width.test.ts (8 tests) 4ms
+ ✓ |electron| electron/backend-connection-state.test.ts (4 tests) 5ms
+ ✓ |electron| electron/crash-forensics.test.ts (5 tests) 7ms
+ ✓ |electron| electron/backend-command.test.ts (7 tests) 5ms
+ ✓ |electron| electron/wsl-path-bridge.test.ts (7 tests) 4ms
+ ✓ |electron| electron/update-rebuild.test.ts (4 tests) 4ms
+ ✓ |electron| electron/power-save.test.ts (3 tests) 6ms
+ ✓ |electron| electron/main-window-lifecycle.test.ts (4 tests) 3ms
+ ✓ |electron| electron/find-git-bash.test.ts (4 tests) 3ms
+ ✓ |electron| electron/event-dedupe.test.ts (4 tests) 4ms
+ ✓ |electron| electron/git-root.test.ts (2 tests) 6ms
+ ✓ |electron| electron/workspace-cwd.test.ts (4 tests) 3ms
+ ✓ |electron| electron/profile-session-routing.test.ts (2 tests) 4ms
+ ✓ |electron| electron/oauth-net-request.test.ts (3 tests) 4ms
+
+ Test Files  78 passed | 1 skipped (79)
+      Tests  938 passed | 2 skipped (940)
+   Start at  13:58:29
+   Duration  7.69s (transform 1.70s, setup 0ms, import 3.54s, tests 7.35s, environment 9ms)
+
