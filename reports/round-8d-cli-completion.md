@@ -325,8 +325,10 @@ R12 的定位是"不产生新文件,把 R2–R11 的成品章装订成《设计�
 | SQLite | 3.45.1 |
 | 容器性质 | 无 IPv6 / 以 root 运行 / 离线无 models.dev 目录 |
 
-各簇分别跑的测试合计:**六个 L1 簇 22+27+21+10+7+11 ≈ 98 个文件、
-1,000+ 用例**,失败均已逐条诊断,全部归入已知环境限制:
+### 9.1 本轮范围内的测试(六个 L1 簇各自跑的)
+
+各簇分别跑的测试合计约 **98 个文件、1,000+ 用例**,失败均已逐条诊断,
+**本轮范围内没有一条未解释的失败**,全部归入已知环境限制:
 
 - `tests/hermes_cli/test_xai_provider_labels.py` —— 离线无 models.dev 目录。
   本轮把根因追到了具体路径:`_LABEL_OVERRIDES` 只有 `xai-oauth` 没有 `xai`,
@@ -339,6 +341,38 @@ R12 的定位是"不产生新文件,把 R2–R11 的成品章装订成《设计�
   被测代码不依赖措辞(修复本身仍成功)。
   **归类为用例脆性(把实现细节钉进断言),既不是代码缺陷也不是容器缺陷**
   ——这个区分要写清楚,否则下一轮会把它当成前 5 条那样的容器性质。已写入 CLAUDE.md。
+
+### 9.2 全仓测试(本轮额外做的一次,结论:`[dev]` 装不出一个全绿的套件)
+
+前八轮从未报过一次**全仓**跑法的读数,本轮补跑了一次。结果值得单列:
+
+| | 数 |
+|---|---|
+| 有失败的文件 | **17**(合计 57 个用例失败) |
+| **零用例跑起来**的文件(收集/导入即失败) | **12** |
+
+逐族抽样定性(不是逐条诊断 57 条——它们**全部在 R8D 范围之外**,
+本轮不为范围外的失败下代码结论),四个不同家族各取一例实测:
+
+| 抽样 | 实测报错 | 归类 |
+|---|---|---|
+| `tests/acp/test_entry.py`(代表那 12 个收集失败) | `ModuleNotFoundError: No module named 'acp'` | **可选 extra 未装** |
+| `tests/tools/test_daytona_environment.py`(15 失败) | `ImportError: Feature 'terminal.daytona' unavailable: lazy installs disabled …` | **可选 extra 未装**,且被 `security.allow_lazy_installs=false` 挡住 |
+| `tests/run_agent/test_streaming.py`(3 失败) | `ImportError: The 'anthropic' package is required for the Anthropic provider.` | **可选 extra 未装** |
+| `tests/tools/test_approval.py`(1 失败) | `AssertionError: cat key >> /root/.ssh/authorized_keys` | **以 root 运行**(与已知第 2/3/4 条同族,HOME=/root) |
+
+**结论(可迁移的一条,不是抱怨环境)**:CLAUDE.md 现有的说明只记了
+"`aiohttp` 不在 `[dev]` 里,于是约 20 个 gateway 文件在收集阶段失败"。
+本轮实测**这个面比记录的大得多**——`acp` / `daytona` / `anthropic` / `fal` /
+`hindsight` / `ssh` / `modal` / 媒体生成各自都有自己的 extra。
+也就是说:**`pip install -e ".[dev]"` 装不出一个能全绿的测试环境**,
+而这一点在仓库文档里没有任何地方说明。这既是给后续轮的操作提醒
+(别把"全仓有 57 个失败"当成代码坏了),也是一条 ◇——
+**贡献者指南没有交代跑通全套测试所需的 extra 集合**。移交见 H-R8D-j。
+
+**边界申明**:上表是**抽样定性**,不是 57 条逐条诊断。
+本轮对**范围内**(六个 L1 簇)的失败做到了逐条诊断;
+范围外的 57 条只做到"定性到家族 + 每族一例实测",**不宣称已逐条查清**。
 
 ---
 
@@ -376,5 +410,6 @@ R12 的定位是"不产生新文件,把 R2–R11 的成品章装订成《设计�
 | **H-R8D-g** | R11B | `chapters/r2-*.md`、`r4-*`、`r5-*`、`r6-*`、`r7-*`、`r7b-*` 六章 | 校验器排版提示逐章点名:UNCHECKED 占比 ≥90%,拉低全量可校验比例到 68.6% |
 | **H-R8D-h** | R11 复盘 | `notes/r8d-str-setup-and-ux.md` 记的两条 docstring 级 ▲ | 模块 docstring 级 ▲ 与"作者自绘地图"级 ▲ 是否该分开计数,本轮按分开处理,需要一次统一裁定 |
 | **H-R8D-i** | R12 前置 | 本报告 §8.2 | R12 的前置条件是"L1 全部 deep-read"而非"R11 做完";按现状开工会缺一块蓝图自称必须有的内容 |
+| **H-R8D-j** | R11A | `pyproject.toml` 的 extra 定义;现象见本报告 §9.2 | `pip install -e ".[dev]"` 装不出全绿套件——`acp`/`daytona`/`anthropic`/`fal`/`hindsight`/`ssh`/`modal`/媒体各有自己的 extra,合计 17 文件 57 用例失败 + 12 文件收集失败;**贡献者指南未交代跑通全套所需的 extra 集合**。R11A 读 `scripts/`(测试基建)时应把这份集合确定下来并写进 CLAUDE.md |
 
 *(R8C 移交的 6 条里,归本轮的 3 条已在 §5 结清,不再向后移交。)*
