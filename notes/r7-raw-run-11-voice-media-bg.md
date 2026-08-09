@@ -366,7 +366,13 @@ contextvar 在 post-handler 阶段已被 `_clear_session_env` 清掉,靠它判�
             elif adapter and hasattr(adapter, "send_voice"):
                 reply_anchor = self._reply_anchor_for_event(event)
                 thread_meta = self._thread_metadata_for_source(event.source, reply_anchor)
-                # Mark the auto voice reply as notify-worthy. ...
+                # Mark the auto voice reply as notify-worthy.  Mirrors the
+                # final-text path in gateway/platforms/base.py which sets
+                # ``notify=True`` so platform adapters that gate push
+                # notifications (Telegram "important" mode) deliver the
+                # final voice reply as a normal notification instead of a
+                # silent message.  Clone first so we don't mutate metadata
+                # shared with concurrent typing-indicator state.
                 if thread_meta is not None:
                     thread_meta = dict(thread_meta)
                     thread_meta["notify"] = True
@@ -910,7 +916,10 @@ confirm_id, choice)`)与文本回退(/approve、/always、/cancel,由 `_handle_m
                         save_config_value("approvals.destructive_slash_confirm", False)
                     )
                     if persisted:
-                        logger.info(...)
+                        logger.info(
+                            "User opted out of destructive slash confirm (session=%s)",
+                            session_key,
+                        )
                     else:
                         logger.warning(
                             "Could not persist destructive_slash_confirm=false "
@@ -1054,10 +1063,14 @@ adapter 时的回退 / 启动时检查)。关键正确性细节:
                 # reconnected yet (common right after the restart that
                 # `hermes update` triggers). Treating "adapter missing" as a
                 # definitive skip would delete the markers and silently lose the
-                # completion notification ... Preserve the markers instead so
+                # completion notification — the user never learns whether the
+                # update succeeded or timed out. Preserve the markers instead so
                 # a later retry (the watcher poll loop, or the next gateway
                 # startup) can deliver the result once the adapter is back.
-                logger.info(...)
+                logger.info(
+                    "Update notification deferred: %s adapter not connected yet",
+                    platform_str,
+                )
                 cleanup = False
                 active_pending_path = pending_path
                 claimed_path.replace(pending_path)

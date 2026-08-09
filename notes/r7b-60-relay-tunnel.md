@@ -308,11 +308,12 @@ Discord 的交互(按钮点击)要求**3 秒内 ACK**,否则用户看到"交互�
 (`gateway/relay/auth.py:87-92 @ 863e313`);验证侧再补回 padding
 (`:118-121`)。跨语言协议里,**编码的边角细节就是协议的一部分**。
 
-**(c) 从右往左切**(`gateway/relay/auth.py:112-113 @ 863e313`):
+**(c) 从右往左切**(`gateway/relay/auth.py:112-114 @ 863e313`):
 
 ```python
     Splits from the right so a payload may itself contain colons (mirrors the
-    connector's ``verifyToken``).
+    connector's ``verifyToken``). Rejects an expired token and any signature
+    that doesn't match a secret in the verify list.
 ```
 
 payload 里可能有冒号,所以 `rsplit` 语义必须两侧一致。
@@ -323,7 +324,10 @@ payload 里可能有冒号,所以 `rsplit` 语义必须两侧一致。
 ```python
     ``body_json`` MUST be the exact request body bytes decoded as UTF-8 — the
     connector signs over the literal serialized body, so the gateway verifies
-    over the literal received body (no re-serialization).
+    over the literal received body (no re-serialization). Checks the timestamp
+    is within ``max_skew_seconds`` of now and the HMAC matches any key in the
+    rotation verify list. Mirrors the connector's ``verifyDeliverySignature``.
+    """
 ```
 
 与 WhatsApp Cloud 的 `X-Hub-Signature-256`(`r7b-50` §2.1)是同一条铁律。

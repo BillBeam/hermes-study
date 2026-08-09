@@ -385,7 +385,9 @@ form 有 full/names/mixed/groups/none 五种;tier = 1 if form∈{full,names,mixe
                 return _return_bridge_result(
                     tool_error(
                         f"'{underlying_name}' is not available in this session. "
-                        ...))
+                        "Use tool_search to find tools you can call."
+                    )
+                )
 ```
 `scoped_deferrable_names`(946-963)返回 tool-defs 中可 defer 的名集,注释 951-956 说这是"会话能通过 tool_call 合法触达的宇宙"。tool_executor 侧也有对称 unwrap 闸(`tool_executor.py:365`)。原 bug:两处 unwrap 读全局 registry,受限会话能搜/调整个进程注册表(测试 `TestRegression_ToolsetScoping` 是规格)。
 

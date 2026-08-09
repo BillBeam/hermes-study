@@ -35,7 +35,7 @@ checkpoint.
 
 This is NOT a tool — the LLM never sees it.  It's transparent infrastructure
 controlled by the ``checkpoints`` config flag or ``--checkpoints`` CLI flag.
-"""
+...
 ```
 
 **存的内容 = 工作目录的文件树快照(git tree + commit)**,不含会话消息、不含工具调用记录。会话消息在 `state.db`(hermes_state,SessionDB),二者物理上、逻辑上完全分离。注意 docstring 里 "triggered once per conversation turn" 与实际调用点有出入,见 §1.4 与 §7。

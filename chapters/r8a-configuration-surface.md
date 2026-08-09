@@ -1373,14 +1373,16 @@ Hermes 把 768 行的 `if` 梯换成注册表,却刻意保留了"版本号不推
 dashboard 的密钥页;`_EXTRA_ENV_KEYS`(108 条)装那些**运行时认识、但不该推荐**的键。
 一个废弃旋钮的处置写得很清楚:
 
-`hermes_cli/config_defaults.py:4292-4296 @ 863e313`
+`hermes_cli/config_defaults.py:4292-4298 @ 863e313`
 
 ```python
     # gateway still falls back to HERMES_TOOL_PROGRESS_MODE for backward
     # compatibility, so it lives in _EXTRA_ENV_KEYS (known to reload and
     # compatibility paths) but is intentionally NOT listed here:
     # OPTIONAL_ENV_VARS feeds user-facing surfaces (dashboard keys page, setup
-    # checklists) and deprecated knobs shouldn't be offered there.
+    # checklists) and deprecated knobs shouldn't be offered there. The boolean
+    # HERMES_TOOL_PROGRESS is fully unsupported since the v12 config support
+    # floor retired its only consumer (the v3→4 migration).
 ```
 
 **废弃键从"推荐表"摘除、在"认识表"保留**——于是老配置继续能用,新用户不会被引导去用它。
@@ -1690,7 +1692,7 @@ docstring 说改动写成 `tools.exclude`;代码写的是 `tools.include`,并且
 
 ```python
             tools_cfg["include"] = chosen_names
-            # Drop any legacy exclude block — we're include-mode now.
+            # Drop any legacy exclude block — we\'re include-mode now.
             tools_cfg.pop("exclude", None)
 ```
 

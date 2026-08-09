@@ -226,7 +226,7 @@ def get_env_value_prefer_dotenv(key: str) -> Optional[str]:
 
 ```python
             tools_cfg["include"] = chosen_names
-            # Drop any legacy exclude block — we're include-mode now.
+            # Drop any legacy exclude block — we\'re include-mode now.
             tools_cfg.pop("exclude", None)
 ```
 
@@ -237,7 +237,7 @@ def get_env_value_prefer_dotenv(key: str) -> Optional[str]:
 ```python
         # Compute new include list (the chosen tools). We standardize on
         # tools.include across the codebase (catalog installs, hermes mcp
-        # configure, and this UI) so a server's on-disk config shape doesn't
+        # configure, and this UI) so a server\'s on-disk config shape doesn\'t
         # depend on which UI the user touched last.
 ```
 
@@ -1857,7 +1857,7 @@ _EXTRA_ENV_KEYS = frozenset({
     # compatibility, so it lives in _EXTRA_ENV_KEYS (known to reload and
     # compatibility paths) but is intentionally NOT listed here:
     # OPTIONAL_ENV_VARS feeds user-facing surfaces (dashboard keys page, setup
-    # checklists) and deprecated knobs shouldn't be offered there.
+    # checklists) and deprecated knobs shouldn't be offered there. The boolean
 ```
 
 **即:"运行时认识的键"与"向用户推荐的键"是两张表;废弃键从后者摘除、在前者保留。**

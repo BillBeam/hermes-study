@@ -270,7 +270,12 @@ tools/terminal_tool.py(_HERMES_GATEWAY=1 时)
         # resolve_runtime_provider() raised UnscopedSecretError before model
         # selection, breaking every cron job. Mirrors the per-turn pattern in
         # gateway/run.py (_profile_runtime_scope).
-        from agent.secret_scope import (...)
+        from agent.secret_scope import (
+            build_profile_secret_scope,
+            reset_secret_scope,
+            set_secret_scope,
+        )
+
         _scope_token = set_secret_scope(
             build_profile_secret_scope(_get_hermes_home())
         )
@@ -286,7 +291,8 @@ tools/terminal_tool.py(_HERMES_GATEWAY=1 时)
         # its finally block; doing that before _deliver_result runs means the
         # live send races a torn-down async client (#58720). Passing a holder
         # list makes run_job hand the agent back instead, and we tear it down
-        # below once delivery is done. ...
+        # below once delivery is done. Defense-in-depth alongside the
+        # interpreter-shutdown guard in _deliver_result.
         _deferred_agents: list = []
         try:
             success, output, final_response, error = run_job(
@@ -477,7 +483,15 @@ tools/terminal_tool.py(_HERMES_GATEWAY=1 时)
         # recorded this HERMES_HOME in _APPLIED_HOMES, so a naive reload would
         # re-apply only the .env placeholder and never re-resolve a Bitwarden/
         # BSM-backed secret — leaving cron jobs 401'ing on the placeholder
-        # (#33465). ...
+        # (#33465). Clearing the cache forces the re-pull; the resolved secret
+        # overrides the placeholder only when secrets.bitwarden.override_existing
+        # is set (mirrors startup), and the Bitwarden value-cache keeps the
+        # forced re-pull off the network. load_hermes_dotenv also handles the
+        # utf-8/latin-1 encoding fallback internally.
+        from hermes_cli.env_loader import (
+            load_hermes_dotenv,
+            reset_secret_source_cache,
+        )
         reset_secret_source_cache()
         load_hermes_dotenv(hermes_home=_get_hermes_home())
 ```
@@ -503,11 +517,17 @@ tools/terminal_tool.py(_HERMES_GATEWAY=1 时)
         # the validator would return None), so it still runs — that keeps the
         # overwhelmingly-common no-override jobs from wedging on an unrelated
         # error. But any job that DID set a base_url is refused until the
-        # validator can actually vet the pair. ...
+        # validator can actually vet the pair. Operator fallback providers come
+        # from config, not the job, so they are unaffected.
         if job.get("base_url"):
-            err = (...)
+            err = (
+                f"could not validate provider/base_url pair "
+                f"({exc.__class__.__name__}: {exc}); refusing to run a job with "
+                "an unverified base_url override"
+            )
         else:
             err = None
+    if err:
 ```
 
 **保险二:模型/provider 漂移守卫(#44585,3417-3484)。**
@@ -700,8 +720,13 @@ SessionDB 收尾里有三件事和三个 issue:
         # concurrent gateway sessions (#69396).
         _script_cwd = workdir or str(path.parent)
         result = subprocess.run(
-            argv, capture_output=True, text=True, timeout=script_timeout,
-            cwd=_script_cwd, env=env, **popen_kwargs,
+            argv,
+            capture_output=True,
+            text=True,
+            timeout=script_timeout,
+            cwd=_script_cwd,
+            env=env,
+            **popen_kwargs,
         )
 ```
 
@@ -785,7 +810,10 @@ SessionDB 收尾里有三件事和三个 issue:
       unambiguous prompt-injection directives block; command-shape
       patterns are dropped and invisible unicode is sanitized (stripped +
       logged) rather than blocked, to avoid false-positives that
-      permanently kill a job. ...
+      permanently kill a job. Skill bodies are vetted at install time by
+      ``skills_guard.py``; script output is produced by operator-authored
+      code, the same trust class — and data feeds (e.g. a triage bot
+      ingesting bug reports) legitimately quote dangerous commands.
 
     When the looser tier is selected because of injected data only,
     ``user_prompt`` (the raw, pre-assembly prompt) is additionally scanned
@@ -1065,8 +1093,11 @@ a changed signature on start() or a new abstractmethod.
                     logger.debug("Cron dispatch paused while gateway drains existing work")
                 else:
                     cron_tick(
-                        verbose=False, adapters=adapters, loop=loop,
-                        sync=False, can_dispatch=can_dispatch,
+                        verbose=False,
+                        adapters=adapters,
+                        loop=loop,
+                        sync=False,
+                        can_dispatch=can_dispatch,
                     )
                 ok = True
             except BaseException as e:
@@ -1128,6 +1159,9 @@ tick(321-334)、心跳(342-356)。
            Does NOT block and does NOT spawn a 60s wake (DQ-1) — that is the whole
            point of scale-to-zero. The machine wakes only on a NAS→agent fire.
            """
+           # A new provider lifecycle cannot prove what an interrupted prior
+           # process did. Classify those attempts unknown for audit only; do not
+           # requeue them here.
            self.recover_interrupted()
            try:
                self.reconcile()
@@ -1293,11 +1327,19 @@ def _expand_candidate_path(candidate: str) -> Optional[Path]:
     which is strictly worse than either verdict.
     """
     try:
-        return _contains_unsafe_gateway_action(...)
+        # Includes the direct regex/submit scans at depth 0.
+        return _contains_unsafe_gateway_action(
+            command,
+            cwd=cwd,
+            depth=0,
+            visited=set(),
+            read_remote_script=read_remote_script,
+        )
     except Exception:
         logger.warning(
             "lifecycle guard referenced-script walk failed; "
-            "falling back to direct-scan verdict", exc_info=True,
+            "falling back to direct-scan verdict",
+            exc_info=True,
         )
         # Pure string scans of the top-level command — cannot raise.
         return contains_gateway_lifecycle_command(
@@ -1503,10 +1545,12 @@ UPDATE via cronjob tool: True -> 'hermes gateway restart'
 
 - ABC:`cron/scheduler_provider.py:52-59` 只有 `(stop_event, *, adapters, loop, interval)`;
 - 内置:`:176-185` 多了 `can_dispatch=None, profile_homes=None`;
-- 调用方只能类型判断:`gateway/run.py:26910-26911`、`:26910`
+- 调用方只能类型判断:`gateway/run.py:26910-26913`、`:26910`
   ```python
       if isinstance(cron_provider, InProcessCronScheduler):
-          cron_start_kwargs["can_dispatch"] = lambda: not (...)
+          cron_start_kwargs["can_dispatch"] = lambda: not (
+              runner._draining or runner._external_drain_active
+          )
   ```
 - 与模块自己立的规矩(`:7-8` "never a changed signature on start()")构成张力:
   内置没改 ABC 签名,但**加了 ABC 不知道的必需能力**,导致外部 provider 结构性拿不到

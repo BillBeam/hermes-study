@@ -901,7 +901,7 @@ always say 'continue' and we'd loop on error"(15704-15707 注释)。judge 全程
 
 ### 8.3 finally:四连释放(15721–15743)
 
-gateway/run.py:15721-15743 @ 863e313(注释压缩节选)
+gateway/run.py:15721-15743 @ 863e313
 ```python
         finally:
             # MoA one-shot restore must run on EVERY exit path, not just
@@ -910,6 +910,8 @@ gateway/run.py:15721-15743 @ 863e313(注释压缩节选)
             # out of scope — so if _handle_message_with_agent raises, a restore
             # in the try block would be skipped and the MoA override would leak
             # permanently (every later message silently fans out through MoA).
+            # Putting it in finally guarantees the revert on success, exception,
+            # and interrupt alike.
             self._restore_moa_one_shot(event, _quick_key)
             self._restore_pending_one_turn_model_override(_quick_key)
             # Unconditional release covers every exit path. _release_running_agent_state
@@ -978,6 +980,8 @@ gateway/run.py:15821-15840 @ 863e313(节选)
             # own name. Neutralize embedded newlines/control chars before
             # interpolating it into every message in the shared session, or
             # a hostile name can masquerade as a fake markdown section
+            # (mirrors the same field's treatment in
+            # build_session_context_prompt via _format_untrusted_prompt_value).
             _safe_user_name = neutralize_untrusted_inline_text(source.user_name)
             # On Slack, expose the current author's verifiable user ID next to
             # the display name (#17916): "mention me again" requests need a

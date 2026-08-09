@@ -516,6 +516,9 @@ gateway/run.py:6709-6729 @ 863e313(节选)
         except Exception:
             logger.debug("Failed to read Telegram topic mode state", exc_info=True)
             return False
+        # Only honor a real True from the SessionDB. Any other value
+        # (including MagicMock instances from test fixtures that didn't
+        # opt into topic mode) means topic mode is off for this chat.
         return raw is True
 ```
 
@@ -663,6 +666,11 @@ gateway/run.py:6953-6984 @ 863e313(节选)
                     override_runtime["credential_pool"] = _credential_pool_for_provider(
                         override.get("provider")
                     )
+                logger.debug(
+                    "Session model override (fast): session=%s config_model=%s -> override_model=%s provider=%s",
+                    resolved_session_key or "", model, override_model,
+                    override_runtime.get("provider"),
+                )
                 return override_model, override_runtime
 ```
 

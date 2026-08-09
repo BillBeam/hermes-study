@@ -162,6 +162,7 @@ if snap_result.get("success"):
 ```python
 if not ref.startswith("@"):
     ref = f"@{ref}"
+
 result = _run_browser_command(effective_task_id, "click", [ref])
 ```
 type 用的是 `fill` 命令(先清空再输入),schema 承诺"Clears the field first":
@@ -295,7 +296,13 @@ if not bound:
 ```
 **Browserbase quirk.** Browserbase's CDP proxy uses Playwright internally and
 auto-dismisses native dialogs within ~10ms, so `Page.handleJavaScriptDialog`
-can't keep up.
+can't keep up. The supervisor injects a bridge script via
+`Page.addScriptToEvaluateOnNewDocument` that overrides
+`window.alert`/`confirm`/`prompt` with a synchronous XHR to a magic host
+(`hermes-dialog-bridge.invalid`). `Fetch.enable` intercepts those XHRs before
+they touch the network — the dialog becomes a `Fetch.requestPaused` event the
+supervisor captures, and `respond_to_dialog` fulfills via
+`Fetch.fulfillRequest` with a JSON body the injected script decodes.
 ```
 
 **解法**:根本不让原生对话框触发。往每个 frame 注入一段脚本,把 `window.alert/confirm/prompt` **重写**成一次**同步 XHR** 打到一个魔法 invalid 主机 `hermes-dialog-bridge.invalid`;这个主机根本不需要存在,因为请求在网络解析前就被 CDP `Fetch` 域截住:
@@ -410,7 +417,10 @@ FRAME_TREE_MAX_OOPIF_DEPTH = 2
 ```python
 We deliberately DO NOT drop frames from ``_frames`` here — Browserbase
 fires transient detach events during page transitions even while the
-iframe is still visible to the user
+iframe is still visible to the user, and dropping the record hides
+OOPIFs from the agent between the detach and the next
+``Target.attachedToTarget``. Instead, we just clear the session
+binding so stale ``cdp_session_id`` values aren't used for routing.
 ```
 
 ### 3.6 快照合并与工具网关
@@ -446,7 +456,8 @@ supervisor 由 `_ensure_cdp_supervisor` 懒启动,失败**全吞**——附着�
 `tools/browser_tool.py:609` @ 863e313
 ```python
 Swallows all errors — failing to attach the supervisor must not break
-the browser session itself.
+the browser session itself.  The agent simply won't see
+``pending_dialogs`` / ``frame_tree`` fields in snapshots.
 ```
 
 ### 3.7 设计理由 / 取舍 / 重实现要点
@@ -548,7 +559,7 @@ agent 要读某跨源广告 iframe 里的 `document.title`,或设 cookie、改�
 `tools/browser_cdp_tool.py:361` @ 863e313
 ```python
 async def _do_cdp():
-    return await supervisor._cdp(
+    return await supervisor._cdp(  # type: ignore[attr-defined]
         method,
         params or {},
         session_id=child_sid,
@@ -569,7 +580,7 @@ hit signed-URL expiry (Browserbase)
 ```python
 When ``target_id`` is provided, we call ``Target.attachToTarget`` with
 ``flatten=True`` to multiplex a page-level session over the same
-browser-level WebSocket
+browser-level WebSocket, then send ``method`` with that ``sessionId``.
 ```
 
 ### 5.3 逃生舱不是安全后门:共用私网/密钥防护
@@ -585,10 +596,17 @@ same cloud/private-network boundary as ``browser_snapshot``,
 `tools/browser_cdp_tool.py:31` @ 863e313
 ```python
 _CDP_PRIVATE_PAGE_ALLOWED_METHODS = {
+    # Browser/target inspection does not read the current page body, cookies,
+    # DOM, storage, or screenshots. Keep these working so the model can list
+    # tabs or navigate away from a blocked page.
     "Browser.getVersion",
     "Target.getTargets",
-    ...
+    "Target.attachToTarget",
+    "Target.detachFromTarget",
     "Page.navigate",
+    "Page.reload",
+    "Page.stopLoading",
+}
 ```
 CDP 结果同样强制脱敏(`_redact_cdp_output`,`tools/browser_cdp_tool.py:50`)。
 

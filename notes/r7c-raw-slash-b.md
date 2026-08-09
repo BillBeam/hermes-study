@@ -96,7 +96,7 @@ call time (run.py fully loaded by then), avoiding an import cycle.
         parts = command_text.split(maxsplit=1)
         args = parts[1] if len(parts) > 1 else ""
         # iOS auto-corrects -- to — (em dash) and - to – (en dash)
-        args = args.replace("——", "--").replace("—", "--").replace("–", "-")
+        args = args.replace("\u2014\u2014", "--").replace("\u2014", "--").replace("\u2013", "-")
         return args
 ```
 
@@ -1541,13 +1541,21 @@ token,剥掉 `--preview|--dry-run|--dryrun|--aggressive`,其余原样保留顺�
 
 ```python
     async def _request_slash_confirm(
-        self, *, event, command: str, title: str, message: str, handler,
+        self,
+        *,
+        event: MessageEvent,
+        command: str,
+        title: str,
+        message: str,
+        handler,
     ) -> Optional[str]:
         """Ask the user to confirm an expensive slash command.
 
         ``handler`` is an async callable ``handler(choice: str) -> str``
         where ``choice`` is ``"once"``, ``"always"``, or ``"cancel"``.
-        ...
+        The handler runs on the event loop when the user responds; its
+        return value is sent back as a gateway message.
+
         Returns a short acknowledgment string to send immediately (before
         the user's response).  If buttons rendered successfully the ack
         is ``None`` (buttons are self-explanatory); if we fell back to

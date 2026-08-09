@@ -34,7 +34,17 @@ def preflight_db_writability(
     ``sqlite3.OperationalError: attempt to write a readonly database`` raised
     from deep inside ``_init_schema`` — naming no file and no fix — and the
     obvious wrong "fix" (deleting the ``-wal``) silently loses committed
-    transactions.
+    transactions. This preflight:
+
+    - **Repairs** permissions with ``chmod u+rw`` when the file lives inside
+      the Hermes home tree (``get_hermes_home()``) — the safe repair scope:
+      Hermes owns those files, and the OS makes ``chmod`` fail on files the
+      user doesn't own, which bounds the repair exactly.
+    - **Fails fast with an actionable error** naming the exact file and the
+      exact ``chmod`` command for anything else (root-owned files, read-only
+      mounts, custom paths outside the home tree).
+    - Never deletes or truncates a WAL sidecar — once writable, the normal
+      open path checkpoints its committed frames into the DB as intended.
 ```
 
 报错文案里专门警告不要删 `-wal`(hermes_state.py:1219-1224 @ 863e313):
@@ -54,7 +64,7 @@ def preflight_db_writability(
 
 **问题**:某类故障(更新中断/文件系统抽风)会留下一个"大小 > 0 但全是 NUL 字节"的 state.db。SQLite 打开它报通用的 "file is not a database",无恢复路径。**实现**:打开前做字节级探针——注意探针本身有锁安全约束(见 1.7 层):
 
-`hermes_state.py:1737-1747 @ 863e313`
+`hermes_state.py:1737-1748 @ 863e313`
 ```python
 def is_zeroed_state_db(
     path: Path, *, probe_bytes: int = 100, force: bool = False
@@ -64,7 +74,10 @@ def is_zeroed_state_db(
     Byte-level probe, so it is only safe BEFORE any connection to *path*
     exists in this process: ``close()`` cancels every POSIX advisory lock the
     process holds on the file, which can pull the EXCLUSIVE lock out from
-    under a running VACUUM and corrupt the database.
+    under a running VACUUM and corrupt the database. The read is routed
+    through ``read_header_bytes_preopen``, which refuses (returning False
+    here) once a connection is live. Pass ``force=True`` only for offline
+    files -- quarantined copies, snapshots, archives.
 ```
 
 判定核心(hermes_state.py:1768-1773 @ 863e313):
@@ -175,7 +188,8 @@ def is_sqlite_wal_reset_vulnerable(
     nothing about 3.50.4.  Re-measured on the actually-bundled 3.50.4 with
     the lock fix in place, WAL and DELETE are both clean (0/3 each) — i.e.
     there is no evidence that WAL is safer here, and upstream still documents
-    the WAL-reset bug as real through 3.51.2 with serious consequences.
+    the WAL-reset bug as real through 3.51.2 with serious consequences.  Until
+    a fixed runtime is delivered, keep new databases out of WAL.
 ```
 
 **(c) 静默拒绝检测**。`PRAGMA journal_mode=WAL` 是"设置即查询":macOS NFS / SMB / AgentFS overlay 上它**不抛错但不生效**,只返回仍然生效的模式。所以必须信返回行而不是"没抛异常"(hermes_state.py:743-767 @ 863e313,节选):
@@ -254,7 +268,8 @@ def is_sqlite_wal_reset_vulnerable(
                 # before _init_schema can run — so it can't be caught at the
                 # FTS-rebuild layer. Recover by repairing sqlite_master in
                 # place (backup first; canonical sessions/messages preserved),
-                # then reopen once.
+                # then reopen once. This is what lets Desktop/Dashboard
+                # self-heal instead of silently showing "no sessions".
                 if not is_malformed_db_error(exc) or not _claim_repair_attempt(self.db_path):
                     raise
                 ...
@@ -292,10 +307,13 @@ FTS shadow 表损坏时,每条消息写入都会经同步触发器抛 malformed/
                     continue
                 # Corrupt FTS shadow tables make every write raise the
                 # malformed/corrupt error class through the FTS sync triggers
-                # while the canonical messages table is intact. ...
-                # cron and CLI writers call
+                # while the canonical messages table is intact. The gateway
+                # session store has its own retry queue for transcript
+                # appends (#65637 salvage), but cron and CLI writers call
                 # SessionDB directly — without this, their writes hard-fail
                 # until the next process restart triggers the offline repair.
+                # Rebuild the FTS index in place (once per instance) via
+                # rebuild_fts() and retry the failed write immediately.
                 if not self._try_runtime_fts_rebuild(exc):
                     raise
                 continue
@@ -403,8 +421,9 @@ BEGIN IMMEDIATE 让锁冲突在事务**开始**时暴露而非 commit 时。`loc
     # legitimately held for multi-second stretches by sibling Hermes
     # processes: a TRUNCATE checkpoint at close on a large WAL, VACUUM after
     # an auto-prune, offline recovery, or an older still-running process
-    # whose FTS maintenance predates the bounded-merge protocol ...
-    # An attempt-counted budget (~15s incidental worst
+    # whose FTS maintenance predates the bounded-merge protocol (every
+    # `hermes update` leaves mixed-version processes sharing the DB until
+    # the old ones exit).  An attempt-counted budget (~15s incidental worst
     # case) silently loses that race and surfaces as
     # session_persistence_failed — a destroyed turn — even though the store
     # is healthy and merely busy (#74478).
@@ -490,7 +509,8 @@ DB 内的租约表(DDL 在 hermes_state_common.py:326-331)承载"谁在压缩这
                 # row can carry an earlier timestamp than its predecessor, and
                 # ORDER BY timestamp would then sort an assistant tool_calls row
                 # after its tool response, breaking tool-call/response adjacency
-                # and triggering an HTTP 400 on replay.
+                # and triggering an HTTP 400 on replay. This matches get_messages
+                # — see c03acca50 for the original fix.
 ```
 
 会话格式转换(`_rows_to_conversation`,7331-7462)要点:`api_content` 边车**逐字返回**(不 sanitize 不 strip),replay 用它替换 content 保持 provider prompt cache 前缀字节稳定(7361-7368);装载时跑两道防御性清洗——剥离旧版本泄漏进真实会话的后台 review harness 消息及其 curator 回复(7429-7439;判定在 372-394),剥离 #78148 的裸工具调用标记(7440-7446);`repair_alternation=True` 供**live replay** 调用方修复持久化的交替违规(如 user;user),只改内存列表不改库(7280-7289)。
@@ -609,6 +629,8 @@ SCHEMA_VERSION = 25
 # reaches the current version when a DB is either born fresh or explicitly
 # optimized via ``hermes sessions optimize-storage``. A legacy DB sits at
 # layout 0 (marker absent) with a working inline index until the user opts in.
+#   1 = v23 external-content layout (content/tool_name/tool_calls,
+#       tool-row-excluded trigram)
 FTS_STORAGE_VERSION = 1
 ```
 
@@ -686,11 +708,14 @@ update 触发器还叠了 `AFTER UPDATE OF content, tool_name, tool_calls` 列�
 # ── Legacy (v22 / inline-content) FTS DDL ──────────────────────────────
 # Used ONLY to keep an existing pre-v23 install's search working and its
 # triggers repairable UNTIL the user opts into `hermes db optimize`. This is
-# the exact inline shape v11..v22 shipped ...  We never CREATE these on a fresh install —
+# the exact inline shape v11..v22 shipped: each virtual table stores its own
+# copy of ``content || tool_name || tool_calls`` and the trigram table indexes
+# every row (including role='tool'). We never CREATE these on a fresh install —
 # fresh installs are born on the v23 external-content schema above. These
 # constants exist so a legacy DB is never accidentally handed the v23 DDL
 # (which would create the external-content trigram source VIEW and leave the
-# DB in a mixed, broken state).
+# DB in a mixed, broken state). `optimize_fts_storage()` is what migrates a
+# legacy DB to the v23 shape.
 ```
 
 即 legacy 常量的存在本身是防御:修 legacy 库的触发器时必须发 legacy 形状的 DDL,防混合布局。

@@ -1146,11 +1146,7 @@ handler 会被触发两次(无去重)。
 ```
 #### Why this isn't a built-in
 
-An earlier version of Hermes shipped this as a built-in hook and silently spawned an agent
-with bare defaults on every gateway boot. That surprised users with custom endpoints and made
-the feature invisible to users who didn't know it was running. Keeping it as a documented
-pattern — built by you, in your hooks directory — means you see exactly what it does and opt
-in by writing the files.
+An earlier version of Hermes shipped this as a built-in hook and silently spawned an agent with bare defaults on every gateway boot. That surprised users with custom endpoints and made the feature invisible to users who didn't know it was running. Keeping it as a documented pattern — built by you, in your hooks directory — means you see exactly what it does and opt in by writing the files.
 ```
 
 **事故复述**:早期 hermes 内置了一个 `gateway:startup` 钩子,每次网关启动就用**裸默认配置**
@@ -1188,7 +1184,7 @@ Built-in adapters continue to use the existing if/elif in _create_adapter()
 for now.  Plugin adapters register here via PluginContext.register_platform()
 and are looked up first -- if nothing is found the gateway falls through to
 the legacy code path.
-"""
+...
 ```
 
 ### 5.2 与 R7B 读过的 `_create_adapter` 的确切关系:注册表优先,内建兜底

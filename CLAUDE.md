@@ -60,9 +60,28 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
 
   | 块 | 契约 | 不匹配时 |
   |---|---|---|
-  | ```` ``` ```` 围栏 | **逐字源码摘录** | MISMATCH(失败),无论别处找不找得到 |
+  | ```` ``` ```` 围栏 | **逐字源码摘录**(**整块每一行**,不只首行——见下 BLOCK-DRIFT) | MISMATCH(失败),无论别处找不找得到 |
   | `>` 引用块 | 文档摘录**或**转述 | 只有在该文件邻近处**逐字找得到**才判 MISMATCH(证明是真摘录、只是锚点漂了);找不到记 UNCHECKED |
   | ```` ```text/console/verify/shell-session ```` | **作者声明这不是源码** | UNCHECKED |
+
+  **BLOCK-DRIFT:围栏块的逐字契约覆盖整块(R8C 增查、R8D 升格为阻断)。**
+  校验器此前只比对块的**首行**;其后每一行从未被任何东西校验过——摘录可以漏掉半句注释、
+  把多行调用压成一行、甚至凭空补一个 `"""` 收尾,而关卡一路是绿的。
+  规则:块正文第 k 行(跳过开头空行与 `# path:line` 定位注释后,0 起)
+  对比基线 `起始行号-1+k` 行,空白不敏感、文字必须逐字一致;
+  遇到**整行**匹配 `...` / `…` / `<snip>` / `[...]`(可带 `# ` 前缀)时比对停止,
+  其后不再校验。**`...))`、`[中略]`、`# 某句 ...` 这类带前后缀的写法不是省略标记**,
+  它们既不逐字、也不声明跳段,是历史积压里最隐蔽的一类。
+  摘录要跳段时,**优先拆成两个各自带锚点的块**(两半都受校验),而不是打省略标记
+  (省略标记之后的内容就此失去校验)。
+
+  *升格的依据是清理时看到的形态分布(R8D 实测,116 处):**115 处靠回抄基线原文即可解决**,
+  只有 **1 处**是摘录对源码作了假声明(凭空补的 `"""` 暗示 docstring 在第 10 行结束,
+  实际到第 29 行)。所以这个关卡防的不是"作者把散文当代码贴",而是
+  **"作者手抄代码时抄漏了半行"**——正是机器该抓、人工评审抓不住的那一类。
+  R8C 加了检查后不立即阻断、留到 R8D 清完积压再升格,沿用引用校验本身
+  (R7C 加、R8A 升格)的同一套分期:**一个对着自己没造成的积压狂叫的关卡,
+  只会教会作者忽略它。***
 
   *引用块纳入校验的理由(review-1 建议-15 / M-16a 实测):此前只校验紧跟围栏块的引用,
   于是"文档-代码冲突"定案的**文档侧**——几乎总写成 `>` 引用块——**从未被任何自动校验覆盖**。
@@ -312,7 +331,7 @@ R8A 同一套 170 个测试文件先后报出 **3,183** 与 **3,190** 两个数,
 必然失败。被测代码 `DEFAULT_HOST = None`(`gateway/platforms/webhook.py:129 @ 863e313`)的语义是
 "按解析出的每个地址族各建一个套接字",只解析出 IPv4 时只建 IPv4 **是正确行为**。
 
-**R8B 补充:容器还有另外两条环境性质,合计已知会让 5 个用例必然失败(全部非代码缺陷)。**
+**R8B 补充(R8D 增第 6 条):容器的环境性质合计已知会让 6 个用例必然失败(全部非代码缺陷)。**
 每条都已逐个查到机制,勿再重复排查:
 
 | 用例 | 根因 | 机制(已核) |
@@ -322,6 +341,7 @@ R8A 同一套 170 个测试文件先后报出 **3,183** 与 **3,190** 两个数,
 | `tests/hermes_cli/test_gateway_service.py`(systemd 单元生成) | **以 root 运行** | 被测代码自己拒绝:`Refusing to install the gateway system service as root; pass --run-as-user root to override` |
 | `tests/hermes_cli/test_approvals_suggest.py::test_normalize_folds_home_prefix` | **以 root 运行**(`HOME=/root`) | `_home_prefix_fold_regex`(`tools/approval.py:1072 @ 863e313`)对"根下不足两段"的路径**故意返回 `None`**,防止畸形 HOME 改写无关前缀;`/root` 只有一段,于是不折叠 |
 | `tests/hermes_cli/test_xai_provider_labels.py` | **无 models.dev 目录**(离线) | `get_label` 命中不了覆盖表就回落 models.dev 目录取 `pdef.name`;本容器目录条目数实测 **0**、无本地缓存文件,于是返回原始 id `'xai'` 而非 `'xAI'` |
+| `tests/test_state_db_malformed_repair.py::test_repair_rebuilds_stale_btree_indexes`(R8D 增) | **SQLite 版本措辞差异**(本容器 3.45.1) | 用例断言 `PRAGMA integrity_check` 的**输出措辞**含 `wrong # of entries in index idx_messages_session`;3.45.1 对同一种损坏改报 `row 1 missing from index …; row 2 …; row 3 …`。**被测代码不依赖措辞**——单独复现确认 `repair_state_db_schema` 仍 `repaired=True / strategy=reindex_btree / integrity=ok`。属**用例脆性**(把实现细节钉进断言),不是代码缺陷,也不是容器缺陷 |
 
 **报测试通过数时一并记 venv 包数**(R8A 立):`pip list` 去掉两行表头后的条目数。
 R8B 实测 **87 个包**(`[dev]` extra + `aiohttp 3.14.1` + `brotlicffi 1.2.0.1`)。

@@ -154,7 +154,7 @@ STRATEGY_LEAST_USED = "least_used"
         return entry, pending_refresh
 ```
 
-**失败归因**:`mark_exhausted_and_rotate()` 按 `credential_id` → `api_key_hint` → current 的优先级定位失败条目(2042-2056),归因理由在消费侧写得很清楚,`agent/agent_runtime_helpers.py:988-995 @ 863e313`:
+**失败归因**:`mark_exhausted_and_rotate()` 按 `credential_id` → `api_key_hint` → current 的优先级定位失败条目(2042-2056),归因理由在消费侧写得很清楚,`agent/agent_runtime_helpers.py:988-998 @ 863e313`:
 
 ```python
     # Attribute the failure to the API key the agent actually dispatched the
@@ -164,7 +164,10 @@ STRATEGY_LEAST_USED = "least_used"
     # pool reset it to None — so by the time recovery runs it routinely points
     # at a DIFFERENT, healthy entry. Marking that entry exhausted copies this
     # request's error/reset time onto it and can take the whole pool offline
-    # from a single rate-limited key (#43747).
+    # from a single rate-limited key (#43747). ``_swap_credential`` keeps
+    # ``agent.api_key`` in sync with the entry in use, so it identifies the
+    # failing entry exactly; fall back to current()'s key only when the agent
+    # carries no key at all.
 ```
 
 稳定 id 的绑定由 `sync_credential_pool_entry_id`(`agent_runtime_helpers.py:897-913`)在每次换 key 后重算,防 OAuth 刷新导致 api_key 值漂移后归因失败。

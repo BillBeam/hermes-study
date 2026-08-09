@@ -96,8 +96,14 @@
         AND a known owner task in ``_session_tasks`` that has already exited.
         When there is no owner task at all, that usually means the guard was
         installed by some path other than handle_message() (tests sometimes
-        install guards directly) — don't treat that as stale.
+        install guards directly) — don't treat that as stale.  The on-entry
+        self-heal only needs to handle the production split-brain case where
+        an owner task was recorded, then exited without clearing its guard.
         """
+        task = self._session_tasks.get(session_key)
+        if task is None:
+            return False
+        done = getattr(task, "done", None)
 ```
 
 **无属主任务 ≠ 陈旧**。理由是"守卫可能由 handle_message 以外的路径装上"。取舍很清楚:

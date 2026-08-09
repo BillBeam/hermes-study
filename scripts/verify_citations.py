@@ -158,9 +158,20 @@ def block_drift(block, src, start):
     block tracks the source verbatim. Comparison stops at the first elision
     marker (``...``), which is an author declaration that the excerpt jumps.
 
-    Reported as BLOCK-DRIFT, which does NOT fail the run yet — same staging the
-    citation gate itself went through (added R7C, promoted to blocking in R8A).
-    Promote once the corpus is clean.
+    Reported as BLOCK-DRIFT, which **fails the run** (R8D). It went through the
+    same staging the citation gate itself did — added R7C, promoted to blocking
+    in R8A — because a check that fails on a backlog it did not cause teaches
+    authors to ignore it. R8C added the check and found 115 historical drifts;
+    R8D cleared all 116 (the extra one was a scope-of-run difference, not a
+    regression) and promoted it here.
+
+    What the cleanup found is why this is now blocking: 115 of 116 were fixable
+    by re-copying the baseline verbatim, and only ONE was an excerpt asserting
+    something false about the source (a fabricated closing ``\"\"\"`` implying a
+    docstring ended 19 lines before it does). So the failure mode this guards is
+    not "author mislabeled prose as code" — it is "author transcribed code by
+    hand and dropped half a line". That is exactly the class of error a machine
+    should catch and a reviewer cannot.
     """
     body = list(block)
     while body and not body[-1].strip():
@@ -455,10 +466,14 @@ def main() -> None:
         print(f"可校验比例 OK/{checkable} = {rate:.1%}{flag}")
     if drift:
         print(
-            f"BLOCK-DRIFT={drift}  (代码块首行之后的行与基线不符;**暂不阻断**,"
+            f"BLOCK-DRIFT={drift}  (代码块首行之后的行与基线不符;**阻断**,"
             f"见脚本 block_drift() 的说明)"
         )
     bad = total - tally.get("OK", 0) - tally.get("UNCHECKED", 0) - tally.get("FIXED", 0)
+    # BLOCK-DRIFT rides along on a citation already tallied OK, so it stays out
+    # of `total` (above) to keep the verifiable ratio honest — but it is a
+    # failure, so it counts here. R8D promotion; see block_drift().
+    bad += drift
     if bad:
         print(f"FAIL: {bad} citation(s) need fixing")
         sys.exit(1)

@@ -206,7 +206,11 @@ cron/scheduler.py 执行 job
 ```python
 # Cap before gateway-level truncation of cron output for non-chunking platform
 # delivery.  Telegram's hard API limit is 4096; the headroom covers the "full
-# output saved to …" footer appended on truncation.
+# output saved to …" footer appended on truncation.  Adapters that split long
+# messages natively (BasePlatformAdapter.splits_long_messages) bypass this
+# entirely — the adapter chunks in its own send() and the full output is
+# preserved.
+MAX_PLATFORM_OUTPUT = 4000
 ```
 
 审计落盘是 best-effort,失败只 warning(`gateway/delivery.py:493-500`);
@@ -751,8 +755,10 @@ cron 三个调用点都传 `role="user"`:`cron/scheduler.py:727-735`(注释在 `
             finder = getattr(db, "find_session_by_origin", None)
             if callable(finder):
                 session_id = finder(
-                    platform=platform, chat_id=chat_id,
-                    thread_id=thread_id, user_id=user_id,
+                    platform=platform,
+                    chat_id=chat_id,
+                    thread_id=thread_id,
+                    user_id=user_id,
                 )
    ```
 2. **回退 sessions.json**(`gateway/mirror.py:135-187`),给未迁移的老库。
@@ -828,7 +834,8 @@ WhatsApp Cloud 同样(`gateway/platforms/whatsapp_cloud.py:2055-2058 @ 863e313`)
 ```python
         # context.id is set when the user replied to a prior message. Meta's
         # webhook only gives us the quoted message's id (and its author in
-        # context.from) — never the quoted text.
+        # context.from) — never the quoted text. We resolve the text from
+        # rich_sent_store, which we populate on every inbound message (below)
 ```
 
 #### 缓存什么、键是什么
@@ -1006,7 +1013,10 @@ When a messaging platform reports that a target chat is permanently gone — a
 deleted group (``Forbidden: the group chat was deleted``), a bot kicked/blocked,
 or a deactivated user — re-sending to it on every cron tick or every fan-out
 delivery wastes a send attempt against the platform's flood-control envelope and
-spams the logs.
+spams the logs.  This registry lets the delivery layer short-circuit a target it
+has already proven dead, while staying self-healing: any successful send to that
+target clears the flag, so a user who re-adds the bot (or restores the chat)
+recovers automatically with no manual cleanup.
 ```
 
 #### "死目标"如何判定
@@ -1418,7 +1428,10 @@ _THINK_BLOCK_RE = re.compile(r"<think[\s>].*?</think>", flags=re.DOTALL)
 ```python
                 if _finish_failed:
                     # finish_streaming_tts() raised — never report full
-                    # completion. ...
+                    # completion.  If audio was already audible, report
+                    # partial and preserve suppression so the gateway
+                    # does not replay from the beginning.  If no audio
+                    # was audible, permit whole-file fallback.
                     if self._handle.audible:
                         self._partial = True
                         self._completed = False

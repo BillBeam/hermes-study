@@ -143,6 +143,8 @@ def _load_gateway_config() -> dict:
             # agent.personalities via the CLI config (which ships the built-ins).
             # load_config()'s schema has no agent.personalities, so the completer
             # used to come back empty even with personalities available.
+            from cli import load_cli_config
+
             personalities = (load_cli_config().get("agent") or {}).get("personalities", {}) or {}
 ```
 

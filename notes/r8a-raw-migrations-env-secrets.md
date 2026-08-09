@@ -1659,7 +1659,7 @@ UTF-16(Notepad 的 "Unicode")则**能正确解码,并统一重写成干净的 UT
         # onto the first key name and rewrites the file permanently
         # (the UTF-16-with-BOM corruption path before BOM sniffing).
         # Leave the file untouched rather than write the mangling.
-        if original and original[0].startswith("�"):
+        if original and original[0].startswith("\ufffd"):
             return
 ```
 

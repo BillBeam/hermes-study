@@ -107,7 +107,8 @@ hermes(console script)
 # new code references ``hermes_bootstrap`` but the editable install's
 # ``.pth`` file still points at the old set of top-level modules.  Without
 # this guard, hermes crashes on import and the user can't run
-# ``hermes update`` to recover.
+# ``hermes update`` to recover.  Missing the bootstrap means UTF-8 stdio
+# setup is skipped on Windows — degraded, not broken.  POSIX is unaffected.
 ```
 
 **这是一条一般性设计原则,值得单独记**:
@@ -199,7 +200,9 @@ _suppress_mouse_residue_early()
 # Python launcher is still doing imports (≈100–300ms in cooked + echo mode,
 # before the Node TUI takes stdin into raw mode). During that window any
 # incoming bytes are echoed straight back to the user's shell scrollback as
-# ``^[[<…M`` text.
+# ``^[[<…M`` text. The TUI itself runs `resetTerminalModes()` again in
+# `entry.tsx`; this is just the earlier cousin. ``HERMES_TUI_NO_EARLY_DISABLE``
+# escapes the behaviour for diagnostics.
 ```
 
 **这是一个很典型的"启动延迟本身就是 bug 来源"的例子**:
@@ -400,7 +403,8 @@ def _apply_profile_override() -> None:
     on a pipe; booting the Ink TUI there hits its no-TTY bail-out, which
     prints a resume hint and exits 0 — a kanban worker then dies with
     "exited cleanly without calling kanban_complete — protocol violation"
-    on every attempt (found dogfooding the desktop kanban board).
+    on every attempt (found dogfooding the desktop kanban board). A user
+    who *explicitly* passes ``--tui`` still gets the informative bail-out.
 ```
 
 **同一个环境变量,一个函数叫它 explicit、另一个叫它 ambient**,
