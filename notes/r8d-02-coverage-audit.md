@@ -26,16 +26,28 @@ awk -F'\t' 'NR>1{sub(/\r$/,"",$4);sub(/\r$/,"",$5);sub(/\r$/,"",$6);
 分层规则里,`agent/` 与 `tools/` 各有一条**兜底规则**,轮次写的不是某一轮,
 而是一个**区间占位符**,并在注释里把认领责任推给了"后续轮次":
 
-`scripts/assign_layers.py:151`(**本学习仓库**,非基线)
+**改前原文**(R8D 本轮已改掉,故以下两块按制度标为 ```text ——
+它们**不再是任何文件的当前内容**,是本仓库 git 历史里的状态,不可再对文件校验):
 
-```python
+```text
     ("agent/*.py", "L1", "R3-R7"),          # 其余 agent/ 文件在后续轮次开工时显式定轮
+    ("tools/*.py", "L1", "R3-R4"),
 ```
 
-`scripts/assign_layers.py:210`(**本学习仓库**,非基线)
+改后(可校验的当前状态):
+
+`scripts/assign_layers.py:162-163`(**本学习仓库**,非基线)
 
 ```python
-    ("tools/*.py", "L1", "R3-R4"),
+    ("agent/*.py", "L1", "UNCLAIMED"),
+    ("agent/**/*.py", "L1", "UNCLAIMED"),
+```
+
+`scripts/assign_layers.py:222-223`(**本学习仓库**,非基线)
+
+```python
+    ("tools/*.py", "L1", "UNCLAIMED"),
+    ("tools/**/*.py", "L1", "UNCLAIMED"),
 ```
 
 *(注:本卷的锚点指向的是**本学习仓库**自己的文件,不是基线,因此**不带 `@ 863e313`**——
