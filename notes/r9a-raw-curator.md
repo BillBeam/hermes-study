@@ -2,7 +2,9 @@
 
 > 研究对象基线:`/home/user/hermes-agent` @ `863e31318553cda8ad61df681d08175364d4164b`(只读)。
 > 溯源约定:凡对代码行为的断言,**锚点单独成行、置于代码块之前**,格式 `路径:行号 @ 863e313`。
-> 本文是底稿(证据层),求全求证、允许啰嗦。表格是索引不是证据,表格里的行号不带冒号。
+> 本文是底稿(证据层),求全求证、允许啰嗦。
+> **索引式指路(表格、原则清单、正文里的顺带一提)一律写成 `路径 行 N`、不带冒号**,
+> 好让引用校验器只统计「锚点 + 紧跟的块」这一种形状 —— 索引不是证据。
 
 **本轮范围 3 个文件 / 3,938 行(`wc -l` 实测):**
 
@@ -274,7 +276,7 @@ python3 -c "print(float('inf') < 2*3600.0)"    # → False,即 idle 门永远放
         t.start()
 ```
 
-`hermes curator run` 默认走同步(`synchronous = ... or not background`,`hermes_cli/curator.py 行 225`);
+`hermes curator run` 默认走同步(`synchronous = ... or not background`,`hermes_cli/curator.py 行 221`);
 `maybe_run_curator()` 走默认异步。
 
 ### 2.4 失败了谁知道 —— 四条通道 + 一个黑洞
@@ -316,7 +318,7 @@ python3 -c "print(float('inf') < 2*3600.0)"    # → False,即 idle 门永远放
 但它同时也**把"中断"变成了静默**。
 
 **■-2(次级)**:`hermes curator run` 在同步模式下 LLM pass 失败也**返回 0**
-(`hermes_cli/curator.py 行 274` 无条件 `return 0`),错误只在 stdout 文本里。CI/脚本无法据退出码判定。
+(`hermes_cli/curator.py 行 273` 无条件 `return 0`),错误只在 stdout 文本里。CI/脚本无法据退出码判定。
 
 ---
 
@@ -695,7 +697,7 @@ CURATOR_DRY_RUN_BANNER = (
 `agent/auxiliary_client.py 行 7561` 的 `_get_task_timeout` 只被 `auxiliary_client.py` 自己调用
 (搜索面:`grep -rn "_get_task_timeout" --include=*.py .`,4 处命中全在 `auxiliary_client.py`
 与其测试里),而 curator 走的是 `run_agent.AIAgent` 这条主链路,不经过 `auxiliary_client`。
-`config_defaults.py 行 1010` 还给它写了 `"timeout": 600` 和一段"因为审阅要跑几分钟所以给得宽松"的注释。
+`hermes_cli/config_defaults.py 行 1010` 还给它写了 `"timeout": 600` 和一段"因为审阅要跑几分钟所以给得宽松"的注释。
 **结论:配了不报错,也不起作用。** 同一条断言也适用于 `agent/curator.py 行 1813` 那句自陈
 (把 `timeout` 列进"已接通的 aux 槽字段")。
 
@@ -760,7 +762,7 @@ CURATOR_DRY_RUN_BANNER = (
 > - Pinned skills are exempt from every auto-transition and from the
 >   LLM review pass.
 
-"exempt from every auto-transition" **成立**(curator.py 行 331);
+"exempt from every auto-transition" **成立**(`agent/curator.py 行 331`);
 "exempt from the LLM review pass" **不成立**——pin 的技能出现在候选清单里,
 `skill_manage` 那条路被硬闸挡住,`terminal mv` 那条路只有提示词。记 ▲-3。
 
@@ -1104,7 +1106,7 @@ def _utc_id(now: Optional[datetime] = None) -> str:
                 "total_skill_edits": total_skill_edits,
 ```
 
-而 `total_skill_loads` 累加的是 `view_count`(`insights.py 行 800`),也就是 `skill_view` 调用数。
+而 `total_skill_loads` 累加的是 `view_count`(`agent/insights.py 行 800`),也就是 `skill_view` 调用数。
 **后果:一个被 `skill_bundles` 自动加载进提示词、agent 从没显式 `skill_view` 过的技能,
 在 `/insights` 的 "Top Skills" 里是 0 次"loads",但在 `hermes curator status` 里 `use_count` 可能很高。**
 两个界面对同一个技能会给出互相矛盾的"用得多不多"。这不是 bug(两个系统各自自洽),
@@ -1228,7 +1230,7 @@ from utils import atomic_json_write
 
 | 编号 | 文档位置(含所归标题) | 文档说 | 代码是 | 判据 |
 |---|---|---|---|---|
-| ▲-1 | `website/docs/user-guide/features/curator.md 行 19-22`(`## How it runs`)、`:351`(`## Disabling per environment`) | 两个门:interval + `min_idle_hours` 空闲判定 | 两个调用点都传 `float("inf")`,空闲门恒放行;gateway 侧尤其不成立 | §2.2 的 `verify` 块;`grep -rn "idle_for_seconds" --include=*.py .` 全仓 5 处 |
+| ▲-1 | `website/docs/user-guide/features/curator.md 行 19-22`(`## How it runs`)与 行 351(`## Disabling per environment`) | 两个门:interval + `min_idle_hours` 空闲判定 | 两个调用点都传 `float("inf")`,空闲门恒放行;gateway 侧尤其不成立 | §2.2 的 `verify` 块;`grep -rn "idle_for_seconds" --include=*.py .` 全仓 5 处 |
 | ▲-2 | `website/docs/user-guide/features/curator.md 行 82`(`### Running the review on a cheaper aux model`) | `auxiliary.curator.timeout: 600` 是有效配置 | `_resolve_review_runtime` 不取 timeout;`_get_task_timeout` 仅被 `auxiliary_client` 自用,curator 走 AIAgent 主链路 | §6.2 |
 | ▲-3 | `AGENTS.md 行 1038-1039`(`## Curator (skill lifecycle)` → `Invariants`) | pin 的技能"exempt from ... the LLM review pass" | pin 技能**在候选清单里**;`skill_manage` 有硬闸,`terminal mv` 只有提示词规则 | §6.3;对比 `tools/skill_usage.py 行 377` 对受保护内置的真过滤 |
 | ▲-4 | `website/docs/user-guide/features/curator.md 行 320-326`(`## Per-run reports` 下的 `:::note`) | 无候选时"LLM review pass is skipped entirely",报告显示 `(not resolved)` | 该分支字符串对不上,永不命中;`consolidate:true` 时会真发一次请求。默认下的 `(not resolved)` 来自 consolidation 门,与候选数无关 | §6.5 的 `verify` 块 |
@@ -1252,12 +1254,12 @@ from utils import atomic_json_write
 
 | 编号 | 位置 | 现象 | 可复现判据 |
 |---|---|---|---|
-| ■-1 | `agent/curator.py 行 1577` + `:1750` | `last_run_at` 在起 daemon 线程**之前**落盘;CLI 退出杀线程 → 技能库改了一半、无 REPORT、无 run.json、下次还要等满一个 interval | 读码即得:1577-1583 先 `save_state`,1750 才 `Thread(daemon=True)` |
-| ■-5 | `agent/curator.py 行 1644` vs `:1477` | 无候选短路分支的字符串与生产方对不上,永不命中;`consolidate:true` 时空库也会真花一次模型钱 | §6.5 `verify` 块;`"No agent-created skills"` 全仓仅 1 处命中 |
-| ■-4 | `agent/curator.py 行 1926` + `:1481` | fork 带 `terminal`,提示词教它 `mv` 归档;pin 技能未从候选清单过滤,`terminal` 路径无 pin 硬闸 | §6.3;对比 `tools/skill_manager_tool.py 行 328` 只覆盖 `skill_manage` |
-| ■-6 | `agent/curator_backup.py 行 264`、`:211` | `skills.tar.gz` 与 `manifest.json` 就地直写,非原子;`_resolve_backup` 只查存在性 → 默认回滚目标可能是被截断的档 | 读码即得;对比同仓 `atomic_json_write`(`agent/curator.py 行 119`) |
+| ■-1 | `agent/curator.py 行 1577` 与 行 1750 | `last_run_at` 在起 daemon 线程**之前**落盘;CLI 退出杀线程 → 技能库改了一半、无 REPORT、无 run.json、下次还要等满一个 interval | 读码即得:1577-1583 先 `save_state`,1750 才 `Thread(daemon=True)` |
+| ■-5 | `agent/curator.py 行 1644` vs 行 1477 | 无候选短路分支的字符串与生产方对不上,永不命中;`consolidate:true` 时空库也会真花一次模型钱 | §6.5 `verify` 块;`"No agent-created skills"` 全仓仅 1 处命中 |
+| ■-4 | `agent/curator.py 行 1926` 与 行 1481 | fork 带 `terminal`,提示词教它 `mv` 归档;pin 技能未从候选清单过滤,`terminal` 路径无 pin 硬闸 | §6.3;对比 `tools/skill_manager_tool.py 行 328` 只覆盖 `skill_manage` |
+| ■-6 | `agent/curator_backup.py 行 264`、行 211 | `skills.tar.gz` 与 `manifest.json` 就地直写,非原子;`_resolve_backup` 只查存在性 → 默认回滚目标可能是被截断的档 | 读码即得;对比同仓 `atomic_json_write`(`agent/curator.py 行 119`) |
 | ■-8 | `agent/curator.py 行 1551`、`agent/curator_backup.py 行 228` | 快照失败(含磁盘满)与"用户关了备份"在调用方看来完全一样,日志 `debug` 级不可见,随后照常做自主批量改写 | 读码即得:`snapshot_skills` 四种失败都 `return None`,调用方只判 `is not None` |
-| ■-2 | `hermes_cli/curator.py 行 274` | 同步模式下 LLM pass 失败,`hermes curator run` 仍 `return 0` | 读码即得 |
+| ■-2 | `hermes_cli/curator.py 行 273` | 同步模式下 LLM pass 失败,`hermes curator run` 仍 `return 0` | 读码即得 |
 | ■-7 | `agent/curator_backup.py 行 71` | 备份目录在被备份目录内部,同盘;只防逻辑改写不防介质故障,而名字叫 backup | 读码即得 |
 | ■-3 | `agent/curator.py 行 715` | `\b{re.escape(needle)}\b`:技能名以非单词字符开头/结尾时词边界行为可疑(**未取证到真实误判**,仅疑点) | 需构造 `_tmp` / `2fa-x` 类技能名验证 |
 
@@ -1287,7 +1289,7 @@ from utils import atomic_json_write
 9. **清理策略必须知道谁正在使用。** `protect_ids`(`agent/curator_backup.py 行 612`)。
 10. **别把"最好能有的东西"做成静默失败。** ■-8 是反例:安全网失效与安全网被关闭,
     在日志上应该长得不一样。
-11. **状态文件读用白名单合并、写用原子替换。** `agent/curator.py 行 109` + `:119` 是正例;
+11. **状态文件读用白名单合并、写用原子替换。** `agent/curator.py 行 109`(读)与 行 119(写)是正例;
     同仓 `curator_backup.py` 的两个直写是反例 —— **同一个项目里两种标准,就是漂移的开始**。
 
 ---
@@ -1301,15 +1303,19 @@ from utils import atomic_json_write
    `platform="curator"` 会不会新建一条 session 行,本轮未取证。** 影响:用户看到的
    `/insights` 总花费可能不含 curator。建议下一轮连 `agent/aux_accounting.py` 一起读。
 2. **`hermes_cli/curator.py`(约 850 行)本轮未精读。**
-   锚点:`hermes_cli/curator.py:444` `_cmd_prune`、`:344` `_cmd_adopt`。
+   锚点:`hermes_cli/curator.py:444` `_cmd_prune`、同文件 344 行 `_cmd_adopt`。
    现象:`adopt`(把未纳管技能收编)与 `prune`(按闲置天数交互式裁剪)是**用户侧**改写
    `.usage.json` 的入口,与 curator 自动路径共用同一份台账,本轮只看了调用关系没看实现。
 3. **`~/.hermes/logs/curator/` 无清理策略。**
    锚点:`agent/curator.py:1117-1123`(`run_dir = root / stamp`,同秒冲突加后缀)。
    现象:每次 curator 运行新建一个目录,`run.json` 里含完整 `llm_final` 与全部工具调用参数;
-   全仓未找到对该目录的任何 prune/rotate(搜索面:`grep -rn "logs.*curator\|_reports_root" --include=*.py .`)。
-   与快照的 `keep=5` 形成对比。**本条是"未找到"级别的负结论,下一轮应扩到
-   `hermes_cli/` 的日志轮转逻辑再确认。**
+   全仓未找到对该目录的任何 prune/rotate。**搜索面**:
+   `grep -rn "logs.*curator|_reports_root|curator.*rotate|prune.*report" --include=*.py .`
+   (排除 `tests/`)命中 12 行,全部是**创建**(`hermes_cli/config.py` 906/934、
+   `hermes_cli/config_migrations.py` 410)或**写入**(`agent/curator.py` 591/1110)以及注释,
+   **零处删除/轮转**;另查 `RotatingFileHandler` 的持有者也不覆盖这个子目录。
+   与快照的 `keep=5` 形成对比。仍按"未找到"级负结论移交:下一轮若读 `hermes_cli/` 的
+   日志管理面,请顺手证实或推翻。
 4. **dry-run 不做快照。**
    锚点:`agent/curator.py:1533`(`if dry_run:` 分支内无 `snapshot_skills`)。
    现象:dry-run 的"不改动"仅由提示词保证(`agent/curator.py:411` 自陈模型可能误操作),

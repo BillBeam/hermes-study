@@ -145,7 +145,111 @@ cd /home/user/hermes-agent && grep -n "^import \|^from " agent/skill_preprocessi
 
 ---
 
-## 2. 一份**没有腐烂**的文档:`subagent-lifecycle-api.md`
+## 2. 一条 ▲:「Hermes never exposes the raw secret value to the model」被同一节的下一段推翻
+
+### 2.1 两句话,同一个 `## Secure Setup on Load` 标题下
+
+`website/docs/developer-guide/creating-skills.md:178 @ 863e313`
+
+> The user can skip setup and keep loading the skill. Hermes never exposes the raw secret value to the model. Gateway and messaging sessions show local setup guidance instead of collecting secrets in-band.
+
+隔一个空行,同一节的 `:::tip` 块:
+
+`website/docs/developer-guide/creating-skills.md:181 @ 863e313`
+
+> When your skill is loaded, any declared `required_environment_variables` that are set are **automatically passed through** to `execute_code` and `terminal` sandboxes — including remote backends like Docker and Modal. Your skill's scripts can access `$TENOR_API_KEY` (or `os.environ["TENOR_API_KEY"]` in Python) without the user needing to configure anything extra. See [Environment Variable Passthrough](/user-guide/security#environment-variable-passthrough) for details.
+
+**`execute_code` 是模型驱动的工具,它的输出回到模型上下文。** 所以第二句描述的那条路
+——模型写 `print(os.environ["TENOR_API_KEY"])` → 值进沙箱子进程 → 结果回到模型——
+就是「把原始密钥值暴露给模型」。第一句的 **never** 因此不成立。
+
+按 CLAUDE.md「判定一条文档断言时必须把整句/整段一并判定,并确认它归哪个标题管」:
+这两段**同属 `## Secure Setup on Load`**,中间没有别的标题,所以这不是把两个无关小节
+硬拼在一起——是同一节内部自相矛盾。
+
+### 2.2 代码站在第二句这边
+
+透传变量在**密钥子串扫描之前**就被放行,所以它绕过的正是那道通用清洗:
+
+`tools/code_execution_tool.py:252 @ 863e313`
+
+```
+    _dropped_hermes = []
+    for k, v in source_env.items():
+        if is_passthrough(k):
+            resolved = resolve_passthrough_value(k, v)
+            if resolved is not None:
+                scrubbed[k] = resolved
+            continue
+        if any(s in k.upper() for s in _SECRET_SUBSTRINGS):
+            continue
+```
+
+`scrubbed` 就是交给子进程的环境。`is_passthrough(k)` 为真时 `continue`,
+**根本走不到** `_SECRET_SUBSTRINGS` 那一行。
+
+### 2.3 作者知道这条路 —— 但堵的是另一半
+
+`tools/env_passthrough.py:54 @ 863e313`
+
+```
+    Skill-declared ``required_environment_variables`` frontmatter must
+    not be able to override this list — that was the bypass in
+    GHSA-rhgp-j443-p4rf where a malicious skill registered
+    ``ANTHROPIC_TOKEN`` / ``OPENAI_API_KEY`` as passthrough and received
+    the credential in the ``execute_code`` child process, defeating the
+    sandbox's scrubbing guarantee.
+
+    Non-Hermes API keys (TENOR_API_KEY, NOTION_TOKEN, etc.) are NOT
+    in the blocklist and remain legitimately registerable — skills that
+    wrap third-party APIs still work.
+```
+
+这段 docstring 把整件事说得很清楚,而且**这正是判定的关键**:
+
+- 曾经有过真实漏洞(GHSA-rhgp-j443-p4rf):恶意 skill 把 `ANTHROPIC_TOKEN` 注册成透传,
+  在 `execute_code` 子进程里拿到了它;
+- 修法是加一张 **Hermes 自家 provider 凭据的黑名单**,并且 fail closed(黑名单导不进来就一律拒绝);
+- **第三方密钥被有意留在外面**——`TENOR_API_KEY` / `NOTION_TOKEN` 这类「仍然可以合法注册」,
+  否则包装第三方 API 的 skill 就不能用了。
+
+所以代码的真实语义是:**「不把 *Hermes 自家的* 原始凭据暴露给模型」**,
+而文档写的是 **「never exposes *the raw secret value* to the model」**。
+差的就是那个限定词,而这个限定词恰恰是整条防线的全部边界。
+
+### 2.4 定案
+
+**▲**(文档所述与代码矛盾)。判据可复现:
+
+- 输入:一个声明了 `required_environment_variables: [{name: TENOR_API_KEY}]` 的 skill,
+  用户已配置该密钥,skill 被 `skill_view` 加载;
+- 现象:模型调用 `execute_code` 执行 `import os; print(os.environ["TENOR_API_KEY"])`,
+  工具结果把原始密钥值带回模型上下文。
+- 与文档第 178 行的 never 直接冲突;与第 181 行的 tip 一致。
+
+**这条 ▲ 记在文档头上,不记 ■。** 代码的行为是**有意设计**的(有 GHSA 溯源、有黑名单、
+有 fail-closed、有「第三方密钥仍可注册」的显式说明),取舍成立;
+出问题的是文档那句没有限定词的 never。
+
+**修法建议**(不属于本项目职责,仅作记录):把 178 行改成
+"Hermes never exposes *Hermes-managed provider credentials* to the model"
+即可与代码一致,且不削弱那条 tip 的实用性。
+
+### 2.5 与 §1 的关系
+
+§1(内联 shell)与本条是**同一个主题的两面**:
+
+| | 谁能碰到密钥/主机 | 文档态度 | 判定 |
+|---|---|---|---|
+| §1 内联 shell | SKILL.md 作者(不经审批执行主机命令) | **主动披露**「without approval」 | 不记 ▲ |
+| §2 环境变量透传 | 模型(经 `execute_code` 读到第三方密钥) | 一句 never + 一句 tip,**自相矛盾** | **▲** |
+
+两者的共同结构是:**skill 这条扩展面同时是一条能力面和一条信任面**,
+而信任边界的说明质量在同一份文档里并不一致。
+
+---
+
+## 3. 一份**没有腐烂**的文档:`subagent-lifecycle-api.md`
 
 本项目的 ▲ 计数衡量的是「作者自绘地图的腐烂程度」。为了让这个指标有意义,
 **核出「没腐烂」的样本同样要记**——否则读者只看得到坏消息,无法判断腐烂是普遍还是局部。
