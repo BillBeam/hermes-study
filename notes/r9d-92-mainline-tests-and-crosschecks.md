@@ -573,12 +573,67 @@ cron/scheduler.py:3143:        # Scope cron approval policy to this job. Keep th
 **断言成立。** 禁令挂在**工具注册**上(那扇门),而不是挂在**发送引擎**上(那个效果);
 模型换一扇挂着 `cronjob` 牌子的门进来,同一个引擎照发,目标还是它自己写的。
 
-### 4.7 复核结论
+### 4.7 E 片 · 提示注入防线是一张两个名字的白名单,`x_search` 不在上面
+
+作者把这层包装明确称作 promptware 防御的**架构件**:
+
+`agent/tool_dispatch_helpers.py:579-587 @ 863e313`
+
+```python
+# Tools whose results carry attacker-controllable content.  Wrapping their
+# string output in ``<untrusted_tool_result>`` delimiters tells the model the
+# payload is data, not instructions — the architectural piece of the
+# promptware defense.  Skipped for short outputs (under 32 chars) where the
+# overhead of the wrapper outweighs any indirect-injection risk.
+_UNTRUSTED_TOOL_NAMES = frozenset({
+    "web_extract",
+    "web_search",
+})
+```
+
+而 `x_search` 是一个**注册给模型的工具**,返回 X/Twitter 的检索结果——
+典型的攻击者可控外部文本:
+
+`tools/x_search_tool.py:480 @ 863e313`
+
+```python
+    "name": "x_search",
+```
+
+主线用被测代码自己的判据逐个跑一遍(不靠读代码推断):
+
+```verify
+cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python -c "
+import sys; sys.path.insert(0,'/home/user/hermes-agent')
+from agent.tool_dispatch_helpers import _UNTRUSTED_TOOL_NAMES, _UNTRUSTED_TOOL_PREFIXES
+for n in ['web_search','web_extract','x_search','browser_snapshot','mcp_foo']:
+    print(f'  {n:20} 被包装: {n in _UNTRUSTED_TOOL_NAMES or n.startswith(_UNTRUSTED_TOOL_PREFIXES)}')"
+```
+
+```text
+  web_search           被包装: True
+  web_extract          被包装: True
+  x_search             被包装: False
+  browser_snapshot     被包装: True
+  mcp_foo              被包装: True
+```
+
+**断言成立。** 同类外部文本,`web_search` 进防线、`x_search` 不进——
+区别只在于它的名字没被写进那个 `frozenset`。
+
+**一处跨条目的呼应,值得单独指出**:`x_search` 同时是 §H-R9A-g 查出的
+**7 个「代码有、AGENTS.md 没列」的功能 toolset** 之一(`toolsets.py:115`)。
+**同一个工具,既没进文档的清单,也没进防线的清单。**
+这两处遗漏彼此独立(一个是文档、一个是代码),却指向同一件事:
+**列表式的守卫会在列表的边缘腐烂,而边缘正是最新、最少人走的那些工具。**
+
+### 4.8 复核结论
 
 
 
-**抽验六条,六条全部复现,无一需要下调强度。** 六条分属四片、六种性质
+
+**抽验七条,七条全部复现,无一需要下调强度。** 七条分属五片、七种性质
 (shell 引号错误 / 文档-代码矛盾 / 路径边界差一层 / 守卫只装在一条路径上 /
-审批模型形状缺口 / 禁令挂在工具注册而非效果上),
+审批模型形状缺口 / 禁令挂在工具注册而非效果上 / 防线是一张工具名白名单),
 覆盖面上算是有代表性的抽样;但**抽验不是全验**——各片其余断言以其底稿自证为准,
 主线未逐条重跑,如实记在这里。

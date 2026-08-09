@@ -240,11 +240,11 @@ _LEGACY_PREFERENCE = (
 **注意这里是 `logger.debug`。** 浏览器那一份同名函数用的是 `logger.warning(..., exc_info=True)`
 (见 2.4)。同一个模具的两个实例,对「插件坏了」这件事的可观测性差一个数量级。
 
-还有一个 web 侧独有的诊断器 `_disabled_web_plugin_for`(`agent/web_search_registry.py:222-278`),
+还有一个 web 侧独有的诊断器 `_disabled_web_plugin_for`(同文件的 `_disabled_web_plugin_for`),
 专门识别「后端配对了、但插件被用户在 `plugins.disabled` 里关掉了」这种情况,好把错误信息从
 「没配后端」改成「去把插件打开」。它的 docstring 里有一句**对本片非常重要的自述**:
 
-`agent/web_search_registry.py:236-241 @ 863e313`
+`agent/web_search_registry.py:235-240 @ 863e313`
 
 ```python
     Pass ``capability`` ("search" | "extract") to resolve the configured
@@ -302,8 +302,8 @@ cd /home/user/hermes-agent && grep -rn "browser_registry" --include="*" . 2>/dev
 
 搜索面:全仓所有文件类型、排除 `.pyc`。命中里除 `agent/browser_registry.py` 自身与
 `hermes_agent.egg-info/SOURCES.txt`、`website/docs/...` 之外,只有三处生产 import——
-`tools/browser_tool.py:165`(只导 `get_provider`)、`hermes_cli/plugins.py:807`(`register_provider`)、
-`hermes_cli/tools_config.py:2994`(`list_providers`);`_resolve` / `_LEGACY_PREFERENCE`
+`tools/browser_tool.py`(只导 `get_provider`)、`hermes_cli/plugins.py`(`register_provider`)、
+`hermes_cli/tools_config.py`(`list_providers`);`_resolve` / `_LEGACY_PREFERENCE`
 仅出现在 `tests/plugins/browser/test_browser_provider_plugins.py`。
 
 生产的选择逻辑在 `tools/browser_tool._get_cloud_provider()` 里**另写了一份**:
@@ -474,7 +474,7 @@ MAX_STORED_TEXT_CHARS = 2_000_000
         tail = tail[nl + 1:]
 ```
 
-`tools/web_tools.py:558-566 @ 863e313`
+`tools/web_tools.py:560-568 @ 863e313`
 
 ```python
         middle_start_line = head.count("\n") + 2
@@ -508,7 +508,7 @@ base64 图片被替换成占位符,理由是「token 炸弹」:
     out = re.sub(r"data:image/[^;]+;base64,[A-Za-z0-9+/=]+", "[IMAGE]", out)
 ```
 
-序列化之后还会再扫一遍(`tools/web_tools.py:1026`),防止 provider 把 blob 藏在 metadata 里。
+序列化之后还会再扫一遍(`web_extract_tool` 末尾对序列化后的 JSON 再跑一次 `convert_base64_images_to_links`),防止 provider 把 blob 藏在 metadata 里。
 
 ### 2.6 抓网页时的安全面:密钥外泄、SSRF、重定向、超时
 
@@ -555,7 +555,7 @@ base64 图片被替换成占位符,理由是「token 炸弹」:
             })
 ```
 
-名单刻意窄:`tools/url_safety.py:106-112` 的注释说明,`code` / `key` / `auth` / `session` / `sig`
+名单刻意窄:`tools/url_safety.py` 里 `_SENSITIVE_QUERY_PARAM_NAMES` 上方的注释说明,`code` / `key` / `auth` / `session` / `sig`
 这些「英文常用词兼作页面参数」的名字**故意不收**,避免把正常浏览打挂。
 
 **第三道:SSRF。**
@@ -578,7 +578,7 @@ base64 图片被替换成占位符,理由是「token 炸弹」:
                 safe_indices.append(index)
 ```
 
-`async_is_safe_url` 只是把同步的 `is_safe_url` 丢进线程池。`is_safe_url` 的规则(`tools/url_safety.py:415-519`)
+`async_is_safe_url` 只是把同步的 `is_safe_url` 丢进线程池。`tools/url_safety.py` 里 `is_safe_url` 的规则
 概括:scheme 必须 http/https;`metadata.google.internal` 等主机名**无条件**拦;
 `getaddrinfo` 解析出的**每一个**地址都检查,云元数据 IP 与整个 `169.254.0.0/16`(含 IPv4-mapped IPv6 变体)
 **无条件**拦;其余私网 IP 受 `security.allow_private_urls` 开关控制;**解析失败即拦**(fail closed),
@@ -677,7 +677,7 @@ _UNTRUSTED_WRAP_MIN_CHARS = 32
 
 1. **定界符反伪造**。攻击者在网页里写一个 `</untrusted_tool_result>` 就能提前闭合信任边界,
    后面的内容就跑到「可信区」了。所以内容里所有大小写形式的 `untrusted_tool_result` 都被
-   把下划线换成连字符(`agent/tool_dispatch_helpers.py:646-656`)。
+   把下划线换成连字符(`_neutralize_delimiters`)。
 2. **没有「已包装」快速路径**。注释明说这是**攻击者可伪造**的:内容只要以开标签开头就会被
    跳过包装。宁可重复包装。
 3. **≥32 字符才包**。短输出包装开销大于收益。
@@ -840,7 +840,7 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home
 | 用例 | 诊断 | 依据 |
 |---|---|---|
 | `test_web_tools_config.py::TestParallelClientConfig::test_creates_client_with_key` | **环境限制**(非代码缺陷、非用例脆性) | 报错为 `ImportError: Feature 'search.parallel' unavailable: lazy installs disabled (security.allow_lazy_installs=false). To enable manually: uv pip install 'parallel-web==0.4.2'`。`parallel-web` SDK 不在 venv 里,而本任务要求全程 `HERMES_DISABLE_LAZY_INSTALLS=1`,惰性安装被关。装上 SDK 即通过。 |
-| `test_web_tools_config.py::TestParallelClientConfig::test_singleton_returns_same_instance` | 同上 | 同一根因,同一 ImportError 链(`plugins/web/parallel/provider.py:61`)。 |
+| `test_web_tools_config.py::TestParallelClientConfig::test_singleton_returns_same_instance` | 同上 | 同一根因,同一 ImportError 链(`plugins/web/parallel/provider.py` 的 `_ensure_parallel_sdk_installed`)。 |
 
 **静默跳过检查**:两批运行均未出现 `importorskip` 造成的整文件跳过(汇总行无 skipped 计数,
 且 15 个文件的用例数均为非零)。但要如实说:`tests/tools/test_web_providers.py` 等文件里
@@ -861,7 +861,7 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home
 
 `check_web_api_key()`(工具注册的 `check_fn`)把 `xai` 算进「有可用后端」,因为 `xai` 在
 `_LEGACY_WEB_BACKENDS` 里且 `_is_backend_available("xai")` 走 `has_xai_credentials()`。
-但**选择**路径完全不给 xai 机会:`backend_candidates`(`tools/web_tools.py:241-250`)里没有 xai;
+但**选择**路径完全不给 xai 机会:`backend_candidates`(上引)里没有 xai;
 最后那个「遍历插件注册的 provider」的兜底又 `continue` 掉了 `_LEGACY_WEB_BACKENDS` 里的名字——
 xai 恰好在里面。于是 `_get_backend()` 返回硬编码的 `"firecrawl"`,而 `web_search_tool`
 拿到这个名字后能从注册表取到 firecrawl 对象(**注册表按名取对象不校验可用性**),
@@ -951,7 +951,7 @@ def register(ctx) -> None:
        :func:`tools.web_tools._get_backend` behavior for configured names.
 ```
 
-但真正的分发器不走 `_resolve`,走 `_get_capability_backend`(`tools/web_tools.py:298-308`),
+但真正的分发器不走 `_resolve`,走 `_get_capability_backend`(上引),
 后者对显式配置**加了可用性门**,不过就回落 `_get_backend()` 自动检测。
 
 ```verify
@@ -986,7 +986,7 @@ registry _resolve('firecrawl','search') says: firecrawl
 用户在 `config.yaml` 里明写 `web.search_backend: firecrawl`、忘了配 key,得到的不是
 「FIRECRAWL_API_KEY is not set」,而是**一份来自 Brave 的结果**,且日志里没有任何提示
 (`_get_capability_backend` 连 `logger.debug` 都没有)。
-代码自己在 `_disabled_web_plugin_for` 的 docstring 里(`agent/web_search_registry.py:239-241`)
+代码自己在 `_disabled_web_plugin_for` 的 docstring 里(上引)
 承认了 "the dispatcher silently drops to the shared default"——但只把它当成诊断难题,没当成 bug。
 
 ### ■-3 `x_search` 的结果不进「不可信数据」包装(**实跑复现**)
@@ -1036,7 +1036,7 @@ risk meta present? False
 更容易被定向投毒(在 X 上发一条针对某关键词的帖子成本极低)。工具自己的 schema 描述里
 也写明这是「current discussion, reactions, or claims on public X」——即完全的第三方内容。
 同时,`_tool_output_risk` 威胁扫描元数据也只对 `_is_untrusted_tool` 为真的工具生成
-(`agent/tool_dispatch_helpers.py:617-618`),所以 `x_search` 连**告警**都没有。
+(`_tool_output_risk_metadata` 开头的 `if not _is_untrusted_tool(name): return None`),所以 `x_search` 连**告警**都没有。
 
 修法是一行:把 `"x_search"` 加进 `_UNTRUSTED_TOOL_NAMES`。
 
@@ -1068,12 +1068,12 @@ The active provider is chosen by configuration with this precedence:
 3. Otherwise ``None`` — the dispatcher falls back to local browser mode.
 ```
 
-生产实现(`tools/browser_tool.py:819-826`,已引在 2.4)**直接 new 内建类**,不查注册表。
+生产实现(已引在 2.4)**直接 new 内建类**,不查注册表。
 可观测后果:
 
 - **注册表覆盖在自动检测路径上无效。** 用户在 `~/.hermes/plugins/browser/<vendor>/` 放一个
   `name` 返回 `"browser-use"` 的 provider,`register_provider` 会覆盖内建条目
-  (`agent/browser_registry.py:67-69`),`_resolve` 会返回用户那个;但 `_get_cloud_provider`
+  (`register_provider` 用同名 key 直接覆盖),`_resolve` 会返回用户那个;但 `_get_cloud_provider`
   的自动检测分支 new 的是 `BrowserUseProvider` 这个**内建类**,用户的实现被完全绕过。
   (**强度:静态对读**——未构造用户插件实测。)
 - **两份优先级必须手工同步。** 现在恰好一致,但没有任何机制保证下次改一处时另一处跟上。
@@ -1105,7 +1105,7 @@ The active provider is chosen by configuration with this precedence:
         return _cached_allow_private_urls
 ```
 
-`tools/url_safety.py:236-238 @ 863e313` 对同一问题也有同款豁免:
+`tools/url_safety.py:237-239 @ 863e313` 对同一问题也有同款豁免:
 
 ```python
     if get_hermes_home_override() is not None:
@@ -1154,7 +1154,7 @@ profile B 明写了 `browserbase`,拿到的仍是 profile A 的 `local`(即 `Non
 同类形态在 `plugins/browser/browserbase/provider.py` 里还有一处:API key/project id 走
 多路复用安全的 `get_secret`,而旁边的旋钮走裸 `os.environ`:
 
-`plugins/browser/browserbase/provider.py:69-79 @ 863e313`
+`plugins/browser/browserbase/provider.py:70-80 @ 863e313`
 
 ```python
         api_key = get_secret("BROWSERBASE_API_KEY")
@@ -1238,7 +1238,7 @@ returned content? True
     try:
 ```
 
-这段在函数的大 `try`(从 `tools/x_search_tool.py:308` 开始)**之外**,且只捕 `RuntimeError`。
+这段在函数的大 `try`(从紧接其后的那一行开始)**之外**,且只捕 `RuntimeError`。
 `resolve_xai_http_credentials` 的第二段(`tools/xai_http.py:317-328`)只对 `ImportError` 兜底,
 `resolve_provider_secret` / `get_env_value` 抛出的其它异常会一路上浮。
 
@@ -1263,7 +1263,7 @@ RAISED out of x_search_tool: ValueError secret store unavailable
 
 **为什么算缺陷**:这个函数的**全部其它路径**(HTTP 错、超时、参数非法、任意异常)都返回
 JSON 字符串;唯独这一条抛出。工具注册表最终会兜住并转成 `Tool execution failed: ...`
-(`tools/registry.py:784`),但错误形状与其它路径不一致,且丢掉了这个工具精心设计的
+(`tools/registry.py` 的 `Registry.dispatch` 兜底分支),但错误形状与其它路径不一致,且丢掉了这个工具精心设计的
 `{"success": false, "provider": "xai", "error_type": ...}` 结构。
 (**强度:实跑复现**;触发条件为凭据层抛非 RuntimeError,属**推定可达**,未在真实凭据栈上取证。)
 
@@ -1278,11 +1278,11 @@ JSON 字符串;唯独这一条抛出。工具注册表最终会兜住并转成 `
 
 同一断言在配置指南里重复一次,判定范围为 `## Website Blocklist` 小节整段:
 
-`website/docs/user-guide/configuration.md:2183 @ 863e313`
+`website/docs/user-guide/configuration.md:2181 @ 863e313`
 
 > When enabled, any URL matching a blocked domain pattern is rejected before the web or browser tool executes. This applies to `web_search`, `web_extract`, `browser_navigate`, and any tool that accesses URLs.
 
-代码事实(见 ■-6,已实测):`browser_navigate` 成立(`tools/browser_tool.py:3029`);
+代码事实(见 ■-6,已实测):`browser_navigate` 成立(`tools/browser_tool.py` 里 `browser_navigate` 前的 `blocked = check_website_access(url)`);
 `web_extract` **仅**在 extract 后端是 firecrawl 时成立;`web_search` **完全不成立**。
 「and all URL-capable tools」这一句同样不成立(`tools/web_tools.py` 零命中)。
 
@@ -1295,18 +1295,18 @@ JSON 字符串;唯独这一条抛出。工具注册表最终会兜住并转成 `
 
 > | `web_search` | Search the web for information. … | EXA_API_KEY or PARALLEL_API_KEY or FIRECRAWL_API_KEY or TAVILY_API_KEY |
 
-代码事实:`check_web_api_key()`(`tools/web_tools.py:1049-1084`)对 `_LEGACY_WEB_BACKENDS`
+代码事实:`check_web_api_key()`(下引)对 `_LEGACY_WEB_BACKENDS`
 里**每一个**后端求 `_is_backend_available`,其中包含 `searxng`(`SEARXNG_URL`)、
 `brave-free`(`BRAVE_SEARCH_API_KEY`)、`ddgs`(**不需要任何 env,只要包能 import**)、
 `xai`(`XAI_API_KEY` 或 OAuth),再加上插件注册的任意 provider。
 本项目同一份文档树里的 `website/docs/user-guide/features/web-search.md` 的后端表也列出了这些。
 所以这不是「保守但为真」(◎),而是**作为必要条件为假**:只有 `BRAVE_SEARCH_API_KEY` 的用户
 按这张表会以为工具不可用,实际它是可用的。`web_extract` 那一行同理
-(`website/docs/reference/tools-reference.md:222`)。
+(同表的 `web_extract` 行)。
 
 ### ◇-1 同一模具的两个 registry,对「provider 抛异常」的可观测性差一个量级
 
-`agent/web_search_registry.py:176-179 @ 863e313`
+`agent/web_search_registry.py:177-180 @ 863e313`
 
 ```python
         except Exception as exc:  # noqa: BLE001
@@ -1314,7 +1314,7 @@ JSON 字符串;唯独这一条抛出。工具注册表最终会兜住并转成 `
             return False
 ```
 
-`agent/browser_registry.py:152-158 @ 863e313`
+`agent/browser_registry.py:153-159 @ 863e313`
 
 ```python
         except Exception as exc:  # noqa: BLE001
@@ -1329,7 +1329,7 @@ JSON 字符串;唯独这一条抛出。工具注册表最终会兜住并转成 `
 `is_available()` 抛异常时,用户在正常日志里**什么都看不到**,只会看到「No web search provider configured」。
 `tools/web_tools.py` 里同样的兜底也是 `logger.debug`(`:191`、`:208`、`:219`、`:268`)。
 对比:同一文件的 `_ensure_web_plugins_loaded` 刻意用了 `logger.warning` 并写明理由
-(`tools/web_tools.py:611-615`:「Warning, not debug: …the user otherwise hits the misleading
+(`_ensure_web_plugins_loaded` 的注释:「Warning, not debug: …the user otherwise hits the misleading
 'No web extract provider configured' error」)——同一个论证适用于这四处,但没被应用。
 
 ### ◇-2 `BrowserProvider` 没有 `get_provider_env` 对应物
@@ -1338,7 +1338,7 @@ JSON 字符串;唯独这一条抛出。工具注册表最终会兜住并转成 `
 (凭据只写在 `~/.hermes/.env`、未 export 时,裸 `os.getenv` 看不见)。
 `agent/browser_provider.py` 全文 177 行没有任何 env 辅助(已通读)。
 后果:浏览器插件的旋钮走裸 `os.environ`(见 ■-5 尾部的摘录,以及
-`plugins/browser/firecrawl/provider.py:67` 的 `return os.environ.get("FIRECRAWL_API_URL", _BASE_URL)`),
+`plugins/browser/firecrawl/provider.py` 里 `_base_url` 的 `os.environ.get("FIRECRAWL_API_URL", _BASE_URL)`),
 只写进 `~/.hermes/.env` 的值不生效。
 (**强度:静态对读**;未构造 `.env`-only 场景实测。)
 
@@ -1355,7 +1355,7 @@ JSON 字符串;唯独这一条抛出。工具注册表最终会兜住并转成 `
         _providers[name] = provider
 ```
 
-`agent/web_search_registry.py:88-90 @ 863e313`
+`agent/web_search_registry.py:87-89 @ 863e313`
 
 ```python
     if not isinstance(name, str):
@@ -1365,7 +1365,7 @@ JSON 字符串;唯独这一条抛出。工具注册表最终会兜住并转成 `
 ```
 
 校验用 `name.strip()`,存储用 `name`。一个 `name` 返回 `" myprovider "` 的插件会注册成功,
-但任何 `get_provider("myprovider")` 都取不到它。`agent/browser_registry.py:64-69` / `:92-94`
+但任何 `get_provider("myprovider")` 都取不到它。`agent/browser_registry.py` 的 `register_provider` / `get_provider`
 逐字相同。影响很小(需要插件作者写出带空白的 `name`),但它是「复制出来的两份代码带着同一个瑕疵」
 的直接证据——说明这两个 registry 确实是复制关系。
 
@@ -1382,7 +1382,7 @@ JSON 字符串;唯独这一条抛出。工具注册表最终会兜住并转成 `
             },
 ```
 
-上限由**注册的 handler**用切片强制(`tools/web_tools.py:1228` 的
+上限由**注册的 handler**用切片强制(见上面数值表里那条
 `args.get("urls", [])[:5] if isinstance(args.get("urls"), list) else []`),
 `web_extract_tool` 函数本身不限。对模型而言文档成立;对「`from web_tools import web_extract_tool`」
 的直接调用者(模块 docstring 第 30-36 行推荐的用法)不成立。字面为真、覆盖面保守,故记 ◎。
@@ -1424,7 +1424,7 @@ JSON 字符串;唯独这一条抛出。工具注册表最终会兜住并转成 `
 |---|---|---|---|
 | H-R9D-E-a | `tools/web_tools.py:270`:`    return "firecrawl"  # default (backward compat)` | 什么都没配时返回硬编码后端名,该名字在注册表里**总能取到对象**,于是把注册表的可用性回落路径整条短路(■-1 的直接机制) | R10 分发器簇 |
 | H-R9D-E-b | `tools/web_tools.py:171` 的 `_LEGACY_WEB_BACKENDS` | 集合含 `"xai"`,但其上方注释断言 xai「不是注册的 provider」——`plugins/web/xai/__init__.py:14` 的 `ctx.register_web_search_provider(XAIWebSearchProvider())` 证明它已经是;注释指定的同步动作从未执行 | R10 |
-| H-R9D-E-c | `agent/web_search_registry.py:239`:`    ``_is_backend_available`` gate and the dispatcher silently drops to` | 代码自己承认分发器会静默换后端,与同文件 `_resolve` docstring 的「不静默换后端」承诺直接冲突(■-2) | R10 |
+| H-R9D-E-c | `agent/web_search_registry.py:239`:`gate and the dispatcher silently drops to` | 代码自己承认分发器会静默换后端,与同文件 `_resolve` docstring 的「不静默换后端」承诺直接冲突(■-2) | R10 |
 | H-R9D-E-d | `agent/tool_dispatch_helpers.py:584`:`_UNTRUSTED_TOOL_NAMES = frozenset({` | 集合只含 `web_extract` / `web_search`,`x_search` 的第三方内容既不被包装也不被威胁扫描(■-3) | R10 安全簇 |
 | H-R9D-E-e | `tools/browser_tool.py:753`:`    if _cloud_provider_resolved:` | 进程级缓存无 multiplex 豁免,而同文件 `:1468` 的 `if get_hermes_home_override() is not None:` 有——姐妹站点漏改(■-5) | R10 gateway/多路复用簇 |
 | H-R9D-E-f | `agent/browser_registry.py:113`:`def _resolve(configured: Optional[str]) -> Optional[BrowserProvider]:` | 该函数与 `_LEGACY_PREFERENCE` 只被测试引用,生产选择逻辑在 `tools/browser_tool.py:819` 的 `fallback_provider = BrowserUseProvider()` 里另写了一份(■-4) | R10 |
