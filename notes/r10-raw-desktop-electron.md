@@ -1406,16 +1406,35 @@ Electron 侧确实有三个"3"——`MAX_BOOTSTRAP_REPAIR_SOFT_ATTEMPTS = 3`、
 **用户点修复的次数**、**渲染进程崩溃重载的次数**、**远端探测失败的次数**,
 没有一个数的是"本地后端 spawn 的次数"。
 
-**负结论的搜索面**:在 `apps/desktop/electron/main.ts` 里搜标识符里含
-`Attempt|Attempts|Max|Limit|Times|Count` 的 `let`/`const` 声明,全部 7 处是
-`windowsNoSandboxRelaunchAttempted`(347)、`POOL_MAX`(1069)、`rendererReloadTimes`(1083)、
-`bootstrapRepairAttempt`(1115)、`TITLE_MAX`(4482)、`connectionAttempt`(8397,一次启动内的
-generation 令牌,不计数)、`dataUrlReadMaxMb`(10395);另外全片非测试文件搜 `respawn`
-只命中 10 处注释,零处实现。
+**负结论的搜索面**:在 `apps/desktop/electron/main.ts` 里搜标识符含
+`Attempt|Attempts|Max|Limit|Times|Count|_MAX|_LIMIT` 的 `let`/`const` 声明:
 
 ```verify
-cd /home/user/hermes-agent && grep -onE "\b(let|const) (_?[A-Za-z]*(Attempt|Attempts|Max|Limit|Times|Count)[A-Za-z]*)" apps/desktop/electron/main.ts
+cd /home/user/hermes-agent && grep -onE "\b(let|const) ([A-Za-z_][A-Za-z0-9_]*(Attempt|Attempts|Max|Limit|Times|Count|_MAX|_LIMIT)[A-Za-z0-9_]*)" apps/desktop/electron/main.ts
 ```
+
+重跑给出 **15 处**,逐一归类:5 处是**大小/字节上限**
+(`DESKTOP_LOG_BUFFER_MAX_CHARS` 630、`DESKTOP_LOG_MAX_BYTES` 646、
+`TEXT_PREVIEW_MAX_BYTES` 877、`BOOTSTRAP_LOG_RING_MAX` 1499、`dataUrlReadMaxMb` 10395);
+1 处是**路径**(`DATA_URL_READ_MAX_CONFIG_PATH` 10385);3 处是**抓标题子系统**的
+缓存/重定向/并发上限(`TITLE_CACHE_LIMIT` 4479、`TITLE_MAX_REDIRECTS` 4482、
+`RENDER_TITLE_MAX_CONCURRENT` 4496);1 处是**池上限**(`POOL_MAX_BACKENDS` 1069);
+1 处是**布尔标志**(`windowsNoSandboxRelaunchAttempted` 347);
+1 处是**单次启动内的 generation 令牌**(`connectionAttempt` 8397,不是计数器);
+剩下 3 处才是真正的"重试预算"——`RENDERER_RELOAD_MAX` 1082 + `rendererReloadTimes` 1083
+(数**渲染进程崩溃重载**)、`bootstrapRepairAttempt` 1115(数**用户点修复**)。
+**没有一处数本地后端的 spawn 次数。**
+
+另一条搜索面是关键词 `respawn`:
+
+```verify
+cd /home/user/hermes-agent && grep -rnE "respawn|Respawn" apps/desktop/electron/*.ts   | grep -v "\.test\.ts:" | grep -vE "ensureSpawnHelperExecutable" | nl
+```
+
+13 处命中,**全部是注释**,零处实现。
+*(这条命令里 `grep -vE "ensureSpawnHelperExecutable"` 那一段是必需的:不排除的话
+`import { ensureSpawnHelperExecutable }` 会命中——因为 `ensu`**`reSpawn`**`Helper` 里
+真的含 `reSpawn`。不排它,"13 处全是注释"就变成假话。)*
 
 现实中这个循环被渲染层自己的重连退避限住了,所以不是一个"必然烧 CPU"的 bug;记这一条是因为
 **两套实现对同一个问题写了同一个数字 3、含义却不同**,而这正是双实现最容易悄悄分岔的地方。
@@ -1456,6 +1475,9 @@ cd /home/user/hermes-agent && grep -rn "unsupported-platform" apps/desktop/elect
   grep -n "broadcastBootstrapEvent(" apps/desktop/electron/main.ts ; \
   grep -c "unsupported" apps/desktop/electron/bootstrap-runner.ts
 ```
+
+*(最后那个 `grep -c` 打印 `0` 并以退出码 1 结束——零命中正是这里要的结论,
+所以整条命令的退出码是 1 而不是 0,别把它当成命令写错了。)*
 
 所以这是一条**主进程再也发不出来的渲染层状态**。渲染层那边有对应的 UI 分支与类型定义:
 

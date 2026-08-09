@@ -1944,7 +1944,7 @@ web/src/pages/ModelsPage.tsx:38:import { ConfirmDialog } from "@/components/Conf
 `usePlugins` 与 `ThemeProvider` 在应用挂载时就分别打 `GET /api/dashboard/plugins`
 与 `GET /api/dashboard/themes`,而这两条都在后端的公开白名单里:
 
-`hermes_cli/dashboard_auth/public_paths.py:50 @ 863e313`
+`hermes_cli/dashboard_auth/public_paths.py:51 @ 863e313`
 
 ```python
     # Read-only theme + plugin manifests for the dashboard skin engine.
@@ -1960,10 +1960,25 @@ SPA 需要在拿到会话之前就完成插件与主题的引导。代价是未�
 
 ### ◎-G-01 —— 文档的图标清单成立但少列 3 个
 
-`website/docs/user-guide/features/extending-the-dashboard.md:491` 写
-"Currently mapped: " 后面列了 20 个 Lucide 图标名。代码的 `ICON_MAP`
-(`web/src/App.tsx:224`)有 **23** 个;列出的 20 个**全部为真**,
-缺的是 `Cpu`、`FolderOpen`、`Users`。字面为真,故记 ◎ 不记 ▲。
+`website/docs/user-guide/features/extending-the-dashboard.md:491 @ 863e313`
+
+> Currently mapped: `Activity`, `BarChart3`, `Clock`, `Code`, `Database`, `Eye`, `FileText`, `Globe`, `Heart`, `KeyRound`, `MessageSquare`, `Package`, `Puzzle`, `Settings`, `Shield`, `Sparkles`, `Star`, `Terminal`, `Wrench`, `Zap`.
+
+20 个。代码的映射表有 **23** 个:
+
+`web/src/App.tsx:225 @ 863e313`
+
+```tsx
+const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
+  Activity,
+  BarChart3,
+  Clock,
+  Cpu,
+  FileText,
+  FolderOpen,
+```
+
+列出的 20 个**全部为真**,缺的是 `Cpu`、`FolderOpen`、`Users`。字面为真,故记 ◎ 不记 ▲。
 
 ---
 
