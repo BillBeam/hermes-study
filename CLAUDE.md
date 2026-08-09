@@ -331,7 +331,7 @@ R8A 同一套 170 个测试文件先后报出 **3,183** 与 **3,190** 两个数,
 必然失败。被测代码 `DEFAULT_HOST = None`(`gateway/platforms/webhook.py:129 @ 863e313`)的语义是
 "按解析出的每个地址族各建一个套接字",只解析出 IPv4 时只建 IPv4 **是正确行为**。
 
-**R8B 补充:容器还有另外两条环境性质,合计已知会让 5 个用例必然失败(全部非代码缺陷)。**
+**R8B 补充(R8D 增第 6 条):容器的环境性质合计已知会让 6 个用例必然失败(全部非代码缺陷)。**
 每条都已逐个查到机制,勿再重复排查:
 
 | 用例 | 根因 | 机制(已核) |
@@ -341,6 +341,7 @@ R8A 同一套 170 个测试文件先后报出 **3,183** 与 **3,190** 两个数,
 | `tests/hermes_cli/test_gateway_service.py`(systemd 单元生成) | **以 root 运行** | 被测代码自己拒绝:`Refusing to install the gateway system service as root; pass --run-as-user root to override` |
 | `tests/hermes_cli/test_approvals_suggest.py::test_normalize_folds_home_prefix` | **以 root 运行**(`HOME=/root`) | `_home_prefix_fold_regex`(`tools/approval.py:1072 @ 863e313`)对"根下不足两段"的路径**故意返回 `None`**,防止畸形 HOME 改写无关前缀;`/root` 只有一段,于是不折叠 |
 | `tests/hermes_cli/test_xai_provider_labels.py` | **无 models.dev 目录**(离线) | `get_label` 命中不了覆盖表就回落 models.dev 目录取 `pdef.name`;本容器目录条目数实测 **0**、无本地缓存文件,于是返回原始 id `'xai'` 而非 `'xAI'` |
+| `tests/test_state_db_malformed_repair.py::test_repair_rebuilds_stale_btree_indexes`(R8D 增) | **SQLite 版本措辞差异**(本容器 3.45.1) | 用例断言 `PRAGMA integrity_check` 的**输出措辞**含 `wrong # of entries in index idx_messages_session`;3.45.1 对同一种损坏改报 `row 1 missing from index …; row 2 …; row 3 …`。**被测代码不依赖措辞**——单独复现确认 `repair_state_db_schema` 仍 `repaired=True / strategy=reindex_btree / integrity=ok`。属**用例脆性**(把实现细节钉进断言),不是代码缺陷,也不是容器缺陷 |
 
 **报测试通过数时一并记 venv 包数**(R8A 立):`pip list` 去掉两行表头后的条目数。
 R8B 实测 **87 个包**(`[dev]` extra + `aiohttp 3.14.1` + `brotlicffi 1.2.0.1`)。
