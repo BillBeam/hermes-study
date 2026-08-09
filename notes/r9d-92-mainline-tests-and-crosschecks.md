@@ -274,3 +274,123 @@ _BLOCKED_PROJECT_ENV_BASENAMES: set[str] = {
 
 *(H-R9C-b 的完整结构级理解见子代理取证书 `notes/r9d-90-handover-credential-landing.md`;
 本节只做主线自己关心的这一个判定。)*
+
+---
+
+## 4. 主线复核子代理的最强断言(不照抄,实跑重验)
+
+各片交付时附了 `strongest_claims` 与可重跑的复核方法。主线从中挑**最强、最反直觉、
+一旦错就会污染成品章**的三条实跑重验。**三条全部复现。**
+
+### 4.1 B 片 · 原子写的 `trap` 清理从不生效(与同函数 docstring 相反)
+
+`tools/file_operations.py:1071 @ 863e313`
+
+```python
+            "trap 'rm -f \\\"$tmp\\\"' EXIT; "
+```
+
+同一函数的 docstring 承诺:
+
+`tools/file_operations.py:1006-1008 @ 863e313`
+
+```python
+        On any failure the temp file is removed so we never leak a partial
+        ``.hermes-tmp`` file next to the user's data, and the original file
+        is left untouched. Content rides stdin so there is no ARG_MAX limit.
+```
+
+**病因**:shell 单引号内的 `\"` 是**字面量反斜杠加引号**,不是转义。trap 体在触发时被求值为
+`rm -f \"$tmp\"`,参数于是变成**带字面双引号的文件名**,与真实临时文件名不符,`rm` 删不掉。
+
+复核**不手抄源码**,直接从基线取那一行求值,再跑两组对照:
+
+```verify
+cd /home/user/hermes-agent && python3 -c "
+import ast, pathlib
+line = pathlib.Path('tools/file_operations.py').read_text().splitlines()[1070]
+print('求值后:', repr(ast.literal_eval(line.strip().rstrip(','))))"
+```
+
+```text
+求值后: 'trap \'rm -f \\"$tmp\\"\' EXIT; '
+```
+
+```verify
+SP=/tmp/r9dprobe && mkdir -p $SP && rm -f $SP/tstA.* $SP/tstB.*
+bash -c "set -e; tmp=$SP/tstA.\$\$; : > \"\$tmp\"; trap 'rm -f \\\"\$tmp\\\"' EXIT; false" 2>/dev/null
+ls $SP/tstA.* 2>/dev/null || echo "基线写法:无残留"
+bash -c "set -e; tmp=$SP/tstB.\$\$; : > \"\$tmp\"; trap \"rm -f '\$tmp'\" EXIT; false" 2>/dev/null
+ls $SP/tstB.* 2>/dev/null || echo "正确写法:无残留"
+```
+
+```text
+/tmp/r9dprobe/tstA.17504
+正确写法:无残留
+```
+
+**基线写法残留、正确写法不残留。断言成立。**
+
+### 4.2 B 片 · `write_file` 能覆盖 `auth.json`,而文档说它 always blocked
+
+文档侧(注意归属标题是 `### Protected paths (always blocked)`,在 `security.md:281`):
+
+`website/docs/user-guide/security.md:288 @ 863e313`
+
+> | Hermes credential stores | `auth.json`, `.env`, `.anthropic_oauth.json`, `mcp-tokens/`, `pairing/` under HERMES_HOME (active profile and global root) |
+
+代码侧,把该行**五个条目逐个**喂给写禁判据:
+
+```text
+文档所列条目                   is_write_denied    判定
+auth.json                False              **没挡住**
+.env                     True               挡住
+.anthropic_oauth.json    True               挡住
+mcp-tokens/              True               挡住
+pairing/                 True               挡住
+```
+
+**五个里唯独 `auth.json` 没挡住,而它恰恰是主凭据库。** 端到端实证(临时 HERMES_HOME,不碰真环境):
+
+```text
+写入前: {"providers": {"nous": {"access_token": "REAL-SECRET-TOKEN"}}}
+write_file_tool 返回: {"bytes_written": 12, "dirs_created": true, "verified": true,
+                      "lint": {"status": "ok", ...}, "files_modified": [".../hh/auth.json"]}
+写入后: {"pwned": 1}
+```
+
+**工具返回 `verified: true`、无 error,凭据库被整体覆盖。**
+这一条同时是 **■**(agent 可摧毁用户凭据库)与 **▲**(文档在 "always blocked" 标题下点名了它)。
+子代理断言成立,主线独立复现。
+
+### 4.3 A 片 · LSP 工作区根会逃出 git 工作树
+
+`agent/lsp/servers.py:205-209 @ 863e313`
+
+```python
+    found = nearest_root(
+        file_path,
+        markers,
+        excludes=excludes,
+        ceiling=os.path.dirname(workspace) if workspace else None,
+    )
+```
+
+`ceiling` 传的是 `dirname(workspace)`(**工作树的父目录**),而 `nearest_root` 在 ceiling
+那一层是**先查 marker、后判停**,于是工作树父目录里的 `pyproject.toml` 会被当成项目根。
+
+```text
+git 工作树      : /tmp/lsp-mtl8vndc/outer/repo
+_root_python 返回: /tmp/lsp-mtl8vndc/outer
+逃出工作树了吗   : 是 —— 工作区根在 git 工作树之外
+```
+
+**断言成立。** 其意义在于:git 闸门的全部目的就是把 LSP 的活动范围锁在工作树内,
+而这个差一层让它在"父目录恰好也是个 Python 项目"时失效——
+这在 monorepo 与 `~/projects/pyproject.toml` 这类布局下并不罕见。
+
+### 4.4 复核结论
+
+**抽验三条,三条全部复现,无一需要下调强度。** 这三条分属两片、两种性质
+(shell 引号错误 / 文档-代码矛盾 / 路径边界差一层),覆盖面上算是有代表性的抽样;
+但**抽验不是全验**——各片其余断言以其底稿自证为准,主线未逐条重跑,如实记在这里。
