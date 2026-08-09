@@ -1313,20 +1313,42 @@ grep -rn "HERMES_PET_REFERENCE_MAX_BYTES" --include="*.md" . | wc -l
 | `agent/pet/store.py:422`:`def rename_pet(slug: str, display_name: str) -> str` | 仅 `pet.rename` RPC |
 | `agent/pet/store.py:324`:`def thumbnail_png(slug: str, *, source_url: str = "", timeout: float = 30.0) -> bytes` | 仅 `pet.thumb` RPC |
 
-三者都只有桌面端能用,但:
+三者都只有桌面端能用。三个搜索面:
 
 ```verify
 cd /home/user/hermes-agent
-# 面:hermes pets 的子命令注册表 + 两份用户文档
-grep -nE "add_parser\(" hermes_cli/pets.py
-grep -rniE "\bexport\b|\brename\b|thumbnail" website/docs/user-guide/features/pets.md \
-    website/docs/reference/cli-commands.md \
+# 面 A:hermes pets 的子命令注册表(argparse 是唯一权威)
+grep -oE 'subs\.add_parser\("[a-z]+"' hermes_cli/pets.py
+# 面 B:两份 pet 专属文档里有没有 export / rename / thumbnail
+grep -rniE "\bexport\b|\brename\b|thumbnail" \
+    website/docs/user-guide/features/pets.md \
     skills/autonomous-ai-agents/hermes-agent/references/petdex.md | wc -l
+# 面 C:cli-commands.md 的 `hermes pets` 小节(1426-1448 行)
+sed -n '1426,1448p' website/docs/reference/cli-commands.md | grep -ciE "export|rename|thumbnail"
 ```
-第二条为 `0`。**排除项**:未搜桌面端 TS 文案(`apps/desktop/**`),那是 UI 内文字不是仓库文档。
-即 `hermes pets` 只有 list/install/select/show/off/scale/remove/doctor 八个子命令,
-导出/改名/缩略图**没有 CLI 对等物,也没有任何文档**。这不是缺陷,是"桌面优先"的能力分布,
-但对着文档学习的人会看不到这三个能力的存在。
+
+```text
+subs.add_parser("list"
+subs.add_parser("install"
+subs.add_parser("select"
+subs.add_parser("show"
+subs.add_parser("off"
+subs.add_parser("scale"
+subs.add_parser("remove"
+subs.add_parser("doctor"
+0
+0
+```
+
+**排除项 / 踩过的坑**:面 B 起初把 `website/docs/reference/cli-commands.md` **整文件**
+一起搜,得到 15 条命中 —— 全部来自 `hermes sessions` / `hermes profile` / `hermes project`
+等**别的**子命令的 export/rename,与 pet 无关。整文件搜会给出与结论相反的读数,
+所以这里把它换成"只搜 `hermes pets` 那一小节"(面 C)。另**未搜**桌面端 TS 文案
+(`apps/desktop/**`),那是 UI 内的字符串不是仓库文档。
+
+结论:`hermes pets` 只有 list / install / select / show / off / scale / remove / doctor
+八个子命令,导出 / 改名 / 缩略图**没有 CLI 对等物,也没有任何文档**。
+这不是缺陷,是"桌面优先"的能力分布,但对着文档学习的人会看不到这三个能力的存在。
 
 ### ◇-3 `rename_pet` 会连带改目录名与 slug —— 这个副作用没有任何文档
 

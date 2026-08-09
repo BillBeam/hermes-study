@@ -468,13 +468,31 @@ requires_env:
     from agent.image_gen_registry import get_active_provider, get_provider
 ```
 
-搜索面(全仓 `.py`,排除 `tests/`;**必须限定到 image_gen 的那一个** —— `hermes_cli/auth.py:1777` 另有一个同名但完全无关的 `get_active_provider()`,指的是推理 provider,裸搜 `get_active_provider` 会把它一起捞进来):
+搜索面(全仓 `.py`,排除 `tests/`)。**必须限定到 image_gen 的那一个** —— 全仓另有一个同名但完全无关的函数,指的是推理 provider,裸搜 `get_active_provider` 会把它连同 5 处调用一起捞进来:
+
+`hermes_cli/auth.py:1777`
+
+```python
+def get_active_provider() -> Optional[str]:
+    """Return the currently active provider ID from auth store."""
+    auth_store = _load_auth_store()
+    return auth_store.get("active_provider")
+```
 
 ```verify
 cd /home/user/hermes-agent && grep -rn "image_gen_registry import get_active_provider\|image_gen_registry\.get_active_provider" --include=*.py . | grep -v "^./tests/"
 ```
 
-实测 2 处命中:`agent/pet/generate/imagegen.py:83` 是**唯一真实调用点**,`agent/video_gen_registry.py:122` 只是一条说"我照着它写的"的注释。
+实测 2 处命中:`agent/pet/generate/imagegen.py:83` 是**唯一真实调用点**;另一处只是视频孪生里一条说"我照着它写的"的注释,连回退逻辑都是同一形状:
+
+`agent/video_gen_registry.py:122`
+
+```python
+    # Mirrors agent/image_gen_registry.get_active_provider().
+    available = [p for p in snapshot.values() if _is_available_safe(p)]
+    if len(available) == 1:
+        return available[0]
+```
 
 #### 2.2.4 `_reset_for_tests()`
 
@@ -1148,7 +1166,15 @@ cd /home/user/hermes-agent && grep -rniE "budget|quota|spend|credits?|\bcost\b" 
 
 实测 7 处命中,**全部是注释或 UI 字符串**:`tools/image_generation_tool.py:203` / `:273` 是解释为什么把档位钉死的价格注释;`tools/image_source.py:43` / `:338` 的 "budget" 指**字节数**(ingest 上限)不是钱;`plugins/image_gen/{openai-codex,krea,openai}` 三处是模型简介里的 "lowest cost" 之类文案。
 
-**搜索面为什么不含 `agent/tool_executor.py`**:它确实有一整套 `budget` 机制(`from tools.budget_config import BudgetConfig, DEFAULT_BUDGET, budget_for_context_window`,`agent/tool_executor.py:51`),但那是**工具输出的 token 预算**,与图像生成的钱无关,把它放进搜索面只会让这条命令的输出与结论相反。本簇从 `tool_executor.py` 只借了并发上限那一段。
+**搜索面为什么不含 `agent/tool_executor.py`**:它确实有一整套 `budget` 机制,但那是**工具输出的 token 预算**,与图像生成的钱无关 ——
+
+`agent/tool_executor.py:51`
+
+```python
+from tools.budget_config import BudgetConfig, DEFAULT_BUDGET, budget_for_context_window
+```
+
+把它放进搜索面只会让这条命令的输出与结论相反(实测会多出 30 余处 `budget` 命中)。本簇从 `tool_executor.py` 只借了并发上限那一段。
 
 ---
 
@@ -1367,7 +1393,19 @@ def _http_block_reason(url: str) -> Optional[str]:
 
 四个细节都有理由:
 - `head -c N+1`:在**沙箱内**就把读量截断,`/dev/zero` 之类不能把无界 base64 灌进宿主内存;`+1` 用来区分"正好到上限"和"超上限";
-- **输入重定向 `< path` 而不是 `base64 path`**:完全绕开 argv,前导横杠路径不会被当成选项(`tests/tools/test_image_source.py:200` 的 `TestExecReadSafety` 钉住);
+- **输入重定向 `< path` 而不是 `base64 path`**:完全绕开 argv,前导横杠路径不会被当成选项 ——
+
+`tests/tools/test_image_source.py:200`
+
+```python
+class TestExecReadSafety:
+    @pytest.mark.asyncio
+    async def test_exec_read_is_bounded_and_redirect_safe(self, tmp_path, monkeypatch):
+        """Leading-dash paths go through an input redirect (no argv exposure)
+        and the read is size-bounded via head -c."""
+```
+
+  (用例喂的路径是 `/workspace/-i-etc-shadow.png`,断言命令里含 `head -c <上限+1> < `。)
 - `base64 | tr -d '\n'`:`base64 -w0` 是 GNU 独有,BusyBox 没有;
 - `asyncio.to_thread`:`env.execute` 是阻塞的后端 exec,不能占着事件循环。
 
@@ -1560,7 +1598,18 @@ def _normalize_fal_queue_url_format(queue_run_origin: str) -> str:
 fal = ["fal-client==0.13.1"]
 ```
 
-`_extract_http_status` 兼容两种异常形态(`.response.status_code` 与 `.status_code`),`tests/tools/test_image_generation.py:279` 钉住。
+`_extract_http_status` 兼容两种异常形态(`.response.status_code` 与 `.status_code`):
+
+`tests/tools/test_image_generation.py:279`
+
+```python
+class TestExtractHttpStatus:
+    """Status-code extraction should work across exception shapes."""
+
+    def test_extracts_from_response_attr(self, image_tool):
+        exc = _MockHttpxError(403)
+        assert image_tool._extract_http_status(exc) == 403
+```
 
 托管客户端在 `image_generation_tool` 侧按 `(origin, token)` 缓存并加锁复用,理由写在 docstring:`"Reuse the managed FAL client so its internal httpx.Client is not leaked per call."`
 
