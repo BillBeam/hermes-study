@@ -332,7 +332,7 @@ env / 默认值 / 本地共享文件)。按 R9C"用户亲手填的地址不算 �
 
 ```verify
 cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python \
-  /tmp/claude-0/-home-user-hermes-study/11b9bcbd-a8fd-518c-931a-498c7a1d5f37/scratchpad/redirect_probe.py
+  data/r9d/probes/redirect_probe.py
 ```
 
 ```text
@@ -658,7 +658,7 @@ def _secure_file(path):
 
 ```verify
 cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python \
-  /tmp/claude-0/-home-user-hermes-study/11b9bcbd-a8fd-518c-931a-498c7a1d5f37/scratchpad/env_deny_probe.py
+  data/r9d/probes/env_deny_probe.py
 ```
 
 ```text
@@ -832,7 +832,7 @@ _BLOCKED_PROJECT_ENV_BASENAMES: set[str] = {
 
 ```verify
 cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python \
-  /tmp/claude-0/-home-user-hermes-study/11b9bcbd-a8fd-518c-931a-498c7a1d5f37/scratchpad/setup_overwrite_probe.py
+  data/r9d/probes/setup_overwrite_probe.py
 ```
 
 ```text

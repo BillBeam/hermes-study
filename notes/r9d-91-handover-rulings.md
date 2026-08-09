@@ -683,19 +683,76 @@ cd /home/user/hermes-agent && grep -rn "_NOUS_PORTAL_ALLOWED_HOSTS" --include=*.
 **读同一个 stored 字段 + 挂 Bearer + 走 `urlopen` 且不查清单 = 2 处
 (`nous_billing.py`、`dashboard_register.py`);查清单的 = 2 处,都在 `auth.py`。**
 
-### 6.5 处置结论
+### 6.5 处置结论(**经取证组 D 的证据修订,主线复核后采纳其拆分**)
 
-**立 ■,并把范围从 1 处扩到 2 处。**
+**主线初稿判「立 ■,范围扩到 2 处」。取证组 D 提出一个更细的三段拆分,主线复核后采纳。**
+分歧只在**中间那一段**:stored 分支不查清单,到底是 ■ 还是设计缺口。
 
-- **stored 分支**:■。作者自述的威胁模型明写这条清单就是为它写的,而两个消费点都没查。
-- **env 分支**:**不是缺陷**,合乎作者明述的设计。*(R9C 的移交项把两个分支并作一条写,
-  本轮拆开——不拆的话修法会把一个正确的逃生舱一起堵了。)*
-- **修法**:`resolve_portal_base_url` 的 **stored 分支**加清单校验(env 分支保持不变),
-  且两个消费点一并从 `urlopen` 换成 `open_credentialed_url`。
-- **仍是推定的一半**:**未取证"网络侧如何把 poisoned 值写进 `auth.json`"**。
-  本轮只证明了"若该字段被污染,则 bearer 发往污染地址",没有证明污染路径本身可达。
-  采信"这是真威胁"的依据是**作者自己在 `auth.py:2341` 写下的威胁模型**——
-  这是仓库内证据,不是我的推断,但它终究是作者的判断而非我实证的攻击链。
+取证组 D 给出两条我没查的证据:
+
+1. **`portal_base_url` 在本基线内只有操作者来源**(命令行 `--portal-url` / env / 注册表默认 / 本地共享文件),
+   没有网络写入路径;
+2. **有一条测试把"非白名单 stored 值原样使用"钉成了期望行为**:
+
+`tests/hermes_cli/test_billing_scope_stepup.py:73-74 @ 863e313`
+
+```python
+    # Reuses the prior credential's deployment URLs (so a preview stays a preview).
+    assert captured["portal_base_url"] == "https://preview.example.com"
+```
+
+**主线复核:属实。** 注释写明理由——"so a preview stays a preview",
+即 stored 字段的语义是"哪个部署签发了这个令牌",尊重它正是这个字段存在的目的。
+
+**因此修订为三段:**
+
+| 分段 | 判定 | 理由 |
+|---|---|---|
+| env 分支不查清单 | **不是缺陷**(与初稿一致) | 作者 `auth.py:2339-2342` 明文规定 env 可信、必须绕过清单 |
+| **stored 分支不查清单** | **由 ■ 降为设计缺口**(纵深防御不对齐) | 本基线内无网络写入路径;且有测试把宽松行为钉成期望 |
+| **下游用裸 `urlopen` 而非 `open_credentialed_url`** | **■(本条真正该留下的那一条)** | 跨源 302 把 `billing:manage` 的 Bearer 原样送到新目的地,**与来源无关** |
+
+**为什么这个拆分比我的初稿好**:我把"字段没校验"与"令牌会泄漏"捆成一条 ■。
+拆开之后可以看到,**只有后半段不依赖"攻击者能不能写那个字段"**——
+前半段的严重度取决于可达性(而可达性在本基线内不成立),后半段则是任何能控制 3xx 的链路环节都能利用。
+*一条 ■ 如果它的成立依赖一个未取证的可达性假设,就该说清楚哪一半不依赖。*
+
+**`auth.py:2341` 那句"allowlist exists to reject an untrusted NETWORK-provided value"仍然成立,
+但它描述的是 `auth.py` 自己那条 OAuth 路径的威胁模型**(那里泄漏的是 refresh token,
+且该策略由 2026-07 一次真实事故催生)。两个模块对同一字段的处理确实不一致,
+**这个不一致本身值得记为设计缺口,但不足以让 `nous_billing` 那一处单独成 ■。**
+
+**范围仍是 2 处**:`hermes_cli/dashboard_register.py` 同型(读 stored、挂 Bearer、走 `urlopen`),
+按同一套三段拆分处理。
+
+### 6.6 H-R9C-b:关闭,并接受取证组 D 新增的一条 ■
+
+**原担心形态不成立**(见 `notes/r9d-92-*.md` §3:`.env` 在禁读清单里,两条规则各拦一次)。
+补读完成后取证组 D 新增一条 ■,**主线核过代码顺序,成立**:
+
+`hermes_cli/secrets_cli.py:195-196 @ 863e313`
+
+```python
+    save_env_value(token_env, token)
+    os.environ[token_env] = token  # so the test fetch below sees it
+```
+
+**落盘在前,验证在后**(注释自己写明"so the test fetch **below** sees it")。
+于是重跑安装向导时,一次坏粘贴会**先覆盖掉正在工作的令牌**,再报验证失败。
+
+而**同一文件的兄弟命令 `cmd_rotate` 把安全顺序写进了 docstring**:
+
+`hermes_cli/secrets_cli.py:372-374 @ 863e313`
+
+```python
+    Prompts for (or accepts via ``--access-token``) a new machine-account
+    token, probes Bitwarden with it (unless ``--no-verify``), and only then
+    persists it to .env — so a bad paste never bricks the working token.
+```
+
+**归属核对(CLAUDE.md 要求)**:`:374` 这句 docstring 管的是 **`cmd_rotate`**,不是 `cmd_setup`。
+取证组 D 没有把它错挂到 `cmd_setup` 头上——它的表述是"两个兄弟命令顺序相反,
+而仓库把安全的那一种写成了原则"。**这个归属是对的**,故不构成 r7b ▲4 那种错挂标题的问题。
 
 ---
 
@@ -710,5 +767,5 @@ cd /home/user/hermes-agent && grep -rn "_NOUS_PORTAL_ALLOWED_HOSTS" --include=*.
 | **H-R9A-e** | `agent/subagent_lifecycle.py:259`:`record.future = _EXECUTOR.submit(self._run, record, request.goal, parent)` | **维持 ■,方向定死为 fail-open**:父线程 `approved=False` 的危险动作,在裸 submit 的 worker 里变成 `approved=True`(主线独立复现) |
 | **H-R9A-f** | `tools/skills_hub.py:3205`:`resp = httpx.get(md_url, timeout=20, follow_redirects=True)` | **维持 ■,改述两处**:风险是 SSRF + skill 内容投毒(不挂凭据);覆盖率由「8 取 1」改述为「同类 3 处、2 守 1 未守」 |
 | **H-R9A-g** | `AGENTS.md:966`:`All toolsets are defined in ` | **关闭**。R9A 的「漏 28」改正为 **31**;**主线初判被推翻**——按定稿快照(集合严格相等)拆为 24 平台族 **◇** + 7 能力 toolset **▲**;R9A 锚点 `971-974` 改正为 `971-975`(原范围漏一整行 8 个键) |
-| **H-R9C-a** | `hermes_cli/nous_billing.py:182`:`stored = state.get("portal_base_url")` | **立 ■,范围扩到 2 处**;env 分支判为**合乎设计、非缺陷**(作者自述威胁模型) |
-| **H-R9C-b** | `hermes_cli/secrets_cli.py:59`:`help="Provide the access token non-interactively (will be stored in .env)",` | 核心问号判**阴性**:落盘的 `.env` 在禁读清单里(profile 级 + 根级 + 7 个项目基名),见 `notes/r9d-92-*.md` §3;取证组 D 的结构级理解到货后另附 |
+| **H-R9C-a** | `hermes_cli/nous_billing.py:413`:`with urllib.request.urlopen(req, timeout=timeout) as resp:` | **三段拆分(经取证组 D 证据修订)**:env 分支**非缺陷**;stored 分支**由 ■ 降为设计缺口**(无网络写入路径 + 有测试钉住宽松行为);**真正的 ■ 是下游裸 `urlopen` 跨源 302 带走 Bearer**,与来源无关。范围仍 2 处 |
+| **H-R9C-b** | `hermes_cli/secrets_cli.py:195`:`save_env_value(token_env, token)` | **关闭并改述**:原担心形态不成立(`.env` 在禁读清单里,两条规则各拦一次);补读完成,**新增 ■ = `cmd_setup` 验证前落盘**,而兄弟命令 `cmd_rotate` 把安全顺序写进了 docstring |

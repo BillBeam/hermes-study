@@ -516,6 +516,76 @@ webhook 平台的工具集保留了它,但 webhook 的默认投递只写日志�
 
 ---
 
+## 3.7 把这个形态数一遍:它是普遍的,还是我挑出来的?
+
+前面 8 个实例都是**人工撞见**的。人工实例有个绕不开的问题:**无法排除挑选偏差**——
+也许我只是把散落各处的巧合串成了一条故事线。所以本章最后做一次机械枚举:
+用 AST 扫全仓非测试 `.py`,找出所有**模块级、纯字符串字面量构成的 `set`/`frozenset` 常量**,
+其元素与"已注册工具名"有 ≥2 个交集——也就是"按工具名列举"的常量。
+
+```verify
+python3 data/r9d/probes/name_keyed_guard_census.py /home/user/hermes-agent
+```
+
+```text
+已注册工具名(取自 toolsets.py 的 TOOLSETS/tools):87 个
+
+  命中   元素    未覆盖  位置
+  54   55     33  acp_adapter/tools.py:62  _POLISHED_TOOLS
+  15   16     72  agent/tool_guardrails.py:41  MUTATING_TOOL_NAMES
+  12   12     75  agent/tool_dispatch_helpers.py:47  _PARALLEL_SAFE_TOOLS
+  12   12     75  agent/tool_result_classification.py:15  NO_EFFECT_TOOL_NAMES
+   8   16     79  agent/tool_guardrails.py:20  IDEMPOTENT_TOOL_NAMES
+   7    7     80  agent/agent_runtime_helpers.py:100  AGENT_RUNTIME_POST_HOOK_TOOL_NAMES
+   7    7     80  tools/code_execution_tool.py:63  SANDBOX_ALLOWED_TOOLS
+   4    4     83  model_tools.py:680  _AGENT_LOOP_TOOLS
+   4    5     83  tools/delegate_tool.py:48  DELEGATE_BLOCKED_TOOLS
+   3    4     84  gateway/run.py:1498  _AUTO_APPEND_MEDIA_TOOL_NAMES
+   3    8     84  hermes_cli/tools_config.py:156  _DEFAULT_OFF_TOOLSETS
+   2    2     85  agent/kanban_stop.py:20  _TERMINAL_KANBAN_TOOLS
+   2    2     85  agent/tool_dispatch_helpers.py:68  _PATH_SCOPED_READERS
+   2    2     85  agent/tool_dispatch_helpers.py:69  _PATH_SCOPED_WRITERS
+   2    2     85  agent/tool_dispatch_helpers.py:584  _UNTRUSTED_TOOL_NAMES
+   2    2     85  agent/tool_result_classification.py:9  FILE_MUTATING_TOOL_NAMES
+   2    2     85  model_tools.py:681  _READ_SEARCH_TOOLS
+
+合计:17 个「按工具名列举」的模块级常量
+其中只列 ≤5 个工具的:10 个
+```
+
+**先说这个数**不**能证明什么**:它**不是缺陷检测器**。一个只列 2 个名字的常量完全可能是对的
+——它本就只该管那两个。表里绝大多数条目我没有逐个判过。
+
+**它能证明的是**:"按工具名列举"在本仓库是一种**普遍写法**(17 处),
+而**我在 §3 里人工撞见的那两条,正好落在这张表的最底下一档**
+(`_UNTRUSTED_TOOL_NAMES` 与 `FILE_MUTATING_TOOL_NAMES`,各 2 个元素)。
+换句话说,**那 8 个实例不是我从犄角旮旯里挑出来的孤例,而是一种普遍写法在最窄的那几档上的必然结果。**
+
+**表里还藏着一条本章前面没讲的、很能说明问题的对照。** 仓库对"哪些工具会改东西"有**两个答案**:
+
+`agent/tool_guardrails.py:41-46 @ 863e313`
+
+```python
+MUTATING_TOOL_NAMES = frozenset(
+    {
+        "terminal",
+        "execute_code",
+        "write_file",
+        "patch",
+```
+
+`agent/tool_result_classification.py:9 @ 863e313`
+
+```python
+FILE_MUTATING_TOOL_NAMES = frozenset({"write_file", "patch"})
+```
+
+**仓库完全知道 `terminal` 与 `execute_code` 会改东西——它在 `tool_guardrails` 里写着呢。**
+而 §3.1 那个"你改了代码,先去验证再停"的收尾门,用的是下面那个只有两个名字的集合。
+**不是没想到,是这条知识没有被用在需要它的那一层。**
+
+---
+
 ## 4. 可迁移的设计原则
 
 写自己的 harness 时,这一簇给出的教训按重要性排序:
