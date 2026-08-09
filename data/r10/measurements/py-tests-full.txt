@@ -1,0 +1,894 @@
+▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+▶ running per-file parallel test suite via run_tests_parallel.py
+  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+▶ pre-compiling bytecode cache
+▶ launching test runner
+Discovered 86 test files (~1077 tests) under ['tests/acp/test_approval_isolation.py', 'tests/acp/test_auth.py', 'tests/acp/test_edit_approval.py', 'tests/acp/test_entry.py', 'tests/acp/test_events.py', 'tests/acp/test_mcp_e2e.py', 'tests/acp/test_named_provider_catalogs.py', 'tests/acp/test_permissions.py', 'tests/acp/test_ping_suppression.py', 'tests/acp/test_server.py', 'tests/acp/test_session.py', 'tests/acp/test_session_db_private_access.py', 'tests/acp/test_session_provenance.py', 'tests/acp/test_tools.py', 'tests/acp_adapter/test_acp_commands.py', 'tests/acp_adapter/test_acp_images.py', 'tests/acp_adapter/test_acp_mcp_discovery.py', 'tests/acp_adapter/test_detect_provider_entra.py', 'tests/gateway/test_complete_path_at_filter.py', 'tests/gateway/test_session_list_allowed_sources.py', 'tests/gateway/test_tui_approval_redaction.py', 'tests/hermes_cli/test_config_loader_e2e.py', 'tests/hermes_cli/test_remote_spending_gate_contract.py', 'tests/hermes_state/test_restore_alternation_repair.py', 'tests/run_agent/test_notice_spine.py', 'tests/test_audio_playback_guard.py', 'tests/test_lazy_session_regressions.py', 'tests/test_slash_worker_watchdog.py', 'tests/test_tui_entry_mcp_owner.py', 'tests/test_tui_gateway_loop_noise.py', 'tests/test_tui_gateway_queue_on_busy.py', 'tests/test_tui_gateway_server.py', 'tests/test_tui_gateway_ws.py', 'tests/test_tui_mcp_late_refresh.py', 'tests/test_windows_subprocess_no_window_flags.py', 'tests/tools/test_windows_native_support.py', 'tests/tui_gateway/test_auto_continue.py', 'tests/tui_gateway/test_billing_rpc.py', 'tests/tui_gateway/test_change_watcher.py', 'tests/tui_gateway/test_codex_app_server_live_events.py', 'tests/tui_gateway/test_cold_start_gil_stall.py', 'tests/tui_gateway/test_compaction_status.py', 'tests/tui_gateway/test_compress_lock_skip.py', 'tests/tui_gateway/test_compute_host.py', 'tests/tui_gateway/test_compute_host_phase1.py', 'tests/tui_gateway/test_custom_provider_session_persistence.py', 'tests/tui_gateway/test_delegation_session_lifecycle.py', 'tests/tui_gateway/test_entry_import_off_main_thread.py', 'tests/tui_gateway/test_entry_picker_prewarm.py', 'tests/tui_gateway/test_entry_sys_path.py', 'tests/tui_gateway/test_failed_turn_retention.py', 'tests/tui_gateway/test_fast_session_scope.py', 'tests/tui_gateway/test_finalize_session_persist.py', 'tests/tui_gateway/test_gateway_owned_session_reap.py', 'tests/tui_gateway/test_goal_command.py', 'tests/tui_gateway/test_image_routing_stale_model.py', 'tests/tui_gateway/test_inline_rpc_gil_starvation.py', 'tests/tui_gateway/test_interim_assistant_callback.py', 'tests/tui_gateway/test_iso_certify_seam.py', 'tests/tui_gateway/test_kanban_notify_poller.py', 'tests/tui_gateway/test_make_agent_provider.py', 'tests/tui_gateway/test_mcp_late_refresh_thread_owner.py', 'tests/tui_gateway/test_mcp_reload_rev.py', 'tests/tui_gateway/test_moa_reference_emit.py', 'tests/tui_gateway/test_model_switch_marker_role.py', 'tests/tui_gateway/test_pet_generate_rpc.py', 'tests/tui_gateway/test_project_tree.py', 'tests/tui_gateway/test_projects_rpc.py', 'tests/tui_gateway/test_protocol.py', 'tests/tui_gateway/test_reasoning_config_per_model.py', 'tests/tui_gateway/test_reasoning_session_scope.py', 'tests/tui_gateway/test_render.py', 'tests/tui_gateway/test_review_summary_callback.py', 'tests/tui_gateway/test_session_cwd_follow.py', 'tests/tui_gateway/test_session_id_injection.py', 'tests/tui_gateway/test_session_images_dir.py', 'tests/tui_gateway/test_session_platform_resolution.py', 'tests/tui_gateway/test_session_reclaim_notify.py', 'tests/tui_gateway/test_slash_worker_ansi.py', 'tests/tui_gateway/test_slash_worker_mcp_discovery.py', 'tests/tui_gateway/test_slash_worker_profile_home.py', 'tests/tui_gateway/test_slash_worker_sys_path.py', 'tests/tui_gateway/test_subagent_child_mirror.py', 'tests/tui_gateway/test_subprocess_encoding.py', 'tests/tui_gateway/test_undo_command.py', 'tests/tui_gateway/test_wait_for_mcp_discovery.py']; running with -j 8
+[  0.5% |     5/~1077 | ✓5 | ✗0] ✓ tests/acp/test_approval_isolation.py (5✓, 2.8s)
+[  1.0% |    11/~1077 | ✓5 | ✗0] ✗ tests/acp/test_named_provider_catalogs.py (1e, 3.0s)
+
+  ╔╍ Failed: tests/acp/test_named_provider_catalogs.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+  ║ ============================= test session starts ==============================
+  ║ platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+  ║ rootdir: /home/user/hermes-agent
+  ║ configfile: pyproject.toml
+  ║ plugins: anyio-4.14.2, asyncio-1.3.0
+  ║ asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+  ║ collected 0 items / 1 error
+  ║ 
+  ║ ==================================== ERRORS ====================================
+  ║ __________ ERROR collecting tests/acp/test_named_provider_catalogs.py __________
+  ║ ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_named_provider_catalogs.py'.
+  ║ Hint: make sure your test modules/packages have valid Python names.
+  ║ Traceback:
+  ║ /usr/lib/python3.11/importlib/__init__.py:126: in import_module
+  ║     return _bootstrap._gcd_import(name[level:], package, level)
+  ║            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ║ tests/acp/test_named_provider_catalogs.py:15: in <module>
+  ║     from acp_adapter.server import HermesACPAgent, _named_custom_provider_catalogs
+  ║ acp_adapter/server.py:18: in <module>
+  ║     import acp
+  ║ E   ModuleNotFoundError: No module named 'acp'
+  ║ =========================== short test summary info ============================
+  ║ ERROR tests/acp/test_named_provider_catalogs.py
+  ║ !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+  ║ =============================== 1 error in 0.57s ===============================
+  ║
+  ║  Repro: python -m pytest tests/acp/test_named_provider_catalogs.py
+  ╚╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+
+[  1.4% |    15/~1077 | ✓5 | ✗0] ✗ tests/acp/test_entry.py (1e, 3.2s)
+
+  ╔╍ Failed: tests/acp/test_entry.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+  ║ ============================= test session starts ==============================
+  ║ platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+  ║ rootdir: /home/user/hermes-agent
+  ║ configfile: pyproject.toml
+  ║ plugins: anyio-4.14.2, asyncio-1.3.0
+  ║ asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+  ║ collected 0 items / 1 error
+  ║ 
+  ║ ==================================== ERRORS ====================================
+  ║ ___________________ ERROR collecting tests/acp/test_entry.py ___________________
+  ║ ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_entry.py'.
+  ║ Hint: make sure your test modules/packages have valid Python names.
+  ║ Traceback:
+  ║ /usr/lib/python3.11/importlib/__init__.py:126: in import_module
+  ║     return _bootstrap._gcd_import(name[level:], package, level)
+  ║            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ║ tests/acp/test_entry.py:5: in <module>
+  ║     import acp
+  ║ E   ModuleNotFoundError: No module named 'acp'
+  ║ =========================== short test summary info ============================
+  ║ ERROR tests/acp/test_entry.py
+  ║ !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+  ║ =============================== 1 error in 0.45s ===============================
+  ║
+  ║  Repro: python -m pytest tests/acp/test_entry.py
+  ╚╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+
+[  2.0% |    22/~1077 | ✓5 | ✗0] ✗ tests/acp/test_events.py (1e, 3.3s)
+
+  ╔╍ Failed: tests/acp/test_events.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+  ║ ============================= test session starts ==============================
+  ║ platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+  ║ rootdir: /home/user/hermes-agent
+  ║ configfile: pyproject.toml
+  ║ plugins: anyio-4.14.2, asyncio-1.3.0
+  ║ asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+  ║ collected 0 items / 1 error
+  ║ 
+  ║ ==================================== ERRORS ====================================
+  ║ __________________ ERROR collecting tests/acp/test_events.py ___________________
+  ║ ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_events.py'.
+  ║ Hint: make sure your test modules/packages have valid Python names.
+  ║ Traceback:
+  ║ /usr/lib/python3.11/importlib/__init__.py:126: in import_module
+  ║     return _bootstrap._gcd_import(name[level:], package, level)
+  ║            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ║ tests/acp/test_events.py:11: in <module>
+  ║     import acp
+  ║ E   ModuleNotFoundError: No module named 'acp'
+  ║ =========================== short test summary info ============================
+  ║ ERROR tests/acp/test_events.py
+  ║ !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+  ║ =============================== 1 error in 0.56s ===============================
+  ║
+  ║  Repro: python -m pytest tests/acp/test_events.py
+  ╚╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+
+[  2.7% |    29/~1077 | ✓5 | ✗0] ✗ tests/acp/test_mcp_e2e.py (1e, 3.3s)
+
+  ╔╍ Failed: tests/acp/test_mcp_e2e.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+  ║ ============================= test session starts ==============================
+  ║ platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+  ║ rootdir: /home/user/hermes-agent
+  ║ configfile: pyproject.toml
+  ║ plugins: anyio-4.14.2, asyncio-1.3.0
+  ║ asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+  ║ collected 0 items / 1 error
+  ║ 
+  ║ ==================================== ERRORS ====================================
+  ║ __________________ ERROR collecting tests/acp/test_mcp_e2e.py __________________
+  ║ ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_mcp_e2e.py'.
+  ║ Hint: make sure your test modules/packages have valid Python names.
+  ║ Traceback:
+  ║ /usr/lib/python3.11/importlib/__init__.py:126: in import_module
+  ║     return _bootstrap._gcd_import(name[level:], package, level)
+  ║            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ║ tests/acp/test_mcp_e2e.py:14: in <module>
+  ║     import acp
+  ║ E   ModuleNotFoundError: No module named 'acp'
+  ║ =========================== short test summary info ============================
+  ║ ERROR tests/acp/test_mcp_e2e.py
+  ║ !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+  ║ =============================== 1 error in 0.50s ===============================
+  ║
+  ║  Repro: python -m pytest tests/acp/test_mcp_e2e.py
+  ╚╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+
+[  3.2% |    34/~1077 | ✓5 | ✗0] ✗ tests/acp/test_permissions.py (1e, 3.4s)
+
+  ╔╍ Failed: tests/acp/test_permissions.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+  ║ ============================= test session starts ==============================
+  ║ platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+  ║ rootdir: /home/user/hermes-agent
+  ║ configfile: pyproject.toml
+  ║ plugins: anyio-4.14.2, asyncio-1.3.0
+  ║ asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+  ║ collected 0 items / 1 error
+  ║ 
+  ║ ==================================== ERRORS ====================================
+  ║ ________________ ERROR collecting tests/acp/test_permissions.py ________________
+  ║ ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_permissions.py'.
+  ║ Hint: make sure your test modules/packages have valid Python names.
+  ║ Traceback:
+  ║ /usr/lib/python3.11/importlib/__init__.py:126: in import_module
+  ║     return _bootstrap._gcd_import(name[level:], package, level)
+  ║            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ║ tests/acp/test_permissions.py:8: in <module>
+  ║     from acp.schema import (
+  ║ E   ModuleNotFoundError: No module named 'acp'
+  ║ =========================== short test summary info ============================
+  ║ ERROR tests/acp/test_permissions.py
+  ║ !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+  ║ =============================== 1 error in 0.46s ===============================
+  ║
+  ║  Repro: python -m pytest tests/acp/test_permissions.py
+  ╚╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+
+[  3.4% |    37/~1077 | ✓7 | ✗1] ✗ tests/acp/test_auth.py (2✓ 1✗, 4.9s)
+
+  ╔╍ Failed: tests/acp/test_auth.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+  ║ 
+  ║ self = <tests.acp.test_auth.TestBuildAuthMethods object at 0x7f63b5d43590>
+  ║ monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f63b619f450>
+  ║ 
+  ║     def test_build_auth_methods_returns_provider_and_terminal_when_configured(self, monkeypatch):
+  ║         monkeypatch.setattr("acp_adapter.auth.detect_provider", lambda: "openrouter")
+  ║     
+  ║ >       methods = build_auth_methods()
+  ║                   ^^^^^^^^^^^^^^^^^^^^
+  ║ 
+  ║ tests/acp/test_auth.py:39: 
+  ║ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+  ║ 
+  ║     def build_auth_methods() -> list[Any]:
+  ║         """Return registry-compatible ACP auth methods for Hermes.
+  ║     
+  ║         The official ACP registry validates that agents advertise at least one
+  ║         usable auth method during the initial handshake. A fresh Zed install may
+  ║         not have Hermes provider credentials configured yet, so Hermes always
+  ║         advertises a terminal setup method. When credentials are already present,
+  ║         it also advertises the resolved provider as the default agent-managed
+  ║         runtime credential method.
+  ║         """
+  ║ >       from acp.schema import AuthMethodAgent, TerminalAuthMethod
+  ║ E       ModuleNotFoundError: No module named 'acp'
+  ║ 
+  ║ acp_adapter/auth.py:51: ModuleNotFoundError
+  ║ =========================== short test summary info ============================
+  ║ FAILED tests/acp/test_auth.py::TestBuildAuthMethods::test_build_auth_methods_returns_provider_and_terminal_when_configured
+  ║ ========================= 1 failed, 2 passed in 0.82s ==========================
+  ║
+  ║  Repro: python -m pytest tests/acp/test_auth.py
+  ╚╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+
+[  6.2% |    67/~1077 | ✓7 | ✗1] ✗ tests/acp/test_server.py (1e, 3.1s)
+
+  ╔╍ Failed: tests/acp/test_server.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+  ║ ============================= test session starts ==============================
+  ║ platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+  ║ rootdir: /home/user/hermes-agent
+  ║ configfile: pyproject.toml
+  ║ plugins: anyio-4.14.2, asyncio-1.3.0
+  ║ asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+  ║ collected 0 items / 1 error
+  ║ 
+  ║ ==================================== ERRORS ====================================
+  ║ __________________ ERROR collecting tests/acp/test_server.py ___________________
+  ║ ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_server.py'.
+  ║ Hint: make sure your test modules/packages have valid Python names.
+  ║ Traceback:
+  ║ /usr/lib/python3.11/importlib/__init__.py:126: in import_module
+  ║     return _bootstrap._gcd_import(name[level:], package, level)
+  ║            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ║ tests/acp/test_server.py:10: in <module>
+  ║     import acp
+  ║ E   ModuleNotFoundError: No module named 'acp'
+  ║ =========================== short test summary info ============================
+  ║ ERROR tests/acp/test_server.py
+  ║ !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+  ║ =============================== 1 error in 0.42s ===============================
+  ║
+  ║  Repro: python -m pytest tests/acp/test_server.py
+  ╚╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+
+[  6.5% |    70/~1077 | ✓7 | ✗1] ✗ tests/acp/test_ping_suppression.py (1e, 4.0s)
+
+  ╔╍ Failed: tests/acp/test_ping_suppression.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+  ║ ============================= test session starts ==============================
+  ║ platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+  ║ rootdir: /home/user/hermes-agent
+  ║ configfile: pyproject.toml
+  ║ plugins: anyio-4.14.2, asyncio-1.3.0
+  ║ asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+  ║ collected 0 items / 1 error
+  ║ 
+  ║ ==================================== ERRORS ====================================
+  ║ _____________ ERROR collecting tests/acp/test_ping_suppression.py ______________
+  ║ ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_ping_suppression.py'.
+  ║ Hint: make sure your test modules/packages have valid Python names.
+  ║ Traceback:
+  ║ /usr/lib/python3.11/importlib/__init__.py:126: in import_module
+  ║     return _bootstrap._gcd_import(name[level:], package, level)
+  ║            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ║ tests/acp/test_ping_suppression.py:19: in <module>
+  ║     from acp.exceptions import RequestError
+  ║ E   ModuleNotFoundError: No module named 'acp'
+  ║ =========================== short test summary info ============================
+  ║ ERROR tests/acp/test_ping_suppression.py
+  ║ !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+  ║ =============================== 1 error in 0.72s ===============================
+  ║
+  ║  Repro: python -m pytest tests/acp/test_ping_suppression.py
+  ╚╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+
+[  8.6% |    93/~1077 | ✓7 | ✗1] ✗ tests/acp/test_tools.py (1e, 4.3s)
+
+  ╔╍ Failed: tests/acp/test_tools.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+  ║ ============================= test session starts ==============================
+  ║ platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+  ║ rootdir: /home/user/hermes-agent
+  ║ configfile: pyproject.toml
+  ║ plugins: anyio-4.14.2, asyncio-1.3.0
+  ║ asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+  ║ collected 0 items / 1 error
+  ║ 
+  ║ ==================================== ERRORS ====================================
+  ║ ___________________ ERROR collecting tests/acp/test_tools.py ___________________
+  ║ ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_tools.py'.
+  ║ Hint: make sure your test modules/packages have valid Python names.
+  ║ Traceback:
+  ║ /usr/lib/python3.11/importlib/__init__.py:126: in import_module
+  ║     return _bootstrap._gcd_import(name[level:], package, level)
+  ║            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ║ tests/acp/test_tools.py:5: in <module>
+  ║     from acp_adapter.tools import (
+  ║ acp_adapter/tools.py:10: in <module>
+  ║     import acp
+  ║ E   ModuleNotFoundError: No module named 'acp'
+  ║ =========================== short test summary info ============================
+  ║ ERROR tests/acp/test_tools.py
+  ║ !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+  ║ =============================== 1 error in 0.75s ===============================
+  ║
+  ║  Repro: python -m pytest tests/acp/test_tools.py
+  ╚╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+
+[  8.9% |    96/~1077 | ✓7 | ✗1] ✗ tests/acp_adapter/test_acp_commands.py (1e, 3.5s)
+
+  ╔╍ Failed: tests/acp_adapter/test_acp_commands.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+  ║ ============================= test session starts ==============================
+  ║ platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+  ║ rootdir: /home/user/hermes-agent
+  ║ configfile: pyproject.toml
+  ║ plugins: anyio-4.14.2, asyncio-1.3.0
+  ║ asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+  ║ collected 0 items / 1 error
+  ║ 
+  ║ ==================================== ERRORS ====================================
+  ║ ___________ ERROR collecting tests/acp_adapter/test_acp_commands.py ____________
+  ║ ImportError while importing test module '/home/user/hermes-agent/tests/acp_adapter/test_acp_commands.py'.
+  ║ Hint: make sure your test modules/packages have valid Python names.
+  ║ Traceback:
+  ║ /usr/lib/python3.11/importlib/__init__.py:126: in import_module
+  ║     return _bootstrap._gcd_import(name[level:], package, level)
+  ║            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ║ tests/acp_adapter/test_acp_commands.py:5: in <module>
+  ║     from acp.schema import TextContentBlock
+  ║ E   ModuleNotFoundError: No module named 'acp'
+  ║ =========================== short test summary info ============================
+  ║ ERROR tests/acp_adapter/test_acp_commands.py
+  ║ !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+  ║ =============================== 1 error in 0.36s ===============================
+  ║
+  ║  Repro: python -m pytest tests/acp_adapter/test_acp_commands.py
+  ╚╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+
+[  9.3% |   100/~1077 | ✓11 | ✗ 1] ✓ tests/acp/test_session_provenance.py (4✓, 5.3s)
+[ 10.0% |   108/~1077 | ✓19 | ✗ 1] ✓ tests/acp/test_session_db_private_access.py (8✓, 6.6s)
+[ 10.4% |   112/~1077 | ✓19 | ✗ 1] ✗ tests/acp_adapter/test_acp_images.py (1e, 3.8s)
+
+  ╔╍ Failed: tests/acp_adapter/test_acp_images.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+  ║ ============================= test session starts ==============================
+  ║ platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+  ║ rootdir: /home/user/hermes-agent
+  ║ configfile: pyproject.toml
+  ║ plugins: anyio-4.14.2, asyncio-1.3.0
+  ║ asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+  ║ collected 0 items / 1 error
+  ║ 
+  ║ ==================================== ERRORS ====================================
+  ║ ____________ ERROR collecting tests/acp_adapter/test_acp_images.py _____________
+  ║ ImportError while importing test module '/home/user/hermes-agent/tests/acp_adapter/test_acp_images.py'.
+  ║ Hint: make sure your test modules/packages have valid Python names.
+  ║ Traceback:
+  ║ /usr/lib/python3.11/importlib/__init__.py:126: in import_module
+  ║     return _bootstrap._gcd_import(name[level:], package, level)
+  ║            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ║ tests/acp_adapter/test_acp_images.py:4: in <module>
+  ║     from acp.schema import (
+  ║ E   ModuleNotFoundError: No module named 'acp'
+  ║ =========================== short test summary info ============================
+  ║ ERROR tests/acp_adapter/test_acp_images.py
+  ║ !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+  ║ =============================== 1 error in 0.74s ===============================
+  ║
+  ║  Repro: python -m pytest tests/acp_adapter/test_acp_images.py
+  ╚╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+
+[ 10.8% |   116/~1077 | ✓22 | ✗ 2] ✗ tests/acp/test_edit_approval.py (3✓ 1✗, 9.9s)
+
+  ╔╍ Failed: tests/acp/test_edit_approval.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+  ║ =================================== FAILURES ===================================
+  ║ ________ test_acp_permission_tool_call_uses_edit_kind_and_diff_content _________
+  ║ 
+  ║     def test_acp_permission_tool_call_uses_edit_kind_and_diff_content():
+  ║         proposal = EditProposal(
+  ║             tool_name="write_file",
+  ║             path="demo.txt",
+  ║             old_text="old\n",
+  ║             new_text="new\n",
+  ║             arguments={"path": "demo.txt", "content": "new\n"},
+  ║         )
+  ║     
+  ║ >       tool_call = build_acp_edit_tool_call(proposal)
+  ║                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ║ 
+  ║ tests/acp/test_edit_approval.py:32: 
+  ║ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+  ║ 
+  ║ proposal = EditProposal(tool_name='write_file', path='demo.txt', old_text='old\n', new_text='new\n', arguments={'path': 'demo.txt', 'content': 'new\n'})
+  ║ 
+  ║     def build_acp_edit_tool_call(proposal: EditProposal):
+  ║         """Build the ToolCallUpdate payload for ACP request_permission."""
+  ║     
+  ║ >       import acp
+  ║ E       ModuleNotFoundError: No module named 'acp'
+  ║ 
+  ║ acp_adapter/edit_approval.py:267: ModuleNotFoundError
+  ║ =========================== short test summary info ============================
+  ║ FAILED tests/acp/test_edit_approval.py::test_acp_permission_tool_call_uses_edit_kind_and_diff_content
+  ║ ========================= 1 failed, 3 passed in 3.30s ==========================
+  ║
+  ║  Repro: python -m pytest tests/acp/test_edit_approval.py
+  ╚╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+
+[ 11.1% |   120/~1077 | ✓22 | ✗ 2] ✗ tests/acp_adapter/test_acp_mcp_discovery.py (1e, 3.8s)
+
+  ╔╍ Failed: tests/acp_adapter/test_acp_mcp_discovery.py ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+  ║ ============================= test session starts ==============================
+  ║ platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+  ║ rootdir: /home/user/hermes-agent
+  ║ configfile: pyproject.toml
+  ║ plugins: anyio-4.14.2, asyncio-1.3.0
+  ║ asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+  ║ collected 0 items / 1 error
+  ║ 
+  ║ ==================================== ERRORS ====================================
+  ║ _________ ERROR collecting tests/acp_adapter/test_acp_mcp_discovery.py _________
+  ║ ImportError while importing test module '/home/user/hermes-agent/tests/acp_adapter/test_acp_mcp_discovery.py'.
+  ║ Hint: make sure your test modules/packages have valid Python names.
+  ║ Traceback:
+  ║ /usr/lib/python3.11/importlib/__init__.py:126: in import_module
+  ║     return _bootstrap._gcd_import(name[level:], package, level)
+  ║            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ║ tests/acp_adapter/test_acp_mcp_discovery.py:20: in <module>
+  ║     from acp_adapter.server import HermesACPAgent
+  ║ acp_adapter/server.py:18: in <module>
+  ║     import acp
+  ║ E   ModuleNotFoundError: No module named 'acp'
+  ║ =========================== short test summary info ============================
+  ║ ERROR tests/acp_adapter/test_acp_mcp_discovery.py
+  ║ !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+  ║ =============================== 1 error in 0.36s ===============================
+  ║
+  ║  Repro: python -m pytest tests/acp_adapter/test_acp_mcp_discovery.py
+  ╚╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
+
+[ 11.4% |   123/~1077 | ✓25 | ✗ 2] ✓ tests/acp_adapter/test_detect_provider_entra.py (3✓, 3.1s)
+[ 11.5% |   124/~1077 | ✓26 | ✗ 2] ✓ tests/gateway/test_session_list_allowed_sources.py (1✓, 3.1s)
+[ 12.3% |   133/~1077 | ✓35 | ✗ 2] ✓ tests/gateway/test_complete_path_at_filter.py (9✓, 3.7s)
+[ 12.7% |   137/~1077 | ✓39 | ✗ 2] ✓ tests/hermes_cli/test_remote_spending_gate_contract.py (4✓, 2.4s)
+[ 12.8% |   138/~1077 | ✓40 | ✗ 2] ✓ tests/gateway/test_tui_approval_redaction.py (1✓, 3.6s)
+[ 13.0% |   140/~1077 | ✓42 | ✗ 2] ✓ tests/hermes_cli/test_config_loader_e2e.py (2✓, 4.4s)
+[ 13.3% |   143/~1077 | ✓45 | ✗ 2] ✓ tests/hermes_state/test_restore_alternation_repair.py (3✓, 3.7s)
+[ 13.6% |   147/~1077 | ✓49 | ✗ 2] ✓ tests/test_audio_playback_guard.py (4✓, 2.8s)
+[ 13.9% |   150/~1077 | ✓52 | ✗ 2] ✓ tests/test_slash_worker_watchdog.py (3✓, 3.3s)
+[ 14.4% |   155/~1077 | ✓57 | ✗ 2] ✓ tests/run_agent/test_notice_spine.py (5✓, 4.8s)
+[ 14.9% |   160/~1077 | ✓62 | ✗ 2] ✓ tests/test_tui_entry_mcp_owner.py (5✓, 3.2s)
+[ 15.4% |   166/~1077 | ✓68 | ✗ 2] ✓ tests/test_tui_gateway_loop_noise.py (6✓, 2.7s)
+[ 16.8% |   181/~1077 | ✓83 | ✗ 2] ✓ tests/test_tui_gateway_queue_on_busy.py (15✓, 2.8s)
+[ 18.2% |   196/~1077 | ✓ 98 | ✗  2] ✓ tests/acp/test_session.py (15✓, 14.9s)
+[ 18.8% |   202/~1077 | ✓104 | ✗  2] ✓ tests/test_tui_gateway_ws.py (6✓, 4.0s)
+[ 19.6% |   211/~1077 | ✓113 | ✗  2] ✓ tests/test_windows_subprocess_no_window_flags.py (9✓, 3.3s)
+[ 19.7% |   212/~1077 | ✓114 | ✗  2] ✓ tests/tui_gateway/test_billing_rpc.py (1✓, 2.9s)
+[ 20.7% |   223/~1077 | ✓125 | ✗  2] ✓ tests/tui_gateway/test_change_watcher.py (11✓, 2.4s)
+[ 21.4% |   230/~1077 | ✓132 | ✗  2] ✓ tests/test_lazy_session_regressions.py (7✓, 9.9s)
+[ 21.9% |   236/~1077 | ✓138 | ✗  2] ✓ tests/test_tui_mcp_late_refresh.py (6✓, 6.8s)
+[ 22.0% |   237/~1077 | ✓139 | ✗  2] ✓ tests/tui_gateway/test_codex_app_server_live_events.py (1✓, 2.7s)
+[ 26.6% |   286/~1077 | ✓193 | ✗  2] ✓ tests/tools/test_windows_native_support.py (54✓, 6.6s)
+[ 26.8% |   289/~1077 | ✓196 | ✗  2] ✓ tests/tui_gateway/test_compaction_status.py (3✓, 2.1s)
+[ 27.0% |   291/~1077 | ✓200 | ✗  2] ✓ tests/tui_gateway/test_compute_host.py (4✓, 2.2s)
+[ 27.4% |   295/~1077 | ✓204 | ✗  2] ✓ tests/tui_gateway/test_compress_lock_skip.py (4✓, 3.2s)
+[ 27.9% |   301/~1077 | ✓210 | ✗  2] ✓ tests/tui_gateway/test_cold_start_gil_stall.py (6✓, 5.0s)
+[ 28.7% |   309/~1077 | ✓218 | ✗  2] ✓ tests/tui_gateway/test_compute_host_phase1.py (8✓, 4.4s)
+[ 30.1% |   324/~1077 | ✓233 | ✗  2] ✓ tests/tui_gateway/test_auto_continue.py (15✓, 10.0s)
+[ 31.2% |   336/~1077 | ✓245 | ✗  2] ✓ tests/tui_gateway/test_delegation_session_lifecycle.py (12✓, 3.3s)
+[ 31.4% |   338/~1077 | ✓247 | ✗  2] ✓ tests/tui_gateway/test_entry_picker_prewarm.py (2✓, 2.7s)
+[ 31.6% |   340/~1077 | ✓249 | ✗  2] ✓ tests/tui_gateway/test_entry_sys_path.py (2✓, 2.8s)
+[ 31.7% |   341/~1077 | ✓250 | ✗  2] ✓ tests/tui_gateway/test_entry_import_off_main_thread.py (1✓, 4.2s)
+[ 32.7% |   352/~1077 | ✓261 | ✗  2] ✓ tests/tui_gateway/test_custom_provider_session_persistence.py (11✓, 5.6s)
+[ 33.3% |   359/~1077 | ✓268 | ✗  2] ✓ tests/tui_gateway/test_gateway_owned_session_reap.py (7✓, 2.6s)
+[ 33.5% |   361/~1077 | ✓270 | ✗  2] ✓ tests/tui_gateway/test_image_routing_stale_model.py (2✓, 2.1s)
+[ 33.7% |   363/~1077 | ✓272 | ✗  2] ✓ tests/tui_gateway/test_interim_assistant_callback.py (2✓, 2.3s)
+[ 34.0% |   366/~1077 | ✓280 | ✗  2] ✓ tests/tui_gateway/test_inline_rpc_gil_starvation.py (8✓, 5.2s)
+[ 34.4% |   370/~1077 | ✓284 | ✗  2] ✓ tests/tui_gateway/test_goal_command.py (4✓, 5.9s)
+[ 34.9% |   376/~1077 | ✓290 | ✗  2] ✓ tests/tui_gateway/test_fast_session_scope.py (6✓, 7.8s)
+[ 35.1% |   378/~1077 | ✓292 | ✗  2] ✓ tests/tui_gateway/test_iso_certify_seam.py (2✓, 4.2s)
+[ 35.4% |   381/~1077 | ✓295 | ✗  2] ✓ tests/tui_gateway/test_mcp_late_refresh_thread_owner.py (3✓, 2.1s)
+[ 36.2% |   390/~1077 | ✓304 | ✗  2] ✓ tests/tui_gateway/test_finalize_session_persist.py (9✓, 9.4s)
+[ 36.3% |   391/~1077 | ✓305 | ✗  2] ✓ tests/tui_gateway/test_moa_reference_emit.py (1✓, 2.4s)
+[ 36.4% |   392/~1077 | ✓306 | ✗  2] ✓ tests/tui_gateway/test_pet_generate_rpc.py (1✓, 2.2s)
+[ 37.1% |   400/~1077 | ✓314 | ✗  2] ✓ tests/tui_gateway/test_failed_turn_retention.py (8✓, 12.2s)
+[ 37.4% |   403/~1077 | ✓317 | ✗  2] ✓ tests/tui_gateway/test_make_agent_provider.py (3✓, 5.2s)
+[ 37.9% |   408/~1077 | ✓322 | ✗  2] ✓ tests/tui_gateway/test_mcp_reload_rev.py (5✓, 4.9s)
+[ 40.3% |   434/~1077 | ✓348 | ✗  2] ✓ tests/tui_gateway/test_project_tree.py (26✓, 2.7s)
+[ 41.6% |   448/~1077 | ✓362 | ✗  2] ✓ tests/tui_gateway/test_kanban_notify_poller.py (14✓, 8.3s)
+[ 41.8% |   450/~1077 | ✓364 | ✗  2] ✓ tests/tui_gateway/test_render.py (2✓, 1.7s)
+[ 42.2% |   454/~1077 | ✓368 | ✗  2] ✓ tests/tui_gateway/test_reasoning_config_per_model.py (4✓, 2.5s)
+[ 42.8% |   461/~1077 | ✓375 | ✗  2] ✓ tests/tui_gateway/test_model_switch_marker_role.py (7✓, 5.3s)
+[ 43.2% |   465/~1077 | ✓379 | ✗  2] ✓ tests/tui_gateway/test_session_images_dir.py (4✓, 2.9s)
+[ 43.5% |   468/~1077 | ✓388 | ✗  2] ✓ tests/tui_gateway/test_review_summary_callback.py (9✓, 4.7s)
+[ 45.2% |   487/~1077 | ✓407 | ✗  2] ✓ tests/tui_gateway/test_projects_rpc.py (19✓, 7.8s)
+[ 45.4% |   489/~1077 | ✓409 | ✗  2] ✓ tests/tui_gateway/test_session_id_injection.py (2✓, 5.5s)
+[ 46.2% |   498/~1077 | ✓429 | ✗  2] ✓ tests/tui_gateway/test_session_platform_resolution.py (20✓, 3.3s)
+[ 46.6% |   502/~1077 | ✓438 | ✗  2] ✓ tests/tui_gateway/test_session_reclaim_notify.py (9✓, 3.2s)
+[ 47.4% |   510/~1077 | ✓446 | ✗  2] ✓ tests/tui_gateway/test_reasoning_session_scope.py (8✓, 9.2s)
+[ 47.4% |   511/~1077 | ✓447 | ✗  2] ✓ tests/tui_gateway/test_slash_worker_ansi.py (1✓, 3.3s)
+[ 47.5% |   512/~1077 | ✓448 | ✗  2] ✓ tests/tui_gateway/test_slash_worker_profile_home.py (1✓, 2.7s)
+[ 50.0% |   539/~1077 | ✓488 | ✗  2] ✓ tests/tui_gateway/test_protocol.py (40✓, 12.2s)
+[ 51.2% |   551/~1077 | ✓500 | ✗  2] ✓ tests/tui_gateway/test_session_cwd_follow.py (12✓, 10.2s)
+[ 51.4% |   554/~1077 | ✓503 | ✗  2] ✓ tests/tui_gateway/test_slash_worker_sys_path.py (3✓, 3.4s)
+[ 51.8% |   558/~1077 | ✓507 | ✗  2] ✓ tests/tui_gateway/test_subprocess_encoding.py (4✓, 2.8s)
+[ 52.6% |   567/~1077 | ✓516 | ✗  2] ✓ tests/tui_gateway/test_subagent_child_mirror.py (9✓, 4.3s)
+[ 53.0% |   571/~1077 | ✓520 | ✗  2] ✓ tests/tui_gateway/test_wait_for_mcp_discovery.py (4✓, 2.0s)
+[ 53.1% |   572/~1077 | ✓521 | ✗  2] ✓ tests/tui_gateway/test_undo_command.py (1✓, 2.7s)
+[ 53.2% |   573/~1077 | ✓522 | ✗  2] ✓ tests/tui_gateway/test_slash_worker_mcp_discovery.py (1✓, 7.3s)
+[100.0% |  1077/~1077 | ✓1039 | ✗   2] ✓ tests/test_tui_gateway_server.py (517✓, 49.2s)
+
+=== Summary: 86 files, 1039 tests passed, 2 failed (100% complete) in 63.8s (8 workers) ===
+  Durations cached to test_durations.json (86 files)
+
+=== Per-file subprocess time distribution ===
+  Files:   86
+  Total subprocess CPU-wall: 436.9s  (runner wall: 63.8s, parallelism: 8x)
+  P50: 3.49s  P90: 9.39s  P95: 10.23s  P99: 49.24s  Max: 49.24s
+  <1s: 0 files (0%)  <2s: 2 files (2%)
+  Top 10 slowest:
+     49.24s  tests/test_tui_gateway_server.py
+     14.86s  tests/acp/test_session.py
+     12.23s  tests/tui_gateway/test_failed_turn_retention.py
+     12.18s  tests/tui_gateway/test_protocol.py
+     10.23s  tests/tui_gateway/test_session_cwd_follow.py
+     10.04s  tests/tui_gateway/test_auto_continue.py
+      9.93s  tests/acp/test_edit_approval.py
+      9.87s  tests/test_lazy_session_regressions.py
+      9.39s  tests/tui_gateway/test_finalize_session_persist.py
+      9.21s  tests/tui_gateway/test_reasoning_session_scope.py
+
+=== Failure output ===
+
+--- tests/acp/test_named_provider_catalogs.py ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/user/hermes-agent
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+__________ ERROR collecting tests/acp/test_named_provider_catalogs.py __________
+ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_named_provider_catalogs.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/acp/test_named_provider_catalogs.py:15: in <module>
+    from acp_adapter.server import HermesACPAgent, _named_custom_provider_catalogs
+acp_adapter/server.py:18: in <module>
+    import acp
+E   ModuleNotFoundError: No module named 'acp'
+=========================== short test summary info ============================
+ERROR tests/acp/test_named_provider_catalogs.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.57s ===============================
+
+--- tests/acp/test_entry.py ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/user/hermes-agent
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+___________________ ERROR collecting tests/acp/test_entry.py ___________________
+ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_entry.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/acp/test_entry.py:5: in <module>
+    import acp
+E   ModuleNotFoundError: No module named 'acp'
+=========================== short test summary info ============================
+ERROR tests/acp/test_entry.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.45s ===============================
+
+--- tests/acp/test_events.py ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/user/hermes-agent
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+__________________ ERROR collecting tests/acp/test_events.py ___________________
+ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_events.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/acp/test_events.py:11: in <module>
+    import acp
+E   ModuleNotFoundError: No module named 'acp'
+=========================== short test summary info ============================
+ERROR tests/acp/test_events.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.56s ===============================
+
+--- tests/acp/test_mcp_e2e.py ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/user/hermes-agent
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+__________________ ERROR collecting tests/acp/test_mcp_e2e.py __________________
+ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_mcp_e2e.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/acp/test_mcp_e2e.py:14: in <module>
+    import acp
+E   ModuleNotFoundError: No module named 'acp'
+=========================== short test summary info ============================
+ERROR tests/acp/test_mcp_e2e.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.50s ===============================
+
+--- tests/acp/test_permissions.py ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/user/hermes-agent
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+________________ ERROR collecting tests/acp/test_permissions.py ________________
+ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_permissions.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/acp/test_permissions.py:8: in <module>
+    from acp.schema import (
+E   ModuleNotFoundError: No module named 'acp'
+=========================== short test summary info ============================
+ERROR tests/acp/test_permissions.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.46s ===============================
+
+--- tests/acp/test_auth.py ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/user/hermes-agent
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 3 items
+
+tests/acp/test_auth.py ..F                                               [100%]
+
+=================================== FAILURES ===================================
+_ TestBuildAuthMethods.test_build_auth_methods_returns_provider_and_terminal_when_configured _
+
+self = <tests.acp.test_auth.TestBuildAuthMethods object at 0x7f63b5d43590>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f63b619f450>
+
+    def test_build_auth_methods_returns_provider_and_terminal_when_configured(self, monkeypatch):
+        monkeypatch.setattr("acp_adapter.auth.detect_provider", lambda: "openrouter")
+    
+>       methods = build_auth_methods()
+                  ^^^^^^^^^^^^^^^^^^^^
+
+tests/acp/test_auth.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def build_auth_methods() -> list[Any]:
+        """Return registry-compatible ACP auth methods for Hermes.
+    
+        The official ACP registry validates that agents advertise at least one
+        usable auth method during the initial handshake. A fresh Zed install may
+        not have Hermes provider credentials configured yet, so Hermes always
+        advertises a terminal setup method. When credentials are already present,
+        it also advertises the resolved provider as the default agent-managed
+        runtime credential method.
+        """
+>       from acp.schema import AuthMethodAgent, TerminalAuthMethod
+E       ModuleNotFoundError: No module named 'acp'
+
+acp_adapter/auth.py:51: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/acp/test_auth.py::TestBuildAuthMethods::test_build_auth_methods_returns_provider_and_terminal_when_configured
+========================= 1 failed, 2 passed in 0.82s ==========================
+
+--- tests/acp/test_server.py ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/user/hermes-agent
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+__________________ ERROR collecting tests/acp/test_server.py ___________________
+ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_server.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/acp/test_server.py:10: in <module>
+    import acp
+E   ModuleNotFoundError: No module named 'acp'
+=========================== short test summary info ============================
+ERROR tests/acp/test_server.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.42s ===============================
+
+--- tests/acp/test_ping_suppression.py ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/user/hermes-agent
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+_____________ ERROR collecting tests/acp/test_ping_suppression.py ______________
+ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_ping_suppression.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/acp/test_ping_suppression.py:19: in <module>
+    from acp.exceptions import RequestError
+E   ModuleNotFoundError: No module named 'acp'
+=========================== short test summary info ============================
+ERROR tests/acp/test_ping_suppression.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.72s ===============================
+
+--- tests/acp/test_tools.py ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/user/hermes-agent
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+___________________ ERROR collecting tests/acp/test_tools.py ___________________
+ImportError while importing test module '/home/user/hermes-agent/tests/acp/test_tools.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/acp/test_tools.py:5: in <module>
+    from acp_adapter.tools import (
+acp_adapter/tools.py:10: in <module>
+    import acp
+E   ModuleNotFoundError: No module named 'acp'
+=========================== short test summary info ============================
+ERROR tests/acp/test_tools.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.75s ===============================
+
+--- tests/acp_adapter/test_acp_commands.py ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/user/hermes-agent
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+___________ ERROR collecting tests/acp_adapter/test_acp_commands.py ____________
+ImportError while importing test module '/home/user/hermes-agent/tests/acp_adapter/test_acp_commands.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/acp_adapter/test_acp_commands.py:5: in <module>
+    from acp.schema import TextContentBlock
+E   ModuleNotFoundError: No module named 'acp'
+=========================== short test summary info ============================
+ERROR tests/acp_adapter/test_acp_commands.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.36s ===============================
+
+--- tests/acp_adapter/test_acp_images.py ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/user/hermes-agent
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+____________ ERROR collecting tests/acp_adapter/test_acp_images.py _____________
+ImportError while importing test module '/home/user/hermes-agent/tests/acp_adapter/test_acp_images.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/acp_adapter/test_acp_images.py:4: in <module>
+    from acp.schema import (
+E   ModuleNotFoundError: No module named 'acp'
+=========================== short test summary info ============================
+ERROR tests/acp_adapter/test_acp_images.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.74s ===============================
+
+--- tests/acp/test_edit_approval.py ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/user/hermes-agent
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 4 items
+
+tests/acp/test_edit_approval.py F...                                     [100%]
+
+=================================== FAILURES ===================================
+________ test_acp_permission_tool_call_uses_edit_kind_and_diff_content _________
+
+    def test_acp_permission_tool_call_uses_edit_kind_and_diff_content():
+        proposal = EditProposal(
+            tool_name="write_file",
+            path="demo.txt",
+            old_text="old\n",
+            new_text="new\n",
+            arguments={"path": "demo.txt", "content": "new\n"},
+        )
+    
+>       tool_call = build_acp_edit_tool_call(proposal)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/acp/test_edit_approval.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+proposal = EditProposal(tool_name='write_file', path='demo.txt', old_text='old\n', new_text='new\n', arguments={'path': 'demo.txt', 'content': 'new\n'})
+
+    def build_acp_edit_tool_call(proposal: EditProposal):
+        """Build the ToolCallUpdate payload for ACP request_permission."""
+    
+>       import acp
+E       ModuleNotFoundError: No module named 'acp'
+
+acp_adapter/edit_approval.py:267: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/acp/test_edit_approval.py::test_acp_permission_tool_call_uses_edit_kind_and_diff_content
+========================= 1 failed, 3 passed in 3.30s ==========================
+
+--- tests/acp_adapter/test_acp_mcp_discovery.py ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/user/hermes-agent
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+_________ ERROR collecting tests/acp_adapter/test_acp_mcp_discovery.py _________
+ImportError while importing test module '/home/user/hermes-agent/tests/acp_adapter/test_acp_mcp_discovery.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/acp_adapter/test_acp_mcp_discovery.py:20: in <module>
+    from acp_adapter.server import HermesACPAgent
+acp_adapter/server.py:18: in <module>
+    import acp
+E   ModuleNotFoundError: No module named 'acp'
+=========================== short test summary info ============================
+ERROR tests/acp_adapter/test_acp_mcp_discovery.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.36s ===============================
+
+=== 2 files with test failures (2 tests failed) ===
+  tests/acp/test_auth.py  (1 test failed)
+  tests/acp/test_edit_approval.py  (1 test failed)
+=== 11 files where no tests ran (collection/import error, timeout before collection, etc.) ===
+  tests/acp/test_named_provider_catalogs.py
+  tests/acp/test_entry.py
+  tests/acp/test_events.py
+  tests/acp/test_mcp_e2e.py
+  tests/acp/test_permissions.py
+  tests/acp/test_server.py
+  tests/acp/test_ping_suppression.py
+  tests/acp/test_tools.py
+  tests/acp_adapter/test_acp_commands.py
+  tests/acp_adapter/test_acp_images.py
+  tests/acp_adapter/test_acp_mcp_discovery.py
