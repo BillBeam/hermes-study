@@ -32,7 +32,13 @@ def report_order() -> list[str]:
                 ["git", "-C", str(ROOT), "log", "--diff-filter=A", "--follow",
                  "--format=%ct", "--", f"reports/{n}"],
                 capture_output=True, text=True, check=True).stdout.split()
-            ts = int(out[-1]) if out else 0
+            # An UNCOMMITTED report has no add-commit, so `git log` returns
+            # nothing. Falling back to ts=0 sorts it as the OLDEST report --
+            # exactly backwards, and it silently inverts the open/closed verdict
+            # for every item that report rules on (R10B saw its own open count
+            # move 35 -> 32 the moment the report was committed). Treat an
+            # untracked report as newest, which is what it is.
+            ts = int(out[-1]) if out else 1 << 62
         except Exception:
             print("WARN: git unavailable, falling back to filename order",
                   file=sys.stderr)

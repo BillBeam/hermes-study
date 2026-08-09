@@ -476,7 +476,7 @@ cd /home/user/hermes-study && python3 data/r10b/probes/handover_census.py --open
 ```
 
 ```text
-总计 66 条,其中未结清 35 条
+总计 66 条,其中未结清 32 条
 ```
 
 **两个读数,分别标注**:**开工时跑是 59 条 / 未结清 28 条**;上面这条命令跑的是
