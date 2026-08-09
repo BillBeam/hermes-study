@@ -533,10 +533,52 @@ cron/scheduler.py:3143:        # Scope cron approval policy to this job. Keep th
 **同意 C 片不判 ▲**:`security.md:47` 那句说的是 "trigger a dangerous-command prompt",
 而脚本路径根本不触发提示,**字面为真**。按 CLAUDE.md「字面为真就不是 ▲」,记 **■** 不记 ▲。
 
-### 4.6 复核结论
+### 4.6 D 片 · 「send_message 刻意不给模型」这条禁令,被 cronjob 的 `deliver` 一跳绕过
+
+禁令写得毫不含糊:
+
+`tools/send_message_tool.py:2106-2108 @ 863e313`
+
+```python
+# NOTE: ``send_message`` is intentionally NOT registered as an agent-callable
+# model tool. The agent should not decide on its own to fire off cross-platform
+# messages or reactions. The send engine in this module (``_send_to_platform``,
+```
+
+而 `cronjob` **是**注册给模型的工具(`tools/cronjob_tools.py:1028` 的 `"name": "cronjob"`),
+它的 `deliver` 是一个模型可写的自由字符串参数:
+
+`tools/cronjob_tools.py:1073-1074 @ 863e313`
+
+```python
+            "deliver": {
+                "type": "string",
+```
+
+该参数的 description 明写支持 `platform:chat_id:thread_id` 指定任意目标,以及
+`'all'`(fan out to every connected home channel)。而投递走的正是同一个引擎:
+
+`cron/scheduler.py:1500 @ 863e313`
+
+```python
+    from tools.send_message_tool import _send_to_platform
+```
+
+`cron/scheduler.py:2040 @ 863e313`
+
+```python
+            coro = _send_to_platform(platform, pconfig, chat_id, cleaned_delivery_content, thread_id=thread_id, media_files=media_files)
+```
+
+**断言成立。** 禁令挂在**工具注册**上(那扇门),而不是挂在**发送引擎**上(那个效果);
+模型换一扇挂着 `cronjob` 牌子的门进来,同一个引擎照发,目标还是它自己写的。
+
+### 4.7 复核结论
 
 
-**抽验五条,五条全部复现,无一需要下调强度。** 五条分属三片、五种性质
-(shell 引号错误 / 文档-代码矛盾 / 路径边界差一层 / 守卫只装在一条路径上 / 审批模型形状缺口),
+
+**抽验六条,六条全部复现,无一需要下调强度。** 六条分属四片、六种性质
+(shell 引号错误 / 文档-代码矛盾 / 路径边界差一层 / 守卫只装在一条路径上 /
+审批模型形状缺口 / 禁令挂在工具注册而非效果上),
 覆盖面上算是有代表性的抽样;但**抽验不是全验**——各片其余断言以其底稿自证为准,
 主线未逐条重跑,如实记在这里。
