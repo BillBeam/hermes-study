@@ -1716,17 +1716,67 @@ cd /home/user/hermes-agent && grep -rn 'platform_toolsets' acp_adapter/ model_to
 | **1. 点名到位** | ✅ 做到 | §2 表格逐行给出 11 个全路径 + 一句话角色,与 `slices/C.txt` 逐条对齐;行数合计 5,831 有 ```verify 命令 |
 | **2. 接缝穷举** | ✅ 做到(11 个接缝) | §3.1 方法 12 / §3.2 客户端调用 10+2 / §3.3 通知 9 / §3.4 斜杠命令 9 / §3.5 CLI 开关 5 / §3.6 模式 3 + 策略 3 / §3.7 选项 5+2 / §3.8 kind 表 27×7 / §3.9 toolset 29 与四向差集 5+3+2+28 / §3.10 分支表 23+16+21 / §3.11 内容块 5。**每一项都给了 ```verify 机械枚举命令与条数,无抽样。** 唯一不完备处已声明:§3.1 的 12 个**线上**方法名里只有 2 个有仓库内取证、4 个有间接取证,余 8 个因 SDK 未安装不下断言(§7 未取证-1) |
 | **3. 一条端到端链** | ✅ 做到 | §4:编辑器 `session/prompt` → 12 跳 → `PromptResponse` 写回 stdout,**每跳带锚点**;跳 0 与跳 6/9/12 明确标注「片外」并写清接到谁(`hermes_cli/main.py:11050`、`agent/tool_executor.py:701`、`model_tools.py:1350`、`tools/file_tools.py:1768`) |
-| **4. 两处以上逐字取证** | ✅ 做到(15 个围栏块) | 逐字源码块 15 个:`acp_adapter/edit_approval.py:1/45/178/332`、`acp_adapter/permissions.py:18`、`acp_adapter/events.py:156`、`acp_adapter/server.py:626/1745/1806/2071`、`acp_adapter/session.py:623`、`acp_adapter/tools.py:24/1274/1289`、`model_tools.py:1350`、`tools/approval.py:279/4292`、`agent/tool_executor.py:701`、`acp_adapter/__init__.py:1`、`tests/acp/test_server.py:377` |
+| **4. 两处以上逐字取证** | ✅ 做到(**44 个** `python` 围栏块) | 逐字源码摘录 44 块,分布:`acp_adapter/` 9 个文件全部有块;片外取证块在 `model_tools.py`、`tools/approval.py`、`tools/file_tools.py`(引用)、`tools/write_approval.py`、`agent/tool_executor.py`、`agent/interrupt_compat.py`、`agent/display.py`、`toolsets.py`(经 AST 脚本)。另有 24 行 `>` 文档引用块(全部为逐字文档摘录,覆盖本片全部 6 条 ▲ 与 ◇1/◇2 的文档侧),14 个 ```verify、2 个 ```text、1 个 ```console |
 | **5. 至少一条记号** | ✅ 做到(18 条) | ■4 / ▲6 / ◇7 / ◎1,逐条带锚点 |
 
 **核心比较题**:§5.9 给出结论 + 三条改述 + 三条取证(A `skill_manage`、B `execute_code`、
 C 内核自陈「unpaired theater」),并明确判定原结论「被支持但需改述」,附一句话总括可直接进成品章。
 
+### 引用校验读数(如实报,含未达标项)
+
+```console
+$ cd /home/user/hermes-study && python3 scripts/verify_citations.py /home/user/hermes-agent \
+      notes/r10-raw-acp-adapter.md
+citations=185  OK=63  UNCHECKED=122
+可校验比例 OK/185 = 34.1%  << 低于 70% 下限
+table_anchors=40  OK=33  UNCHECKED=7
+OK: every code-block-backed citation matches the baseline
+```
+
+**可校验比例 34.1%,低于 CLAUDE.md 的 70% 下限 —— 这条没做到,原因与补偿措施如实交代:**
+
+1. **成因**:本片是 L2 底稿,主体是 §3 的 **11 张接缝穷举表**。接缝穷举的每一项天然是
+   「某个分支/常量在哪一行」的**区域指路**,不是「这一行说明了什么行为」的取证;
+   给 176 个分支各配一个逐字块会把底稿变成源码副本,而派工书要求的是「接口面列全」。
+   语料对比:同轮 7 个片的可校验比例实测在 20.6%–90.0% 之间,与该片有多少张枚举表强相关。
+2. **已做的补偿(不靠比例而靠机械校验)**:
+   - **全部 6 条 ▲ 与 ◇1/◇2 的文档侧都写成了 `>` 逐字引用块并被脚本比对通过** ——
+     CLAUDE.md 特别点出「文档-代码定案的文档侧历史上从未被自动校验覆盖」,本片把它做全了。
+   - **全部 4 条 ■ 与 §5.9 的三条取证都有逐字围栏块。**
+   - **表格锚点 40 个里 33 个用了声明式写法**(锚点 + 紧跟的反引号摘录)并通过校验,
+     包括 §9 移交表 8 条全部;剩下 7 个 UNCHECKED 是 §8 自评里的清单式罗列,不是新证据。
+   - **对脚本查不到的 130 个散文区域锚点,另做了一次全量机械体检**:把每个锚点指向的
+     基线行原文 dump 出来逐条核对,`0` 处缺文件、`0` 处越界,并据此当场改正了两处真漂移
+     (▲3 的 `acp-internals.md:132` → 实为 `:133`;■1 的 `tools/approval.py:3379-3384` →
+     实为 `:3396-3401`)。命令可复现:
+
+```verify
+cd /home/user/hermes-study && python3 - <<'PY'
+import re, pathlib
+base = pathlib.Path('/home/user/hermes-agent')
+lines = pathlib.Path('notes/r10-raw-acp-adapter.md').read_text().splitlines()
+CITE = re.compile(r"(?P<path>[A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:py|md|yaml|yml|toml|json|ts|tsx|js))"
+                  r":(?P<start>\d+)(?:-(?P<end>\d+))?")
+bad = 0
+for i, l in enumerate(lines):
+    for m in CITE.finditer(l):
+        f = base / m.group('path')
+        if not f.is_file():
+            print("MISSING", i + 1, m.group(0)); bad += 1; continue
+        n = int(m.group('start'))
+        src = f.read_text(errors='replace').splitlines()
+        if n < 1 or n > len(src):
+            print("OUT-OF-RANGE", i + 1, m.group(0)); bad += 1
+print("bad =", bad)   # 期望 0
+PY
+```
+
 **没做到 / 不确定的**(与 §7 重复但集中列出):
-1. SDK 未安装 → 8 个线上方法名、9 个通知变体里 3 个的字符串、`PromptCapabilities` 字段全集无第一手取证;
-2. 20 个 ACP 测试文件里 11 个无法收集,只能当规格读名字与正文,不能宣称跑绿;
-3. 推定-1(delegate 子 agent 继承编辑审批)、推定-3(排队递归的栈深/超时)未实跑;
-4. `server.py` / `tools.py` 的多数实现体按 L2 定义未读(§7 未做-1 列了具体项)。
+1. **可校验比例 34.1% 未达 70% 下限**(成因与补偿见上,不辩解为「达标」);
+2. SDK 未安装 → 8 个线上方法名、9 个通知变体里 3 个的字符串、`PromptCapabilities` 字段全集无第一手取证;
+3. 20 个 ACP 测试文件里 11 个无法收集,只能当规格读名字与正文,不能宣称跑绿;
+4. 推定-1(delegate 子 agent 继承编辑审批)、推定-3(排队递归的栈深/超时)未实跑;
+5. `acp_adapter/server.py` / `acp_adapter/tools.py` 的多数实现体按 L2 定义未读(§7 未做-1 列了具体项)。
 
 ---
 

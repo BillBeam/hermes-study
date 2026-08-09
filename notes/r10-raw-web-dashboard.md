@@ -1354,17 +1354,36 @@ cd /home/user/hermes-agent && grep -rn 'cron/fire' web/ | wc -l
 0
 ```
 
-② 词级搜索。`grep -rniI 'fire' web/` 共 26 处命中,**逐条看过,全部是英文散文**:
-`AuthWidget.tsx:49` "Don't fire the request"、`ChatSidebar.tsx:323` "fires a close event"、
-`ChatSessionList.tsx:39` "callback fired after a row is picked"、
-`App.tsx:180` "fire when the user navigates to /chat"、
-`ProfileProvider.tsx:49` "fetches fired by child effects"、
-`SystemPage.tsx:465` "fire-and-forget ops"、`SystemPage.tsx:791` "grant consent so it fires"、
-`SystemPage.tsx:1347` "not a fire-and-forget log tail"、
-`WebhooksPage.tsx:440` "when this webhook fires"、
-`chatImagePaste.test.ts:62` "Safari/Firefox",以及 `ChatPage.tsx` / `pty-*.ts` /
-`ToolsetConfigDrawer.tsx` / `SkillsPage.tsx` 里若干 "fires"/"fire" 注释。
-**没有一处是端点路径。**
+② 词级搜索,连大小写与二进制都不放过(`-niI`),按文件汇总:
+
+```verify
+cd /home/user/hermes-agent && grep -rniI 'fire' web/ | sed 's/:.*//' | sort | uniq -c | sort -rn
+```
+
+```text
+      7 web/src/pages/ChatPage.tsx
+      3 web/src/pages/SystemPage.tsx
+      3 web/src/components/ChatSidebar.test.tsx
+      1 web/src/pages/WebhooksPage.tsx
+      1 web/src/pages/SkillsPage.tsx
+      1 web/src/lib/pty-resume-sanitizer.ts
+      1 web/src/lib/pty-reconnect.ts
+      1 web/src/lib/pty-reconnect.test.ts
+      1 web/src/lib/pty-mobile-input.test.ts
+      1 web/src/lib/chatImagePaste.test.ts
+      1 web/src/contexts/ProfileProvider.tsx
+      1 web/src/components/ToolsetConfigDrawer.tsx
+      1 web/src/components/ChatSidebar.tsx
+      1 web/src/components/ChatSessionList.tsx
+      1 web/src/components/AuthWidget.tsx
+      1 web/src/App.tsx
+```
+
+共 26 处,**逐条看过,全部是英文散文**:注释里的 "fires a close event" /
+"fire-and-forget ops" / "Don't fire the request",测试用例名里的
+"schedules only one retry when error and close both fire",UI 文案里的
+"grant consent so it fires"(cron 同意)与 "when this webhook fires"(webhook 提示),
+以及 `chatImagePaste.test.ts` 里的 "Safari/Fire**fox**"。**没有一处是端点路径。**
 
 ③ 结构化搜索。§3.2 的探针枚举了全 `web/src` 里 **171** 条端点字面量,其中无 `/api/cron/fire`。
 探针不依赖 `grep` 的模式,而是把每个字符串/模板字面量都取出来判前缀,所以它能覆盖
@@ -1428,17 +1447,48 @@ cd /home/user/hermes-agent && grep -rn 'cron/fire' web/ | wc -l
                   </Button>
 ```
 
-`runDashboardBackup`(`web/src/pages/SystemPage.tsx:393`)直接 `await api.runBackup()`,
-成功弹 "Backup started"。**没有 ConfirmDialog,没有一句话说这个 zip 里有什么。**
+这个 `onClick` 落到的处理器**直接就是那次请求**:
 
-**(b) 下载备份:同样一次点击,无警告。** `web/src/pages/SystemPage.tsx:1254` 的
-"Download backup" 按钮 → `downloadBackup()` → `api.downloadBackup(archive)` →
-`GET /api/ops/backup/download`,拿到 blob 后用一个临时 `<a download>` 触发浏览器保存。
+`web/src/pages/SystemPage.tsx:393 @ 863e313`
+
+```tsx
+  const runDashboardBackup = async () => {
+    try {
+      const res = await api.runBackup();
+      setActiveAction(res.name);
+      setPendingBackupArchive(res.archive ?? null);
+      setDownloadableBackupArchive(null);
+      showToast("Backup started", "success");
+```
+
+**没有 ConfirmDialog,没有一句话说这个 zip 里有什么。**
+
+**(b) 下载备份:同样一次点击,无警告。**
+
+`web/src/pages/SystemPage.tsx:419 @ 863e313`
+
+```tsx
+  const downloadBackup = async () => {
+    const archive = downloadableBackupArchive;
+    if (!archive) return;
+    setDownloadingBackup(true);
+    try {
+      const res = await api.downloadBackup(archive);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+```
+
+它拿到 blob 后用一个临时 `<a download>` 触发浏览器保存。
 于是**从打开 dashboard 到把包含全部凭据的归档存进本机 Downloads,总共两次点击、零次确认**。
 
-归档确实含凭据:`hermes_cli/backup.py:128` 的
-`_SECRET_FILE_NAMES = {".env", "auth.json", "state.db"}` 在恢复时被特判 `chmod 0600`,
-即被代码自己当作机密对待。
+归档确实含凭据——后端自己把这几个文件当机密对待:
+
+`hermes_cli/backup.py:128 @ 863e313`
+
+```python
+_SECRET_FILE_NAMES = {".env", "auth.json", "state.db"}
+```
+
+这个集合在恢复时被特判 `chmod 0600`(`hermes_cli/backup.py:982`)。
 
 **(c) 恢复:有二次确认,但措辞里没有"凭据"。**
 
