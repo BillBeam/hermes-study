@@ -22,7 +22,7 @@ store 模块拉起来。**
 | **nanostores** | 一个极小的响应式状态库。`atom(x)` 建一个可读可写的值容器,`.get()` 读、`.set()` 写、`.subscribe(fn)`/`.listen(fn)` 订阅;`computed(源, fn)` 建一个从别的原子推导出来的只读值,**只有推导结果真的变了才通知订阅者**。React 侧用 `useStore($atom)` 订阅。本仓库约定:**凡是原子,变量名一律 `$` 开头**(实测 86 个模块 259 个原子,无一例外,见 §2.1 的枚举命令)。 |
 | **atom / computed / map** | 上一行三种构造器。`map` 是「对象型原子,可按 key 局部更新」,本片只有 1 处用到(`hub-actions.ts`)。 |
 | **JSON-RPC** | 一种「一个请求配一个 id,回一个同 id 的响应」的远程调用格式。本项目网关用它跑在 WebSocket 上;没有 id 的帧就是**服务端主动推的事件**。 |
-| **runtime id / stored id / lineage root** | 同一段对话的三种身份。**runtime id** 是网关这次跑起来的进程内会话号(重启即失效,流式事件按它归属);**stored id** 是落到 `state.db` 的持久号(路由、书签用它);**lineage root** 是自动压缩(auto-compaction)反复换 id 时那条不变的根 id(置顶、着色、草稿键用它)。三者混用是本仓库反复踩的坑,`store/session.ts` 专门有三个纯函数做换算。 |
+| **runtime id / stored id / lineage root** | 同一段对话的三种身份。**runtime id** 是网关这次跑起来的进程内会话号(重启即失效,流式事件按它归属);**stored id** 是落到 `state.db` 的持久号(路由、书签用它);**lineage root** 是自动压缩(auto-compaction)反复换 id 时那条不变的根 id(置顶、着色、草稿键用它)。三者混用是本仓库反复踩的坑,`store/session.ts` 专门有 5 个纯函数做换算(见 §4.3)。 |
 | **profile** | 一套独立的 `HERMES_HOME`(配置、技能、会话库都独立)。桌面端可以同时挂多个 profile 的后端进程,每个一条 WebSocket。 |
 | **primary / secondary gateway** | 窗口自己那条主 socket 叫 primary;为「别的 profile 还有活儿在跑」而额外开的后台 socket 叫 secondary。 |
 | **soft switch(软切换)** | 换连接模式(本地↔远程)时**不重载窗口**,只把「绑定网关的那批 store」清空再重连。 |
@@ -33,7 +33,7 @@ store 模块拉起来。**
 |---|---|---|
 | `apps/desktop/src/hermes.ts` | 1820 | **渲染进程对内核的唯一门面**:133 个导出函数,其中 127 个是 REST 调用(经 Electron 桥 `window.hermesDesktop.api`)、1 个是插件用的 WebSocket 门、5 个是纯计算;另导出 `HermesGateway` 类(JSON-RPC 客户端的薄配置子类)与约 150 个类型再导出。 |
 | `apps/desktop/src/main.tsx` | 82 | React 入口:先做 3 个 **side-effect import**(`store/active-work`、`store/power`、`store/translucency`)与 dev 计数器,再按 `?win=` 查询参数分岔挂载四种根(overlay / quick / wake / 主窗),主窗外套 7 层 Provider。 |
-| `apps/desktop/src/sdk/index.ts` | 279 | `@hermes/plugin-sdk` 的**实体**:130 个导出名。核心是 `host` 对象(6 个只读状态原子 + `notify`/`logs`/`navigate`/`onEvent`/`restartGateway`/`status`/`request` 七扇门),其余是 UI 组件、贡献点常量、i18n、react-query 的再导出。 |
+| `apps/desktop/src/sdk/index.ts` | 279 | `@hermes/plugin-sdk` 的**实体**:130 个导出名。核心是 `host` 对象(6 个只读状态原子 + `notify`/`notifyError`/`logs`/`navigate`/`onEvent`/`restartGateway`/`status`/`request` 八扇门),其余是 UI 组件、贡献点常量、i18n、react-query 的再导出。 |
 | `apps/desktop/src/sdk/runtime.ts` | 54 | 运行时加载的插件怎么拿到同一份 SDK:把 SDK/React/JSX 运行时挂到 `globalThis`,再用 `Blob` + `URL.createObjectURL` 造出「re-export 全局命名空间」的 shim ESM 模块,给加载器一张 `specifier → shim URL` 映射表。**导出名从命名空间自身取,所以列表不会漂**。 |
 | `apps/desktop/src/hooks/use-delayed-true.ts` | 26 | `active` 连续为真超过 `delayMs`(默认 180ms)才返回 true —— 用来给骨架屏加门,快操作不闪骨架。 |
 | `apps/desktop/src/hooks/use-grab-scroll.ts` | 77 | 拖背景平移溢出容器(看板、时间线、宽表)的共享原语;屏蔽 button/input/a/[draggable] 目标与滚动条槽 16px。也被 SDK 转出给插件。 |
@@ -1482,14 +1482,15 @@ cd /home/user/hermes-agent && ls apps/desktop/src/hooks/*.test.* apps/desktop/sr
 片号            : D
 层              : L2
 文件数 / 行数   : 97 / 19,637
-实际打开的文件数: 41
-    明细:store 24 个(完整读 11:gateway / gateway-switch / profile / session /
+实际打开的文件数: 42(片内 35 + 片外 7)
+    片内 35:store 24 个(其中 11 个完整读 —— gateway / gateway-switch / profile / session /
     session-states(前 400 行) / prompts / live-sync / tool-diffs / tool-view / billing-block /
-    approval-mode;头部 14 行 + 导出面读 86 个中的其余 13 个有引用需要的),
-    hooks 7 个(全部完整读,总共才 381 行),sdk 2 个(全部完整读),
-    hermes.ts(读约 500 行 + 脚本抽全量签名),main.tsx(完整),
-    另加 7 个片外文件用于接链取证(gateway-event.ts / utils.ts / gateway-events.ts /
-    use-gateway-boot.ts / wiring.tsx / json-rpc-gateway.ts / billing-banner.tsx)
+    approval-mode;另 13 个是取证时需要看正文的,只读到需要的那一段),
+    hooks 7 个(全部完整读,7 个加起来才 381 行),sdk 2 个(全部完整读),
+    hermes.ts(人眼约 500 行 + 脚本抽全量签名),main.tsx(完整)。
+    其余 62 个 store 只过了头部 14 行 + 脚本产出的导出面。
+    片外 7:gateway-event.ts / use-message-stream/utils.ts / lib/gateway-events.ts /
+    use-gateway-boot.ts / contrib/wiring.tsx / apps/shared/json-rpc-gateway.ts / billing-banner.tsx
 实际读过的行数  : 约 6,800
     估法:完整读的 21 个片内文件按其真实行数加总(约 4,900),
     hermes.ts 计 500,片外 7 个文件按实际 sed 区间计约 900,
@@ -1498,7 +1499,7 @@ cd /home/user/hermes-agent && ls apps/desktop/src/hooks/*.test.* apps/desktop/sr
 底稿字节数      : (主线自测,不填)
 主观耗费        : 中
     瓶颈在「文件多但每个都短」+「跨文件追链」两者叠加:86 个 store 里 40 个不到 100 行,
-    人眼逐个读性价比极低,所以先写了 3 个探针(surface / hermes-api / event-to-store)
+    人眼逐个读性价比极低,所以先写了 4 个探针(store-surface / hermes-api / event-to-store / store-groups)
     把导出面机械枚举出来,再把人力全押在 6 个真正有机制的大模块与那条 9 跳链上。
     真正费时的是判据 3 那条链:它跨 7 个文件、其中 4 个不在本片,
     每一跳都要先确认「下一跳到底在哪」再取证。

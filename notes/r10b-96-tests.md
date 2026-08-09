@@ -27,7 +27,7 @@ R10 报告 §7.2 写:「`apps/desktop` 的 **490 个测试文件一个都没跑*
     globals: true,
 ```
 
-`apps/desktop/vitest.config.ts:20-24 @ 863e313`
+`apps/desktop/vitest.config.ts:19-24 @ 863e313`
 
 ```ts
 const electronNative: TestProjectConfiguration = {

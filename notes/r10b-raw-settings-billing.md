@@ -1365,6 +1365,23 @@ grep -rn "describe\.skip\|it\.skip\|test\.skip\|\.todo(" \
 
 **未达标处如实声明**:判据 2 的展示型数据表(`PROVIDER_GROUPS` / `ENUM_OPTIONS` / 两张文案表)只报条数未逐条列全,约占本片接缝总量的一成。其余八张接缝表均为全量。
 
+**引用关卡自测**(主线复核前的自报,重跑口令与实测数):
+
+```verify
+cd /home/user/hermes-study
+python3 scripts/verify_citations.py /home/user/hermes-agent notes/r10b-raw-settings-billing.md
+```
+
+```console
+citations=87  OK=61  UNCHECKED=26
+可校验比例 OK/87 = 70.1%
+table_anchors=42  OK=35  UNCHECKED=7
+OK: every code-block-backed citation matches the baseline
+```
+
+即 **0 MISMATCH / 0 BLOCK-DRIFT / 0 TABLE-DRIFT / 0 TABLE-OUT-OF-RANGE,退出码 0**,可校验比例 70.1% 刚过 70% 下限。
+剩余 26 处 UNCHECKED 全部是散文里的区域指路(「见某文件某行附近」),不是块后锚点——本文件所有代码块的锚点一律写在块**之前**。
+
 ---
 
 ## 9. 移交项
