@@ -30,8 +30,13 @@ TREE="$WORK/hermes-agent"
 setup() {
   mkdir -p "$WORK"
   rm -rf "$TREE"
-  # --exclude .git:副本只用来跑测试,不需要历史;基线的 .git 一个字节都不碰
-  rsync -a --exclude '.git' --exclude 'node_modules' "$BASE/" "$TREE/"
+  mkdir -p "$TREE"
+  # 用 `git archive` 而不是 cp/rsync 导出副本,有三个好处:
+  #   1. 只导出**已跟踪**文件,天然不带 .git 与 node_modules;
+  #   2. 导出的内容就是 863e313 这个 commit 本身,副本与引用基准逐字一致;
+  #   3. 它是只读操作,基线一个字节都不碰。
+  # (本容器没有 rsync,`rsync: command not found` —— 不要改回去。)
+  git -C "$BASE" archive --format=tar HEAD | tar -x -C "$TREE"
   echo "== baseline untouched check (须为空) =="
   git -C "$BASE" status --porcelain | head
   echo "== npm install --workspace ui-tui --workspace web (从根) =="
@@ -46,7 +51,9 @@ setup() {
 run() {
   for d in ui-tui web; do
     echo "########## vitest: $d ##########"
-    ( cd "$TREE/$d" && npx vitest run --reporter=basic 2>&1 | tail -45 )
+    # reporter=dot:vitest 4 已删掉 `basic`(用它会得到
+    # `Failed to load custom Reporter from basic` 这种看起来像项目坏了的启动错)。
+    ( cd "$TREE/$d" && npx vitest run --reporter=dot 2>&1 | tail -45 )
   done
 }
 
