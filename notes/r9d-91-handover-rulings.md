@@ -74,8 +74,22 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-v
 [组3 asyncio] 抢到 0 个,proc.wait() = 42   (ThreadedChildWatcher 在场)
 ```
 
-**组 3 正是 R9A 测的那一侧,它确实复现不了——因为那一侧有 watcher 线程护着。
-组 2 才是暴露面,退出码 42 变成 0。**
+**组 3 正是 R9A 测的那一侧。** 但这里要比初稿说得更准确——**初稿写"asyncio 侧结构上安全",
+过强了,现予收紧**(依据是移交取证组 A 的独立实验,主线复跑后采信其结论):
+
+| 测量 | 次数 | 被抢到几次 | `proc.wait()` 读数 |
+|---|---|---|---|
+| 主线本轮 | 8 | **0** | 全部 42 |
+| 移交取证组 A | 5 | **1** | `[42, 255, 42, 42, 42]`,伴随 `Unknown child process pid ..., will report returncode 255` 日志 |
+
+**这是两次不同的测量,读数不同,不得合并表述。** 合起来的正确结论是:
+asyncio 侧的 watcher 线程**通常抢先**(主线 8 次全赢),但**并非结构上不可能被抢**;
+而关键在于**被抢之后的表现**——CPython 在 asyncio 侧记 `returncode=255` **并打 warning**,
+是一次**响亮的失败**;阻塞 `subprocess` 侧则静默记 **0**,是一次**被报成成功的失败**。
+
+**所以 R9A 的方法错位不在于"asyncio 侧不可能出事",而在于:
+它选的那一侧即使出事也会大声喊,因此最不可能在三次试跑里表现成一个需要主张的问题。
+组 2 才是暴露面,退出码 42 变成 0,没有任何日志。**
 
 失败方向是**最坏的那一种**:不是"报错",是**把失败报成成功**。机制在 CPython 的
 `subprocess.Popen._try_wait` 里:`waitpid` 抛 `ChildProcessError` 时它把 `sts` 当 0 处理。
@@ -131,7 +145,8 @@ webhook_filters.py:279 的判据 'result.returncode != 0'(非零=拒绝该 webho
 
 **立 ■,推翻 R9A 的「不主张」。**
 
-- **机制已实证**(用基线真函数):`Popen.wait()` 与 `subprocess.run().returncode` 都从 42 降级为 0。
+- **机制已实证**(用基线真函数):`Popen.wait()` 与 `subprocess.run().returncode` 都从 42 降级为 0,**且无任何日志**。
+  (对照:asyncio 侧被抢到时记 255 并打 warning —— 同一个收尸动作,两条路径的失败**可见度**完全不同。)
 - **可达性已实证**:收尸者与受害者同在网关进程,收尸每 60 秒一次。
 - **后果方向已实证**:`webhook_filters.py:279` 的安全判据从"拒绝"翻成"放行"。
 - **修法**:`reap_worker_zombies` 不该用 `waitpid(-1)`。它已经维护着 `_recent_worker_exits`
@@ -147,7 +162,12 @@ webhook_filters.py:279 的判据 'result.returncode != 0'(非零=拒绝该 webho
 
 *R9A 写「asyncio 侧三次实测未复现,不主张」是一次**负结论关闭了调查**的标本——
 恰好是 CLAUDE.md「负结论的成本」那条规矩要防的形状。它的搜索面(asyncio 子进程)
-是全部暴露面里**唯一一个结构上安全**的子集。*
+恰好是全部暴露面里**最不容易复现、且即使复现也会大声报错**的那个子集。*
+
+*另一条移交取证组 A 提供、主线未独立取证的线索(照实标注强度)*:
+`hermes_cli/web_server.py:4786` 的 `exit_code = proc.poll()` **形状完全吻合**
+(被偷即得 0 并缓存进 `_ACTION_RESULTS`),但**它是否与看板收尸器同进程运行未取证**。
+该残留可在本仓库内消解(查网关是否在进程内起 dashboard),本轮未做。
 
 ---
 
@@ -249,6 +269,42 @@ cd /home/user/hermes-agent && grep -rn "collect_working_diff" --include=*.py . |
   (`tools/working_diff.py:70`)知道,只是没接到这条链上。
 - **修法**:收尾验证门不该以工具名为唯一信源。`_turn_file_mutation_paths` 为空但本回合
   跑过 `terminal` / `execute_code` 时,应回落到 `collect_working_diff` 判一次工作区。
+
+### 2.6 主线独立复判移交取证组 A 提出的那条 ▲(它自己请求复判)
+
+取证组 A 新判了一条 ▲ 并在残留里写明:「若主线/评审位认为该句属『意图性描述』而非
+『条件断言』,可降为 ◎」。**主线独立复判:▲ 成立,不降级。**
+
+`website/docs/user-guide/features/hooks.md:670 @ 863e313`
+
+> Fires **once per turn when the agent edited code**, just before it finishes (after the built-in verify-on-stop guard). This is a user/plugin policy gate: a callback can keep the agent going — run a check, defer it, tidy the diff — instead of letting it stop.
+
+归属标题是 `### pre_verify`(`hooks.md:668`)。代码侧的触发条件:
+
+`agent/conversation_loop.py:7109 @ 863e313`
+
+```python
+                    if _edited and has_hook("pre_verify") and _attempt < max_verify_nudges():
+```
+
+而 `_edited` 只来自 `_turn_file_mutation_paths`(`conversation_loop.py:7102`),
+该集合只被 `write_file` / `patch` 填。
+
+**判 ▲ 的理由,以及它为什么与本轮另一条"不判 ▲"的裁定不矛盾**——这两条值得并排看:
+
+| | `hooks.md:670`(本条) | `security.md:47`(§4.5 cron,判**不**是 ▲) |
+|---|---|---|
+| 文档给的条件 | "when the agent edited code" | "when they trigger a dangerous-command prompt" |
+| 该条件在缺陷场景下 | **成立**(用 `sed -i` 改代码,agent 确实 edited code) | **不成立**(脚本路径根本不触发提示) |
+| 文档承诺的结果 | 不发生(钩子不触发) | —— |
+| 判定 | **▲**:前件成立而后件不发生,字面为假 | **不是 ▲**:句子的前件从未被满足,字面为真 |
+
+**区别就在"文档那句话的前件在缺陷场景里成立与否"。** `security.md:47` 把自己的适用范围
+限定在"触发危险命令提示时",而脚本路径不触发,所以它没说错话(缺陷在别处);
+`hooks.md:670` 说的是"当 agent 改了代码时",而 `sed -i` 改代码时它不触发,**它说错了话**。
+
+*把这两条并排写出来,是因为 CLAUDE.md 只给了「字面为真就不是 ▲」这一句判准,
+而判准的难点从来不在"真假",在**"这句话到底断言了什么范围"**。*
 
 **未取证**:未实跑一次 `terminal` + `sed -i` 的完整回合去观察提示不触发——那需要模型凭据
 (项目边界明写不配置)。上面的判定是**静态全链对读**:写入侧的早退(`run_agent.py:3408`)
