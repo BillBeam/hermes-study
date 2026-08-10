@@ -1,0 +1,5 @@
+agent: 片 A · 跨轮定案账普查
+dispatched: 2026-08-10 (R11B 派发)
+signal: OPEN
+path: notes/r11b-raw-rulings-census.md
+path: data/r11b/probes/rulings_*.py
