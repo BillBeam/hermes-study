@@ -36,14 +36,14 @@ awk -F'\t' 'NR>1{sub(/\r$/,"",$4);sub(/\r$/,"",$5);sub(/\r$/,"",$6);
 
 改后(可校验的当前状态):
 
-`scripts/assign_layers.py:162-163`(**本学习仓库**,非基线)
+`scripts/assign_layers.py:307-308`(**本学习仓库**,非基线;该文件随各轮增补而移动,行号按 R11B 实测)
 
 ```python
     ("agent/*.py", "L1", "UNCLAIMED"),
     ("agent/**/*.py", "L1", "UNCLAIMED"),
 ```
 
-`scripts/assign_layers.py:222-223`(**本学习仓库**,非基线)
+`scripts/assign_layers.py:437-438`(**本学习仓库**,非基线;同上)
 
 ```python
     ("tools/*.py", "L1", "UNCLAIMED"),

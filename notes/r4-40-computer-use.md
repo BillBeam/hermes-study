@@ -92,7 +92,7 @@ _RUNTIME_PLATFORMS = frozenset({"darwin", "win32", "linux"})
 
 **typed-browser 动作**(9 个,`cua_browser_*` 前缀):`cua_browser_state` / `_prepare` / `_navigate` / `_click` / `_type` / `_pointer` / `_dialog` / `_set_input_files` / `_download`。
 
-`schema.py:14-16 @ 863e313` 解释为何塞进一个工具:
+`tools/computer_use/schema.py:14-16 @ 863e313` 解释为何塞进一个工具:
 
 ```python
 # One consolidated tool with an `action` discriminator. Keeps the schema
@@ -112,7 +112,7 @@ R4 另有一簇是独立的浏览器自动化栈(Playwright/CDP 那条线)。本
 - **原生桌面动作** 靠 AX 树 + 像素:能点任何窗口,但对网页内部只能看到粗粒度 AX 节点。
 - **cua-driver typed-browser** 靠语义 ref(semantic ref):cua-driver 附着到浏览器进程后,能拿到网页 DOM 级的语义快照 + 可信输入(trusted input,不是 JS 合成事件),对网页操作更准。
 
-`browser_route.py:1-6 @ 863e313` 定位:
+`tools/computer_use/browser_route.py:1-6 @ 863e313` 定位:
 
 ```python
 """Session-scoped typed-browser routing for cua-driver.
@@ -136,7 +136,7 @@ actions and cua-driver's raw ``get_browser_state`` / ``browser_*`` tools.
 
 #### 机制 A:抽象接口 `ComputerUseBackend`
 
-`backend.py:111-121 @ 863e313` 定义 ABC,所有方法同步(异步藏在实现里):
+`tools/computer_use/backend.py:111-121 @ 863e313` 定义 ABC,所有方法同步(异步藏在实现里):
 
 ```python
 class ComputerUseBackend(ABC):
@@ -152,7 +152,7 @@ class ComputerUseBackend(ABC):
 - `CaptureResult`(`backend.py:41-70`):截图结果。`mode` 决定填哪些字段——`vision` 只有 `png_b64`,`ax` 只有 `elements`,`som` 两者都有(PNG 已由后端画好编号叠加)。
 - `ActionResult`(`backend.py:71-110`):动作结果。关键设计——`ok` **只是传输层成功**,不是语义裁决:
 
-`backend.py:73-80 @ 863e313`:
+`tools/computer_use/backend.py:72-79 @ 863e313`:
 
 ```python
     """Result of any action (click / type / scroll / drag / key / wait).
@@ -175,7 +175,7 @@ class ComputerUseBackend(ABC):
 
 **MCP 会话生命周期靠"单协程持有上下文"避免 anyio 陷阱。** `_CuaDriverSession._lifecycle_coro`(`cua_backend.py:1124-1216`)是一条长命协程:它在**同一个 asyncio task 里**打开 `stdio_client` + `ClientSession`,`initialize()`,拉能力,置 `_ready_event`,然后阻塞在 `_shutdown_event.wait()`,收到关闭信号才在同一 task 里关上下文。
 
-`cua_backend.py:1071-1083 @ 863e313` 解释为何必须如此:
+`tools/computer_use/cua_backend.py:1071-1083 @ 863e313` 解释为何必须如此:
 
 ```python
 class _CuaDriverSession:
@@ -197,7 +197,7 @@ class _CuaDriverSession:
 
 **session 身份(start_session/end_session)** :每个 `CuaDriverBackend` 实例 mint 一个稳定 id:
 
-`cua_backend.py:1953 @ 863e313`:
+`tools/computer_use/cua_backend.py:1953 @ 863e313`:
 
 ```python
         self._session_id: str = f"hermes-{uuid.uuid4().hex[:12]}"
@@ -207,7 +207,7 @@ class _CuaDriverSession:
 
 **动作翻译:`click` 怎么落到 cua-driver。** `CuaDriverBackend.click`(`cua_backend.py:2648-2701`)把抽象参数映射成 cua-driver `click` 工具的参数字典。element 优先于坐标:
 
-`cua_backend.py:2679-2694 @ 863e313`:
+`tools/computer_use/cua_backend.py:2679-2694 @ 863e313`:
 
 ```python
         args: Dict[str, Any] = {"pid": pid, "button": button_norm}
@@ -229,7 +229,7 @@ class _CuaDriverSession:
 
 **verify→escalate 投递阶梯(delivery ladder)** :后台投递可能"跑了但没确认生效"。`_apply_delivery`(`cua_backend.py:2556-2593`)+ `_run_input_action`(`cua_backend.py:2594-2647`)实现:默认 background 不加标志;foreground 只在**活动 schema 真的接受**该参数时才发,否则回结构化 `foreground_unsupported` 拒绝——**绝不静默降级**(降级会把输入投到模型没料到的地方)。
 
-`cua_backend.py:2582-2593 @ 863e313`:
+`tools/computer_use/cua_backend.py:2579-2590 @ 863e313`:
 
 ```python
         # Foreground requested. Only send it if the driver understands it.
@@ -267,7 +267,7 @@ class _CuaDriverSession:
 
 真实故障(issue #24015):用户主模型是纯文本/文本+代码模型(如 `tencent/hy3-preview`),但在 `config.yaml` 里配了 `auxiliary.vision` 专门的视觉模型。`capture` 却仍把截图直接塞进 tool_result 发给**主模型**,在 provider 边界撞 `HTTP 404 No endpoints found that support image input`——整个 agent 循环报硬失败。那个明明配好的视觉后端被无声忽略。
 
-`vision_routing.py:12-18 @ 863e313` 逐字记录了这次事故:
+`tools/computer_use/vision_routing.py:13-19 @ 863e313` 逐字记录了这次事故:
 
 ```python
 Issue #24015 reports this regression for the ``cua-driver`` backend:
@@ -283,7 +283,7 @@ sitting in config waiting to be used.
 
 #### 机制:一个只做"路由决策"的纯函数
 
-`vision_routing.py` 只导出一个决策函数 `should_route_capture_to_aux_vision(provider, model, cfg) -> bool`(`vision_routing.py:164-199`)。返回 True = 把截图先给辅助视觉模型转成文字;False = 保留 multimodal 信封给主模型自己看。决策优先级(`vision_routing.py:183-199`):
+`vision_routing.py` 只导出一个决策函数 `should_route_capture_to_aux_vision(provider, model, cfg) -> bool`(`tools/computer_use/vision_routing.py:164-199`)。返回 True = 把截图先给辅助视觉模型转成文字;False = 保留 multimodal 信封给主模型自己看。决策优先级(`tools/computer_use/vision_routing.py:183-199`):
 
 ```python
     if _explicit_aux_vision_override(cfg):
@@ -311,7 +311,7 @@ sitting in config waiting to be used.
 3. **provider 不接受 tool-result 里放图 或 查不到** → 走辅助(否则会撞 provider 错);
 4. **models.dev 元数据说主模型有视觉** → 保留 multimodal;否则走辅助。
 
-**关键设计:fail closed(向辅助路由 fail)。** `vision_routing.py:42-45 @ 863e313`:
+**关键设计:fail closed(向辅助路由 fail)。** `tools/computer_use/vision_routing.py:42-45 @ 863e313`:
 
 ```python
 The decision intentionally fails *closed* (i.e. towards aux routing) when
@@ -350,14 +350,20 @@ one extra LLM call and yields a usable description.
 
 ##### 问题:macOS 上 click 什么都点不动,不知道缺哪个授权
 
-`permissions.py:1-17 @ 863e313` 说明"就绪"在各平台含义不同:
+`tools/computer_use/permissions.py:4-20 @ 863e313` 说明"就绪"在各平台含义不同:
 
 ```python
 cua-driver runs on macOS, Windows, and Linux, but "ready to drive" means
 something different on each:
 
-  * macOS — explicit TCC grants (Accessibility + Screen Recording). ...
-  * Windows — no TCC toggles; ...  Readiness == driver health.
+  * macOS — explicit TCC grants (Accessibility + Screen Recording). cua-driver
+    reports/requests them via ``permissions status`` / ``permissions grant``.
+    The grants attach to cua-driver's OWN identity (``com.trycua.driver`` /
+    the installed ``CuaDriver.app``), NOT Hermes — so no Hermes entitlement is
+    involved, and ``grant`` launches CuaDriver via LaunchServices so the macOS
+    dialog is attributed correctly.
+  * Windows — no TCC toggles; the UIAccess worker (``cua-driver-uia.exe``) may
+    trip a SmartScreen prompt on first run. Readiness == driver health.
   * Linux — assistive control via the X11/XWayland stack. Readiness == driver
     health.
 ```
@@ -379,7 +385,7 @@ something different on each:
 2. **危险按键组合**:`_BLOCKED_KEY_COMBOS`(`tool.py:96-116`)——清空废纸篓、强制删除、锁屏、注销等,**无视审批级别硬拦**(注销会杀掉 Hermes 自己所在的会话)。规范化用 `_canon_key_combo`(`tool.py:117-135`)同时按 `+` 和 `-` 切分,否则 `ctrl-alt-delete` 连字符写法能绕过闸。
 3. `bring_to_front` 必须配 `delivery_mode='foreground'`(`tool.py:473-477`)。
 
-`tool.py:96-105 @ 863e313`:
+`tools/computer_use/tool.py:96-105 @ 863e313`:
 
 ```python
 _BLOCKED_KEY_COMBOS = {
@@ -402,7 +408,7 @@ cua-driver 的 daemon 权限模式**启动后不可变**。若复用机器级 da
 
 `unrestricted` 时创建 `_EmbeddedCuaDaemon`(`cua_backend.py:383-537`)——私有 socket、私有进程、启动时一次性风险确认:
 
-`cua_backend.py:412-416 @ 863e313`:
+`tools/computer_use/cua_backend.py:412-416 @ 863e313`:
 
 ```python
     def child_env(self) -> Dict[str, str]:
@@ -412,7 +418,7 @@ cua-driver 的 daemon 权限模式**启动后不可变**。若复用机器级 da
         return env
 ```
 
-`cua_backend.py:383-392 @ 863e313` 解释隔离动机:
+`tools/computer_use/cua_backend.py:383-392 @ 863e313` 解释隔离动机:
 
 ```python
 class _EmbeddedCuaDaemon:
@@ -449,7 +455,7 @@ cua-driver 是第三方二进制,**每个 spawn 点**都 sanitize 环境(#53503/
 
 用原生 `click` 靠 AX 树点网页元素常常不准(网页 DOM 不完整映射到 AX)。cua-driver 内建 typed-browser:附着到浏览器进程,拿 DOM 级语义快照 + 可信输入。`browser_route.py` 是它的**有状态门面**,比底层传输更严格。
 
-`browser_route.py:6-15 @ 863e313`:
+`tools/computer_use/browser_route.py:7-16 @ 863e313`:
 
 ```python
 The adapter is deliberately stricter than the transport:
@@ -474,7 +480,7 @@ The adapter is deliberately stricter than the transport:
 2. **snapshot**:同 `observe` 但已绑定,读语义快照,填 `refs`。新快照**在传输调用前**先 `clear_refs`,保证失败不留可用旧 ref(`browser_route.py:319-322`)。
 3. **mutate**(`browser_route.py:462-573`):调 `browser_click`/`browser_type` 等。`_require_mutation`(`browser_route.py:406-441`)校验:binding exact + mutation_allowed + tab 属于本次绑定 + 若 `verification_required` 未读快照则拒。`_require_ref`(`browser_route.py:443-460`)校验 ref 来自最新快照且声明了所需动作。每次成功 mutate 后置 `verification_required=True` + `next_step=fresh_browser_state`——**绝不从记忆状态链式 mutate**。
 
-`browser_route.py:181-192 @ 863e313`(session id 由适配器注入,永不接受模型给的):
+`tools/computer_use/browser_route.py:194-205 @ 863e313`(session id 由适配器注入,永不接受模型给的):
 
 ```python
     def _call(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
@@ -506,7 +512,7 @@ The adapter is deliberately stricter than the transport:
 
 `hermes computer-use doctor` 是首选分诊。它是 cua-driver `health_report` MCP 工具的**薄客户端**——健康模型归 cua-driver 拥有,Hermes 只驱动 JSON-RPC 握手、调 `health_report`、渲染结构化结果。
 
-`doctor.py:1-9 @ 863e313`:
+`tools/computer_use/doctor.py:1-9 @ 863e313`:
 
 ```python
 """
@@ -525,7 +531,7 @@ contract is the stable `schema_version="1"` payload shape.
 
 **关键兜底:cua-driver 0.10.x 的 `health_report` 被标 `risk.class='unclassified'`,MCP 调用返回 isError。** 这不是 schema_version=1 报告。`_drive_health_report_or_fallback`(`doctor.py:687-702`)捕获 `HealthReportUnavailable`,改用工作正常的探针合成一份等价报告:
 
-`doctor.py:10-15 @ 863e313`:
+`tools/computer_use/doctor.py:10-15 @ 863e313`:
 
 ```python
 cua-driver 0.10.x marks `health_report` with risk.class='unclassified', so
@@ -553,7 +559,7 @@ report via working probes (check_permissions, list_apps, CLI --version).
 
 **`computer_use_tool.py`(42 行)** 纯注册壳,存在只因 `tools.registry` 自动导入 `tools/*.py`,需要一个顶层模块触发注册(`computer_use_tool.py:1-6`)。它把 schema + 四个入口函数注册进 registry:
 
-`computer_use_tool.py:20-33 @ 863e313`:
+`tools/computer_use_tool.py:20-33 @ 863e313`:
 
 ```python
 registry.register(

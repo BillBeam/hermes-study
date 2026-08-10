@@ -146,7 +146,7 @@ def _is_interactive() -> bool:
 
 ### 2.3 token 存储:三文件、0o600、绝对过期、快照回滚
 
-**布局**:每 server 三个 JSON,按 HERMES_HOME 分 profile 隔离(`tools/mcp_oauth.py:432-437 @ 863e313`):
+**布局**:每 server 三个 JSON,按 HERMES_HOME 分 profile 隔离(`tools/mcp_oauth.py:434-439 @ 863e313`):
 ```
 HERMES_HOME/mcp-tokens/<server_name>.json         -- tokens
 HERMES_HOME/mcp-tokens/<server_name>.client.json   -- client info
@@ -156,22 +156,22 @@ HERMES_HOME/mcp-tokens/<server_name>.meta.json     -- oauth server metadata
 
 **写入**:`_write_json` 用 `os.open(O_EXCL, 0o600)` 原子创建 + `fsync` + `os.replace`,并先 `secure_parent_dir` 把父目录压成 0o700:
 
-`tools/mcp_oauth.py:389-415 @ 863e313`(节选)
+`tools/mcp_oauth.py:390-416 @ 863e313`(节选)
 ```python
     Uses ``os.open`` with ``O_EXCL`` and an explicit mode so the file is
     created atomically at 0o600. The previous ``write_text`` + post-write
     ``chmod`` opened a TOCTOU window where the temp file briefly inherited
     the process umask (commonly 0o644 = world-readable), exposing OAuth
-    tokens to other local users between create and chmod.
-    ...
+    tokens to other local users between create and chmod. Mirrors the fix
+...
     tmp = path.with_suffix(f".tmp.{os.getpid()}.{secrets.token_hex(4)}")
-    ...
+...
         fd = os.open(
             str(tmp),
             os.O_WRONLY | os.O_CREAT | os.O_EXCL,
             stat.S_IRUSR | stat.S_IWUSR,
         )
-        ...
+...
         os.replace(tmp, path)
 ```
 `secure_parent_dir` 拒绝 chmod `/` 及一级目录,防 HERMES_HOME 解析异常时把 `/home` 整个改 0o700(`hermes_constants.py:809-816 @ 863e313`,#25821)。
@@ -431,8 +431,7 @@ R3 台账里 `mcp_tool.py` 的七道客户端防护(命名撞车 fail-closed、�
 **▲ 冲突 1:文档描述了不存在的"端口自动跳号"与提示语。**
 - 文档:`website/docs/guides/oauth-over-ssh.md:152 @ 863e313`
   ```
-  confirm you used the port from the latest `Waiting for callback on ...` line
-  (Hermes may auto-bump if the preferred port is busy)
+  The redirect never made it back to the remote listener. Check the tunnel is still alive (`ssh -N` doesn't show output, so look at the terminal you started it from), confirm you used the port from the latest `Waiting for callback on ...` line (Hermes may auto-bump if the preferred port is busy), restart the tunnel if needed, and re-run the auth command.
   ```
 - 代码:全仓(plugins/tools/agent)搜不到字符串 `Waiting for callback on`(rg 实测零命中);且 MCP OAuth 端口被占时**不 auto-bump**,直接抛可行动错误:`tools/mcp_oauth.py:889-893 @ 863e313`
   ```python

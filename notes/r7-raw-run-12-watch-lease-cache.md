@@ -129,7 +129,7 @@ gateway/run.py:21645-21657 @ 863e313
 成功转写以**纯引号行**注入(21659-21664:早期"Here's what they said"措辞被模型读成
 元指令,导致它评论语音模式而不是回复内容)。失败→中性最小标记 + agent 可见音频路径:
 
-gateway/run.py:21666-21676 @ 863e313
+gateway/run.py:21665-21675 @ 863e313
 ```python
                 else:
                     error = result.get("error", "unknown error")
@@ -194,7 +194,7 @@ gateway/run.py:21757-21766 @ 863e313
 3. `_parse_session_key`(gateway/run.py:3352)从结构化键解析 platform/chat_type/chat_id,
    再与事件字段合并;三者仍缺→warning 并返回 None(21871-21879)。
 
-gateway/run.py:21833-21837 @ 863e313
+gateway/run.py:21832-21836 @ 863e313
 ```python
         """Resolve the canonical source for a synthetic background-process event.
 
@@ -318,7 +318,7 @@ producer 稳定身份:async_delegation → `(type, delegation_id, "")`;进程 co
 同 id 不同 incarnation 必须视为不同完成。**legacy 事件无 started_at → 返回 None,
 放弃去重而不是冒险吞掉真实完成**:
 
-gateway/run.py:22025-22030 @ 863e313
+gateway/run.py:22024-22029 @ 863e313
 ```python
         """Return a producer-stable identity when one is available.
 
@@ -342,7 +342,7 @@ gateway/run.py:22025-22030 @ 863e313
 - `retry`:瞬态不确定(DB 不可用 / 轮转进行中 continuation 尚不可见)→释放 claim 让后续重试,
   attempt 上限兜底。
 
-gateway/run.py:22076-22084 @ 863e313
+gateway/run.py:22075-22083 @ 863e313
 ```python
         if not parent.get("ended_at"):
             return "deliver"
@@ -539,7 +539,7 @@ checkpoints.*。`_extract_cache_busting_config`(22564-22605)拉平为 `section.k
 缺失键记 None(**"absent"与"present-and-null"都参与签名**);legacy `checkpoints: true`
 布尔式配置也兼容(22582-22585)。此外并入**工具注册表 generation**:
 
-gateway/run.py:22571-22576 @ 863e313
+gateway/run.py:22572-22577 @ 863e313
 ```python
         The live tool registry generation is included too.  MCP reloads and
         dynamic MCP tool-list changes mutate the registry without necessarily
@@ -574,7 +574,7 @@ skip_context_files)。
 - **api_key 全串 sha256 指纹**而非前缀——OAuth/JWT 常见公共前缀(`eyJhbGci`)会造成换号后
   假命中:
 
-gateway/run.py:22646-22652 @ 863e313
+gateway/run.py:22645-22651 @ 863e313
 ```python
         import hashlib, json as _j
 
@@ -592,7 +592,7 @@ gateway/run.py:22646-22652 @ 863e313
   (#27371 的 per-user-peer 契约被破坏)。**取舍**:共享线程里按用户重建 agent,
   用 prompt-cache 温度换记忆归属正确:
 
-gateway/run.py:22630-22643 @ 863e313
+gateway/run.py:22631-22644 @ 863e313
 ```python
         ``user_id`` and ``user_id_alt`` are the runtime user identities
         carried by the current message's gateway source.  They participate

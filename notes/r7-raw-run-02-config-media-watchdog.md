@@ -62,7 +62,7 @@ class SecondaryPortBindingConfigError(MultiplexConfigError):
         reset_hermes_home_override(home_token)
 ```
 
-docstring 三条关键约束(`gateway/run.py:1939-1955 @ 863e313`):contextvar 经 `copy_context()` 传进 agent worker 线程;单 profile 网关从不进入此作用域、行为不变;**不 mutate `os.environ`**——`build_profile_secret_scope` 返回隔离 dict,这是防止 MCP/kanban 子进程继承跨 profile 凭据的关键:
+docstring 三条关键约束(`gateway/run.py:1950-1966 @ 863e313`):contextvar 经 `copy_context()` 传进 agent worker 线程;单 profile 网关从不进入此作用域、行为不变;**不 mutate `os.environ`**——`build_profile_secret_scope` 返回隔离 dict,这是防止 MCP/kanban 子进程继承跨 profile 凭据的关键:
 
 ```python
     Only used on the multiplexed inbound path. Single-profile gateways never
@@ -72,7 +72,7 @@ docstring 三条关键约束(`gateway/run.py:1939-1955 @ 863e313`):contextvar �
     from inheriting cross-profile secrets.
 ```
 
-**调用关系**:被调方定义在 `hermes_constants.py:30/40 @ 863e313`(`set/reset_hermes_home_override`)、`agent/secret_scope.py:72/80/272 @ 863e313`(`set/reset_secret_scope`、`build_profile_secret_scope`)、`hermes_cli/env_loader.py:169 @ 863e313`(`hydrate_profile_secret_sources`)。调用方遍布 run.py:secondary profile adapter 启动(`gateway/run.py:13274、13316、13378、13434 @ 863e313`)、profile 消息处理(`13609、13620`)、入站事件(`16196、18311`)、整回合包裹(`24150`,注释见 `24132`:"run the whole turn inside `_profile_runtime_scope` so config/skills/…")。读凭据侧的配合:`gateway/config.py:234 @ 863e313` 的 `_getenv` 有 scope 就读 scope、否则回退 `os.environ`:
+**调用关系**:被调方定义在 `hermes_constants.py:30/40 @ 863e313`(`set/reset_hermes_home_override`)、`agent/secret_scope.py:72/80/272 @ 863e313`(`set/reset_secret_scope`、`build_profile_secret_scope`)、`hermes_cli/env_loader.py:169 @ 863e313`(`hydrate_profile_secret_sources`)。调用方遍布 run.py:secondary profile adapter 启动(`gateway/run.py:13274、13316、13378、13434 @ 863e313`)、profile 消息处理(`13609、13620`)、入站事件(`16196、18311`)、整回合包裹(`24150`,注释见 `24132`:"run the whole turn inside `_profile_runtime_scope` so config/skills/…")。读凭据侧的配合:`gateway/config.py:243 @ 863e313` 的 `_getenv` 有 scope 就读 scope、否则回退 `os.environ`:
 ```python
     if current_secret_scope() is not None:
         scope_val = _get_secret(name, None)
@@ -164,7 +164,7 @@ docstring 三条关键约束(`gateway/run.py:1939-1955 @ 863e313`):contextvar �
 
 **实现**:模块导入期直接执行(非函数)。用 `read_user_config_raw` 拿"用户真正写了的键",`_expand_env_vars` 展开 `${VAR}`,再叠 `managed_scope.apply_managed_overlay`。
 
-`gateway/run.py:2036-2056 @ 863e313`:
+`gateway/run.py:2037-2057 @ 863e313`:
 ```python
         # Presence-sensitive env bridge: raw read is deliberate — only keys the
         # user actually wrote may be bridged (a defaults merge would export the
@@ -967,7 +967,7 @@ def _watch_gateway_turn_inactivity(
 
 **场景/问题**:运行时读取(fallback 链等)要享受文档化的 `${VAR}` 模板展开;而展开失败若被静默吞掉,返回未展开 dict 正是本函数要修的 bug 本身。
 
-**实现**:`gateway/run.py:3246-3253 @ 863e313`:
+**实现**:`gateway/run.py:3247-3254 @ 863e313`:
 ```python
     cfg = _load_gateway_config()
     if not isinstance(cfg, dict) or not cfg:

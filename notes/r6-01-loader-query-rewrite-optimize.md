@@ -56,7 +56,7 @@ per-profile 隔离;代价是要自己补 `sys.modules` 的父包/子模块注册
 3. **失败方向**:任何异常/空产出都返回 `""` = "preserve old behavior"(query_rewrite.py:110, 137-139)
    ——改写是增益不是依赖,坏了就退回用原话检索。
 
-`query_rewrite.py:100-101 @ 863e313`:
+`plugins/memory/query_rewrite.py:100-101 @ 863e313`:
 ```python
     if _INSTRUCTION_LEAK_RE.search(candidate):
         return ""

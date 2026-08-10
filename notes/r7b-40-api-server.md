@@ -93,7 +93,7 @@ def _derive_chat_session_id(
 即:**id 是"哪一段转写",key 是"谁的记忆"**。开新转写(`/new` 语义)时 id 轮换,
 key 不变,所以长期记忆跨转写延续。这是 R6 精读的记忆生态在 HTTP 面的挂接点。
 
-它同样要求鉴权,理由与 §2.2 对称(`gateway/platforms/api_server.py:2058-2062 @ 863e313`):
+它同样要求鉴权,理由与 §2.2 对称(`gateway/platforms/api_server.py:2060-2064 @ 863e313`):
 
 > Security: like session continuation, accepting a caller-supplied
 > memory scope requires API-key authentication so that an
@@ -168,7 +168,7 @@ aiohttp 已经有 8 KiB 的头上限,但这里更紧,免得调用方用一个几
 
 理由是同机上的任何进程/浏览器页面都能打 loopback。**"本地就安全"是错的。**
 
-强度检查器导入失败时 **fail closed**(`gateway/platforms/api_server.py:6955-6970 @ 863e313`):
+强度检查器导入失败时 **fail closed**(`gateway/platforms/api_server.py:6957-6972 @ 863e313`):
 
 ```python
             # Fail CLOSED. This guard is the only thing between a guessable
@@ -221,7 +221,7 @@ aiohttp 已经有 8 KiB 的头上限,但这里更紧,免得调用方用一个几
 而且 500 说明服务端崩了一条路径。
 
 多 profile(multiplex)下**具名 profile 必须 fail closed**
-(`gateway/platforms/api_server.py:1731-1739 @ 863e313`):
+(`gateway/platforms/api_server.py:1729-1737 @ 863e313`):
 
 ```python
             # Preserve the historical no-key test/manual-wiring behavior only

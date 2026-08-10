@@ -86,7 +86,7 @@ adapter 的 `_pending_messages` 是**每会话单槽位**dict(photo burst 合并
 - 槽位空 → 直接占槽(队头);槽位有人 → 追加到 `SessionState.conversation.queued_events`(队尾)。
 - 队尾存在 runner 侧的 SessionState 里而不是 adapter 里 —— adapter 保持"单槽位"简单契约不动。
 
-**晋升(drain 点唯一调用)**:`gateway/run.py:7705-7734 @ 863e313`
+**晋升(drain 点唯一调用)**:`gateway/run.py:7722-7734 @ 863e313`
 ```python
         _q_state = self._peek_session_state(session_key)
         overflow = _q_state.conversation.queued_events if _q_state else None
@@ -185,7 +185,7 @@ goal 也可能已经不再活跃。所以需要:识别合成回合、按需摘�
 前缀来源是 `hermes_cli/goals.py:90-128 @ 863e313` 的三个模板(普通/contract/subgoals 版都以
 `[Continuing toward your standing goal]\nGoal: ` 开头)。
 
-**清理(pause/clear 竞态)**:`gateway/run.py:7755-7780 @ 863e313`
+**清理(pause/clear 竞态)**:`gateway/run.py:7762-7787 @ 863e313`
 ```python
         removed = 0
         pending_slot = getattr(adapter, "_pending_messages", None) if adapter is not None else None
@@ -254,7 +254,7 @@ dashboard `/api/status` 读 `gateway_state.json`;若只在生命周期切换时�
 `gateway/run.py:7793-7803 @ 863e313`:`_update_runtime_status(gateway_state, exit_reason)` 透传
 `restart_requested` 与 `_active_work_count()`,best-effort(裸 except pass)。
 
-`gateway/run.py:7805-7825 @ 863e313`(节选 docstring 的关键三句):
+`gateway/run.py:7815-7835 @ 863e313`(节选 docstring 的关键三句):
 ```python
         Deliberately passes ONLY ``active_agents`` — ``gateway_state`` and the
         other fields stay ``_UNSET`` so ``write_runtime_status``'s
@@ -586,7 +586,7 @@ fallback 链(主 provider 失败时依次切换的 provider 列表)原先在进�
   (追发不算新会话);`_running_agent_count() < max` →放行;否则返回
   `active_sessions.py:99` 的拒绝文案(点名占坑者:"slots 由 CLI/desktop/gateway 共享,被拒的
   往往不是占坑的那个表面",99-114)。
-- 跨进程取租约:`gateway/run.py:8528-8555 @ 863e313`
+- 跨进程取租约:`gateway/run.py:8534-8555 @ 863e313`
 ```python
         if self._is_session_running(session_key):
             return None, None
@@ -601,7 +601,11 @@ fallback 链(主 provider 失败时依次切换的 provider 列表)原先在进�
                 session_id=session_key,
                 surface=f"gateway:{platform}",
                 config=getattr(self, "config", None),
-                metadata={...},
+                metadata={
+                    "platform": platform,
+                    "chat_id": getattr(source, "chat_id", "") or "",
+                    "user_id": getattr(source, "user_id", "") or "",
+                },
             )
         except Exception as exc:
             logger.warning("Failed to claim active session slot: %s", exc)
@@ -630,7 +634,7 @@ sentinel 的话第二条消息会穿过"already running"守卫造出重复 agent
 
 ### 问题(事故)
 **#30170**:`AIAgent.interrupt()` 会同步级联到父 agent 的 `_active_children` 每个子代理
-(证据:`run_agent.py:3150-3159 @ 863e313`):
+(证据:`run_agent.py:3149-3158 @ 863e313`):
 ```python
         # Propagate interrupt to any running child agents (subagent delegation)
         with self._active_children_lock:
@@ -727,7 +731,7 @@ docstring 注明"大 state.db 不能冻住事件循环(#5)"。失败方向刻意
 会**静默覆盖**单槽位 —— 第二条把第一条顶掉。
 
 ### 实现
-`gateway/run.py:8666-8703 @ 863e313`(核心分支):
+`gateway/run.py:8678-8715 @ 863e313`(核心分支):
 ```python
         pending_slot = getattr(adapter, "_pending_messages", None)
         existing = pending_slot.get(session_key) if isinstance(pending_slot, dict) else None
@@ -747,7 +751,11 @@ docstring 注明"大 state.db 不能冻住事件循环(#5)"。失败方向刻意
             return
 
         if self._queue_depth(session_key, adapter=adapter) >= self._BUSY_QUEUE_MAX_PENDING:
-            logger.warning(...)
+            logger.warning(
+                "Dropping busy-mode follow-up for session %s — pending queue at cap (%d).",
+                session_key,
+                self._BUSY_QUEUE_MAX_PENDING,
+            )
             return
 
         self._enqueue_fifo(session_key, event, adapter)

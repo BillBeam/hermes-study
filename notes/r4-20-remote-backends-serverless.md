@@ -60,7 +60,7 @@ class ProcessHandle(Protocol):
 
 ### 1.2 机制:`_ThreadedProcessHandle` 把阻塞 exec 适配成 `ProcessHandle`
 
-数据结构(`base.py:374-440`):内部持有一个 `threading.Event _done`、一个 `os.pipe()`、以及后台 worker 线程。
+数据结构(`tools/environments/base.py:383-449`):内部持有一个 `threading.Event _done`、一个 `os.pipe()`、以及后台 worker 线程。
 
 ```383:417:/home/user/hermes-agent/tools/environments/base.py
     def __init__(
@@ -107,7 +107,9 @@ class ProcessHandle(Protocol):
 
 - **Modal direct**(`modal.py:408-440`):exec_fn = `sandbox.exec.aio("bash","-c",cmd)` 后 `read`/`wait`;cancel = `sandbox.terminate.aio()`。注意它把 async 调用丢进独立事件循环线程 `_AsyncWorker` 跑(`modal.py:127-161`),`run_coroutine` 用 `future.result(timeout)` 同步等。
 
-```415:440:/home/user/hermes-agent/tools/environments/modal.py
+`tools/environments/modal.py:415-440 @ 863e313`
+
+```python
         def cancel():
             worker.run_coroutine(sandbox.terminate.aio(), timeout=15)
 
@@ -124,7 +126,7 @@ class ProcessHandle(Protocol):
                 exit_code = await process.wait.aio()
 ```
 
-- **Daytona**(`daytona.py:219-242`):exec_fn = `sandbox.process.exec(shell_cmd, timeout=timeout)`(同步 SDK,直接返回 `.result`/`.exit_code`);cancel = `sandbox.stop()`(在 `self._lock` 内)。注意 cancel 用的是 `stop()`——中断时把整个沙箱停掉,下一条命令靠 `_ensure_sandbox_ready` 再 `start()` 回来(见 §2.3)。
+- **Daytona**(`tools/environments/daytona.py:226-249`):exec_fn = `sandbox.process.exec(shell_cmd, timeout=timeout)`(同步 SDK,直接返回 `.result`/`.exit_code`);cancel = `sandbox.stop()`(在 `self._lock` 内)。注意 cancel 用的是 `stop()`——中断时把整个沙箱停掉,下一条命令靠 `_ensure_sandbox_ready` 再 `start()` 回来(见 §2.3)。
 
 ```226:240:/home/user/hermes-agent/tools/environments/daytona.py
         def cancel():
@@ -144,7 +146,7 @@ class ProcessHandle(Protocol):
             return (response.result or "", response.exit_code)
 ```
 
-- **Vercel**(`vercel_sandbox.py:597-637`):exec_fn = `sandbox.run_command("bash", ["-lc"|"-c", cmd])`;cancel = `self._stop_sandbox(sandbox)`。此处 `timeout`/`stdin_data` 显式 `del` 丢弃——SDK 无 per-exec 超时,超时靠 base 的 `_wait_for_process` 触发 cancel_fn 停沙箱(注释 `vercel_sandbox.py:605-615`)。
+- **Vercel**(`tools/environments/vercel_sandbox.py:597-637`):exec_fn = `sandbox.run_command("bash", ["-lc"|"-c", cmd])`;cancel = `self._stop_sandbox(sandbox)`。此处 `timeout`/`stdin_data` 显式 `del` 丢弃——SDK 无 per-exec 超时,超时靠 base 的 `_wait_for_process` 触发 cancel_fn 停沙箱(注释 `tools/environments/vercel_sandbox.py:616-626`)。
 
 ```616:635:/home/user/hermes-agent/tools/environments/vercel_sandbox.py
         del timeout
@@ -202,7 +204,7 @@ README 宣称 *"Daytona and Modal offer serverless persistence — your agent's 
 
 **机制**:持久化不是"空闲自动休眠",而是**cleanup 时对文件系统拍快照,下次创建时从快照 id 复活**。
 
-- cleanup 路径(`modal.py:442-478`):先 `sync_manager.sync_back()`(拉回 skills/cache/credentials),再 `sandbox.snapshot_filesystem.aio()` 拿到一个 image 的 `object_id`,存进 JSON 台账,最后 `terminate` 沙箱。
+- cleanup 路径(`tools/environments/modal.py:451-487`):先 `sync_manager.sync_back()`(拉回 skills/cache/credentials),再 `sandbox.snapshot_filesystem.aio()` 拿到一个 image 的 `object_id`,存进 JSON 台账,最后 `terminate` 沙箱。
 
 ```451:469:/home/user/hermes-agent/tools/environments/modal.py
         if self._persistent:
@@ -210,10 +212,12 @@ README 宣称 *"Daytona and Modal offer serverless persistence — your agent's 
                 async def _snapshot():
                     img = await self._sandbox.snapshot_filesystem.aio()
                     return img.object_id
+...
                 try:
                     snapshot_id = self._worker.run_coroutine(_snapshot(), timeout=60)
                 except Exception:
                     snapshot_id = None
+...
                 if snapshot_id:
                     _store_direct_snapshot(self._task_id, snapshot_id)
                     logger.info(
@@ -230,7 +234,7 @@ README 宣称 *"Daytona and Modal offer serverless persistence — your agent's 
 
 ### 2.2 Managed Modal:更接近真"空闲休眠"
 
-代管模式把 idle 计时交给网关。创建沙箱时显式传 `idleTimeoutMs`(至少 5 分钟,或 `timeout` 秒)与 `persistentFilesystem`(`managed_modal.py:183-192`);cleanup 时 `POST /terminate` 带 `snapshotBeforeTerminate: persistent`(`managed_modal.py:158-166`)。
+代管模式把 idle 计时交给网关。创建沙箱时显式传 `idleTimeoutMs`(至少 5 分钟,或 `timeout` 秒)与 `persistentFilesystem`(`tools/environments/managed_modal.py:183-192`);cleanup 时 `POST /terminate` 带 `snapshotBeforeTerminate: persistent`(`tools/environments/managed_modal.py:188-196`)。
 
 ```186:192:/home/user/hermes-agent/tools/environments/managed_modal.py
             "timeoutMs": 3_600_000,
@@ -247,7 +251,7 @@ README 宣称 *"Daytona and Modal offer serverless persistence — your agent's 
 
 - resume 路径(`daytona.py:89-131`):persistent 时先按 `hermes-<task_id>` 名 `daytona.get(name)` 找到旧沙箱并 `start()`;找不到再按 label `list()` 找 legacy;都没有才 `create()`。
 - 创建时 `auto_stop_interval=0`(`daytona.py:125`)——**显式关掉 Daytona 自己的空闲自动停机**。
-- cleanup 路径(`daytona.py:244-270`):persistent 时 `sandbox.stop()`(保留文件系统),非 persistent 才 `daytona.delete()`。
+- cleanup 路径(`tools/environments/daytona.py:261-287`):persistent 时 `sandbox.stop()`(保留文件系统),非 persistent 才 `daytona.delete()`。
 
 ```260:267:/home/user/hermes-agent/tools/environments/daytona.py
                 if self._persistent:
@@ -266,17 +270,24 @@ README 宣称 *"Daytona and Modal offer serverless persistence — your agent's 
 
 **机制**:与 Modal direct 同构——cleanup 拍 `sandbox.snapshot()` 存 id,创建时 `source={"type":"snapshot","snapshot_id":...}` 复活(`vercel_sandbox.py:306-342, 448-475`)。台账 `{HERMES_HOME}/vercel_sandbox_snapshots.json`,键是裸 `task_id`(`vercel_sandbox.py:76, 175-200`)。复活失败则 `_delete_snapshot` 剪枝 + 退回全新沙箱(`vercel_sandbox.py:323-331`)。
 
-```448:469:/home/user/hermes-agent/tools/environments/vercel_sandbox.py
+`tools/environments/vercel_sandbox.py:448-469 @ 863e313`
+
+```python
     def _snapshot_sandbox(self, sandbox: Sandbox) -> str | None:
         if not self._persistent or not self._task_id:
             return None
         try:
             snapshot = sandbox.snapshot()
         except Exception as exc:
-            logger.warning(...)
+            logger.warning(
+                "Vercel: filesystem snapshot failed for task %s: %s",
+                self._task_id,
+                exc,
+            )
             return None
+...
         snapshot_id = _extract_snapshot_id(snapshot)
-        ...
+...
         _store_snapshot(self._task_id, snapshot_id)
 ```
 
@@ -290,7 +301,7 @@ Vercel 独有两块工程化:
 
 **机制**:持久化靠给 Apptainer 实例挂一个**可写 overlay 目录**,该目录在宿主 scratch 下按 task_id 命名,实例停了目录还在。
 
-- 启动(`singularity.py:200-223`):persistent 且有 overlay 时 `--overlay <dir>`,否则 `--writable-tmpfs`(临时、不留)。
+- 启动(`tools/environments/singularity.py:204-227`):persistent 且有 overlay 时 `--overlay <dir>`,否则 `--writable-tmpfs`(临时、不留)。
 
 ```204:207:/home/user/hermes-agent/tools/environments/singularity.py
         if self._persistent and self._overlay_dir:
@@ -329,7 +340,7 @@ Vercel 独有两块工程化:
 `_sync_transaction`(`file_sync.py:178-250`)一个周期:
 1. **限速**:非 force 且距上次 < `sync_interval`(5s)直接返回(`file_sync.py:180-183`)。SSH/Modal/Daytona/Vercel 的 `_before_execute` 每条命令都调 `sync()`,靠这层限速避免每命令都传全量。
 2. **算 diff**:对每个文件用 `_file_mtime_key = (mtime, size)` 比对 `_synced_files`,变了才进 `to_upload`;`_synced_files` 里有、当前集合没有的进 `to_delete`(`file_sync.py:190-202`)。
-3. **事务性**:先快照 `prev_files/prev_hashes`,执行 bulk_upload(有则用批量,否则逐个)+ delete;**全部成功**才提交(算 sha256 写 `_pushed_hashes`、更新 `_synced_files`、推进限速时钟);任一步抛异常就回滚 state 且**故意不推进时钟**,好让下一周期立刻重试(`file_sync.py:217-250`)。
+3. **事务性**:先快照 `prev_files/prev_hashes`,执行 bulk_upload(有则用批量,否则逐个)+ delete;**全部成功**才提交(算 sha256 写 `_pushed_hashes`、更新 `_synced_files`、推进限速时钟);任一步抛异常就回滚 state 且**故意不推进时钟**,好让下一周期立刻重试(`tools/environments/file_sync.py:241-274`)。
 
 ```241:250:/home/user/hermes-agent/tools/environments/file_sync.py
         except Exception as exc:
@@ -339,7 +350,8 @@ Vercel 独有两块工程化:
             # back so the next cycle can retry. Bumping the rate-limit clock on
             # failure would make the next non-forced sync() return early (the
             # guard above), suppressing that retry for up to _sync_interval and
-            # leaving the remote with stale files ...
+            # leaving the remote with stale files — contradicting this method's
+...
             logger.warning("file_sync: sync failed, rolled back state: %s", exc)
 ```
 

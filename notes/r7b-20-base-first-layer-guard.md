@@ -60,7 +60,7 @@
         del self._active_sessions[session_key]
 ```
 
-(`gateway/platforms/base.py:5325-5330 @ 863e313`;函数体 docstring 在 `:5318-5323`)
+(`gateway/platforms/base.py:5320-5325 @ 863e313`;函数体 docstring 在 `:5318-5323`)
 
 > When ``guard`` is provided, only release the entry if it still points
 > at that exact Event.  This lets reset-like commands swap in a temporary
@@ -265,7 +265,7 @@ handle_message(event)
 ### 6.2 迟到排水与"别起两个"
 
 清理阶段的 `await` 之间仍可能有消息落槽,所以 `finally` 里再排一次
-(`gateway/platforms/base.py:6423-6432 @ 863e313`):
+(`gateway/platforms/base.py:6424-6433 @ 863e313`):
 
 ```python
             # Late-arrival drain: a message may have arrived during the
@@ -277,7 +277,7 @@ handle_message(event)
             # dropped (user never gets a reply).
 ```
 
-但**排水任务可能已经被 §6.1 起过了**,于是要判属主(`base.py:6434-6449 @ 863e313`):
+但**排水任务可能已经被 §6.1 起过了**,于是要判属主(`gateway/platforms/base.py:6435-6450 @ 863e313`):
 
 ```python
                 if (
@@ -350,11 +350,9 @@ handle_message(event)
 
 **▲ B-7**:`docs/session-lifecycle.md:455-457 @ 863e313`:
 
-> ```
 > adapter._pending_messages: Dict[session_key, MessageEvent]
 >     └── Single "next-up" slot per session. Overwritten on repeat sends
 >         (burst collapse). Shared with photo-burst follow-ups.
-> ```
 
 "Overwritten" 只对**无媒体且未开 `merge_text` 的普通文本**成立。PHOTO 连拍是
 **拼接**(`gateway/platforms/base.py:2464-2470 @ 863e313`),带媒体混合是**合并**

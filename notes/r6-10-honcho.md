@@ -52,7 +52,7 @@ through the MemoryProvider interface.
         )
 ```
 - **user peer** ↔ "这个人"。解析是一条七级阶梯(见 §1.4)。
-- **ai peer** ↔ "这个 Hermes 实例的人格"。`session.py:386-388 @ 863e313`:
+- **ai peer** ↔ "这个 Hermes 实例的人格"。`plugins/memory/honcho/session.py:386-388 @ 863e313`:
 ```python
         assistant_peer_id = self._sanitize_id(
             self._config.ai_peer if self._config else "hermes-assistant"
@@ -130,7 +130,7 @@ through the MemoryProvider interface.
         return self._session_key_fallback_peer_id(key)
 ```
 
-即:pin(全部塌缩到 peerName)→ 别名表(runtime ID→peer,支持主/备双 ID,如 Telegram UID+用户名,`session.py:278-287`)→ 前缀命名空间 → 裸 runtime ID → peerName → 会话键兜底。前缀路径有 sha256 碰撞升级:若 sanitize 改变了原串或撞上显式配置的 peer,则追加 8→12→16→24→32→64 位摘要直到不冲突,`session.py:313-328 @ 863e313`:
+即:pin(全部塌缩到 peerName)→ 别名表(runtime ID→peer,支持主/备双 ID,如 Telegram UID+用户名,`plugins/memory/honcho/session.py:278-287`)→ 前缀命名空间 → 裸 runtime ID → peerName → 会话键兜底。前缀路径有 sha256 碰撞升级:若 sanitize 改变了原串或撞上显式配置的 peer,则追加 8→12→16→24→32→64 位摘要直到不冲突,`plugins/memory/honcho/session.py:313-328 @ 863e313`:
 ```python
     def _generated_runtime_peer_id(self, prefix: str, runtime_id: str) -> str:
         """Return a stable peer ID for an unknown prefixed runtime user."""
@@ -180,7 +180,7 @@ through the MemoryProvider interface.
                 return self._enforce_session_id_limit(sanitized, gateway_session_key)
 ```
 
-Honcho 对 session ID 有 100 字符硬限,长网关键(Matrix room+thread、Slack 线程)会溢出并导致该会话所有调用被拒(issue #13868)。修法是"前缀 + 对**原始串**取 sha256 前 8 位"截断,保证两个只共享前缀的长键不塌缩、而 sanitize 后相同的键仍有意塌缩,`client.py:763-786 @ 863e313`:
+Honcho 对 session ID 有 100 字符硬限,长网关键(Matrix room+thread、Slack 线程)会溢出并导致该会话所有调用被拒(issue #13868)。修法是"前缀 + 对**原始串**取 sha256 前 8 位"截断,保证两个只共享前缀的长键不塌缩、而 sanitize 后相同的键仍有意塌缩,`plugins/memory/honcho/client.py:763-786 @ 863e313`:
 ```python
     @classmethod
     def _enforce_session_id_limit(cls, sanitized: str, original: str) -> str:
@@ -198,7 +198,7 @@ Honcho 对 session ID 有 100 字符硬限,长网关键(Matrix room+thread、Sla
 
 ### 1.6 观察方向(observation)与 observer/target 路由
 
-Honcho 每个 session-peer 有两个布尔(`observe_me` 自观察 / `observe_others` 观察他人),初始化时通过 `SessionPeerConfig` 下发,并**回读服务器端配置覆盖本地**(Honcho UI 里改的赢),`session.py:196-232 @ 863e313`(节选):
+Honcho 每个 session-peer 有两个布尔(`observe_me` 自观察 / `observe_others` 观察他人),初始化时通过 `SessionPeerConfig` 下发,并**回读服务器端配置覆盖本地**(Honcho UI 里改的赢),`plugins/memory/honcho/session.py:199-235 @ 863e313`(节选):
 ```python
             from honcho.session import SessionPeerConfig
             user_config = SessionPeerConfig(
@@ -212,9 +212,14 @@ Honcho 每个 session-peer 有两个布尔(`observe_me` 自观察 / `observe_oth
             # local defaults. Read the effective config after add_peers.
 ```
 
-之后所有查询走统一的 observer/target 路由:目标是 AI 自己→AI 自查;`ai_observe_others` 开→以 AI 为观察者查 target(跨 peer dialectic);否则 target 自查,`session.py:1087-1101 @ 863e313`:
+之后所有查询走统一的 observer/target 路由:目标是 AI 自己→AI 自查;`ai_observe_others` 开→以 AI 为观察者查 target(跨 peer dialectic);否则 target 自查,`plugins/memory/honcho/session.py:1087-1101 @ 863e313`:
 ```python
-    def _resolve_observer_target(self, session, peer):
+    def _resolve_observer_target(
+        self,
+        session: HonchoSession,
+        peer: str | None,
+    ) -> tuple[str, str | None]:
+        """Resolve observer and target peer IDs for context/search/profile queries."""
         target_peer_id = self._resolve_peer_id(session, peer)
 
         if target_peer_id == session.assistant_peer_id:
@@ -254,7 +259,7 @@ Honcho 每个 session-peer 有两个布尔(`observe_me` 自观察 / `observe_oth
 - **基础层**(无 LLM,便宜):session summary + 用户 representation/card + AI 自我 representation/card,由 `get_prefetch_context` 拉取(`session.py:720-774 @ 863e313`),格式化成 markdown 小节(`__init__.py:597-624`,`## Session Summary` / `## User Representation` / `## User Peer Card` / `## AI Self-Representation` / `## AI Identity Card`)。首条用户消息作 `search_query` 传给 `peer.context()`,让 Honcho 返回话题相关结论而非全量画像(`session.py:760`)。
 - **补充层**(跑 LLM,贵):多 pass `peer.chat()`(§2.5)。
 
-两层 `"\n\n".join` 后按 `contextTokens × 4` 字符在词边界截断(`__init__.py:842-846, 870-882`),返回**纯文本**;`<memory-context>` 围栏由 harness 端 `agent/memory_manager.py:355-361 @ 863e313` 统一加:
+两层 `"\n\n".join` 后按 `contextTokens × 4` 字符在词边界截断(`__init__.py:842-846, 870-882`),返回**纯文本**;`<memory-context>` 围栏由 harness 端 `agent/memory_manager.py:354-360 @ 863e313` 统一加:
 ```python
     return (
         "<memory-context>\n"
@@ -268,7 +273,7 @@ Honcho 每个 session-peer 有两个布尔(`observe_me` 自观察 / `observe_oth
 
 ### 2.3 第 1 轮的有界等待,之后 fail-open
 
-第 1 轮给基础层一个共享截止时间(会话初始化 + 首次 context 拉取共用 `firstTurnBaseWait`,默认 3s;若配置了更短的请求超时则取小),`__init__.py:686-704 @ 863e313`:
+第 1 轮给基础层一个共享截止时间(会话初始化 + 首次 context 拉取共用 `firstTurnBaseWait`,默认 3s;若配置了更短的请求超时则取小),`plugins/memory/honcho/__init__.py:686-704 @ 863e313`:
 ```python
         first_turn_base_deadline = None
         if self._turn_count <= 1:
@@ -299,7 +304,7 @@ Honcho 每个 session-peer 有两个布尔(`observe_me` 自观察 / `observe_oth
 
 ### 2.5 dialectic 深度:多 pass、冷/暖提示词、强信号提前退出
 
-`__init__.py:1080-1117 @ 863e313`(pass 提示词构造):
+`plugins/memory/honcho/__init__.py:1087-1124 @ 863e313`(pass 提示词构造):
 ```python
         if pass_idx == 0:
             if is_cold:
@@ -327,7 +332,7 @@ Honcho 每个 session-peer 有两个布尔(`observe_me` 自观察 / `observe_oth
 
 ### 2.6 queue_prefetch:节奏门 + 活性防御
 
-turn 结束后 harness 调 `queue_prefetch` 为下一轮预热。三道门:琐碎提示直接跳过(分类完全委托共享正则 `agent/memory_provider.py:52-78 @ 863e313` 的 `is_trivial_prompt`,防 provider 与核心门漂移,`__init__.py:1199-1209`);context 层按 `contextCadence`;dialectic 层按**有效节奏**=基础节奏+连续空返回退避(封顶 8×),`__init__.py:1015-1021 @ 863e313`:
+turn 结束后 harness 调 `queue_prefetch` 为下一轮预热。三道门:琐碎提示直接跳过(分类完全委托共享正则 `agent/memory_provider.py:52-78 @ 863e313` 的 `is_trivial_prompt`,防 provider 与核心门漂移,`plugins/memory/honcho/__init__.py:1199-1209`);context 层按 `contextCadence`;dialectic 层按**有效节奏**=基础节奏+连续空返回退避(封顶 8×),`plugins/memory/honcho/__init__.py:1015-1021 @ 863e313`:
 ```python
     def _effective_cadence(self) -> int:
         """Cadence plus empty-streak backoff, capped at _BACKOFF_MAX × base."""
@@ -409,7 +414,7 @@ def sanitize_context(text: str) -> str:
 
 ### 3.2 flush 语义:本地缓存 + `_synced` 标记 + 失败回滚标记
 
-本地 `HonchoSession.messages` 是 dict 列表,`_flush_session` 只挑未同步的批量 `add_messages`;成败都写回缓存,失败把 `_synced` 复位 False 等下次重试,`session.py:435-458 @ 863e313`(节选):
+本地 `HonchoSession.messages` 是 dict 列表,`_flush_session` 只挑未同步的批量 `add_messages`;成败都写回缓存,失败把 `_synced` 复位 False 等下次重试,`plugins/memory/honcho/session.py:435-458 @ 863e313`(节选):
 ```python
         new_messages = [m for m in session.messages if not m.get("_synced")]
         ...
@@ -435,7 +440,7 @@ def sanitize_context(text: str) -> str:
         # per-message AIAgent instances.
 ```
 
-注释下方已无对应代码。结论:在本基线,`writeFrequency` 配置(setup 向导仍在问,`cli.py:912-923`)对 MemoryProvider 主路径**无效**——每轮固定"一线程一 flush",串行化靠 join 前一个 sync 线程(5s 上限)。async writer 懒启动本身有明确理由(急切启动曾抢在 mock 之前把测试消息写进真实本地 Honcho),`session.py:143-152 @ 863e313`:
+注释下方已无对应代码。结论:在本基线,`writeFrequency` 配置(setup 向导仍在问,`cli.py:912-923`)对 MemoryProvider 主路径**无效**——每轮固定"一线程一 flush",串行化靠 join 前一个 sync 线程(5s 上限)。async writer 懒启动本身有明确理由(急切启动曾抢在 mock 之前把测试消息写进真实本地 Honcho),`plugins/memory/honcho/session.py:143-152 @ 863e313`:
 ```python
         # Async write queue — the writer thread starts lazily on first enqueue
         # (see _ensure_async_writer). Constructing a manager must not spawn
@@ -446,7 +451,7 @@ def sanitize_context(text: str) -> str:
 
 ### 3.4 on_memory_write:内建档案写入的单向镜像
 
-内建记忆系统对 user 档案的 `add` 操作被镜像成 Honcho conclusion(其余 action/target 忽略),后台线程发射即忘,`__init__.py:1353-1384`(关键行):
+内建记忆系统对 user 档案的 `add` 操作被镜像成 Honcho conclusion(其余 action/target 忽略),后台线程发射即忘,`plugins/memory/honcho/__init__.py:1367-1398`(关键行):
 ```python
         if action != "add" or target != "user" or not content:
             return
@@ -524,7 +529,7 @@ cron/flush 上下文整插件熔断(`agent_context in {"cron","flush"} or platfo
 
 ### 5.1 模式:授权码 + PKCE(loopback)与设备码(RFC 8628)双流
 
-**loopback 流**:先绑 `127.0.0.1:8765`(占用则 OS 随机端口,重定向 URI 广告实际端口,`oauth_flow.py:257-297, 343-346`),生成 PKCE verifier/S256 challenge + 随机 `state`(`_pkce`,`oauth_flow.py:134-142`),挂进带 600s TTL 的 pending 表(防伪造回调,`oauth_flow.py:36-38, 130-148`),浏览器开 authorize URL;一次性 HTTP 服务器只认 `/callback`,循环 `handle_request` 直到拿到 code(杂散探测不提前结束等待,`oauth_flow.py:300-324`);state 不匹配即判 CSRF 中止,`oauth_flow.py:364-366 @ 863e313`:
+**loopback 流**:先绑 `127.0.0.1:8765`(占用则 OS 随机端口,重定向 URI 广告实际端口,`plugins/memory/honcho/oauth_flow.py:257-297, 343-346`),生成 PKCE verifier/S256 challenge + 随机 `state`(`_pkce`,`plugins/memory/honcho/oauth_flow.py:134-142`),挂进带 600s TTL 的 pending 表(防伪造回调,`plugins/memory/honcho/oauth_flow.py:36-38, 130-148`),浏览器开 authorize URL;一次性 HTTP 服务器只认 `/callback`,循环 `handle_request` 直到拿到 code(杂散探测不提前结束等待,`plugins/memory/honcho/oauth_flow.py:300-324`);state 不匹配即判 CSRF 中止,`plugins/memory/honcho/oauth_flow.py:364-366 @ 863e313`:
 ```python
     code, returned_state = capture_loopback_code(server, captured, timeout=timeout)
     if returned_state != state:
@@ -532,7 +537,7 @@ cron/flush 上下文整插件熔断(`agent_context in {"cron","flush"} or platfo
 ```
 换码在 `complete_authorization`(`grant_type=authorization_code` + `code_verifier`,`oauth_flow.py:209-219`),持久化后 `reset_honcho_client()` 让单例下次以新 token 重建(`oauth_flow.py:232-235`)。
 
-**设备码流**(SSH/无头):能力探测走 RFC 8414 元数据(`/.well-known/oauth-authorization-server` 里是否宣告 device grant,fail-closed,`oauth_flow.py:427-439`);轮询严格按 RFC 8628 处理 `authorization_pending`/`slow_down`(+5s、封顶 60s)/`access_denied`/`expired_token`,网络抖动 continue 不杀 10 分钟等待,`oauth_flow.py:477-534 @ 863e313`(节选):
+**设备码流**(SSH/无头):能力探测走 RFC 8414 元数据(`/.well-known/oauth-authorization-server` 里是否宣告 device grant,fail-closed,`plugins/memory/honcho/oauth_flow.py:427-439`);轮询严格按 RFC 8628 处理 `authorization_pending`/`slow_down`(+5s、封顶 60s)/`access_denied`/`expired_token`,网络抖动 continue 不杀 10 分钟等待,`plugins/memory/honcho/oauth_flow.py:514-571 @ 863e313`(节选):
 ```python
         except httpx.TransportError as e:
             # A network blip mid-poll shouldn't kill a 10-minute wait.
@@ -569,7 +574,7 @@ agent (stale token stays; the fail-open path absorbs the eventual 401).
 
 ### 5.3 刷新:三层防重放 + fail-open
 
-刷新提前 120s(skew)触发;因 refresh token **单次使用、重放即撤销全 grant**,序列化是硬要求:进程内 `threading.Lock` + 跨进程 `flock`(`<config>.lock`,兄弟 profile / 桌面 app 共享同一 honcho.json 时防并发轮换;无 flock 平台降级进程内,`oauth.py:44-90`)+ 锁内重读双检(别的进程刚轮换过就直接采用其结果),`oauth.py:319-333 @ 863e313`:
+刷新提前 120s(skew)触发;因 refresh token **单次使用、重放即撤销全 grant**,序列化是硬要求:进程内 `threading.Lock` + 跨进程 `flock`(`<config>.lock`,兄弟 profile / 桌面 app 共享同一 honcho.json 时防并发轮换;无 flock 平台降级进程内,`plugins/memory/honcho/oauth.py:44-90`)+ 锁内重读双检(别的进程刚轮换过就直接采用其结果),`plugins/memory/honcho/oauth.py:319-333 @ 863e313`:
 ```python
     with _refresh_lock, _config_refresh_lock(path):
         # Re-read under both locks: another thread or process may have just
@@ -590,10 +595,16 @@ agent (stale token stays; the fail-open path absorbs the eventual 401).
 
 ### 5.4 与 client 单例的接线:每次取用都过刷新检查,轮换原地热替
 
-`session.py` 的 `honcho` property 每次访问都走 `get_honcho_client()`(`session.py:154-162`,"a long session can't outlive its 1h access token");`get_honcho_client` 命中缓存时调 `_refresh_cached_oauth`:token 若轮换,直接改写 SDK 内部 `client._http.api_key`(SDK 每请求现取该字段构造 Bearer 头,单例所有持有者同时生效);SDK 形状变了改不动就 reset 单例重建,`oauth.py:389-401 @ 863e313`:
+`session.py` 的 `honcho` property 每次访问都走 `get_honcho_client()`(`session.py:154-162`,"a long session can't outlive its 1h access token");`get_honcho_client` 命中缓存时调 `_refresh_cached_oauth`:token 若轮换,直接改写 SDK 内部 `client._http.api_key`(SDK 每请求现取该字段构造 Bearer 头,单例所有持有者同时生效);SDK 形状变了改不动就 reset 单例重建,`plugins/memory/honcho/oauth.py:389-401 @ 863e313`:
 ```python
 def apply_token_to_client(client: Any, token: str) -> bool:
-    """Rotate the live Honcho client's Bearer in place. Returns success. ..."""
+    """Rotate the live Honcho client's Bearer in place. Returns success.
+
+    The SDK builds its auth header per request from the HTTP client's
+    ``api_key``, so mutating it rotates every holder of the singleton without a
+    rebuild. Guarded: an SDK shape change degrades to False and the caller can
+    fall back to resetting the client.
+    """
     http = getattr(client, "_http", None)
     if http is None or not hasattr(http, "api_key"):
         return False
@@ -668,7 +679,7 @@ loopback + RFC1918 + link-local + CGNAT(Tailscale 100.64/10)都算"本地"(`_is_
 - **migrate**(`cli.py:1595-1821`):六步交互式迁移指南(OpenClaw 文件记忆 → Honcho),自动探测 USER/MEMORY/SOUL/IDENTITY/AGENTS/TOOLS/BOOTSTRAP.md 并分别上传到 user/ai peer。
 - **enable / disable / sync**:host 块开关;`sync` 为所有 profile 克隆 host 块(`clone_honcho_for_profile`,`cli.py:18-77`:继承默认块设置、workspace 共享、aiPeer 用裸 profile 名——因 Honcho peer ID 不许有点;并急切建 peer)。`sync_honcho_profiles_quiet` 供 `hermes update` 静默调用(`cli.py:207-233`)。
 
-**发现的代码内不一致**:`_all_profile_host_configs`(status --all / peers 用)仍以**旧点号形式**拼 host 键,`cli.py:1113 @ 863e313`:
+**发现的代码内不一致**:`_all_profile_host_configs`(status --all / peers 用)仍以**旧点号形式**拼 host 键,`plugins/memory/honcho/cli.py:1113 @ 863e313`:
 ```python
         h = f"{HOST}.{p.name}"
 ```
@@ -694,7 +705,7 @@ loopback + RFC1918 + link-local + CGNAT(Tailscale 100.64/10)都算"本地"(`_is_
 
 **◇ 定案(R1 遗留):根 README.md:26 "Honcho dialectic user modeling"** —— `README.md:26 @ 863e313`:
 ```
-FTS5 session search with LLM summarization for cross-session recall. <a href="https://github.com/plastic-labs/honcho">Honcho</a> dialectic user modeling.
+<tr><td><b>A closed learning loop</b></td><td>Agent-curated memory with periodic nudges. Autonomous skill creation after complex tasks. Skills self-improve during use. FTS5 session search with LLM summarization for cross-session recall. <a href="https://github.com/plastic-labs/honcho">Honcho</a> dialectic user modeling. Compatible with the <a href="https://agentskills.io">agentskills.io</a> open standard.</td></tr>
 ```
 **成立,但主体在服务端**。Hermes 侧真实存在完整的 dialectic 调用编排(多 pass `peer.chat`、冷/暖提示词、比例 reasoning level、`honcho_reasoning` 工具,§2.5),但"user modeling"(representation/card 的构建与自愈)是 Honcho 后端的工作;Hermes 是采集(sync_turn)+ 调用(chat/context)+ 注入(prefetch)的客户端。宣称不虚,读者应理解为"集成了",而非"实现了"。
 
@@ -734,7 +745,7 @@ FTS5 session search with LLM summarization for cross-session recall. <a href="ht
 - `tests/honcho_plugin/`:`test_session.py`(1317 行,主行为规格)、`test_pin_peer_name.py`(574)、`test_oauth_flow.py`(487)、`test_oauth.py`、`test_client.py`、`test_cli.py`、`test_async_memory.py`、`test_network_isolation.py`、`test_empty_profile_hint.py`、`test_query_rewrite.py`、`conftest.py`
 - 仓根:`tests/test_honcho_startup_fail_open.py`(326)、`tests/test_honcho_client_config.py`、`tests/test_honcho_client_concurrency.py`、`tests/test_honcho_session_context.py`、`tests/plugins/memory/test_honcho_config_schema.py`
 
-**行为规格一:第 1 轮之外绝不等待。** `tests/test_honcho_startup_fail_open.py:50-84 @ 863e313`(`test_stalled_init_only_delays_first_turn_prefetch`):把 `_do_session_init` 换成阻塞 10s 的桩,断言 turn 1 的 `prefetch` 等待 ≥0.5s(有界等待发生)且返回 "",turn 2/3/4 各自 <0.4s 立即返回 ""——把"fail-open 契约只允许在 turn 1 打折"钉成回归测试:
+**行为规格一:第 1 轮之外绝不等待。** `tests/test_honcho_startup_fail_open.py:70-104 @ 863e313`(`test_stalled_init_only_delays_first_turn_prefetch`):把 `_do_session_init` 换成阻塞 10s 的桩,断言 turn 1 的 `prefetch` 等待 ≥0.5s(有界等待发生)且返回 "",turn 2/3/4 各自 <0.4s 立即返回 ""——把"fail-open 契约只允许在 turn 1 打折"钉成回归测试:
 ```python
         provider._turn_count = 1
         start = time.perf_counter()
@@ -749,7 +760,7 @@ FTS5 session search with LLM summarization for cross-session recall. <a href="ht
 ```
 同文件还钉死:`_manager` 已赋值但初始化未完时 `sync_turn` 必须按未就绪处理(`test_honcho_sync_turn_waits_for_full_background_startup`,:164-218);tools 懒模式下 prefetch/sync/on_memory_write 都不许偷跑初始化,首次工具调用独占初始化权(:286-326)。
 
-**行为规格二:写口清洗防反刍。** `tests/honcho_plugin/test_session.py:236-267 @ 863e313`(`test_sync_turn_strips_leaked_memory_context_before_honcho_ingest`):user/assistant 内容里混入完整 `<memory-context>…</memory-context>` 块 + 系统注记,断言写入 Honcho 的只剩 `("user", "hello")` 与 `("assistant", "Visible answer")`:
+**行为规格二:写口清洗防反刍。** `tests/honcho_plugin/test_session.py:266-297 @ 863e313`(`test_sync_turn_strips_leaked_memory_context_before_honcho_ingest`):user/assistant 内容里混入完整 `<memory-context>…</memory-context>` 块 + 系统注记,断言写入 Honcho 的只剩 `("user", "hello")` 与 `("assistant", "Visible answer")`:
 ```python
         assert session.add_message.call_args_list[0].args == ("user", "hello")
         assert session.add_message.call_args_list[1].args == ("assistant", "Visible answer")

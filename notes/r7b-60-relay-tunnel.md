@@ -35,7 +35,7 @@ Telegram, Matrix, Signal, ... without per-platform branching.
 
 **这正是 `r7b-10` §1 那组能力位的"数据化"**:能力位本来是**方法**(子类覆盖),
 在 relay 里变成一个**可序列化的 frozen dataclass**,从对端传过来。
-描述符字段与能力位的对应关系写在模块头(`gateway/relay/descriptor.py:15-29 @ 863e313`):
+描述符字段与能力位的对应关系写在模块头(`gateway/relay/descriptor.py:18-32 @ 863e313`):
 
 ```
 - ``max_message_length`` -> ``PlatformEntry.max_message_length`` / adapter
@@ -47,7 +47,7 @@ Telegram, Matrix, Signal, ... without per-platform branching.
   Telegram yes; Signal/SMS no -> consumer degrades to one-message-per-segment).
 ```
 
-`frozen=True` 有明确理由(`gateway/relay/descriptor.py:44-48 @ 863e313`):
+`frozen=True` 有明确理由(`gateway/relay/descriptor.py:43-47 @ 863e313`):
 
 ```python
     """Immutable capability descriptor negotiated at relay handshake.
@@ -84,7 +84,7 @@ Telegram, Matrix, Signal, ... without per-platform branching.
 **"空 = 遗留四件套,而不是空 = 什么都不支持"**。这让能力发现**加进来时不破坏任何人**:
 老 connector 继续工作(拿到遗留集),新 op 只在显式声明时才为真。
 
-**老网关 + 新 connector** —— `from_json` 丢弃未知键(`gateway/relay/descriptor.py:101-106 @ 863e313`):
+**老网关 + 新 connector** —— `from_json` 丢弃未知键(`gateway/relay/descriptor.py:102-107 @ 863e313`):
 
 ```python
         Unknown keys are ignored (forward-compat: a newer connector may send
@@ -293,12 +293,12 @@ Discord 的交互(按钮点击)要求**3 秒内 ACK**,否则用户看到"交互�
 
 几处细节值得抄:
 
-**(a) 多密钥验证列表**(`gateway/relay/auth.py:61-81 @ 863e313`),支持轮换窗口:
+**(a) 多密钥验证列表**(`gateway/relay/auth.py:62-82 @ 863e313`),支持轮换窗口:
 
 ```python
     """Constant-time check that ``sig_hex`` is a valid HMAC of ``payload`` under
     ANY of ``secrets`` (rotation window). Length-mismatched candidates are
-    skipped without a timing leak.
+    skipped without a timing leak. Mirrors ``verifySignature``.
     """
 ```
 
@@ -421,7 +421,7 @@ rather than the whole gateway crashing).
 ## 8. 【文档-代码冲突候选】
 
 **◇ B-21**:`transport.py` / `descriptor.py` / `auth.py` 三个模块头都标注
-**EXPERIMENTAL**,并给出撤销条件(`gateway/relay/transport.py:18-20 @ 863e313`):
+**EXPERIMENTAL**,并给出撤销条件(`gateway/relay/transport.py:19-21 @ 863e313`):
 
 ```
 EXPERIMENTAL: may change without a deprecation cycle until >=2 Class-1 platforms

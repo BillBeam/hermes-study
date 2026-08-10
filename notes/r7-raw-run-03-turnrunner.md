@@ -38,7 +38,7 @@ class TurnRunner:
         self._ctx = ctx
 ```
 
-**seam 的关键规则**(gateway/turn_context.py:11-24 @ 863e313):
+**seam 的关键规则**(gateway/turn_context.py:13-26 @ 863e313):
 
 ```python
 - All fields are written once by ``_run_agent_inner`` while wiring up the turn
@@ -321,7 +321,7 @@ gateway/run.py:3791-3805 @ 863e313:
 
 ### 机制 6:消息构造 —— new 去重、terminal 代码块、verbose、友好标签(3807-3931)
 
-**"new" 模式**(只报工具切换,run.py:3808-3810):
+**"new" 模式**(只报工具切换,gateway/run.py:3808-3810):
 
 ```python
         if ctx.progress_mode == "new" and tool_name == ctx.last_tool[0]:
@@ -374,7 +374,7 @@ gateway/run.py:3835-3861 @ 863e313(节选):
 `tool_preview_length` 为 0(默认)时**不截断**——"用户显式要了全量,平台长度上限兜底"
 (3874-3877 注释)。
 
-**"all"/"new" 的友好标签**(run.py:3905-3927 @ 863e313,节选):
+**"all"/"new" 的友好标签**(gateway/run.py:3905-3927 @ 863e313,节选):
 
 ```python
             _prepared_preview = prepare_tool_preview(
@@ -387,6 +387,7 @@ gateway/run.py:3835-3861 @ 863e313(节选):
                 preview = _progress_adapter.format_tool_preview(_prepared_preview)
             else:
                 preview = _prepared_preview.text
+...
             _verb = get_tool_verb(tool_name)
             if _verb:
                 if verb_drops_preview(tool_name):
@@ -623,7 +624,7 @@ gateway/run.py:4175-4182 @ 863e313:
 
 **编辑失败三级分类**(4187-4225):
 
-gateway/run.py:4191-4213 @ 863e313(节选):
+gateway/run.py:4190-4212 @ 863e313(节选):
 
 ```python
                     result = await _edit_progress_message(progress_msg_id, full_text)
@@ -642,6 +643,7 @@ gateway/run.py:4191-4213 @ 863e313(节选):
                             continue
                         if "flood" in _err or "retry after" in _err:
                             # Flood control hit — backoff but keep editing.
+...
                             logger.info(
                                 "[%s] Progress edit flood control, backing off",
                                 adapter.name,
@@ -768,7 +770,7 @@ gateway/run.py:4302-4321 @ 863e313:
 `_step_callback_sync`:agent 每次 API 迭代前调用(agent/conversation_loop.py:1476 @ 863e313
 `agent.step_callback(api_call_count, prev_tools)`),桥接到 `hooks.emit("agent:step", ...)`。
 
-gateway/run.py:4326-4348 @ 863e313(节选):
+gateway/run.py:4327-4349 @ 863e313(节选):
 
 ```python
         # prev_tools may be list[str] or list[dict] with "name"/"result"
@@ -1380,7 +1382,7 @@ approve/deny 命令处理器里——**暂停与恢复分属两个代码路径**
 
 关键片段二:命令脱敏(#48456):
 
-gateway/run.py:5171-5176 @ 863e313:
+gateway/run.py:5170-5175 @ 863e313:
 
 ```python
             # Redact credentials from the command before displaying it in
@@ -1559,7 +1561,7 @@ try 块内(5387-5435):
 **session split 检测与同步**(5474-5561):压缩可能把会话轮转成子会话(id 变),或
 in-place 压实(#38763,id 不变):
 
-gateway/run.py:5484-5492 @ 863e313:
+gateway/run.py:5479-5487 @ 863e313:
 
 ```python
         # In-place compaction (compression.in_place / #38763) compacts the

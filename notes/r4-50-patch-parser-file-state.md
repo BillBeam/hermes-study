@@ -9,18 +9,19 @@
 一份补丁可以在一次调用里做多个操作:更新文件、新建文件、删文件、移动文件。harness 要把这个文本格式解析成
 结构化操作再落地。
 
-**格式**(patch_parser.py:7-23 docstring):
+**格式**(tools/patch_parser.py:8-24 docstring):
 ```
-*** Begin Patch
-*** Update File: path/to/file.py
-@@ optional context hint @@
- context line(空格前缀)
--removed line(减号前缀)
-+added line(加号前缀)
-*** Add File: path/to/new.py
-*** Delete File: path/to/old.py
-*** Move File: old -> new
-*** End Patch
+    *** Begin Patch
+    *** Update File: path/to/file.py
+    @@ optional context hint @@
+     context line (space prefix)
+    -removed line (minus prefix)
+    +added line (plus prefix)
+    *** Add File: path/to/new.py
+...
+    *** Delete File: path/to/old.py
+    *** Move File: old/path.py -> new/path.py
+    *** End Patch
 ```
 
 **机制**:两阶段。
@@ -56,7 +57,7 @@ patch_parser 负责**解析格式**,fuzzy_match 负责**容错定位**。
 - `check_stale(task_id, path)` —— write_file/patch **前**检查:如果本 agent 上次读之后有别人写过这个文件,
   返回警告(说明内容可能已过期,让 agent 重读再写)。
 
-`file_state.py:142 @ 863e313`:
+`tools/file_state.py:142 @ 863e313`:
 ```python
     def check_stale(self, task_id: str, resolved: str) -> Optional[str]:
 ```

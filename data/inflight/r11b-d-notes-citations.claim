@@ -1,6 +1,6 @@
 agent: 片 D · 全 notes 314 处引用清理(H-R8FIX-b)
 dispatched: 2026-08-10 (R11B 派发)
-signal: OPEN
+signal: RELEASED 片 D 完成信号(任务完成通知,含 42 文件清单与清理前后读数)
 path: notes/r11b-raw-notes-citation-cleanup.md
 path: notes/r2-20-adapters.md
 path: notes/r2-22-credential-pool.md

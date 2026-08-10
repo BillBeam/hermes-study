@@ -119,23 +119,70 @@ def build_api_kwargs(agent, api_messages: list, tools_for_api: list | None = Non
 
 ## 2. api_mode 判定入口（determine_api_mode）
 
-`hermes_cli/providers.py:671 @ 863e313`，解析优先级：
+`hermes_cli/providers.py:671-683 @ 863e313`，解析优先级（docstring 自己就把五级顺序写全了）：
 
 ```python
-def determine_api_mode(provider, base_url="", model="") -> str:
-    mandated = host_mandated_api_mode(base_url)      # 1. host 强制
+def determine_api_mode(provider: str, base_url: str = "", model: str = "") -> str:
+    """Determine the API mode (wire protocol) for a provider/endpoint.
+
+    Resolution order:
+      1. Host-mandated mode (special endpoints that only accept one protocol).
+      2. Nous Portal dual-wire (model-derived; overlay alone is openai_chat).
+      3. Known provider → transport → TRANSPORT_TO_API_MODE.
+      4. Direct provider checks (bedrock).
+      5. Default: 'chat_completions'.
+
+    *model* is optional but required for dual-wire providers (Nous) whose
+    transport depends on the catalog id, not just the provider/host.
+    """
+```
+
+函数体逐级落地（① host 强制）：
+
+`hermes_cli/providers.py:684-686 @ 863e313`
+
+```python
+    mandated = host_mandated_api_mode(base_url)
     if mandated is not None:
         return mandated
+```
+
+② Nous 双线（注释解释了为什么必须在 transport 查表**之前**开这个口子）：
+
+`hermes_cli/providers.py:688-694 @ 863e313`
+
+```python
+    # Nous is dual-wire: anthropic/* → Messages, everything else →
+    # chat_completions. The Hermes overlay still advertises openai_chat
+    # (the majority of the Portal catalog), so the transport lookup below
+    # would pin Claude on the wrong wire without this carve-out.
     provider_norm = (provider or "").strip().lower()
-    if provider_norm in {"nous", "nous-portal", "nousresearch"}:   # 2. Nous 双线
+    if provider_norm in {"nous", "nous-portal", "nousresearch"}:
         return nous_api_mode(model)
-    pdef = get_provider(provider)                    # 3. provider→transport→mode
+```
+
+③ provider→transport→mode；④ bedrock 直判；⑤ 兜底：
+
+`hermes_cli/providers.py:696-704 @ 863e313`
+
+```python
+    pdef = get_provider(provider)
     if pdef is not None:
         return TRANSPORT_TO_API_MODE.get(pdef.transport, "chat_completions")
-    if provider == "bedrock":                        # 4. 直判
+
+    # Direct provider checks for providers not in HERMES_OVERLAYS
+    if provider == "bedrock":
         return "bedrock_converse"
-    return "chat_completions"                         # 5. 兜底
+
+    return "chat_completions"
 ```
+
+> **R11B 引用更正(片 D)**:原文此处是**一个**代码块,把 `determine_api_mode` 从 671 行到函数尾
+> 压成 13 行、去掉了 docstring 与两段注释、并在行尾加了 `# 1. host 强制` 这类中文标注
+> ——**它长得像逐字摘录,但不是**(签名还被去掉了类型标注,写成
+> `def determine_api_mode(provider, base_url="", model="") -> str:`)。
+> 现按制度「摘录要跳段时优先拆成两个各自带锚点的块」拆成四块,每块逐字对齐基线并各自受校验;
+> 中文的五级标注移到块外的散文里。**结论实质不变**——五级顺序本来就是 docstring 自己写的。
 
 **host 强制**（`providers.py:614 host_mandated_api_mode`）是"覆盖"而非"补空"——即使 session 携带过期的 `chat_completions`（如 `/model` 切换残留），命中的 host 也强制改写。用 hostname 精确匹配（非子串），防 `api.openai.com.attacker.test`（#32243）：
 - `api.kimi.com` + 路径 `/coding` → `anthropic_messages`（`:637`）

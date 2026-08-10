@@ -37,7 +37,7 @@ Hermes 本地磁盘上属于这个插件的东西只有四类,全是**控制面�
 3. 运行锁:`$HERMES_HOME/openviking/runs/<run_id>.lock`;
 4. 自动拉起的 server 日志:`$HERMES_HOME/logs/openviking-server.log`。
 
-`__init__.py:144,160-161 @ 863e313`:
+`plugins/memory/openviking/__init__.py:144,160-161 @ 863e313`:
 
 ```python
 _OPENVIKING_SERVER_LOG_RELATIVE_PATH = Path("logs") / "openviking-server.log"
@@ -78,7 +78,7 @@ _RUN_LOCKS_RELATIVE_DIR = Path("openviking") / "runs"
 
 ## 三、_VikingClient:认证、trusted-mode 重试、响应契约
 
-**认证有两套互斥模式**:有 API key 时靠 key(服务端从 key 推导租户),没 key 时(本地/信任模式)发 `X-OpenViking-Account` / `X-OpenViking-User` 断言租户身份。`__init__.py:305-320 @ 863e313`:
+**认证有两套互斥模式**:有 API key 时靠 key(服务端从 key 推导租户),没 key 时(本地/信任模式)发 `X-OpenViking-Account` / `X-OpenViking-User` 断言租户身份。`plugins/memory/openviking/__init__.py:305-320 @ 863e313`:
 
 ```python
     def _headers(self, *, include_tenant: bool | None = None) -> dict:

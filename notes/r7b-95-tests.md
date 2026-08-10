@@ -15,7 +15,7 @@ R7 报告记录过"一次 venv 缺 aiohttp 为环境问题"。本轮定位了根
 `homeassistant` / `sms` 等平台 extra 里(`pyproject.toml:176 @ 863e313`):
 
 ```
-messaging = ["python-telegram-bot[webhooks]==22.6", "discord.py[voice]==2.7.1", "aiohttp==3.14.1", ...]
+messaging = ["python-telegram-bot[webhooks]==22.6", "discord.py[voice]==2.7.1", "aiohttp==3.14.1", "brotlicffi==1.2.0.1", "slack-bolt==1.29.0", "slack-sdk==3.43.0", "qrcode==7.4.2"]  # aiohttp 3.14.1: CVE-2026-34513/34518/34519/34520/34525 + 34993(RCE)/47265
 ```
 
 而 `gateway/platforms/api_server.py`、`webhook.py`、`whatsapp_cloud.py` 都直接依赖 aiohttp。

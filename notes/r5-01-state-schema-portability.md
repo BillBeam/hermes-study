@@ -59,11 +59,14 @@ module-level constants live in hermes_state_common.
   修同款 rebuild;注意 FK 窗口(hermes_state_schema.py:496-506):
 
 ```python
-        # FK-off window: ... INSERT OR IGNORE does NOT suppress
+        # FK-off window: the connection enables PRAGMA foreign_keys=ON
+        # before _init_schema runs, and session_model_usage.session_id
+        # REFERENCES sessions(id).  INSERT OR IGNORE does NOT suppress
         # foreign-key violations (OR IGNORE only covers uniqueness/NOT
-        # NULL conflicts), so an orphaned usage row ... would abort the
+        # NULL conflicts), so an orphaned usage row — possible after a
+        # partial prune while accounting was broken — would abort the
         # whole rebuild.  Disable FK enforcement for the copy and restore
-        # it afterwards.
+        # it afterwards.  PRAGMA foreign_keys is a no-op inside a
 ```
 
 **再一类调和的坑:ADD COLUMN 丢默认值**(hermes_state_schema.py:624-639,#51646):老版调和器
@@ -93,13 +96,13 @@ drop 仍宽的、重放当前 DDL;CJK 触发器失败走隔离(fail-closed:清�
 面包屑 + drop 残缺触发器,hermes_state_schema.py:192-215),防"后续 open 用 IF NOT EXISTS
 把缺口盖住而不重建"。
 
-### 2.3 v23 FTS 存储重设计:**opt-in,不自动**(hermes_state_schema.py:854-884)
+### 2.3 v23 FTS 存储重设计:**opt-in,不自动**(hermes_state_schema.py:863-893)
 
 ```python
                 # OPT-IN, NOT AUTOMATIC. The transition (demote old vtables →
                 # new external-content schema → backfill → teardown → VACUUM)
                 # is disk-heavy (transient ~2x file size to fully reclaim via
-                # VACUUM) and long (~1-2h background on a 25 GB DB).
+                # VACUUM) and long (~1-2h background on a 25 GB DB). Doing it
 ```
 
 背景数字(同段注释,#22478/#43690/#55233):v11 inline FTS 每表全量私拷贝,trigram 还盖
@@ -168,7 +171,7 @@ optimize(残留 demoted 垃圾表/回搬标记/空外部索引对非空 messages
 **session_activity.py**(#72016/#72039)是"活动心跳"的**观测侧契约**:只有时间戳 + 限长描述
 (120 字符,session_activity.py:19, 42-47)+ 小闭集 provenance 枚举(UNKNOWN + 三个压缩写者,
 session_activity.py:32-39);通知/超时/杀会话策略都不在这里。关键常量
-(session_activity.py:21-29 注释 + :29):
+(agent/session_activity.py:29-37 注释 + :29):
 
 ```python
 SESSION_ACTIVITY_HEARTBEAT_MIN_INTERVAL_SECONDS = 60.0

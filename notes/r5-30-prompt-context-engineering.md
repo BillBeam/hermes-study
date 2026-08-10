@@ -54,14 +54,14 @@ Pure helpers that read the agent's state.  AIAgent keeps thin forwarders.
         agent._emit_status(warning)
 ```
 
-排序哲学(变化最频繁的排最后,重建时未变前缀仍可复用):`agent/system_prompt.py:571-577 @ 863e313`:
+排序哲学(变化最频繁的排最后,重建时未变前缀仍可复用):`agent/system_prompt.py:569-575 @ 863e313`:
 ```python
     Layers are ordered cache-friendly: stable identity/guidance first,
     then session-stable context files, then per-call volatile content
     (skills index, memory, USER profile, timestamp). For explicit
     cache_control backends the whole string is one cached block. For
     implicit longest-prefix backends the order is what matters: the
-    content most likely to change is rendered last, ...
+    content most likely to change is rendered last, so when the prompt is
 ```
 
 ### 1.2 stable 层逐段(哪些来自 config/模型/环境)
@@ -107,7 +107,7 @@ MEMORY_GUIDANCE 值得单独记:它规定"记忆=陈述性事实,不是给自己
 
 8. **Nous 订阅能力块**(`prompt_builder.py:1894-1957`):告诉模型哪些托管能力已激活,免得向用户要 API key。
 
-9. **按模型族注入的执行纪律**,由 config `agent.tool_use_enforcement` 门控(auto/true/false/自定义子串列表)。`agent/system_prompt.py:281-297 @ 863e313`:
+9. **按模型族注入的执行纪律**,由 config `agent.tool_use_enforcement` 门控(auto/true/false/自定义子串列表)。`agent/system_prompt.py:280-296 @ 863e313`:
 ```python
         else:
             # "auto" or any unrecognised value — use hardcoded defaults
@@ -137,7 +137,7 @@ MEMORY_GUIDANCE 值得单独记:它规定"记忆=陈述性事实,不是给自己
 
 context 层 = 编码 workspace 快照(若有)+ 调用方 `system_message` + 项目上下文文件(§2)。`ephemeral_system_prompt` 明确**不在**此处——它在 API 调用时注入,不进缓存的系统提示(`system_prompt.py:475-477` 注释)。
 
-volatile 层的关键决策:**技能索引放 volatile 之首而不是 stable**。`agent/system_prompt.py:503-513 @ 863e313`:
+volatile 层的关键决策:**技能索引放 volatile 之首而不是 stable**。`agent/system_prompt.py:500-510 @ 863e313`:
 ```python
     # Skills are runtime-mutable: the agent adds and patches them across a
     # session (SKILLS_GUIDANCE tells it to patch a skill the moment it goes
@@ -183,7 +183,7 @@ R1 标记的三个问题逐一定案。
 
 ### 2.1 多约定并存选哪个:严格优先级,首中即停,只装一种
 
-`agent/prompt_builder.py:2188-2196 @ 863e313`:
+`agent/prompt_builder.py:2187-2195 @ 863e313`:
 ```python
     else:
         # Priority-based project context: first match wins
@@ -336,7 +336,7 @@ Default is ``"compressor"`` (the built-in). Only one engine is active.
 ```
 引入该钩子的 commit 佐证:`dec464c35 "feat(context-engine): add select_context() per-turn selection hook"`("removing the need to abuse should_compress()=True as a per-turn callback… Consolidates the per-turn request-assembly surface proposed across #41918… Related: #36765 #41918 #24949 #47109 #50053 …",git log @ 基线祖先)。
 
-**现在的设计**:两个正交动词。`agent/context_engine.py:229-235 @ 863e313`:
+**现在的设计**:两个正交动词。`agent/context_engine.py:232-238 @ 863e313`:
 ```python
           - ``compress()``      : context is too long  -> make it shorter.
           - ``select_context()``: this turn belongs to a different context
@@ -402,11 +402,12 @@ Default is ``"compressor"`` (the built-in). Only one engine is active.
 
 ## 6. subdirectory_hints.py — 子目录上下文的渐进发现
 
-**解决的问题**:启动只装 cwd 一份项目上下文(§2),但 monorepo 里 `backend/AGENTS.md` 的规则在模型第一次碰 `backend/` 时才相关。方案(借鉴 Block/goose):追踪工具调用参数里出现的目录,首次访问时加载该目录的上下文文件,**附加到工具结果**而非改系统提示——不破坏提示缓存(`subdirectory_hints.py:1-14` 模块注释)。注入点:`tool_executor.py:1471-1478 @ 863e313`:
+**解决的问题**:启动只装 cwd 一份项目上下文(§2),但 monorepo 里 `backend/AGENTS.md` 的规则在模型第一次碰 `backend/` 时才相关。方案(借鉴 Block/goose):追踪工具调用参数里出现的目录,首次访问时加载该目录的上下文文件,**附加到工具结果**而非改系统提示——不破坏提示缓存(`subdirectory_hints.py:1-14` 模块注释)。注入点:`agent/tool_executor.py:1471-1478 @ 863e313`:
 ```python
         subdir_hints = agent._subdirectory_hints.check_tool_call(name, args)
         if subdir_hints:
             if _is_multimodal_tool_result(function_result):
+...
                 _append_subdir_hint_to_multimodal(function_result, subdir_hints)
             else:
                 function_result += subdir_hints
@@ -472,13 +473,13 @@ cancels the read) and return whatever partial bytes were collected.
 
 2. **示例装配顺序**。文档示例把 Skills index(Layer 7)排在 Context files(Layer 8)之前、Timestamp(Layer 9)在 Platform hint(Layer 10)之前(`prompt-assembly.md:88-117`)。代码顺序是 context 层(含 context files)先于 volatile 层(skills→memory→timestamp),platform hint 在 stable/context 内、先于 skills 与 timestamp(`system_prompt.py:461-465, 512-552`)。
 
-3. **时间戳精度**。文档示例:`prompt-assembly.md:111`:
+3. **时间戳精度**。文档示例:`website/docs/developer-guide/prompt-assembly.md:111 @ 863e313`:
 ```
 Current time: 2026-03-30T14:30:00-07:00
 ```
 代码:date-only,且措辞是 "Conversation started:"(`system_prompt.py:543`,§1.3 引文;PR #20451 专为保缓存改的)。
 
-4. **skip_context_files 与 SOUL**。文档:`prompt-assembly.md:42`:
+4. **skip_context_files 与 SOUL**。文档:`website/docs/developer-guide/prompt-assembly.md:42`:
 ```
 When `skip_context_files` is set (e.g., subagent delegation), SOUL.md is not loaded and the hardcoded `DEFAULT_AGENT_IDENTITY` is used instead.
 ```
