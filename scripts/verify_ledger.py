@@ -8,6 +8,11 @@ Checks:
  4. Ledger line counts match a fresh recount (same rule as inventory.py).
  5. Sum of per-layer lines == total text lines of the whole repo.
 
+It also installs this repo's git hooks (R11B). That is not a ledger concern, but
+it is the only place CLAUDE.md guarantees gets run at the start of every session,
+and the in-flight commit guard is worthless unless something mandatory installs
+it — see scripts/install_hooks.py.
+
 Check 1's second half was added in R8A after a real incident: a subagent ran an
 npm operation inside the baseline checkout, which rewrote package-lock.json
 (npm re-resolved dependencies and stamped `"peer": true` onto ~30 entries). The
@@ -28,6 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from inventory import count_lines, is_text  # noqa: E402
+from install_hooks import ensure_hooks  # noqa: E402
 
 BASELINE_SHA = "863e31318553cda8ad61df681d08175364d4164b"
 
@@ -97,6 +103,13 @@ def main(repo: str, ledger_path: str) -> None:
     for layer in sorted(layer_lines):
         print(f"  {layer}: files={layer_files[layer]} lines={layer_lines[layer]}")
     print(f"  SUM == repo total: {ledger_total}")
+
+    # R11B: install the in-flight commit guard. Piggy-backed here because this is
+    # the one script every session is told to run first; a hook nobody installs
+    # is not a mechanism.
+    study_root = Path(__file__).resolve().parent.parent
+    for note in ensure_hooks(study_root):
+        print(f"  {note}")
 
 
 if __name__ == "__main__":

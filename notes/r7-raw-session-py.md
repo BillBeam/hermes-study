@@ -347,7 +347,7 @@ def _format_untrusted_prompt_value(value: Any, *, max_chars: int = _MAX_PROMPT_M
 单空格** + 折叠空白——用于必须保持外层格式的内联场景(如 `[Name] message` 前缀,JSON 引号会
 肉眼改变正常值的渲染)。
 
-gateway/session.py:463-476 @ 863e313:
+gateway/session.py:465-478 @ 863e313:
 ```python
     Embedded newlines are the injection vector both helpers guard against:
     they let an untrusted display name masquerade as a new markdown section
@@ -429,7 +429,7 @@ Platforms(697-703)、Home Channels(706-713)、cron 投递选项(715-743)。
                 )
 ```
 
-(c) 语音频道状态改为 user message 注入,gateway/session.py:666-674 @ 863e313:
+(c) 语音频道状态改为 user message 注入,gateway/session.py:665-673 @ 863e313:
 ```python
         # Static (never per-turn): live voice-channel state used to be
         # appended here and changed bytes every turn the bot sat in a voice
@@ -857,7 +857,7 @@ live-gateway 变体,见 §20)。
 **找回**(带 `raise_on_lookup_error=True`;lookup 失败则保守跳过,1432-1433),找回结果若是
 不同 id → **repoint** 而非删除:
 
-gateway/session.py:1437-1453 @ 863e313:
+gateway/session.py:1435-1451 @ 863e313:
 ```python
                     # If the stale entry points at a compression-ended parent but
                     # a newer live child session exists for the exact same gateway
@@ -916,7 +916,7 @@ gateway/session.py:1479-1489 @ 863e313:
 慢路径 `_persist_routing_data`(1498-1542):在 `_save_lock` 下,
 (a) `generation <= _persisted_routing_generation` → 整个跳过(迟到的旧快照);
 (b) 把 revision **高于**本快照的 fast 记录**折叠进**本次重写(晚序列化的单行数据不能被
-延迟到达的全量重写回退),gateway/session.py:1508-1516 @ 863e313:
+延迟到达的全量重写回退),gateway/session.py:1507-1515 @ 863e313:
 ```python
             # Fold in single-entry upserts with a newer revision than this
             # snapshot (see _save_entry): revisions share the routing
@@ -939,7 +939,7 @@ executemany INSERT);(d) sessions.json 镜像(开关开 或 DB 写失败时,1532-
 DO UPDATE`)。**失败回退全量重写**——无 DB 安装的主存储就是 sessions.json,必须每 turn 可靠
 (1628-1630、1659-1665)。
 
-正确性约束(注释自述),gateway/session.py:1601-1610 @ 863e313:
+正确性约束(注释自述),gateway/session.py:1603-1612 @ 863e313:
 ```python
         - The key -> session_id mapping never changes here.  Structural
           transitions (create/recover/reset/switch/prune, and
@@ -1148,7 +1148,7 @@ gateway/session.py:2065-2080 @ 863e313:
   安全侧)。
 - `_is_session_ended_in_db(session_id)`(2154-2178):路由时僵尸自愈的判据(#54878)。
 
-gateway/session.py:2162-2169 @ 863e313:
+gateway/session.py:2163-2170 @ 863e313:
 ```python
         Used by ``get_or_create_session`` to self-heal at routing time:
         ``_prune_stale_sessions_locked`` only runs at startup, so a session

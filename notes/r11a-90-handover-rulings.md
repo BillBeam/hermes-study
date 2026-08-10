@@ -75,6 +75,20 @@ cd /home/user/hermes-study && grep -A 5 "^=== summary ===" data/r11a/measurement
         self._base_url = base_url.rstrip("/")
 ```
 
+> **R11B 更正(就地改正文,按制度写明原判 / 撤因 / 依据)。**
+> **原判**:上面这句把「比对 `self._base_url`」写成了修法。
+> **为什么撤**:**R9C 已经用本地双服务实验证伪过这条修法**,而本文件全文对
+> `302` / 跨源重定向 / `urllib_security` **零命中**——这不是两轮结论之争,
+> 是一条已定的案被无意识地写回了旧版本。
+> **依据**:`urllib.request.urlopen` 默认跟随 302 **且把 `Authorization` 原样带到新主机**。
+> 要害不是比错了值,是**校验发生在错的时刻**:主机校验作用在**发起前**的 URL 上,
+> 凭据是在 302 **之后**被带走的,于是主机校验判「通过」而 bearer 照样外泄。
+> 正确修法是仓库自带的 `hermes_cli/urllib_security.py` 的 `SafeCredentialRedirectHandler`
+> / `open_credentialed_url`(按 origin 归一化比对,跨 origin 时按白名单剥头)。
+> **缺陷判定(■-R11A-01)本身不动**,两轮一致;被撤的只有「修法」这一层,且不另立新案号
+> ——正确版早在 R9C 已在册。可重跑实证:`data/r11b/probes/relay_media_redirect_probe.py`;
+> 全文见 `notes/r11b-92-fix-regression-correction.md`。
+
 **可达性**:`url` 直接来自入站事件的 `media_urls`,逐个丢给 `download()`:
 
 `gateway/relay/adapter.py:474 @ 863e313`

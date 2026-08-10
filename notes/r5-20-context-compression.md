@@ -100,13 +100,14 @@ _SMALL_CTX_THRESHOLD_PERCENT = 0.75
         agent.context_compressor.awaiting_real_usage_after_compression = True
 ```
 
-而递延逻辑对该态精确防"刚压完又压",`agent/context_compressor.py:2559-2570 @ 863e313`:
+而递延逻辑对该态精确防"刚压完又压",`agent/context_compressor.py:2561-2572 @ 863e313`:
 
 ```python
-        # ``last_real_prompt_tokens`` still
+        # ``last_prompt_tokens = -1``, but ``last_real_prompt_tokens`` still
         # holds the STALE pre-compression value (above threshold — that's why
         # compaction fired).  Without this guard that stale value defeats the
-        # ... preflight fires a SECOND compaction before the provider has reported
+        # ``last_real_prompt_tokens >= threshold_tokens`` check below, so
+        # preflight fires a SECOND compaction before the provider has reported
         # real token usage for the now-shorter conversation.  Defer for exactly
         # one turn; update_from_response() clears the flag when real usage
         # arrives.  (#36718)
@@ -331,7 +332,7 @@ input verbatim — the exact words they used. This includes:
 
 ### 4.4 不泄密钥:强制红线边界
 
-`_redact_compaction_text`,`agent/context_compressor.py:679-697 @ 863e313`:
+`_redact_compaction_text`,`agent/context_compressor.py:693-711 @ 863e313`:
 
 ```python
     return redact_sensitive_text(
@@ -436,7 +437,7 @@ Mistral 系模板(Devstral/Mistral Small 3.x/Magistral)渲染时强制 user/assi
 
 ### 6.1 并发兄弟 agent 双压同一会话的孤儿分叉问题(锁)
 
-`agent/conversation_compression.py:2325-2334 @ 863e313`:
+`agent/conversation_compression.py:2324-2333 @ 863e313`:
 
 ```python
     # ── Compression lock ────────────────────────────────────────────────
@@ -477,7 +478,7 @@ Mistral 系模板(Devstral/Mistral Small 3.x/Magistral)渲染时强制 user/assi
 
 ### 6.3 in-place 落库(压缩结果怎么写回持久层)
 
-默认 `compression.in_place: true`(#38763)。`agent/conversation_compression.py:3178-3207 @ 863e313`:
+默认 `compression.in_place: true`(#38763)。`agent/conversation_compression.py:3177-3206 @ 863e313`:
 
 ```python
                 if in_place:

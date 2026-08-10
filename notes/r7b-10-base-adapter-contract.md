@@ -68,18 +68,18 @@
 
 三者共同解决一个问题:**"流式预览"和"终稿"在很多平台上不是同一种消息**。
 `prefers_fresh_final_streaming` 的 docstring 把动机讲得很具体
-(`gateway/platforms/base.py:2969-2977 @ 863e313`):
+(`gateway/platforms/base.py:2971-2979 @ 863e313`):
 
 ```python
         Some adapters can send richer final messages than their current edit
         implementation supports. Telegram is the motivating case: Hermes sends
         final replies through ``sendRichMessage`` but still finalizes streamed
         previews through its existing MarkdownV2 edit path until Bot API 10.1's
-        ``rich_message`` edit parameter is wired directly.
+        ``rich_message`` edit parameter is wired directly. Such adapters
 ```
 
 **降级链是闭合的**:`send_draft` 默认抛 `NotImplementedError`,而消费端约定
-"返回 False **或 `send_draft` 抛异常**都回落编辑路径"(`base.py:2956-2958 @ 863e313`):
+"返回 False **或 `send_draft` 抛异常**都回落编辑路径"(`gateway/platforms/base.py:2956-2958 @ 863e313`):
 
 ```python
         Default implementation returns False.  Stream consumers fall back to
@@ -157,7 +157,7 @@ def _prefix_within_utf16_limit(s: str, limit: int) -> str:
 ```
 
 其上方的块注释给出了这一族钩子的**宪法条款**
-(`gateway/platforms/base.py:3030-3042 @ 863e313`):
+(`gateway/platforms/base.py:3040-3052 @ 863e313`):
 
 ```python
     # The contract is presentation-only: nothing rendered here is persisted to
@@ -223,7 +223,7 @@ def _prefix_within_utf16_limit(s: str, limit: int) -> str:
 **为什么钩子失败要静默**:topic 恢复失败的后果是"会话键退回未恢复的 thread_id",
 即回落到旧行为;而抛出会让整条消息丢失。**用可降级换可用性**。
 
-门控在入口且**只对 Telegram DM 生效**(`gateway/platforms/base.py:5566-5576 @ 863e313`):
+门控在入口且**只对 Telegram DM 生效**(`gateway/platforms/base.py:5567-5577 @ 863e313`):
 
 ```python
         # Telegram topic recovery only applies to private DM topic lanes. Do
@@ -260,7 +260,7 @@ def _prefix_within_utf16_limit(s: str, limit: int) -> str:
 `_acquire_platform_lock(scope, identity, resource_desc)`(`base.py:3217-3281 @ 863e313`)
 解决的是:**同一个 bot token 被两个 Hermes 进程同时长轮询**,平台侧会互相抢 update,
 表现为消息随机丢失。锁的 takeover 只在显式 `gateway run --replace` 首连时武装
-(`gateway/platforms/base.py:2770-2774 @ 863e313`):
+(`gateway/platforms/base.py:2768-2772 @ 863e313`):
 
 ```python
         # Cross-HERMES_HOME token takeover is armed by GatewayRunner only for
@@ -339,7 +339,7 @@ $ grep -n "\.set()" gateway/platforms/base.py
 
 `/approve` `/deny` 确是 inline 直分发,但 `/stop` **不是**同一条路 —— 它属
 `interrupt_then_dispatch`,走的是专门序列化"取消 + 应答 + 排水"的
-`_dispatch_active_session_command`(`gateway/platforms/base.py:5611-5619 @ 863e313`):
+`_dispatch_active_session_command`(`gateway/platforms/base.py:5616-5624 @ 863e313`):
 
 ```python
                 if cmd and is_interrupt_then_dispatch(cmd):

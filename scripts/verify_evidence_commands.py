@@ -37,13 +37,26 @@ is shown on failure but not compared — pasted evidence is what the reader sees
 Exit 1 if any paired block differs.
 """
 import difflib
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TIMEOUT = 900
+
+# R11B (H-R11A-e): this used to be a bare constant, and `subprocess.run` was
+# called without catching `TimeoutExpired`. One command that outran the limit
+# therefore killed the whole scan with a traceback, and **every file after it
+# went unchecked** — while the output already printed still looked like a
+# complete failure list. That is the same shape this gate exists to catch:
+# the numbers look right, the coverage is empty. R11A had to work around it with
+# an external per-file timeout wrapper. Now a timeout is reported per command,
+# counted, and fails the run, but the scan continues.
+#
+# The env override exists so the negative control can force a timeout in
+# seconds rather than in fifteen minutes.
+TIMEOUT = int(os.environ.get("HERMES_EVIDENCE_TIMEOUT", "900"))
 
 # `(?:(?!```).)*?` instead of `.*?`: a plain non-greedy dot can BACKTRACK PAST the
 # command's own closing fence and keep going until it finds some later ```text,
@@ -63,7 +76,7 @@ def main() -> None:
     if not args:
         raise SystemExit(__doc__)
 
-    checked = failed = unpaired = 0
+    checked = failed = unpaired = timedout = 0
     for arg in args:
         note = Path(arg)
         if not note.is_file():
@@ -80,8 +93,15 @@ def main() -> None:
             if dry:
                 print(f"[would run] {note.name}: {cmd.splitlines()[0][:90]}")
                 continue
-            r = subprocess.run(["bash", "-c", cmd], cwd=ROOT, capture_output=True,
-                               text=True, timeout=TIMEOUT)
+            try:
+                r = subprocess.run(["bash", "-c", cmd], cwd=ROOT, capture_output=True,
+                                   text=True, timeout=TIMEOUT)
+            except subprocess.TimeoutExpired:
+                timedout += 1
+                print(f"\n[EVIDENCE-TIMEOUT] {note}")
+                print(f"  command: {cmd.splitlines()[0][:110]}")
+                print(f"  exceeded {TIMEOUT}s — counted as a failure, scan continues")
+                continue
             got = r.stdout.rstrip("\n")
             want = expected.rstrip("\n")
             if got == want:
@@ -97,7 +117,12 @@ def main() -> None:
             if r.returncode != 0 and r.stderr.strip():
                 print(f"      stderr: {r.stderr.strip().splitlines()[-1][:150]}")
 
-    print(f"\nverify-blocks paired={checked}  unpaired={unpaired}  differing={failed}")
+    print(f"\nverify-blocks paired={checked}  unpaired={unpaired}  "
+          f"differing={failed}  timedout={timedout}")
+    if timedout:
+        print("FAIL: a ```verify command exceeded the time limit "
+              "(a command that cannot finish cannot reproduce anything)")
+        sys.exit(1)
     if failed:
         print("FAIL: a ```verify command does not reproduce the output pasted under it")
         sys.exit(1)

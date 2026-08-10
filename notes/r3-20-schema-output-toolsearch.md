@@ -17,7 +17,7 @@
 
 **出站(装配模型可见工具数组)——`get_tool_definitions()` 的最后两步,顺序固定:**
 
-`model_tools.py:570-572 @ 863e313`
+`model_tools.py:571-573 @ 863e313`
 ```python
         from tools.schema_sanitizer import sanitize_tool_schemas
         filtered_tools = sanitize_tool_schemas(filtered_tools)
@@ -40,7 +40,7 @@
 
 **入站(处理模型发来的 function_call)——`handle_function_call()` / `coerce_tool_args()`:**
 
-- 参数纠偏 `coerce_tool_args()`(`model_tools.py:730`)在做类型 coercion 前,先把被清洗层重命名过的 property key 还原成注册表原始名:`model_tools.py:763-767 @ 863e313`
+- 参数纠偏 `coerce_tool_args()`(`model_tools.py:730`)在做类型 coercion 前,先把被清洗层重命名过的 property key 还原成注册表原始名:`model_tools.py:764-768 @ 863e313`
 ```python
         from tools.schema_sanitizer import unrename_tool_args
         args = unrename_tool_args(schema.get("parameters"), args)
@@ -86,13 +86,13 @@ The failure modes we've seen in the wild:
 
 **剥离/改写的具体不兼容构造,逐条对号:**
 
-**(i) 裸 object 补 properties**(llama.cpp GBNF 无法约束自由 object)——`schema_sanitizer.py:430-431 @ 863e313`:
+**(i) 裸 object 补 properties**(llama.cpp GBNF 无法约束自由 object)——`tools/schema_sanitizer.py:430-431 @ 863e313`:
 ```python
     if out.get("type") == "object" and not isinstance(out.get("properties"), dict):
         out["properties"] = {}
 ```
 
-**(ii) schema 位置是裸字符串 `"object"`**(畸形 MCP 输出)→ 替换为 dict——`schema_sanitizer.py:319-329 @ 863e313`:
+**(ii) schema 位置是裸字符串 `"object"`**(畸形 MCP 输出)→ 替换为 dict——`tools/schema_sanitizer.py:319-329 @ 863e313`:
 ```python
     if isinstance(node, str):
         if node in {"object", "string", "number", "integer", "boolean", "array", "null"}:
@@ -103,7 +103,7 @@ The failure modes we've seen in the wild:
             }
 ```
 
-**(iii) `type` 数组归一**:单非空类型→单字符串(+`nullable:true`);多非空类型→`anyOf`,**不丢分支**;全 null→`type:"null"`。移植自 anomalyco/opencode#31877。`schema_sanitizer.py:370-387 @ 863e313`:
+**(iii) `type` 数组归一**:单非空类型→单字符串(+`nullable:true`);多非空类型→`anyOf`,**不丢分支**;全 null→`type:"null"`。移植自 anomalyco/opencode#31877。`tools/schema_sanitizer.py:370-387 @ 863e313`:
 ```python
         if key == "type" and isinstance(value, list):
             has_null = "null" in value
@@ -114,16 +114,18 @@ The failure modes we've seen in the wild:
                     out.setdefault("nullable", True)
                 continue
             if len(non_null) >= 2:
+...
                 out["anyOf"] = [{"type": t} for t in non_null]
 ```
 设计取舍点:多类型不是取第一个(会静默丢分支),而是保留全部为 anyOf——注释 366-368 明说 "EVERY branch survives instead of silently dropping all but the first"。
 
-**(iv) 可空 union 折叠**:`{"anyOf":[{string},{null}]}` → `string` + `nullable:true`。只在"确实丢了 null 分支且恰剩一个非空分支"时折叠(否则 union 有意义,保留)。`schema_sanitizer.py:284-301 @ 863e313`:
+**(iv) 可空 union 折叠**:`{"anyOf":[{string},{null}]}` → `string` + `nullable:true`。只在"确实丢了 null 分支且恰剩一个非空分支"时折叠(否则 union 有意义,保留)。`tools/schema_sanitizer.py:284-301 @ 863e313`:
 ```python
         non_null = [
             item for item in variants
             if not (isinstance(item, dict) and item.get("type") == "null")
         ]
+...
         if len(non_null) == 1 and len(non_null) != len(variants):
             replacement = dict(non_null[0]) if isinstance(non_null[0], dict) else {}
             if keep_nullable_hint:
@@ -131,7 +133,7 @@ The failure modes we've seen in the wild:
 ```
 `nullable:true` 这个 hint 是刻意留的——注释 163-165 说要让运行期 `model_tools._schema_allows_null` 能把模型吐的字符串 `"null"` 映射回 Python `None`。
 
-**(v) `$ref` 同级 `default` 剥离**(Fireworks/Kimi、draft-07 严格校验器拒绝 `$ref` 同级关键字)——`schema_sanitizer.py:178, 198-202 @ 863e313`:
+**(v) `$ref` 同级 `default` 剥离**(Fireworks/Kimi、draft-07 严格校验器拒绝 `$ref` 同级关键字)——`tools/schema_sanitizer.py:178, 198-202 @ 863e313`:
 ```python
 _REF_FORBIDDEN_SIBLINGS = frozenset({"default"})
 ...
@@ -153,7 +155,7 @@ _REF_FORBIDDEN_SIBLINGS = frozenset({"default"})
 
 无损靠的是"两侧独立地、确定性地算出同一张映射表",而非把映射存在某处传来传去。
 
-**去程(装配时)**——`_rename_property_keys`(62-87)对不匹配 `_PROP_KEY_RE`(52:`^[a-zA-Z0-9_.-]{1,64}$`)的 key 用 `sanitize_property_key`(56-59,坏字符→`_`,截 64,空→`param`)算候选名,冲突加数字后缀去重。确定性来自:按插入序处理、`taken` 集合先装所有已合法 key。`schema_sanitizer.py:70-82 @ 863e313`:
+**去程(装配时)**——`_rename_property_keys`(62-87)对不匹配 `_PROP_KEY_RE`(52:`^[a-zA-Z0-9_.-]{1,64}$`)的 key 用 `sanitize_property_key`(56-59,坏字符→`_`,截 64,空→`param`)算候选名,冲突加数字后缀去重。确定性来自:按插入序处理、`taken` 集合先装所有已合法 key。`tools/schema_sanitizer.py:70-82 @ 863e313`:
 ```python
     renames: dict[str, str] = {}
     taken = {k for k in props if _PROP_KEY_RE.match(k)}
@@ -170,7 +172,7 @@ _REF_FORBIDDEN_SIBLINGS = frozenset({"default"})
         renames[key] = candidate
 ```
 
-**回程(分派时)**——`unrename_tool_args(params_schema, args)`(90-117)拿 registry 的**原始**(未清洗)schema,**独立重算**同一张 `_rename_property_keys`,取逆表,把模型吐的 sanitized key 换回原名;递归进 object 值与 array items。`schema_sanitizer.py:102-105 @ 863e313`:
+**回程(分派时)**——`unrename_tool_args(params_schema, args)`(90-117)拿 registry 的**原始**(未清洗)schema,**独立重算**同一张 `_rename_property_keys`,取逆表,把模型吐的 sanitized key 换回原名;递归进 object 值与 array items。`tools/schema_sanitizer.py:102-105 @ 863e313`:
 ```python
     reverse = {v: k for k, v in _rename_property_keys(props, "<unrename>").items()}
     out = {}
@@ -219,21 +221,27 @@ _REF_FORBIDDEN_SIBLINGS = frozenset({"default"})
 
 ### 2.2 机制:三层,自陈架构
 
-`tools/tool_result_storage.py:1-23 @ 863e313`(模块 docstring 逐字给出三层定义):
+`tools/tool_result_storage.py:5-27 @ 863e313`(模块 docstring 逐字给出三层定义):
 ```python
 1. **Per-tool output cap** (inside each tool): Tools like search_files
-   pre-truncate their own output before returning. ...
+   pre-truncate their own output before returning. This is the first line
+...
 2. **Per-result persistence** (maybe_persist_tool_result): After a tool
-   returns, if its output exceeds the tool's registered threshold ...
-   the full output is written INTO THE SANDBOX temp dir ...
-   The in-context content is replaced with a preview + file path reference.
+   returns, if its output exceeds the tool's registered threshold
+   (registry.get_max_result_size), the full output is written INTO THE
+   SANDBOX temp dir (for example /tmp/hermes-results/{tool_use_id}.txt on
+   standard Linux, or $TMPDIR/hermes-results/{tool_use_id}.txt on Termux)
+   via env.execute(). The in-context content is replaced with a preview +
+   file path reference. The model can read_file to access the full output
+   on any backend.
+
 3. **Per-turn aggregate budget** (enforce_turn_budget): After all tool
    results in a single assistant turn are collected, if the total exceeds
    MAX_TURN_BUDGET_CHARS (200K), the largest non-persisted results are
-   spilled to disk until the aggregate is under budget.
+   spilled to disk until the aggregate is under budget. This catches cases
 ```
 
-**第一层——per-tool cap(工具作者控制,唯一权威定义在 `tool_output_limits.py`)。** 集中三个可配值,来源 config.yaml `tool_output` 段,读失败一律回退默认。默认值刻意等于历史硬编码,加此模块行为不变(docstring `tool_output_limits.py:16-18`)。`tool_output_limits.py:39-41 @ 863e313`:
+**第一层——per-tool cap(工具作者控制,唯一权威定义在 `tool_output_limits.py`)。** 集中三个可配值,来源 config.yaml `tool_output` 段,读失败一律回退默认。默认值刻意等于历史硬编码,加此模块行为不变(docstring `tools/tool_output_limits.py:16-18`)。`tools/tool_output_limits.py:39-41 @ 863e313`:
 ```python
 DEFAULT_MAX_BYTES = 50_000       # terminal_tool.MAX_OUTPUT_CHARS
 DEFAULT_MAX_LINES = 2000         # file_operations.MAX_LINES
@@ -241,13 +249,13 @@ DEFAULT_MAX_LINE_LENGTH = 2000   # file_operations.MAX_LINE_LENGTH
 ```
 读取器防御性(任何异常回退默认,永不抛)——`get_tool_output_limits()`(59-89),进程级缓存(71-72),`_coerce_positive_int`(48-56)拒非正数。移植自 anomalyco/opencode PR #23770(docstring 3-4)。
 
-**第二层——per-result 沙箱落盘 `maybe_persist_tool_result`(144-200)。** 阈值优先级由 `budget_config.BudgetConfig.resolve_threshold`(`budget_config.py:37-57`)决定:pinned > overrides > registry per-tool(封顶到 default)> default。`read_file` 被 pin 成 `inf`,防 persist→read→persist 死循环——`budget_config.py:11-13 @ 863e313`:
+**第二层——per-result 沙箱落盘 `maybe_persist_tool_result`(144-200)。** 阈值优先级由 `budget_config.BudgetConfig.resolve_threshold`(`tools/budget_config.py:37-57`)决定:pinned > overrides > registry per-tool(封顶到 default)> default。`read_file` 被 pin 成 `inf`,防 persist→read→persist 死循环——`tools/budget_config.py:11-13 @ 863e313`:
 ```python
 PINNED_THRESHOLDS: Dict[str, float] = {
     "read_file": float("inf"),
 }
 ```
-超阈值则写入沙箱 temp 目录,in-context 内容换成 preview+路径块。落盘走 `env.execute()` 且**内容走 stdin 而非命令串**,因为 Linux `MAX_ARG_STRLEN` 把单个 argv 元素卡在 128 KB(#22906),而落盘要处理的恰恰是 >128 KB 的大结果——`tool_result_storage.py:113-116 @ 863e313`:
+超阈值则写入沙箱 temp 目录,in-context 内容换成 preview+路径块。落盘走 `env.execute()` 且**内容走 stdin 而非命令串**,因为 Linux `MAX_ARG_STRLEN` 把单个 argv 元素卡在 128 KB(#22906),而落盘要处理的恰恰是 >128 KB 的大结果——`tools/tool_result_storage.py:113-116 @ 863e313`:
 ```python
     storage_dir = os.path.dirname(remote_path)
     cmd = f"mkdir -p {shlex.quote(storage_dir)} && cat > {shlex.quote(remote_path)}"
@@ -256,16 +264,21 @@ PINNED_THRESHOLDS: Dict[str, float] = {
 ```
 路径用 `shlex.quote` 防注入;文件名经 `_safe_result_filename`(64-79)清洗(坏字符→`_`,超长/改动过则加 sha256 前 12 位),防 `tool_use_id` 逃逸 storage 目录。替换块 `<persisted-output>`(119-141)告诉模型"用 read_file offset/limit 取全量"。存储目录按环境解析(Termux 用 `$TMPDIR`),默认 `/tmp/hermes-results`——`tool_result_storage.py:41`、`_resolve_storage_dir`(48-61)。落盘失败或无 env 时回退 inline 截断(196-200)。
 
-**第三层——per-turn 聚合预算 `enforce_turn_budget`(203-254)。** 收齐一个 turn 的所有 tool 结果,加总超 `turn_budget`(默认 200K,`budget_config.py:18`)则按大小降序把最大的未落盘结果逐个 spill(threshold=0 强制落盘)直到低于预算。`tool_result_storage.py:228-244 @ 863e313`:
+**第三层——per-turn 聚合预算 `enforce_turn_budget`(203-254)。** 收齐一个 turn 的所有 tool 结果,加总超 `turn_budget`(默认 200K,`budget_config.py:18`)则按大小降序把最大的未落盘结果逐个 spill(threshold=0 强制落盘)直到低于预算。`tools/tool_result_storage.py:228-244 @ 863e313`:
 ```python
     candidates.sort(key=lambda x: x[1], reverse=True)
+...
     for idx, size in candidates:
         if total_size <= config.turn_budget:
             break
-        ...
+...
         replacement = maybe_persist_tool_result(
-            content=content, tool_name=_BUDGET_TOOL_NAME,
-            tool_use_id=tool_use_id, env=env, config=config, threshold=0,
+            content=content,
+            tool_name=_BUDGET_TOOL_NAME,
+            tool_use_id=tool_use_id,
+            env=env,
+            config=config,
+            threshold=0,
         )
 ```
 第三层复用第二层的落盘原语,只是把阈值压到 0。
@@ -308,16 +321,17 @@ PINNED_THRESHOLDS: Dict[str, float] = {
 
 ### 3.2 机制:3 桥接工具 + 分层披露
 
-激活时,MCP/plugin 工具从可见数组里撤下,换成三个桥接工具。名字被保留、注册表拒绝同名工具——`tool_search.py:55-59 @ 863e313`:
+激活时,MCP/plugin 工具从可见数组里撤下,换成三个桥接工具。名字被保留、注册表拒绝同名工具——`tools/tool_search.py:55-59 @ 863e313`:
 ```python
 TOOL_SEARCH_NAME = "tool_search"
 TOOL_DESCRIBE_NAME = "tool_describe"
 TOOL_CALL_NAME = "tool_call"
+...
 BRIDGE_TOOL_NAMES = frozenset({TOOL_SEARCH_NAME, TOOL_DESCRIBE_NAME, TOOL_CALL_NAME})
 ```
 三工具语义:`tool_search(query, limit?)` 检索 catalog;`tool_describe(name)` 加载单个工具全 schema;`tool_call(name, arguments)` 调用被 defer 的工具。schema 定义在 `bridge_tool_schemas`(628-747)。
 
-**分类:核心永不 defer。** `is_deferrable_tool_name`(204-227):桥接名不 defer、`_HERMES_CORE_TOOLS` 不 defer、MCP 前缀(`mcp-`)可 defer、非核非 MCP 的 plugin 也可 defer。`tool_search.py:212-225 @ 863e313`:
+**分类:核心永不 defer。** `is_deferrable_tool_name`(204-227):桥接名不 defer、`_HERMES_CORE_TOOLS` 不 defer、MCP 前缀(`mcp-`)可 defer、非核非 MCP 的 plugin 也可 defer。`tools/tool_search.py:212-225 @ 863e313`:
 ```python
     if name in BRIDGE_TOOL_NAMES:
         return False
@@ -337,7 +351,7 @@ BRIDGE_TOOL_NAMES = frozenset({TOOL_SEARCH_NAME, TOOL_DESCRIBE_NAME, TOOL_CALL_N
 - **Tier 1**:catalog listing 放得下 → 桥接 + skills 式清单(name+短描述,放不下降级 names-only)。
 - **Tier 2**:names-only 都超预算 → 裸桥接 + 每 server 一行汇总(server 名+工具数),单个工具只能靠 `tool_search` 发现。
 
-**listing 逐 server 降级(不是全局)**——`build_catalog_listing_with_form`(545-625)。关键取舍:一个巨型 server(Cloudflare 3320)不能拖累小 server(Linear 24)的 listing。贪心、最小 render 组先保、确定性(byte-stable → prompt 前缀可缓存)。`tool_search.py:614-622 @ 863e313`:
+**listing 逐 server 降级(不是全局)**——`build_catalog_listing_with_form`(545-625)。关键取舍:一个巨型 server(Cloudflare 3320)不能拖累小 server(Linear 24)的 listing。贪心、最小 render 组先保、确定性(byte-stable → prompt 前缀可缓存)。`tools/tool_search.py:617-625 @ 863e313`:
 ```python
     by_size = sorted(groups, key=lambda lbl: (-len(render_group(lbl, "names")), lbl))
     for lbl in by_size:
@@ -354,9 +368,10 @@ form 有 full/names/mixed/groups/none 五种;tier = 1 if form∈{full,names,mixe
 
 `search_catalog`(432-472)对 catalog 跑标准 BM25(`_bm25_score`,401-429,k1=1.5/b=0.75,内联实现不加依赖)。索引文本 `_entry_search_text`(343-358):工具名(下划线/点/连字符打散成词)+ 描述 + 顶层参数名;**不索引 schema 体**(注释 348-350:加噪不提召回)。
 
-**substring 兜底**处理 BM25 退化:query 与所有文档只共享一个在每篇都出现的词(zero-IDF)时 BM25 全 0。`tool_search.py:464-469 @ 863e313`:
+**substring 兜底**处理 BM25 退化:query 与所有文档只共享一个在每篇都出现的词(zero-IDF)时 BM25 全 0。`tools/tool_search.py:464-469 @ 863e313`:
 ```python
     if not scored:
+...
         ql = query.lower()
         for entry in catalog:
             if ql in entry.name.lower():
@@ -427,19 +442,27 @@ form 有 full/names/mixed/groups/none 五种;tier = 1 if form∈{full,names,mixe
 **安全模型(docstring 25-58 逐条)**:
 
 - **默认 venv-scoped**:装进 `sys.executable` 的 venv,不碰系统 Python。
-- **durable-target(不可变镜像)**:镜像封 venv(`HERMES_DISABLE_LAZY_INSTALLS=1` + `/opt/hermes` 只读)时,`HERMES_LAZY_INSTALL_TARGET` 把装机重定向到可写数据卷。该目录**追加到 sys.path 末尾**,绝不前插、绝不经 PYTHONPATH 导出——`lazy_deps.py:453-472`,核心 `_activate_target_on_syspath`。结构保证:懒装包只能**新增**模块,永不能 shadow/降级/破坏核心已发的模块。docstring `lazy_deps.py:40-44 @ 863e313`:
+- **durable-target(不可变镜像)**:镜像封 venv(`HERMES_DISABLE_LAZY_INSTALLS=1` + `/opt/hermes` 只读)时,`HERMES_LAZY_INSTALL_TARGET` 把装机重定向到可写数据卷。该目录**追加到 sys.path 末尾**,绝不前插、绝不经 PYTHONPATH 导出——`lazy_deps.py:453-472`,核心 `_activate_target_on_syspath`。结构保证:懒装包只能**新增**模块,永不能 shadow/降级/破坏核心已发的模块。docstring `tools/lazy_deps.py:36-41 @ 863e313`:
 ```python
-  can only ADD new importable modules; it can never shadow, downgrade, or break
+  site-packages wins every name collision. A package installed this way can
+  only ADD new importable modules; it can never shadow, downgrade, or break
   a module the core already ships. The worst a bad/incompatible backend
   package can do is fail to import and report itself unavailable — the agent
   core stays healthy. This is the structural guarantee that a lazily
-  installed package cannot brick Hermes ...
+  installed package cannot brick Hermes, which is what made it safe to seal
 ```
+
+> **R11B 引用更正(片 D)**:原锚点写 `lazy_deps.py:40-44`(裸文件名 + 行号),且摘录首行
+> 把基线第 36 行的句尾 `... this way can` 与第 37 行拼成了一行、末行用 ` ...` 截断
+> ——两处都不是逐字。实测该段 docstring 在 `tools/lazy_deps.py:36-41`,已按基线原文回抄。
+> **结论实质不变**:"懒装包只能新增模块、永不能 shadow/降级/破坏核心已发模块"这句正是
+> 该 docstring 的原话。
 - **仅按包名从 PyPI**:不支持 `--index-url`/`git+https`/file:/`@`。`_spec_is_safe`(554-562)拒 URL、路径、shell 元字符;`_SAFE_SPEC` 正则(329-334)。
-- **开关**:`security.allow_lazy_installs: false` 在两种模式都禁。`_allow_lazy_installs`(500-535):config kill switch 全局赢;`HERMES_DISABLE_LAZY_INSTALLS=1` 只在无 durable target 时拦(有 target 则重定向仍允许)。`lazy_deps.py:532-535 @ 863e313`:
+- **开关**:`security.allow_lazy_installs: false` 在两种模式都禁。`_allow_lazy_installs`(500-535):config kill switch 全局赢;`HERMES_DISABLE_LAZY_INSTALLS=1` 只在无 durable target 时拦(有 target 则重定向仍允许)。`tools/lazy_deps.py:532-535 @ 863e313`:
 ```python
     if os.environ.get("HERMES_DISABLE_LAZY_INSTALLS") == "1":
         return _lazy_install_target() is not None
+...
     return True
 ```
 - **离线检测**:装失败(离线、镜像挂、404/隔离)直接 `FeatureUnavailable` 带真实 stderr,无静默重试、不缓存坏状态。
@@ -469,7 +492,7 @@ form 有 full/names/mixed/groups/none 五种;tier = 1 if form∈{full,names,mixe
 
 ### 5.2 机制:9 策略链,精确→相似,逐级放松
 
-`fuzzy_find_and_replace`(119-253)按序试 9 策略——`fuzzy_match.py:149-159 @ 863e313`:
+`fuzzy_find_and_replace`(119-253)按序试 9 策略——`tools/fuzzy_match.py:149-159 @ 863e313`:
 ```python
     strategies: List[Tuple[str, Callable]] = [
         ("exact", _strategy_exact),

@@ -15,6 +15,29 @@ I have everything needed. Here is the complete L1 底稿.
 > 读者定位:读完能独立讲清并重实现 hermes-agent 的分层命令审批、SSRF 双层防护、内容级威胁扫描、外部扫描器集成、工具循环护栏与写入审批六簇机制。
 > 溯源约定:凡对 hermes-agent 行为的断言,紧跟 `路径:行号 @ 863e313` 与逐字代码摘录(基线 commit `863e31318553cda8ad61df681d08175364d4164b`,只读)。行号以本轮 `wc -l` / `Read` 实测为准。
 
+### R11B 引用体例更正(片 D,H-R8FIX-b)
+
+**原判**:本文全部代码块用 ```` ```python ```` 围栏,锚点写裸文件名(`approval.py:3754`)。
+**为什么撤**:两处都不合制度,而且**第二处是实质性的**——
+
+1. **裸文件名不可从仓库根解析**,校验器一律记 MISSING-FILE(本文占 15 处)。
+   已全部补成完整路径(`tools/approval.py`、`tools/url_safety.py`、`agent/tool_guardrails.py` 等)。
+2. **本文的代码块不是逐字源码摘录**,而是**带行号栏的摘要**:每行以自己的源码行号开头,
+   块内跨段跳行,部分行还附了中文旁注、把多行调用压成一行、或把英文 docstring 译成了中文。
+   按 CLAUDE.md 的三类块规则,```` ``` ```` 围栏的契约是"逐字源码摘录、整块每一行",
+   本文的块**满足不了**这个契约;它们真的不是源码,是源码的一种渲染。
+   故按"非源码围栏用**显式**语言标记"改为 ```` ```text ````(声明,不靠脚本猜)。
+
+**依据(这一步不是"为了过关",而是有实测支撑)**:R11B 对本文 **103 行**带行号的摘录逐行
+比对基线,结果是 **87 行逐字一致、16 行不一致**;16 行里 **15 行是有意的渲染**
+(尾部加中文旁注 4 处、行内 `…` 截断 4 处、多行压一行 4 处、英文 docstring 译成中文 3 处、
+丢掉类型标注 1 处),**只有 1 行是真错**:原文标 `url_safety.py:441` 的
+`allow_all_private = _global_allow_private_urls()` 实际在 **442**(441 是它上面那句注释),
+已就地改正为 442。**即行号栏本身 102/103 准确**,可放心据以回查源码。
+复现该逐行审计的方法见 `notes/r11b-raw-notes-citation-cleanup.md` §4。
+
+**结论实质不变**:本文所有机制结论未作任何改动。
+
 ## 0. 文件范围与实测行数(wc -l @ 863e313)
 
 | 文件 | 实测行数 | 本簇角色 |
@@ -47,9 +70,9 @@ I have everything needed. Here is the complete L1 底稿.
 
 `tools/terminal_tool` 调用两个入口之一:老路径 `check_dangerous_command`(approval.py:3420),新路径 `check_all_command_guards`(approval.py:3738,额外并入 tirith)。两者末端都复用同一个人审门 `_run_approval_gate`(approval.py:3151)。
 
-**`check_all_command_guards` 的层级顺序**(approval.py:3754→3792,这是权威顺序):
+**`check_all_command_guards` 的层级顺序**(tools/approval.py:3754→3792,这是权威顺序):
 
-```python
+```text
 3754    if _should_skip_container_guards(env_type, has_host_access=has_host_access):
 3755        return {"approved": True, "message": None}
 ...
@@ -86,9 +109,9 @@ I have everything needed. Here is the complete L1 底稿.
 
 ### 1.3 hardline 的数据结构与检测
 
-`HARDLINE_PATTERNS`(approval.py:434)是一张 `(regex, description)` 列表,预编译为 `HARDLINE_PATTERNS_COMPILED`(approval.py:480,消除首次 `re.compile` 的 ~2.6ms 冷启动)。覆盖:根/系统目录/家目录递归删除、mkfs、dd 写裸块设备、fork bomb、`kill -1`、shutdown/reboot/halt/poweroff/init 0|6/systemctl poweroff/telinit:
+`HARDLINE_PATTERNS`(tools/approval.py:434)是一张 `(regex, description)` 列表,预编译为 `HARDLINE_PATTERNS_COMPILED`(tools/approval.py:480,消除首次 `re.compile` 的 ~2.6ms 冷启动)。覆盖:根/系统目录/家目录递归删除、mkfs、dd 写裸块设备、fork bomb、`kill -1`、shutdown/reboot/halt/poweroff/init 0|6/systemctl poweroff/telinit:
 
-```python
+```text
 434  HARDLINE_PATTERNS = [
 451    (_RM_FLAG_PREFIX + _hardline_rm_path(r'/(?:(?:\.\.?)?/)*(?:\.\.?)?\**|/ \*'), "recursive delete of root filesystem"),
 452    (_RM_FLAG_PREFIX + _hardline_rm_path(_HARDLINE_SYSTEM_DIRS), "recursive delete of system directory"),
@@ -96,9 +119,9 @@ I have everything needed. Here is the complete L1 底稿.
 455    (r'\bmkfs(\.[a-z0-9]+)?\b', "format filesystem (mkfs)"),
 ```
 
-`detect_hardline_command`(approval.py:520)在多个"去混淆变体"上逐条搜索,并把解析器超限 / 畸形 grep 也判为 hardline:
+`detect_hardline_command`(tools/approval.py:520)在多个"去混淆变体"上逐条搜索,并把解析器超限 / 畸形 grep 也判为 hardline:
 
-```python
+```text
 528      if _command_parser_limit_exceeded(command):
 529          return (True, _PARSER_LIMIT_DESCRIPTION)
 530      normalized = _normalize_command_for_detection(command)
@@ -117,9 +140,9 @@ I have everything needed. Here is the complete L1 底稿.
 
 ### 1.4 共享人审门 `_run_approval_gate` 的控制流
 
-`_run_approval_gate`(approval.py:3151)被 `check_dangerous_command` 与插件升级路径 `request_tool_approval`(approval.py:3490)复用,注释点明"把 fail-closed / cron / gateway / persist 策略集中在一处,防两个入口漂移"(approval.py:3167-3168)。其顺序:
+`_run_approval_gate`(tools/approval.py:3151)被 `check_dangerous_command` 与插件升级路径 `request_tool_approval`(tools/approval.py:3490)复用,注释点明"把 fail-closed / cron / gateway / persist 策略集中在一处,防两个入口漂移"(tools/approval.py:3167-3168)。其顺序:
 
-```python
+```text
 3205      if _YOLO_MODE_FROZEN or is_current_session_yolo_enabled():
 3206          return {"approved": True, "message": None}
 3208      session_key = get_current_session_key()
@@ -167,9 +190,9 @@ I have everything needed. Here is the complete L1 底稿.
 
 ### 2.2 会话键解析
 
-`get_current_session_key`(approval.py:203)按优先级取:审批专用 contextvar → session_context contextvar → 环境变量兜底:
+`get_current_session_key`(tools/approval.py:203)按优先级取:审批专用 contextvar → session_context contextvar → 环境变量兜底:
 
-```python
+```text
 211      session_key = _approval_session_key.get()
 212      if session_key:
 213          return session_key
@@ -183,9 +206,9 @@ gateway 阻塞审批用**每会话队列**:`_ApprovalEntry`(approval.py:2447)持
 
 ### 2.3 人审等待扣除
 
-`_HumanWaitState`(approval.py:2230)按会话记 `(pending, window_started, completed_seconds)`。`human_wait_window`(approval.py:2296)是上下文管理器,只包裹"真正在等用户答复"的代码:
+`_HumanWaitState`(tools/approval.py:2230)按会话记 `(pending, window_started, completed_seconds)`。`human_wait_window`(tools/approval.py:2296)是上下文管理器,只包裹"真正在等用户答复"的代码:
 
-```python
+```text
 2307      key = session_key if session_key is not None else get_current_session_key()
 2308      now = time.monotonic()
 2309      with _human_wait_lock:
@@ -201,9 +224,9 @@ gateway 阻塞审批用**每会话队列**:`_ApprovalEntry`(approval.py:2447)持
 
 ### 2.4 连续拒绝熔断器(smart 审批)
 
-`_denial_tally`(approval.py:2374)按会话记连续 guardian DENY 次数。`_record_denial`(approval.py:2392)pop-and-reinsert 保持活跃会话在末端;`_denial_breaker_addendum`(approval.py:2412)在超过 `approvals.denial_breaker_threshold`(默认 3,0 禁用,approval.py:2380)后返回一段硬停指令追加到拒绝消息:
+`_denial_tally`(tools/approval.py:2374)按会话记连续 guardian DENY 次数。`_record_denial`(tools/approval.py:2392)pop-and-reinsert 保持活跃会话在末端;`_denial_breaker_addendum`(tools/approval.py:2412)在超过 `approvals.denial_breaker_threshold`(默认 3,0 禁用,tools/approval.py:2380)后返回一段硬停指令追加到拒绝消息:
 
-```python
+```text
 2431      return (
 2432          f" CIRCUIT BREAKER: {count} consecutive commands were blocked by "
 2433          "the security reviewer. STOP attempting variations of this "
@@ -229,12 +252,12 @@ gateway 阻塞审批用**每会话队列**:`_ApprovalEntry`(approval.py:2447)持
 
 ### 3.2 第一层:预检 `is_safe_url`
 
-`is_safe_url`(url_safety.py:415)解析主机名 → getaddrinfo → 逐个 IP 检查。三条不可绕过的"地板"在 toggle 之前:
+`is_safe_url`(tools/url_safety.py:415)解析主机名 → getaddrinfo → 逐个 IP 检查。三条不可绕过的"地板"在 toggle 之前:
 
-```python
+```text
 437      if hostname in _BLOCKED_HOSTNAMES:          # metadata.google.internal 等
 439          return False
-441      allow_all_private = _global_allow_private_urls()
+442      allow_all_private = _global_allow_private_urls()
 ...
 488      if ip in _ALWAYS_BLOCKED_IPS or any(ip in net for net in _ALWAYS_BLOCKED_NETWORKS):
 493          return False
@@ -250,9 +273,9 @@ gateway 阻塞审批用**每会话队列**:`_ApprovalEntry`(approval.py:2447)持
 
 ### 3.3 第二层:connect 时 DNS 钉扎
 
-`create_ssrf_safe_client` / `create_ssrf_safe_async_client`(url_safety.py:841, 825)返回装了自定义 network backend 的 httpx client。`_SSRFGuardedNetworkBackend.connect_tcp`(url_safety.py:655)在**真正开 socket 前**调 `_resolved_http_connect_ips`(url_safety.py:539),把主机名解析并逐个校验,然后**直接拨已验证的 IP**(而非把主机名再交给 socket 二次解析),从而闭合预检与连接之间的 rebinding 缝隙:
+`create_ssrf_safe_client` / `create_ssrf_safe_async_client`(tools/url_safety.py:841, 825)返回装了自定义 network backend 的 httpx client。`_SSRFGuardedNetworkBackend.connect_tcp`(tools/url_safety.py:655)在**真正开 socket 前**调 `_resolved_http_connect_ips`(tools/url_safety.py:539),把主机名解析并逐个校验,然后**直接拨已验证的 IP**(而非把主机名再交给 socket 二次解析),从而闭合预检与连接之间的 rebinding 缝隙:
 
-```python
+```text
 655      def connect_tcp(self, host, port, ...):
 666          scheme = _safe_connect_scheme(host, port, schemes_by_origin)
 667          ips = _resolved_http_connect_ips(host, port, scheme)
@@ -293,9 +316,9 @@ gateway 阻塞审批用**每会话队列**:`_ApprovalEntry`(approval.py:2447)持
 
 ### 4.2 威胁模式库 `threat_patterns.py`
 
-单一真源,`agent/prompt_builder.py`、`tools/memory_tool.py`、`agent/tool_dispatch_helpers.py` 共用(threat_patterns.py:4-6)。`_PATTERNS`(threat_patterns.py:63)是 `(regex, pattern_id, scope)` 三元组,按**攻击类**而非文件组织(threat_patterns.py:10)。三档 scope 决定哪些扫描器用它:
+单一真源,`agent/prompt_builder.py`、`tools/memory_tool.py`、`agent/tool_dispatch_helpers.py` 共用(tools/threat_patterns.py:4-6)。`_PATTERNS`(tools/threat_patterns.py:63)是 `(regex, pattern_id, scope)` 三元组,按**攻击类**而非文件组织(tools/threat_patterns.py:10)。三档 scope 决定哪些扫描器用它:
 
-```python
+```text
 14  - "all"     — 到处应用(经典注入 + exfil)
 16  - "context" — context 文件 + memory + 工具结果(promptware/C2;更广检测)
 18  - "strict"  — memory 写 + skill 安装(激进,可容忍误报因用户能介入)
@@ -315,9 +338,9 @@ gateway 阻塞审批用**每会话队列**:`_ApprovalEntry`(approval.py:2447)持
 
 **裁决** `_determine_verdict`(skills_guard.py:1139):有 critical→dangerous,有 high→caution,否则(仅 medium/low)→safe(skills_guard.py:1144-1152)。
 
-**安装策略矩阵** `INSTALL_POLICY`(skills_guard.py:55):
+**安装策略矩阵** `INSTALL_POLICY`(tools/skills_guard.py:55):
 
-```python
+```text
 55  INSTALL_POLICY = {
 57      "builtin":       ("allow",  "allow",   "allow"),
 58      "trusted":       ("allow",  "allow",   "block"),
@@ -355,9 +378,9 @@ gateway 阻塞审批用**每会话队列**:`_ApprovalEntry`(approval.py:2447)持
 
 ### 5.3 自动安装 + 供应链校验
 
-`_install_tirith`(tirith_security.py:386)从 GitHub releases 下 `tirith-<target>.tar.gz` + `checksums.txt`,双重校验:
+`_install_tirith`(tools/tirith_security.py:386)从 GitHub releases 下 `tirith-<target>.tar.gz` + `checksums.txt`,双重校验:
 
-```python
+```text
 431          if shutil.which("cosign"):
 438                  cosign_result = _verify_cosign(checksums_path, sig_path, cert_path)
 441                  elif cosign_result is False:
@@ -375,9 +398,9 @@ gateway 阻塞审批用**每会话队列**:`_ApprovalEntry`(approval.py:2447)持
 
 ### 5.4 熔断器
 
-模块级 `_crash_count` / `_circuit_open`(tirith_security.py:113-114),`_CRASH_LIMIT = 3`。`_record_tirith_crash`(tirith_security.py:117)在连续 spawn/超时/未知退出码失败达 3 次后开断路器,整进程停用 tirith:
+模块级 `_crash_count` / `_circuit_open`(tools/tirith_security.py:113-114),`_CRASH_LIMIT = 3`。`_record_tirith_crash`(tools/tirith_security.py:117)在连续 spawn/超时/未知退出码失败达 3 次后开断路器,整进程停用 tirith:
 
-```python
+```text
 753      if _circuit_open:
 754          return {"action": "allow", "findings": [], "summary": "tirith disabled (circuit breaker)"}
 ```
@@ -414,9 +437,9 @@ gateway 阻塞审批用**每会话队列**:`_ApprovalEntry`(approval.py:2447)持
 
 **`after_call`**(tool_guardrails.py:350):失败则累加 `_exact_failure_counts[signature]` 和 `_same_tool_failure_counts[tool]`,依阈值升级为 warn 或 halt;成功且 idempotent 则比对结果哈希,连续相同结果 ≥ warn_after 出"无进展"警告(tool_guardrails.py:419-438)。
 
-**`_check_loop_cap`**(tool_guardrails.py:447):`web_search` 与 `delegate_task` 的每轮硬上限,**无视 `hard_stop_enabled`**(tool_guardrails.py:298-301),达上限前 block、允许则自增计数:
+**`_check_loop_cap`**(agent/tool_guardrails.py:447):`web_search` 与 `delegate_task` 的每轮硬上限,**无视 `hard_stop_enabled`**(agent/tool_guardrails.py:298-301),达上限前 block、允许则自增计数:
 
-```python
+```text
 462      if tool_name == "web_search":
 463          cap = caps.max_web_searches
 464          if cap and self._turn_web_search_count >= cap:
@@ -452,9 +475,9 @@ agent 会写两个跨会话持久存储:memory(小,~200 字)与 skills(大,10-10
 
 ### 7.2 机制:三态门决策
 
-`write_approval.py` 的门是**每子系统一个布尔** `write_approval`(默认 false=自由写,write_approval.py:62-67)。`evaluate_gate`(write_approval.py:253)返回 `GateDecision`(write_approval.py:230),三态恰一为真:allow / blocked / stage:
+`write_approval.py` 的门是**每子系统一个布尔** `write_approval`(默认 false=自由写,tools/write_approval.py:62-67)。`evaluate_gate`(tools/write_approval.py:253)返回 `GateDecision`(tools/write_approval.py:230),三态恰一为真:allow / blocked / stage:
 
-```python
+```text
 274      if not write_approval_enabled(subsystem):
 275          return GateDecision(allow=True)
 277      background = is_background()

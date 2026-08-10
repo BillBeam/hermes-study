@@ -65,7 +65,7 @@ _DEFAULT_LOCAL_URL = "http://localhost:8888"
 
 服务端概念:**bank**(记忆库,命名空间)/ **retain**(写入,服务端自动抽取结构化事实、消解实体)/ **recall**(多策略检索:语义+关键词+实体图+重排)/ **reflect**(跨记忆 LLM 综合作答)/ **observation**(整合层:去重、有证据支撑的"信念")。三个工具 schema 原文见 `__init__.py:305-354`。
 
-**recall 默认只取 observation 层**,理由写在代码注释里,`__init__.py:785-793 @ 863e313`:
+**recall 默认只取 observation 层**,理由写在代码注释里,`plugins/memory/hindsight/__init__.py:785-793 @ 863e313`:
 ```python
         # Default to observation-only recall. Observations are Hindsight's
         # consolidated knowledge layer — deduplicated, evidence-grounded
@@ -78,17 +78,18 @@ _DEFAULT_LOCAL_URL = "http://localhost:8888"
         self._recall_types: list[str] = ["observation"]
 ```
 
-**写入以"会话文档"为单位**:每个进程生命周期铸造唯一 `document_id`,`__init__.py:1461-1464 @ 863e313`:
+**写入以"会话文档"为单位**:每个进程生命周期铸造唯一 `document_id`,`plugins/memory/hindsight/__init__.py:1458-1461 @ 863e313`:
 ```python
         # Each process lifecycle gets its own document_id. Reusing session_id
         # alone caused overwrites on /resume — the reloaded session starts
         # with an empty _session_turns, so the next retain would replace the
         # previously stored content. session_id stays in tags so processes
+...
         start_ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         self._document_id = f"{self._session_id}-{start_ts}"
 ```
 
-**服务端能力探测决定增量还是全量重发**:对 API URL 探一次 `/version`(缓存于进程级 dict,`__init__.py:173`),≥0.5.0 支持 `update_mode='append'`,则复用稳定的 session 级 document_id、每次只发新增轮;老 API 退回"每进程唯一 doc id + 每次重发全量",`__init__.py:1433-1452 @ 863e313`:
+**服务端能力探测决定增量还是全量重发**:对 API URL 探一次 `/version`(缓存于进程级 dict,`plugins/memory/hindsight/__init__.py:173`),≥0.5.0 支持 `update_mode='append'`,则复用稳定的 session 级 document_id、每次只发新增轮;老 API 退回"每进程唯一 doc id + 每次重发全量",`plugins/memory/hindsight/__init__.py:1433-1452 @ 863e313`:
 ```python
     def _resolve_retain_target(self, fallback_document_id: str) -> tuple[str, str | None]:
         """Pick (document_id, update_mode) based on live API capability.
@@ -122,7 +123,7 @@ _DEFAULT_LOCAL_URL = "http://localhost:8888"
 
 ### 1.4 认证与配置
 
-**配置解析三级**,`__init__.py:361-368 @ 863e313`:
+**配置解析三级**,`plugins/memory/hindsight/__init__.py:361-368 @ 863e313`:
 ```python
 def _load_config() -> dict:
     """Load config from profile-scoped path, legacy path, or env vars.
@@ -135,7 +136,7 @@ def _load_config() -> dict:
 ```
 API key 走 `get_secret("HINDSIGHT_API_KEY", "")`(`__init__.py:389`,即 profile 域秘密解析,不是裸 `os.environ`)。
 
-**local_embedded 的 LLM key 落地为 `~/.hindsight/profiles/<profile>.env`,强制 0600**,`__init__.py:565-580 @ 863e313`:
+**local_embedded 的 LLM key 落地为 `~/.hindsight/profiles/<profile>.env`,强制 0600**,`plugins/memory/hindsight/__init__.py:565-580 @ 863e313`:
 ```python
 def _secure_write_profile_env(profile_env, content: str) -> None:
     """Create/overwrite *profile_env* with owner-only (0600) permissions.
@@ -158,7 +159,7 @@ def _secure_write_profile_env(profile_env, content: str) -> None:
 
 ### 1.5 并发模型:一 loop、一写者、一预取线程
 
-**进程级共享事件循环**(避免每次调用建临时 loop 泄漏 aiohttp session),`__init__.py:269-283`;同步侧通过 `future.result(timeout)` 桥接,`__init__.py:286-293 @ 863e313`:
+**进程级共享事件循环**(避免每次调用建临时 loop 泄漏 aiohttp session),`plugins/memory/hindsight/__init__.py:269-283`;同步侧通过 `future.result(timeout)` 桥接,`plugins/memory/hindsight/__init__.py:286-293 @ 863e313`:
 ```python
 def _run_sync(coro, timeout: float = _DEFAULT_TIMEOUT):
     """Schedule *coro* on the shared loop and block until done."""
@@ -170,7 +171,7 @@ def _run_sync(coro, timeout: float = _DEFAULT_TIMEOUT):
     return future.result(timeout=timeout)
 ```
 
-**单写者线程 + 内存队列**,动机注释即事故教训,`__init__.py:724-728 @ 863e313`:
+**单写者线程 + 内存队列**,动机注释即事故教训,`plugins/memory/hindsight/__init__.py:724-728 @ 863e313`:
 ```python
         # Single-writer model for retain. sync_turn() enqueues; the writer
         # thread drains sequentially. Avoids spawning ad-hoc threads that
@@ -178,7 +179,7 @@ def _run_sync(coro, timeout: float = _DEFAULT_TIMEOUT):
         # futures after interpreter shutdown" / "Unclosed client session".
         self._retain_queue: queue.Queue = queue.Queue()
 ```
-写者循环单条失败不死,`__init__.py:1372-1380 @ 863e313`:
+写者循环单条失败不死,`plugins/memory/hindsight/__init__.py:1372-1380 @ 863e313`:
 ```python
             try:
                 if job is _WRITER_SENTINEL:
@@ -194,13 +195,13 @@ def _run_sync(coro, timeout: float = _DEFAULT_TIMEOUT):
 
 ### 1.6 超时/重试/失败方向
 
-**Hindsight 自己有超时,且是三家里最长的:默认 120s,可配。** `__init__.py:60 @ 863e313`:
+**Hindsight 自己有超时,且是三家里最长的:默认 120s,可配。** `plugins/memory/hindsight/__init__.py:60 @ 863e313`:
 ```python
 _DEFAULT_TIMEOUT = 120  # seconds — cloud API can take 30-40s per request
 ```
 生效点有二:cloud 客户端构造参数(`__init__.py:1145-1146`:`kwargs = {"base_url": self._api_url, "timeout": float(timeout)}`)与 `self._run_sync`(`__init__.py:1154-1156`:`return _run_sync(coro, timeout=self._timeout)`)。注意 `future.result(timeout)` 到期只抛 TimeoutError、**不取消协程**(`agent/async_utils.py:63`:底层是 `asyncio.run_coroutine_threadsafe`),协程仍在共享 loop 上跑完——超时是"放弃等待",不是"中止请求"。
 
-**重试:仅 embedded 断连场景重试一次**(daemon 空闲自杀后重连),`__init__.py:1403-1418 @ 863e313`:
+**重试:仅 embedded 断连场景重试一次**(daemon 空闲自杀后重连),`plugins/memory/hindsight/__init__.py:1403-1418 @ 863e313`:
 ```python
     def _run_hindsight_operation(self, operation):
         """Run an async Hindsight client operation, retrying once after idle shutdown."""
@@ -227,7 +228,7 @@ _DEFAULT_TIMEOUT = 120  # seconds — cloud API can take 30-40s per request
 
 **有,而且是多层的;但真正保证回复路径零阻塞的是结构,不是超时数值。**
 
-1. **回复路径读:`prefetch()` 从不打网络**,只等后台线程最多 3s、然后消费(并清空)缓存,`__init__.py:1716-1725 @ 863e313`:
+1. **回复路径读:`prefetch()` 从不打网络**,只等后台线程最多 3s、然后消费(并清空)缓存,`plugins/memory/hindsight/__init__.py:1716-1725 @ 863e313`:
 ```python
     def prefetch(self, query: str, *, session_id: str = "") -> str:
         if self._prefetch_thread and self._prefetch_thread.is_alive():
@@ -239,7 +240,7 @@ _DEFAULT_TIMEOUT = 120  # seconds — cloud API can take 30-40s per request
 ```
    3s(provider 侧)< 8s(harness 围栏),双保险且 provider 先触发。
 2. **回复路径写:`sync_turn()` 只入队**(docstring 明说 Non-blocking,`__init__.py:1862-1868`),网络调用全在写者线程,单次调用被 `_run_sync(timeout=120)` 封顶,不会像事故里那样无限阻塞。
-3. **daemon 起不来不再无声空转**:root 检测直接禁用并打印(注释点名 issue #13125),`__init__.py:1628-1650 @ 863e313`:
+3. **daemon 起不来不再无声空转**:root 检测直接禁用并打印(注释点名 issue #13125),`plugins/memory/hindsight/__init__.py:1628-1650 @ 863e313`:
 ```python
             # PostgreSQL's initdb refuses to run as root by design, so the
             # embedded daemon can never initialize its data directory under
@@ -256,7 +257,7 @@ _DEFAULT_TIMEOUT = 120  # seconds — cloud API can take 30-40s per request
 
 ### 1.8 读后写可见性:两道栅栏 + drop 语义(hindsight 独有)
 
-问题:写离线之后,下一轮的预取可能**跑在刚写完的 retain 之前**,recall 就会缺最后一轮。且 `retain_async=True` 时服务端"受理即返回",本地队列排空≠可见。方案注释,`__init__.py:762-772 @ 863e313`:
+问题:写离线之后,下一轮的预取可能**跑在刚写完的 retain 之前**,recall 就会缺最后一轮。且 `retain_async=True` 时服务端"受理即返回",本地队列排空≠可见。方案注释,`plugins/memory/hindsight/__init__.py:763-773 @ 863e313`:
 ```python
         # Async retain never blocks the reply (writes drain on the single
         # writer thread). But the next turn's warm prefetch runs on its own
@@ -270,7 +271,7 @@ _DEFAULT_TIMEOUT = 120  # seconds — cloud API can take 30-40s per request
         self._prefetch_waits_for_retain = True
         self._prefetch_retain_drain_timeout = 10.0
 ```
-栅栏一:轮询 `unfinished_tasks`(而非 `queue.join()`,避免 wedged 写把预取吊死)每 0.05s(`__init__.py:1271-1281`);栅栏二:轮询服务端 `get_operation_status` 每 0.5s(每次都是网络往返,故意比本地粗,`__init__.py:742-746`),404 视为完成(`__init__.py:1220-1242`),瞬时错误继续等。**到期未决的 op 被丢弃而非保留**——否则一个永远失败的 status 端点会让 pending 集合无限增长、每轮预取都烧满预算,`__init__.py:1293-1302 @ 863e313`:
+栅栏一:轮询 `unfinished_tasks`(而非 `queue.join()`,避免 wedged 写把预取吊死)每 0.05s(`plugins/memory/hindsight/__init__.py:1271-1281`);栅栏二:轮询服务端 `get_operation_status` 每 0.5s(每次都是网络往返,故意比本地粗,`plugins/memory/hindsight/__init__.py:742-746`),404 视为完成(`plugins/memory/hindsight/__init__.py:1220-1242`),瞬时错误继续等。**到期未决的 op 被丢弃而非保留**——否则一个永远失败的 status 端点会让 pending 集合无限增长、每轮预取都烧满预算,`plugins/memory/hindsight/__init__.py:1293-1302 @ 863e313`:
 ```python
         Ops still pending when the deadline expires are DROPPED, not retained:
         keeping them would make a permanently failing status endpoint (auth
@@ -330,7 +331,7 @@ _DEFAULT_TIMEOUT = 120  # seconds — cloud API can take 30-40s per request
 ```python
 _DEFAULT_BASE_URL = "https://api.supermemory.ai"
 ```
-`__init__.py:82-91`:base_url 优先级 config(`supermemory.json`)> `SUPERMEMORY_BASE_URL` env > 默认。SDK 客户端构造(注意 **max_retries=0** 与来源头),`__init__.py:302-308 @ 863e313`:
+`plugins/memory/supermemory/__init__.py:82-91`:base_url 优先级 config(`supermemory.json`)> `SUPERMEMORY_BASE_URL` env > 默认。SDK 客户端构造(注意 **max_retries=0** 与来源头),`plugins/memory/supermemory/__init__.py:302-308 @ 863e313`:
 ```python
         self._client = Supermemory(
             api_key=api_key,
@@ -363,7 +364,7 @@ _DEFAULT_BASE_URL = "https://api.supermemory.ai"
 | `get_tool_schemas` | 904-935 | 四工具,**同时注册 snake_case 与 kebab-case 两套名字**;多容器开启时注入 `container_tag` 参数 |
 | `handle_tool_call` | 1031-1049 | 别名归一后分发 store/search/forget/profile |
 
-`prefetch` 的注入频率控制:profile 部分只在首轮和每 N 轮(默认 50)出现,搜索结果每轮都有,`__init__.py:727-734 @ 863e313`:
+`prefetch` 的注入频率控制:profile 部分只在首轮和每 N 轮(默认 50)出现,搜索结果每轮都有,`plugins/memory/supermemory/__init__.py:727-734 @ 863e313`:
 ```python
             profile = self._client.get_profile(query=query[:200])
             include_profile = self._turn_count <= 1 or (self._turn_count % self._profile_frequency == 0)
@@ -377,7 +378,7 @@ _DEFAULT_BASE_URL = "https://api.supermemory.ai"
 
 ### 2.4 认证与配置
 
-`SUPERMEMORY_API_KEY` 走 `get_secret`(`__init__.py:659`);配置文件 `$HERMES_HOME/supermemory.json`,所有值经 clamp/normalize(`__init__.py:113-157`)。setup 时有一个多路复用防泄漏细节——**multiplex 网关下绝不把 key 写进进程全局 environ**,`__init__.py:634-643 @ 863e313`:
+`SUPERMEMORY_API_KEY` 走 `get_secret`(`plugins/memory/supermemory/__init__.py:659`);配置文件 `$HERMES_HOME/supermemory.json`,所有值经 clamp/normalize(`plugins/memory/supermemory/__init__.py:113-157`)。setup 时有一个多路复用防泄漏细节——**multiplex 网关下绝不把 key 写进进程全局 environ**,`plugins/memory/supermemory/__init__.py:634-643 @ 863e313`:
 ```python
         # Single-profile convenience only: never write a profile's key into
         # the process-global environ under a multiplexed gateway — sibling
@@ -393,7 +394,7 @@ _DEFAULT_BASE_URL = "https://api.supermemory.ai"
 
 ### 2.5 超时/重试/失败方向
 
-超时默认 5s、硬 clamp 到 [0.5, 15],`__init__.py:142-145 @ 863e313`:
+超时默认 5s、硬 clamp 到 [0.5, 15],`plugins/memory/supermemory/__init__.py:142-145 @ 863e313`:
 ```python
     try:
         config["api_timeout"] = max(0.5, min(15.0, float(config.get("api_timeout", _DEFAULT_API_TIMEOUT))))
@@ -455,7 +456,7 @@ def test_sync_turn_buffers_short_messages(provider):
 ```python
 _DEFAULT_BASE_URL = "https://api.retaindb.com"
 ```
-认证是**双头**:`Authorization: Bearer` 恒有,memory/context 路径额外带 `X-API-Key`,`__init__.py:211-220 @ 863e313`:
+认证是**双头**:`Authorization: Bearer` 恒有,memory/context 路径额外带 `X-API-Key`,`plugins/memory/retaindb/__init__.py:211-220 @ 863e313`:
 ```python
     def _headers(self, path: str) -> dict:
         token = self.api_key.replace("Bearer ", "").strip()
@@ -491,7 +492,7 @@ _DEFAULT_BASE_URL = "https://api.retaindb.com"
 | `shutdown` | 795-799 | join 预取线程 3s、队列 sentinel + join 10s |
 | `on_session_end` / `on_session_switch` | 未实现 | 无会话边界动作(逐轮已 ingest,无需 flush) |
 
-`queue_prefetch` 的防堆积,`__init__.py:576-591 @ 863e313`:
+`queue_prefetch` 的防堆积,`plugins/memory/retaindb/__init__.py:576-591 @ 863e313`:
 ```python
     def queue_prefetch(self, query: str, *, session_id: str = "") -> None:
         """Fire context + dialectic + agent model prefetches in background."""
@@ -506,7 +507,7 @@ dialectic 的推理档位按 query 长度自适应(`__init__.py:622-629`:<120 lo
 
 ### 3.4 持久写队列(三家中唯一 crash-safe 的写路径)
 
-`__init__.py:356-371 @ 863e313`:
+`plugins/memory/retaindb/__init__.py:356-371 @ 863e313`:
 ```python
 class _WriteQueue:
     """SQLite-backed async write queue. Survives crashes — pending rows replay on startup."""
@@ -519,7 +520,7 @@ class _WriteQueue:
         for row_id, user_id, session_id, msgs_json in self._pending_rows():
             self._q.put((row_id, user_id, session_id, json.loads(msgs_json)))
 ```
-enqueue 先 INSERT 提交再入内存队列(`__init__.py:395-404`);发送成功才 DELETE 行,失败 UPDATE `last_error` 并留行等下次进程重放,`__init__.py:406-417 @ 863e313`:
+enqueue 先 INSERT 提交再入内存队列(`plugins/memory/retaindb/__init__.py:395-404`);发送成功才 DELETE 行,失败 UPDATE `last_error` 并留行等下次进程重放,`plugins/memory/retaindb/__init__.py:406-417 @ 863e313`:
 ```python
     def _flush_row(self, row_id: int, user_id: str, session_id: str, messages: list) -> None:
         try:
@@ -538,7 +539,7 @@ enqueue 先 INSERT 提交再入内存队列(`__init__.py:395-404`);发送成功�
 
 ### 3.5 超时/重试/失败方向
 
-统一入口默认 8s(恰好等于 harness 围栏值),逐端点覆盖,`__init__.py:222 @ 863e313`:
+统一入口默认 8s(恰好等于 harness 围栏值),逐端点覆盖,`plugins/memory/retaindb/__init__.py:222 @ 863e313`:
 ```python
     def request(self, method: str, path: str, *, params=None, json_body=None, timeout: float = 8.0) -> Any:
 ```

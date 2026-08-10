@@ -71,7 +71,7 @@ v1 是每个工作目录一个完整 shadow repo,同一仓库十几个 worktree 
 
 ### 1.3 git 环境隔离(不碰用户 git 配置、不漏进项目)
 
-`tools/checkpoint_manager.py:239-276 @ 863e313`(节选):
+`tools/checkpoint_manager.py:265-302 @ 863e313`(节选):
 
 ```python
     env["GIT_DIR"] = str(store)
@@ -279,7 +279,7 @@ The snapshot refreshes on the next session start.
 
 **写入侧**:add/replace/批量的每个 add/replace 内容先过 `_scan_memory_content`(`:86-88`),即共享威胁库 strict 档:
 
-`tools/memory_tool.py:74-81 @ 863e313`:
+`tools/memory_tool.py:76-83 @ 863e313`:
 
 ```python
 # Memory uses the "strict" scope (broadest pattern set) because:
@@ -321,7 +321,7 @@ live 列表保留原文——静默删除会把攻击藏起来,用户要能看�
 
 **漂移守护**(`_detect_external_drift` `:807-861`):记忆文件应当是"工具写的小条目 § 拼接"。两个信号判外部漂移:① 重解析-重序列化不能字节还原;② **单条目长度超过整库字符上限**——工具自己永远写不出这种条目,必是 patch 工具/shell append/手改/姊妹会话往文件里灌了自由文本。命中则先把现场快照成 `.bak.<ts>`,然后拒绝写入:
 
-`tools/memory_tool.py:100-111 @ 863e313`(`_drift_error` 节选):
+`tools/memory_tool.py:102-108 @ 863e313`(`_drift_error` 节选;`return {` 在 :100):
 
 ```python
         "error": (
@@ -395,7 +395,7 @@ gate 模块 import 失败时 fail-open(维持旧行为,不把所有记忆写入�
 
 ### 3.1 MemoryProvider ABC:契约
 
-核心生命周期(`agent/memory_provider.py:15-22 @ 863e313`):
+核心生命周期(`agent/memory_provider.py:16-23 @ 863e313`):
 
 ```
   initialize()          — connect, create resources, warm up
@@ -413,7 +413,7 @@ gate 模块 import 失败时 fail-open(维持旧行为,不把所有记忆写入�
 
 ### 3.2 注册纪律:一个外部、schema 归一化、核心名保护(▲定案 1 之"坏 schema/多后端")
 
-**只允许一个外部 provider**(`agent/memory_manager.py:404-427 @ 863e313`):
+**只允许一个外部 provider**(`agent/memory_manager.py:411-434 @ 863e313`):
 
 ```python
         is_builtin = provider.name == "builtin"
@@ -435,7 +435,7 @@ gate 模块 import 失败时 fail-open(维持旧行为,不把所有记忆写入�
 
 ### 3.3 慢/卡死 provider 不阻塞用户回合(▲定案 1 之"超时/线程")
 
-**读路径(prefetch)= 每 provider 守护线程 + 有界 join + 卡死跳过。** `agent/memory_manager.py:547-595 @ 863e313`(节选):
+**读路径(prefetch)= 每 provider 守护线程 + 有界 join + 卡死跳过。** `agent/memory_manager.py:562-610 @ 863e313`(节选):
 
 ```python
         thread = threading.Thread(
@@ -462,7 +462,7 @@ gate 模块 import 失败时 fail-open(维持旧行为,不把所有记忆写入�
 
 默认超时 `_EXTERNAL_PREFETCH_TIMEOUT_S = 8.0`(`:47`)。要点:超时不杀线程(Python 杀不了),而是**放弃等待**,并且旧线程活着时后续回合直接跳过该 provider——一次卡死最多拖累一回合 8 秒,之后零成本跳过直到卡住的调用自己返回。builtin 名下的 provider 走同步路径(`:550-551`,保留位)。
 
-**写路径(sync/queue_prefetch)= 惰性单 worker 守护线程池,完全离线。** `sync_all` docstring 把事故讲全,`agent/memory_manager.py:652-661 @ 863e313`:
+**写路径(sync/queue_prefetch)= 惰性单 worker 守护线程池,完全离线。** `sync_all` docstring 把事故讲全,`agent/memory_manager.py:648-657 @ 863e313`:
 
 ```python
         Runs on a background worker thread, NOT inline on the
@@ -472,7 +472,8 @@ gate 模块 import 失败时 fail-open(维持旧行为,不把所有记忆写入�
         held ``run_conversation`` open long after the user saw their
         response, so every interface (CLI, TUI, gateway) kept the agent
         marked "running" for minutes and any follow-up message triggered
-        an aggressive interrupt. ...
+        an aggressive interrupt. Dispatching off-thread means a slow or
+...
 
         Writes are serialized through a single worker so turn N lands
         before turn N+1; provider implementations don't need their own

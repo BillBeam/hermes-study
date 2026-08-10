@@ -102,28 +102,83 @@ state.db);**检索**从 state.db 的 FTS 索引把过去捞回给装配;**长期
 
 - **WAL 启用要信"返回值"而不是"没抛异常"**。`PRAGMA journal_mode=WAL` 在 macOS NFS/SMB 上有个恶劣
   行为:它**不报错但也不生效**,只是返回仍然生效的旧模式。所以代码信它返回的那一行,而不是"这条语句
-  没抛异常"——否则会误报成功、还跳过降级告警,让库悄悄留在写阻塞读的 DELETE 模式却没人知道
-  (hermes_state.py:743-767 @ 863e313)。识别"WAL 不兼容"用一张错误指纹表(`locking protocol` / `not authorized`
+  没抛异常"——否则会误报成功、还跳过降级告警,让库悄悄留在写阻塞读的 DELETE 模式却没人知道:
+
+  `hermes_state.py:749-754 @ 863e313`
+
+  ```python
+        # returns the still-effective mode (e.g. ``delete``). Trust the
+        # returned row, not the mere absence of an exception; otherwise we
+        # report a false ``"wal"`` AND skip the fallback WARNING, leaving the
+        # DB silently in DELETE (reader-blocks-writer) with no signal.
+        row = conn.execute("PRAGMA journal_mode=WAL").fetchone()
+        mode = str(row[0]).strip().lower() if row and row[0] is not None else ""
+  ```
+
+  识别"WAL 不兼容"用一张错误指纹表(`locking protocol` / `not authorized`
   / `disk i/o error`),命中就回退到 pre-WAL 的 DELETE 模式(NFS/ZFS 上能用),并把这次降级记成 ERROR
-  而不是 WARNING——因为它是真实的并发损失。
+  而不是 WARNING——因为它是真实的并发损失(整段判定见 `hermes_state.py:743-767 @ 863e313`)。
 
 - **零化库隔离而不删除**。某类崩溃会留下一个"大小非零但全是 NUL 字节"的 state.db。检测到后不删,而是
   改名成 `.zeroed-<时间>-<pid>.bak` 隔离(保字节做取证/快照恢复),让下次打开得到全新空库。关键是这个
   rename 受一把跨进程文件锁保护,**5 秒拿不到锁就 fail closed**——宁可不隔离,也不和另一个正在启动的
-  进程对同一个活文件重复动手(hermes_state.py:1815-1827 @ 863e313,#68805 复盘)。
+  进程对同一个活文件重复动手:
+
+  `hermes_state.py:1815-1818 @ 863e313`
+
+  ```python
+        if not acquired:
+            # Fail closed: do NOT proceed without the lock. A slow or paused
+            # startup that still owns the lock can overlap this fallback and
+            # the two processes can act on the same live file (#68805 review).
+  ```
+
+  拿不到锁时它连日志都写得像操作手册:告诉你零化文件被原地留下,并给出
+  `hermes snapshot list` / `hermes snapshot restore <id>` 两条恢复命令(`hermes_state.py:1819-1827 @ 863e313`)。
 
 - **打开期多级自修复**。上面那个"有文件却显示没有会话"的场景,根因通常是 `sqlite_master`(SQLite 记录
   自己 schema 的内部表)出现重复行,于是**连第一条 `PRAGMA` 都解析失败**——远在正常初始化之前就崩了。
-  修复是一道阶梯,从最不破坏开始逐级升级:FTS 索引就地 `rebuild` → `REINDEX` 重建失同步的 B-tree →
-  `sqlite_master` 去重 → 删掉全部 FTS schema 行 + `VACUUM` 让下次重建。每修一级都用同一个"健康探针"
-  复验,修好即止(hermes_state.py:1370-1535 @ 863e313)。关键洞察:**canonical 的消息数据一直是好的,坏的只是
-  派生出来的索引/schema**——所以修复永远不碰数据。
+  修复是一道阶梯,从最不破坏开始逐级升级,每修一级都用同一个"健康探针"复验,修好即止。
+  修复函数(`hermes_state.py:1370-1535 @ 863e313`)的 docstring 自己就把这道阶梯编了号:
+
+  `hermes_state.py:1380-1389 @ 863e313`
+
+  ```python
+      1. **Rebuild FTS indexes in place** via the FTS5 ``'rebuild'`` command,
+         which rewrites the internal b-tree segments from the canonical
+         ``messages`` rows without dropping or recreating anything. Fixes the
+         FTS write-corruption class while preserving the schema intact.
+      2. **De-duplicate** ``sqlite_master`` (keep the lowest rowid per
+         ``type``/``name``). Fixes the canonical "table X already exists"
+         case and PRESERVES the existing FTS index intact.
+      3. **Drop the FTS schema** (every ``messages_fts*`` object) + ``VACUUM``.
+         The next ``SessionDB()`` open rebuilds the FTS indexes from the
+         canonical ``messages`` table.
+  ```
+
+  关键洞察:**canonical 的消息数据一直是好的,坏的只是派生出来的索引/schema**——所以修复永远不碰数据,
+  这一条也是写死在 docstring 里的:`Canonical ``sessions`` / ``messages`` rows are never modified.`
 
 **多进程写怎么不打架**:每个进程一条写连接 + 短到 1 秒的 SQLite 超时,冲突交给应用层的**随机抖动重试**
 处理,而不是坐在 SQLite 内置的确定性睡眠表里(那会让所有竞争者同节奏重试,形成 convoy)。而且重试预算
 是**时间制、按业务重要性分档**:用户转录写 60 秒(丢了就毁掉用户一整轮)、常规写 20 秒、观测型心跳写
-只有 0.5 秒(绝不拖慢响应关键路径)。这是被 issue #74478 打磨出来的——旧的"最多 15 次重试 ≈ 15 秒"
-会在一个兄弟进程正常持锁几秒(比如 VACUUM)时静默丢掉用户一轮,还误导运维去查磁盘(hermes_state.py:1908-1947 @ 863e313)。
+只有 0.5 秒(绝不拖慢响应关键路径)。三档就是三个并排的类常量:
+
+`hermes_state.py:1927-1933 @ 863e313`
+
+```python
+    _WRITE_PATIENCE_S = 20.0
+    _TRANSCRIPT_WRITE_PATIENCE_S = 60.0
+    # Observation-only activity heartbeat/label writes (#76354 review S1):
+    # these run on (or adjacent to) the response-critical path and must never
+    # wait out the full routine patience under contention. Sub-second budget;
+    # a skipped write is retried naturally at the next heartbeat window.
+    _ACTIVITY_WRITE_PATIENCE_S = 0.5
+```
+
+"为什么是时间制不是次数制"写在这段常量上方的长注释里(`hermes_state.py:1908-1917 @ 863e313`):
+这是被 issue #74478 打磨出来的——旧的"最多 15 次重试 ≈ 15 秒"会在一个兄弟进程正常持锁几秒
+(比如 VACUUM)时静默丢掉用户一轮,还误导运维去查磁盘。
 
 **可迁移**:把"文件系统敌意"当一等公民——WAL 启用验证返回值而非异常缺失、错误指纹表消歧;三条铁律:
 磁盘头已是 WAL 就绝不活体降级、字节级探针只在无活连接时做、手术前必先备份;自修复分层且证据驱动,每级
@@ -139,8 +194,21 @@ state.db);**检索**从 state.db 的 FTS 索引把过去捞回给装配;**长期
 
 **设计**:**声明式调和**。`SCHEMA_SQL` 是唯一真源(全部 `CREATE TABLE IF NOT EXISTS`)。每次启动,代码
 把 `SCHEMA_SQL` 灌进一个纯内存 SQLite、用 `PRAGMA table_info` 读出"应该有哪些列",再和活库 diff,
-`ALTER TABLE ADD` 缺的列(hermes_state_schema.py:292-348 @ 863e313)。加一列 = 只改 `SCHEMA_SQL` 一处,下次启动
-自动出现,免版本链。用内存 SQLite 解析而不是正则,是因为"SQLite 自己处理所有语法边角,零正则坑"。
+`ALTER TABLE ADD` 缺的列(整个调和过程见 `hermes_state_schema.py:292-348 @ 863e313`)。
+"为什么用内存 SQLite 而不是正则"和"加一列只改一处"两句话,作者都写进了同一个 docstring:
+
+`hermes_state_schema.py:296-303 @ 863e313`
+
+```python
+        Uses an in-memory SQLite database to parse the SQL — SQLite itself
+        handles all syntax (DEFAULT expressions with commas, inline
+        REFERENCES, CHECK constraints, etc.) so there are zero regex
+        edge cases.  The in-memory DB is opened, the schema DDL is
+        executed, and PRAGMA table_info extracts the column metadata.
+
+        Adding a column to SCHEMA_SQL is all that's needed; the
+        reconciliation loop picks it up automatically.
+```
 
 有一类调和表达不了:改主键(SQLite 不能 `ALTER PRIMARY KEY`)。这类写成**每次启动无条件跑的幂等愈合**
 ——重命名旧表、建新表、拷数据、删旧表。两个真实案例:网关路由表因缺 scope 列导致每次 upsert 失败刷警告
@@ -159,8 +227,21 @@ state.db);**检索**从 state.db 的 FTS 索引把过去捞回给装配;**长期
 跑测试"的旧轮压掉,但**保住**你最新那句还没做完的请求、保住它刚给你的回复、还不能把"已经发过的邮件"
 写成"待办:发邮件"让它重发一遍。
 
-**设计**:压缩分三层——纯算法的策略层(可测)、管锁和落库的宿主层、纯文案的反馈层。整个流程五步
-(agent/context_compressor.py:1318-1327 @ 863e313):① 无 LLM 地剪掉旧工具结果 → ② 保护头部(系统提示 + 第一轮)→
+**设计**:压缩分三层——纯算法的策略层(可测)、管锁和落库的宿主层、纯文案的反馈层。整个流程五步,
+压缩器类的 docstring 就是这五步的原文:
+
+`agent/context_compressor.py:1321-1326 @ 863e313`
+
+```python
+    Algorithm:
+      1. Prune old tool results (cheap, no LLM call)
+      2. Protect head messages (system prompt + first exchange)
+      3. Protect tail messages by token budget (most recent ~20K tokens)
+      4. Summarize middle turns with structured LLM prompt
+      5. On subsequent compactions, iteratively update the previous summary
+```
+
+翻成中文就是:① 无 LLM 地剪掉旧工具结果 → ② 保护头部(系统提示 + 第一轮)→
 ③ 按 token 预算保护尾部(最近约 20K)→ ④ 用一段结构化 prompt 让 LLM 把中段总结成"交接摘要" →
 ⑤ 后续再压时迭代更新上一段摘要。
 
@@ -168,26 +249,93 @@ state.db);**检索**从 state.db 的 FTS 索引把过去捞回给装配;**长期
 
 - **触发要"双重测量 + 防抖"**,否则会抖成冻屏。模型每轮报两个 token 数:请求前的粗估(对 schema 重的
   请求故意高估)和 provider 返回的真实数。裁决"这次压缩到底有没有用"只认**真实数**,而且只在一个地方
-  裁一次——因为粗估会每轮上下跳,放在那里判会把计数器每轮清零、反复重开压缩循环(agent/context_compressor.py:2506-2512 @ 863e313)。
+  裁一次——因为粗估会每轮上下跳,放在那里判会把计数器每轮清零、反复重开压缩循环:
+
+  `agent/context_compressor.py:2507-2512 @ 863e313`
+
+  ```python
+            # It must NOT live in should_compress(): that runs twice per turn
+            # with two different measures (a rough preflight estimate and the
+            # real post-response count, #36718), and the rough one can dip below
+            # the threshold and reset the strike every turn, re-opening the loop.
+            # Keying on real usage compares like with like and fires exactly once
+            # per compaction.
+  ```
+
   压完立即把状态设成"等一轮真实读数再说",精确防住"刚压完粗估又冒头、于是又压一次"。再叠三个独立的
   断路器(摘要失败冷却、无效压缩累计、降级摘要连续),外加一个 300 秒定时探针保证断路器绝不永久锁死
   (r5-20 §1)。
 
 - **交接摘要不信任 LLM 写关键锚**。摘要 prompt 的第一条指令是"逐字保住用户最新未完成的请求"——但代码
-  不赌 LLM 照做:摘要生成后,用确定性提取的"最新真实用户消息"**强制覆写**那一节(agent/context_compressor.py:4444-4468 @ 863e313)。
-  防"已完成写成待办"靠一条时间锚定指令:"当前日期是 X;已经做完的事要写成带日期的过去式事实,别写成
-  还没做的指令"(agent/context_compressor.py:3748-3757 @ 863e313)。这类"prompt 指令 + 确定性后校正"的双保险贯穿整个
-  摘要生成。
+  不赌 LLM 照做:摘要生成后,用确定性提取的"最新真实用户消息"**强制覆写**那一节。那个方法的名字和
+  一句话说明就是全部意图:
+
+  `agent/context_compressor.py:4445-4450 @ 863e313`
+
+  ```python
+    def _ground_historical_task_snapshot(
+        cls,
+        summary: str,
+        messages: List[Dict[str, Any]],
+    ) -> str:
+        """Force the task snapshot section to match a real user turn when possible."""
+  ```
+
+  防"已完成写成待办"靠一条塞进 prompt 的时间锚定指令,连改写示例都给好了:
+
+  `agent/context_compressor.py:3750-3756 @ 863e313`
+
+  ```python
+                f"\nTEMPORAL ANCHORING: The current date is {_today_str}. When an "
+                "action has already been carried out, phrase it as a completed, "
+                "dated, past-tense fact rather than an open instruction. For "
+                'example, rewrite "email John about the proposal" as "Sent the '
+                f'proposal email to John on {_today_str}." Never leave a finished '
+                "action worded as if it still needs doing, and never invent a date "
+                "for work that has not happened yet.\n"
+  ```
+
+  这类"prompt 指令 + 确定性后校正"的双保险贯穿整个摘要生成。
 
 - **摘要是持久化边界,密钥必须强制红线**。摘要一旦落库,泄露的凭据会被之后每一次请求无限重注入。所以
-  红线用 `force=True`——**故意无视** `security.redact_secrets: false` 那个面向实时工具输出的全局开关
-  (agent/context_compressor.py:679-697 @ 863e313),而且双向(输入序列化 + 摘要输出都扫)。
+  红线用 `force=True`——**故意无视** `security.redact_secrets: false` 那个面向实时工具输出的全局开关。
+  "为什么可以无视用户的开关"这句话,作者直接写在了红线函数的 docstring 里:
+
+  `agent/context_compressor.py:682-688 @ 863e313`
+
+  ```python
+    Compaction summaries persist across sessions and are re-injected into
+    every subsequent summarizer prompt, so this boundary uses strict mode:
+
+    - ``force=True`` — deliberately overrides ``security.redact_secrets:
+      false``. That opt-out targets *live tool output* (e.g. working on the
+      redactor itself); a summary is a persistence boundary where a leaked
+      credential keeps re-entering prompts indefinitely.
+  ```
+
+  而且双向(输入序列化 + 摘要输出都扫)。
 
 - **并发下不能分叉出孤儿会话**。最典型的场景:主对话 agent 和它派生的"后台自我复盘 fork"共享同一个
   session_id,两个都调压缩、各自在重叠快照上成功、各自轮转出一个新子会话——同一父会话两个孩子,网关
-  只跟到一个,另一个成了**静默吞写入的孤儿**(agent/conversation_compression.py:2325-2334 @ 863e313)。修法是 state.db
-  里的一把持久锁(按 session_id 键控,holder 串带 pid 便于辨认死持有者,TTL + 后台租约刷新);抢不到锁
-  就本轮弃权;迟到的竞争者发现父会话已被轮转就收敛到那唯一的活孩子。
+  只跟到一个,另一个成了**静默吞写入的孤儿**。这段事故经过就写在锁的上方:
+
+  `agent/conversation_compression.py:2325-2334 @ 863e313`
+
+  ```python
+    # Atomic, state.db-backed lock per session_id.  Without this, two
+    # AIAgent instances that share the same session_id (most commonly the
+    # parent-turn agent and its background-review fork — see
+    # ``agent/background_review.py``: ``review_agent.session_id =
+    # agent.session_id``) can each call compress() on overlapping
+    # snapshots of the same conversation.  Both succeed, both rotate
+    # ``agent.session_id`` to a fresh id, both create child sessions in
+    # state.db parented to the same old id.  The gateway's SessionEntry
+    # only catches one rotation, so the other child becomes an orphan
+    # that silently accumulates writes — Damien's repro shape.
+  ```
+
+  修法是 state.db 里的一把持久锁(按 session_id 键控,holder 串带 pid 便于辨认死持有者,
+  TTL + 后台租约刷新);抢不到锁就本轮弃权;迟到的竞争者发现父会话已被轮转就收敛到那唯一的活孩子。
 
 **落库默认走"就地"而非"轮转"**:同一个 session_id,旧轮软归档(标记 `active=0`,留在盘上、仍可被搜索
 和恢复),压缩后的新集原子插入(hermes_state.py 的 `archive_and_compact`)。这消灭了整个"换 session_id
@@ -214,9 +362,23 @@ R1 的地图把摘要生成标成一条"◇"(有实现),但底下藏着一串教
 
 **事故三:模型模板拒绝整个请求(Mistral 交替)。** Mistral 系模型的对话模板强制 user/assistant 交替,
 但**豁免 tool 消息**。如果按消息列表的字面顺序给摘要选角色,可能选出连续两个 user,模板一数就报交替
-错误、整个请求 HTTP 500——而摘要已经落库,每次重试都重放这段污染历史,**会话永久损坏**
-(agent/context_compressor.py:193-211 @ 863e313)。修法:按"模板数得到的可见角色"选角,而不是字面顺序;双撞时把摘要
-并入尾部消息。
+错误、整个请求 HTTP 500——而摘要已经落库,每次重试都重放这段污染历史,**会话永久损坏**。
+源码把这条失败链完整写了下来:
+
+`agent/context_compressor.py:193-200 @ 863e313`
+
+```python
+    template sees it. The canonical failure: the protected head ends
+    ``[user, assistant(tool_calls), tool]``, so the literal last role is
+    ``tool`` and the summary is pinned to ``role="user"`` -- but the last
+    role the template counts is ``user``, the template sees user -> user,
+    and llama.cpp / Mistral-hosted backends reject the ENTIRE request with
+    a Jinja alternation error (HTTP 500). Because the summary persists in
+    the stored conversation, every retry replays the same poisoned history
+    and the session is unrecoverable.
+```
+
+修法:按"模板数得到的可见角色"选角,而不是字面顺序;双撞时把摘要并入尾部消息。
 
 这三个故事共同的教训:摘要是**持久化**消息,一次写错就是永久污染,所以这里值得过度设防——每个关键决策
 都配一个确定性的后校正或校验。
@@ -242,7 +404,24 @@ R1 的地图把摘要生成标成一条"◇"(有实现),但底下藏着一串教
 第四条路是 LIKE 全表扫描,当索引都够不着时的永远可用兜底。**为什么值得三个**:没有任何单一 tokenizer
 能同时做到"词级排序 + 任意子串 + 2 字 CJK + 全宿主可用"。
 
-**工具面四形态**(tools/session_search_tool.py:863-873 @ 863e313):**discovery**(给 query,宽扫后按会话世系去重,每个
+**工具面四形态**——一个工具、四种模式,靠"你填了哪几个参数"推断:
+
+`tools/session_search_tool.py:863-872 @ 863e313`
+
+```python
+    """Single-shape tool. Mode inferred from which args are set.
+
+    Discovery: pass ``query``.
+    Scroll:    pass ``session_id`` + ``around_message_id``.
+    Read:      pass ``session_id`` (no anchor) — dumps the whole session.
+    Browse:    pass nothing.
+
+    Pass ``profile`` to read another profile's sessions (e.g. resolving an
+    ``@session:<profile>/<id>`` link). Scroll wins over read/discovery when an
+    anchor is set — the agent has asked for a specific slice.
+```
+
+逐个说:**discovery**(给 query,宽扫后按会话世系去重,每个
 命中水合成"开头 + 命中窗口 + 结尾"的三明治,一次调用就给出"目标→命中→结局"而不用整段转储)、
 **scroll**(给锚点消息 id,前后翻页)、**read**(给 session_id,整段读)、**browse**(什么都不给,列最近
 会话)。低 token 的关键就是 discovery 的三明治:模型不用为判断相关性付整段转录的 token,最后统一
@@ -264,21 +443,81 @@ R1 的地图把摘要生成标成一条"◇"(有实现),但底下藏着一串教
 到分钟的时间戳),那 provider 的前缀缓存每次都失效,又慢又贵。
 
 **设计**:系统提示**每会话构建一次并缓存**,只有压缩才重建;而且分三层,按"变化概率"排序,让重建时未变
-的前缀仍能复用(agent/system_prompt.py:1-24 @ 863e313):
+的前缀仍能复用。这个模块的开篇把"为什么"和"哪三层"一次讲完:
+
+`agent/system_prompt.py:3-8 @ 863e313`
+
+```python
+The agent's system prompt is built once per session and reused across all
+turns — only context compression triggers a rebuild.  This keeps the
+upstream prefix cache warm.  See ``hermes-agent-dev``'s
+``references/system-prompt-invariant.md`` for the invariants and
+``references/self-improvement-loop.md`` for how the background-review
+fork inherits the cached prompt verbatim.
+```
+
+三层的分工(原文见 `agent/system_prompt.py:10-21 @ 863e313`):
 
 - **stable(最稳)**:身份(SOUL.md 或默认人格)、工具/模型指引、环境提示。
 - **context(会话级稳定)**:调用方消息 + 项目上下文文件 + 编码工作区快照。
 - **volatile(每次可变)**:技能索引、记忆快照、用户画像、时间戳。
 
-两个精妙点:**技能索引刻意放在 volatile 层之首而不是 stable**——技能是运行时可变的(agent 会话中新增/
-改写技能),放 stable 层的话一次技能变更会把缓存前缀从索引处一路炸到底;放 volatile 之首,未变则仍在
-复用前缀内,变了只重刷尾部(agent/system_prompt.py:503-513 @ 863e313)。**时间戳只到日期精度**("Conversation started:
-2026 年 8 月 7 日"),让系统提示全天字节稳定;模型真要精确时间可以用工具查(agent/system_prompt.py:537-543 @ 863e313)。
+两个精妙点。第一,**技能索引刻意放在 volatile 层之首而不是 stable**——技能是运行时可变的(agent 会话中
+新增/改写技能),放 stable 层的话一次技能变更会把缓存前缀从索引处一路炸到底;放 volatile 之首,未变则仍在
+复用前缀内,变了只重刷尾部:
 
-**项目上下文文件按优先级选一个,不合并**(agent/prompt_builder.py:2188-2196 @ 863e313):`.hermes.md → AGENTS.md →
-CLAUDE.md → .cursorrules`,首中即停。超长文件按模型窗口的 6% 动态截断(保 70% 头 + 20% 尾,中缝留一句
-"用 read_file 读全文"),并向用户状态信道发告警。注入前**全部过威胁扫描**——命中就把整个文件替换成
-`[BLOCKED]` 占位符,因为"这个文件会原样进系统提示,用户没机会中途拦截"(agent/prompt_builder.py:66-79 @ 863e313)。
+`agent/system_prompt.py:504-509 @ 863e313`
+
+```python
+    # byte-stable across rebuilds. With the index in the stable band, a rebuild
+    # that picked up a skill change would bust the cached prefix from the index
+    # down, taking the whole scaffold with it. Render it at the FRONT of the
+    # volatile band instead, ahead of the turn-varying memory/timestamp tail:
+    # on an implicit longest-prefix backend an unchanged index still falls
+    # inside the reused prefix, and a changed one only re-prefills from here on.
+```
+
+第二,**时间戳只到日期精度**("Conversation started: Friday, August 07, 2026"),让系统提示全天字节稳定;
+模型真要精确时间可以用工具查:
+
+`agent/system_prompt.py:537-543 @ 863e313`
+
+```python
+    # Date-only (not minute-precision) so the system prompt is byte-stable
+    # for the full day.  Minute-precision changes invalidate prefix-cache KV
+    # on every rebuild path (compression boundary, fresh-agent gateway turns,
+    # session resume without a stored prompt).  The model can still query the
+    # exact wall-clock time via tools when it actually needs it.
+    # Credit: @iamfoz (PR #20451).
+    timestamp_line = f"Conversation started: {now.strftime('%A, %B %d, %Y')}"
+```
+
+**项目上下文文件按优先级选一个,不合并**——一串 `or` 就是全部规则,首中即停:
+
+`agent/prompt_builder.py:2188-2194 @ 863e313`
+
+```python
+        # Priority-based project context: first match wins
+        project_context = (
+            _load_hermes_md(cwd_path, context_length)
+            or _load_agents_md(cwd_path, context_length)
+            or _load_claude_md(cwd_path, context_length)
+            or _load_cursorrules(cwd_path, context_length)
+        )
+```
+
+即 `.hermes.md → AGENTS.md → CLAUDE.md → .cursorrules`。超长文件按模型窗口的 6% 动态截断
+(保 70% 头 + 20% 尾,中缝留一句"用 read_file 读全文"),并向用户状态信道发告警。注入前**全部过威胁扫描**
+——命中就把整个文件替换成 `[BLOCKED]` 占位符,而不是仅仅告警:
+
+`agent/prompt_builder.py:74-77 @ 863e313`
+
+```python
+    findings = _scan_for_threats(content, scope="context")
+    if findings:
+        logger.warning("Context file %s blocked: %s", filename, ", ".join(findings))
+        return f"[BLOCKED: {filename} contained potential prompt injection ({', '.join(findings)}). Content not loaded.]"
+```
 
 **一处文档定案**:configuration.md 说 AGENTS.md 是"递归遍历 + 子目录全合并",但代码是启动仅读 cwd 顶层;
 子目录版本靠另一个机制(subdirectory_hints)在会话中按导航**附加到工具结果**、永不进系统提示。同一份
@@ -300,22 +539,84 @@ CLAUDE.md → .cursorrules`,首中即停。超长文件按模型窗口的 6% 动
 
 - **内建记忆是两个纯文本文件**(`~/.hermes/memories/MEMORY.md`、`USER.md`),会话开始时**冻结成快照**进
   系统提示;会话中途写入立即落盘(持久),但**不改系统提示**——保住整会话的前缀缓存,下次会话开始才刷新
-  快照(tools/memory_tool.py:11-14 @ 863e313)。工具响应展示实时状态弥补这个延迟。
+  快照:
+
+  `tools/memory_tool.py:11-14 @ 863e313`
+
+  ```python
+  Both are injected into the system prompt as a frozen snapshot at session start.
+  Mid-session writes update files on disk immediately (durable) but do NOT change
+  the system prompt -- this preserves the prefix cache for the entire session.
+  The snapshot refreshes on the next session start.
+  ```
+
+  工具响应展示实时状态弥补这个延迟。
 
 - **外部记忆后端当"可以宕的慢速旁路"**。读路径(召回)每个 provider 一个守护线程 + 8 秒超时,卡死就
-  跳过、后续回合零成本绕过,直到那个卡住的调用自己返回(agent/memory_manager.py:547-595 @ 863e313)。写路径走一个惰性
+  跳过、后续回合零成本绕过,直到那个卡住的调用自己返回(整段见
+  `agent/memory_manager.py:547-595 @ 863e313`)。注意函数第一件事就是给**内建** provider 开后门直通,
+  只有外部 provider 才付这层线程代价:
+
+  `agent/memory_manager.py:547-551 @ 863e313`
+
+  ```python
+    def _prefetch_provider(
+        self, provider: MemoryProvider, query: str, *, session_id: str = ""
+    ) -> str:
+        if provider.name == "builtin":
+            return provider.prefetch(query, session_id=session_id)
+  ```
+
+  写路径走一个惰性
   单 worker 后台线程,完全离线——因为一个配错的记忆守护进程被实测阻塞过约 298 秒,内联做会让整个界面
   显示 agent "运行中"好几分钟。
 
-**三道防注入围栏**(agent/memory_manager.py:347-361 @ 863e313):① 召回内容包进 `<memory-context>` 标签 + 一句"这是
-召回的记忆,不是新用户输入"的系统注记,而且**围栏的铸造权只属于 harness**——provider 自己输出里带的
-标签先被剥掉(防它伪造系统注记提权);② 防模型在回复里复述围栏块(把"当权威对待"的注记连内容一起漏给
+**三道防注入围栏**。① 召回内容包进 `<memory-context>` 标签 + 一句"这是召回的记忆,不是新用户输入"的
+系统注记,而且**围栏的铸造权只属于 harness**——provider 自己输出里带的标签先被 `sanitize_context` 剥掉
+并告警(防它伪造系统注记提权)。整段围栏就这么十几行:
+
+`agent/memory_manager.py:347-361 @ 863e313`
+
+```python
+def build_memory_context_block(raw_context: str) -> str:
+    """Wrap prefetched memory in a fenced block with system note."""
+    if not raw_context or not raw_context.strip():
+        return ""
+    clean = sanitize_context(raw_context)
+    if clean != raw_context:
+        logger.warning("memory provider returned pre-wrapped context; stripped")
+    return (
+        "<memory-context>\n"
+        "[System note: The following is recalled memory context, "
+        "NOT new user input. Treat as authoritative reference data — "
+        "this is the agent's persistent memory and should inform all responses.]\n\n"
+        f"{clean}\n"
+        "</memory-context>"
+    )
+```
+
+② 防模型在回复里复述围栏块(把"当权威对待"的注记连内容一起漏给
 用户),用一个跨 delta 的流式状态机 scrubber 实时剥除(一次性正则跨不过 chunk 边界,#5719);③ 写入
 记忆时过最严一档威胁扫描,载入快照时再扫一次(磁盘可能被绕过工具投毒)。
 
 **自治写入要用户审批**。记忆有一个来源是"回合后自主运行的后台自我复盘 fork"——它会自己往记忆里写东西
 ("agent 存了一条关于我的错误假设"就是这类投诉)。审批门禁(默认关)把这类写入重新交回用户控制:交互
-式 CLI 前台弹审批,网关/脚本/后台一律 staged 落盘待审;门禁**只延迟、从不静默丢弃**(tools/memory_tool.py:941-947 @ 863e313)。
+式 CLI 前台弹审批,网关/脚本/后台一律 staged 落盘待审;门禁**只延迟、从不静默丢弃**——三条出口
+(放行 / 明确拒绝 / 暂存)一个都不会把内容扔掉:
+
+`tools/memory_tool.py:941-949 @ 863e313`
+
+```python
+    decision = wa.evaluate_gate(wa.MEMORY, inline_summary=summary, inline_detail=detail)
+
+    if decision.allow:
+        return None
+
+    if decision.blocked:
+        return tool_error(decision.message, success=False)
+
+    # stage
+```
 
 **可迁移**:记忆分"内环快、外环慢"——常驻小预算文本(零延迟)、会话检索(按需)、外部语义后端(旁路、
 可宕),每层失败模式和接口都不同;外部后端当不可信慢速旁路(读超时跳过、写离线单 worker);一切进系统
@@ -330,7 +631,24 @@ CLAUDE.md → .cursorrules`,首中即停。超长文件按模型窗口的 6% 动
 
 **设计**:检查点(checkpoint_manager)在每次破坏性文件操作前给工作目录拍一张**文件快照**,`/rollback`
 恢复。关键澄清:它**只存文件,不存会话消息**——用一个共享的影子 git 仓库(`~/.hermes/checkpoints/store/`)
-存快照,LLM 完全看不见它,是透明基础设施(tools/checkpoint_manager.py:1-12 @ 863e313)。它和 state.db 是两套独立系统,
+存快照,LLM 完全看不见它,是透明基础设施。模块开篇的两段话把"它做什么"和"它不是什么"分得很清楚:
+
+`tools/checkpoint_manager.py:2-11 @ 863e313`
+
+```python
+Checkpoint Manager — Transparent filesystem snapshots via a single shared
+shadow git store.
+
+Creates automatic snapshots of working directories before file-mutating
+operations (``write_file``, ``patch``, ``terminal`` with destructive flags),
+triggered once per conversation turn.  Provides rollback to any previous
+checkpoint.
+
+This is NOT a tool — the LLM never sees it.  It's transparent infrastructure
+controlled by the ``checkpoints`` config flag or ``--checkpoints`` CLI flag.
+```
+
+它和 state.db 是两套独立系统,
 唯一的交点是 CLI `/rollback` 成功后会**顺带撤销一个对话回合**,让模型的上下文和恢复后的文件状态对齐
 (否则模型基于幻影文件状态继续编辑)。
 

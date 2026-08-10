@@ -67,7 +67,7 @@ mem0 插件不是"云 vs OSS"两形态,而是**三形态**:
             return PlatformBackend(self._api_key)
 ```
 
-即:`mode=="oss"` 绝对优先;否则只要 `host` 非空(来自 mem0.json 的 `host` 键或 `MEM0_HOST` 环境变量)就走自建服务器;都没有才落到云。系统提示里的模式标签刻意镜像同一优先级,`__init__.py:385-395 @ 863e313`:
+即:`mode=="oss"` 绝对优先;否则只要 `host` 非空(来自 mem0.json 的 `host` 键或 `MEM0_HOST` 环境变量)就走自建服务器;都没有才落到云。系统提示里的模式标签刻意镜像同一优先级,`plugins/memory/mem0/__init__.py:385-395 @ 863e313`:
 
 ```python
     def system_prompt_block(self) -> str:
@@ -83,7 +83,7 @@ mem0 插件不是"云 vs OSS"两形态,而是**三形态**:
             mode_label = "platform (cloud API)"
 ```
 
-配置的来源与分层:环境变量给默认值,`$HERMES_HOME/mem0.json` 逐键覆盖(避免"json 存在但缺 api_key 导致 .env 里的 key 被吞"的静默失败),`__init__.py:78-110 @ 863e313`:
+配置的来源与分层:环境变量给默认值,`$HERMES_HOME/mem0.json` 逐键覆盖(避免"json 存在但缺 api_key 导致 .env 里的 key 被吞"的静默失败),`plugins/memory/mem0/__init__.py:78-110 @ 863e313`:
 
 ```python
 def _load_config() -> dict:
@@ -96,7 +96,7 @@ def _load_config() -> dict:
 ```
 其中 secret(MEM0_API_KEY)走 `get_secret`(`__init__.py:89`),非 secret 走 `os.environ`;json 覆盖时过滤 `None`/空串(`__init__.py:105-106`)。
 
-**切换形态 = 改 mem0.json 的 mode/host 两个键**(setup 向导替你改)。切换有一个被显式处理过的坑:selfhosted 存的是 `mode: "platform"` + `host` 非空(`_setup.py:415 @ 863e313`:`provider_config["mode"] = "platform"  # routing: oss > host > platform; host wins`),所以从 selfhosted 切回真 platform 时必须清 host——而且必须写空串而不是删键,因为 save_config 是 merge 写,`_setup.py:306-313 @ 863e313`:
+**切换形态 = 改 mem0.json 的 mode/host 两个键**(setup 向导替你改)。切换有一个被显式处理过的坑:selfhosted 存的是 `mode: "platform"` + `host` 非空(`plugins/memory/mem0/_setup.py:415 @ 863e313`:`provider_config["mode"] = "platform"  # routing: oss > host > platform; host wins`),所以从 selfhosted 切回真 platform 时必须清 host——而且必须写空串而不是删键,因为 save_config 是 merge 写,`plugins/memory/mem0/_setup.py:306-313 @ 863e313`:
 
 ```python
     provider_config["mode"] = "platform"
@@ -110,7 +110,7 @@ def _load_config() -> dict:
 ```
 json 清不掉环境变量,所以紧接着对 `MEM0_HOST` 只能打印警告(`_setup.py:318-324`)。
 
-`is_available` 按形态分叉,`__init__.py:227-234 @ 863e313`:
+`is_available` 按形态分叉,`plugins/memory/mem0/__init__.py:227-234 @ 863e313`:
 
 ```python
     def is_available(self) -> bool:
@@ -131,7 +131,7 @@ json 清不掉环境变量,所以紧接着对 `MEM0_HOST` 只能打印警告(`_s
 
 ### 1.2 __init__.py 主体:身份解析、熔断器、prefetch 双入口、离线 sync、四工具
 
-**user_id 三级解析**。目标:操作员配置的 canonical id > 网关原生 id(Telegram 数字 id、Discord snowflake)> 硬编码兜底;且历史向导写下的占位符 `"hermes-user"` 视为未配置,`__init__.py:56-62、342-356 @ 863e313`:
+**user_id 三级解析**。目标:操作员配置的 canonical id > 网关原生 id(Telegram 数字 id、Discord snowflake)> 硬编码兜底;且历史向导写下的占位符 `"hermes-user"` 视为未配置,`plugins/memory/mem0/__init__.py:57-63、342-356 @ 863e313`:
 
 ```python
 # Sentinel returned when neither MEM0_USER_ID nor a gateway-native id is
@@ -147,12 +147,13 @@ _DEFAULT_USER_ID = "hermes-user"
             configured = None
         self._user_id = configured or kwargs.get("user_id") or _DEFAULT_USER_ID
 ```
-读写不对称:**读只按 user_id 过滤**(跨网关、跨 agent 召回),**写附带 agent_id 和 channel 元数据**(供 dashboard 按渠道筛选),`__init__.py:372-383 @ 863e313`:
+读写不对称:**读只按 user_id 过滤**(跨网关、跨 agent 召回),**写附带 agent_id 和 channel 元数据**(供 dashboard 按渠道筛选),`plugins/memory/mem0/__init__.py:372-383 @ 863e313`:
 
 ```python
     def _read_filters(self) -> Dict[str, Any]:
         # Scoped to user_id only — by design — so recall surfaces memories
-        # written from any gateway/agent under this principal. ...
+        # written from any gateway/agent under this principal. Writes attach
+...
         return {"user_id": self._user_id}
 
     def _write_metadata(self) -> Dict[str, Any]:
@@ -161,14 +162,14 @@ _DEFAULT_USER_ID = "hermes-user"
         return {"channel": self._channel} if self._channel else {}
 ```
 
-**熔断器(circuit breaker)**。5 连败后停 API 调用 120 秒,`__init__.py:49-52 @ 863e313`:
+**熔断器(circuit breaker)**。5 连败后停 API 调用 120 秒,`plugins/memory/mem0/__init__.py:51-54 @ 863e313`:
 
 ```python
 _BREAKER_THRESHOLD = 5
 _BREAKER_COOLDOWN_SECS = 120
 _PREFETCH_WAIT_SECS = 3
 ```
-开合逻辑 `_is_breaker_open`(`__init__.py:294-302`):连败数达阈值且未过冷却期即"开";过期后归零自动闭合。关键细节:**客户端错误不计入熔断**——404/not found/bad UUID 是用户传错 ID,不代表服务不可用,`__init__.py:65-71 @ 863e313`:
+开合逻辑 `_is_breaker_open`(`plugins/memory/mem0/__init__.py:294-302`):连败数达阈值且未过冷却期即"开";过期后归零自动闭合。关键细节:**客户端错误不计入熔断**——404/not found/bad UUID 是用户传错 ID,不代表服务不可用,`plugins/memory/mem0/__init__.py:65-71 @ 863e313`:
 
 ```python
 def _is_client_error(exc: Exception) -> bool:
@@ -181,7 +182,7 @@ def _is_client_error(exc: Exception) -> bool:
 ```
 在 mem0_search 的 except 里体现为 `if not _is_client_error(e): self._record_failure()`(`__init__.py:552-554`)。
 
-**prefetch 双入口 + 3 秒热路径等待**。`on_turn_start` 在 turn 开始就后台起线程搜(`__init__.py:414-415`);harness 稍后调 `prefetch(query)` 时,先消费缓存,没有就现起线程并**只等 3 秒**,等不到返回空串——注入放弃,mem0_search 工具兜底,`__init__.py:463-477 @ 863e313`:
+**prefetch 双入口 + 3 秒热路径等待**。`on_turn_start` 在 turn 开始就后台起线程搜(`plugins/memory/mem0/__init__.py:414-415`);harness 稍后调 `prefetch(query)` 时,先消费缓存,没有就现起线程并**只等 3 秒**,等不到返回空串——注入放弃,mem0_search 工具兜底,`plugins/memory/mem0/__init__.py:463-477 @ 863e313`:
 
 ```python
     def prefetch(self, query: str, *, session_id: str = "") -> str:
@@ -202,7 +203,7 @@ def _is_client_error(exc: Exception) -> bool:
 ```
 `_start_prefetch` 用 `_prefetch_query == query` 去重(同一问题不重复搜,`__init__.py:430-435`),结果格式化为 `"## Mem0 Memory\n- fact1\n- fact2"`(`__init__.py:446-448`)。注意:harness 侧 MemoryManager 的 8 秒围栏是外层保险,mem0 自带的 3 秒是更紧的内层预算。
 
-**sync_turn:每 turn 整段对话交给服务端做事实抽取,单线程离线**。`__init__.py:479-512 @ 863e313`:
+**sync_turn:每 turn 整段对话交给服务端做事实抽取,单线程离线**。`plugins/memory/mem0/__init__.py:493-526 @ 863e313`:
 
 ```python
                 backend.add(
@@ -213,7 +214,7 @@ def _is_client_error(exc: Exception) -> bool:
                     metadata=self._write_metadata(),
                 )
 ```
-`infer=True` 是关键:让 Mem0 服务端 LLM 从 user/assistant 两条消息里抽事实、去重、合并。写并发控制:新 sync 前 join 旧线程最多 5 秒,还活着就**跳过本轮**以免重复摄入(`__init__.py:505-510`):
+`infer=True` 是关键:让 Mem0 服务端 LLM 从 user/assistant 两条消息里抽事实、去重、合并。写并发控制:新 sync 前 join 旧线程最多 5 秒,还活着就**跳过本轮**以免重复摄入(`plugins/memory/mem0/__init__.py:505-510`):
 
 ```python
         with self._sync_lock:
@@ -224,7 +225,7 @@ def _is_client_error(exc: Exception) -> bool:
                 return
 ```
 
-**四个工具**:`mem0_search / mem0_add / mem0_update / mem0_delete`(schema 于 `__init__.py:117-187`,`get_tool_schemas` 于 514-515)。与 sync_turn 相对,`mem0_add` 走 `infer=False` **逐字存**,不做抽取(`__init__.py:562-568`);回执文案区分同步/异步语义,`__init__.py:570-572 @ 863e313`:
+**四个工具**:`mem0_search / mem0_add / mem0_update / mem0_delete`(schema 于 `plugins/memory/mem0/__init__.py:117-187`,`get_tool_schemas` 于 514-515)。与 sync_turn 相对,`mem0_add` 走 `infer=False` **逐字存**,不做抽取(`plugins/memory/mem0/__init__.py:562-568`);回执文案区分同步/异步语义,`plugins/memory/mem0/__init__.py:571-573 @ 863e313`:
 
 ```python
                 # Cloud add is async (server-side extraction); OSS and self-hosted store synchronously.
@@ -249,7 +250,7 @@ def _is_client_error(exc: Exception) -> bool:
 
 **PlatformBackend**(`_backend.py:49-80`):`mem0.MemoryClient(api_key=...)` 的薄封装,search 直传 `filters/top_k/rerank`。
 
-**SelfHostedBackend**(`_backend.py:83-153`):为什么不能复用官方 SDK,docstring 说得很清楚,`_backend.py:84-92 @ 863e313`:
+**SelfHostedBackend**(`plugins/memory/mem0/_backend.py:83-153`):为什么不能复用官方 SDK,docstring 说得很清楚,`plugins/memory/mem0/_backend.py:84-92 @ 863e313`:
 
 ```python
     """Direct HTTP backend for a self-hosted Mem0 server (the FastAPI ``server/``).
@@ -280,7 +281,7 @@ OSS 的 `close()` 逐层礼貌关闭:posthog 遥测、Memory 自身、vector_sto
 
 ### 1.4 _oss_providers.py:声明式供应商注册表
 
-三张表 + 一张维度表 + 一个校验函数。LLM/Embedder 各支持 openai、ollama;向量库支持 qdrant(默认本地路径 `~/.hermes/mem0_qdrant`)、pgvector。每条记录声明 `needs_key/env_var/default_model/default_url/base_url_key/pip_dep/dims`,`_oss_providers.py:46-64 @ 863e313`:
+三张表 + 一张维度表 + 一个校验函数。LLM/Embedder 各支持 openai、ollama;向量库支持 qdrant(默认本地路径 `~/.hermes/mem0_qdrant`)、pgvector。每条记录声明 `needs_key/env_var/default_model/default_url/base_url_key/pip_dep/dims`,`plugins/memory/mem0/_oss_providers.py:46-64 @ 863e313`:
 
 ```python
 VECTOR_PROVIDERS: dict[str, dict[str, Any]] = {
@@ -320,7 +321,7 @@ KNOWN_DIMS: dict[str, int] = {
    - `_ensure_pgvector`(523-564)+`_start_pgvector_docker`(567-611):TCP 探测不通→发现停掉的容器 `hermes-pgvector` 就 docker start→否则征求同意后 `docker pull pgvector/pgvector:pg17` + `docker run -d -p 5432:5432`,再 `_ensure_pgvector_extension`(677-700)`CREATE EXTENSION IF NOT EXISTS vector`;
    - 依赖安装 `_install_provider_deps`(855-881):从注册表收集 pip_dep,走 `tools.lazy_deps.install_specs`(环境感知,sealed Docker venv 重定向到持久卷,NS-605),完了 `importlib.invalidate_caches()`;
    - `_run_connectivity_checks`(915-942):qdrant 路径可写/URL healthz、pgvector TCP、Ollama /api/tags,全部只警告不阻断。
-6. **.env 写入的编码防御(191-218)**:读取用 `utf-8-sig`(BOM 容忍),写回 UTF-8,注释指明 Windows 落地 bug:`_setup.py:196-203 @ 863e313`:
+6. **.env 写入的编码防御(191-218)**:读取用 `utf-8-sig`(BOM 容忍),写回 UTF-8,注释指明 Windows 落地 bug:`plugins/memory/mem0/_setup.py:196-203 @ 863e313`:
 
 ```python
         # Read as UTF-8 (BOM-tolerant), matching the canonical .env readers in
@@ -332,7 +333,7 @@ KNOWN_DIMS: dict[str, int] = {
 
 另一处细节:embedder 与 LLM 同为 openai 时**自动复用 LLM 的 key**(`build_oss_config`,`_setup.py:183-186`;交互版 763-765)。`--dry-run` 全程只打印、跑连通性检查、不写文件(299-304、407-413、464-473)。
 
-**内部矛盾(定案 ▲)**:`_check_min_dep_version` 注释称"minimum version from plugin.yaml"但硬编码 `(2, 0, 7)`,而 plugin.yaml 声明 `mem0ai>=2.0.10,<3`,`_setup.py:953-954 @ 863e313`:
+**内部矛盾(定案 ▲)**:`_check_min_dep_version` 注释称"minimum version from plugin.yaml"但硬编码 `(2, 0, 7)`,而 plugin.yaml 声明 `mem0ai>=2.0.10,<3`,`plugins/memory/mem0/_setup.py:952-953 @ 863e313`:
 
 ```python
         installed_parts = tuple(int(x) for x in installed_ver.split(".")[:3])
@@ -408,7 +409,7 @@ KNOWN_DIMS: dict[str, int] = {
 
 **HRR = Holographic Reduced Representations(Plate 1995)**,一类 Vector Symbolic Architecture:把符号结构编码进定宽分布式向量,靠代数运算(绑定/解绑/叠加)做组合式查询。本实现不用经典的实数循环卷积,而是**相位编码**变体:每个概念是一个 dim 维**角度向量**(每个分量 ∈ [0, 2π)),于是:
 
-- **bind(绑定)= 逐元素相位相加**(等价于复数单位向量逐元素相乘,即频域的循环卷积),`holographic.py:77-84 @ 863e313`:
+- **bind(绑定)= 逐元素相位相加**(等价于复数单位向量逐元素相乘,即频域的循环卷积),`plugins/memory/holographic/holographic.py:77-84 @ 863e313`:
 
 ```python
 def bind(a: "np.ndarray", b: "np.ndarray") -> "np.ndarray":
@@ -421,7 +422,7 @@ def bind(a: "np.ndarray", b: "np.ndarray") -> "np.ndarray":
     return (a + b) % _TWO_PI
 ```
 - **unbind(解绑)= 相位相减**(循环相关),`unbind(bind(a,b), a) ≈ b` 至叠加噪声(`holographic.py:87-94`);
-- **bundle(叠加)= 复指数求和取辐角**(圆均值),结果与每个输入相似,容量 O(√dim),`holographic.py:97-105 @ 863e313`:
+- **bundle(叠加)= 复指数求和取辐角**(圆均值),结果与每个输入相似,容量 O(√dim),`plugins/memory/holographic/holographic.py:97-105 @ 863e313`:
 
 ```python
 def bundle(*vectors: "np.ndarray") -> "np.ndarray":
@@ -438,7 +439,7 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
 
 选相位编码的理由写在模块头(`holographic.py:12-14`):数值稳定、避免传统复数 HRR 的模长坍缩、天然映射到余弦相似度。
 
-**atom(原子向量)是确定性的**:SHA-256 计数器块生成——`f"{word}:{i}"` 逐块哈希,digest 按 uint16 小端解包,缩放到 [0,2π),`holographic.py:69-74 @ 863e313`:
+**atom(原子向量)是确定性的**:SHA-256 计数器块生成——`f"{word}:{i}"` 逐块哈希,digest 按 uint16 小端解包,缩放到 [0,2π),`plugins/memory/holographic/holographic.py:68-73 @ 863e313`:
 
 ```python
     uint16_values: list[int] = []
@@ -451,7 +452,7 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
 ```
 不用 numpy RNG 是为了**跨进程/跨机器/跨版本可复现**——同一个词永远是同一个向量,数据库因此可以只存事实向量、随时按需重新编码查询向量。
 
-**文本与事实的编码**:`encode_text` = 小写分词去标点后所有 token atom 的 bundle(词袋,无词序,`holographic.py:118-139`);`encode_fact` 引入两个保留角色原子做**槽-填充结构**,`holographic.py:142-167 @ 863e313`:
+**文本与事实的编码**:`encode_text` = 小写分词去标点后所有 token atom 的 bundle(词袋,无词序,`plugins/memory/holographic/holographic.py:118-139`);`encode_fact` 引入两个保留角色原子做**槽-填充结构**,`plugins/memory/holographic/holographic.py:147-172 @ 863e313`:
 
 ```python
     Components:
@@ -482,7 +483,7 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
 - `facts_fts`:FTS5 外部内容表(`content=facts, content_rowid=fact_id`),三只触发器(insert/delete/update)维持同步(51-66);
 - `memory_banks`:每类别一条,`bank_name = "cat:<category>"`,存该类别**全部事实向量的 bundle**(叠加"全息图")+ dim + fact_count。
 
-**进程级共享连接注册表**(本文件最重的工程机制),动机注释 `store.py:101-112 @ 863e313`:
+**进程级共享连接注册表**(本文件最重的工程机制),动机注释 `plugins/memory/holographic/store.py:102-113 @ 863e313`:
 
 ```python
     # SQLite permits only one writer at a time. Each MemoryStore instance used
@@ -514,7 +515,7 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
 
 ### 2.3 retrieval.py:五种召回
 
-**search:三信号混合 + trust 加权**。管线(`retrieval.py:48-122`):FTS5 取 limit×3 候选 → 对每个候选算 Jaccard(查询 token ∩ content+tags token)与 HRR 相似度(查询 encode_text vs 事实向量,平移到 [0,1];无向量的老行给中性 0.5)→ 加权合成再乘 trust,`retrieval.py:101-107 @ 863e313`:
+**search:三信号混合 + trust 加权**。管线(`plugins/memory/holographic/retrieval.py:48-122`):FTS5 取 limit×3 候选 → 对每个候选算 Jaccard(查询 token ∩ content+tags token)与 HRR 相似度(查询 encode_text vs 事实向量,平移到 [0,1];无向量的老行给中性 0.5)→ 加权合成再乘 trust,`plugins/memory/holographic/retrieval.py:101-107 @ 863e313`:
 
 ```python
             # Combine FTS5 + Jaccard + HRR
@@ -533,7 +534,7 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
 
 **related(结构邻接)**:用**裸实体原子**(不绑角色)解绑,看残差与两个角色原子哪个更像取 max——实体无论以实体角色还是内容词身份出现都能命中(`retrieval.py:222-272`)。
 
-**reason(多实体合取,向量空间 JOIN)**:对每个实体各造钥匙,逐事实分别解绑打分,**取 min**——AND 语义,所有实体都结构性在场才高分,`retrieval.py:329-346 @ 863e313`:
+**reason(多实体合取,向量空间 JOIN)**:对每个实体各造钥匙,逐事实分别解绑打分,**取 min**——AND 语义,所有实体都结构性在场才高分,`plugins/memory/holographic/retrieval.py:329-346 @ 863e313`:
 
 ```python
         # Score each fact by how much EACH entity is structurally present.
@@ -568,7 +569,7 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
 
 **prefetch**:retriever.search 取 top5、min_trust 过滤,格式 `- [0.8] fact内容`(204-218)。**sync_turn 是显式 pass**(220-223):自动摄入不走每 turn,而走 on_session_end。
 
-**on_session_end 的 auto_extract**(需 plugin.yaml 声明 `hooks: [on_session_end]`):默认关;开关判断用 `is_truthy_value` 而非裸 truthiness——因为 schema 里 auto_extract 是字符串枚举,`"false"` 按裸真值判断是 True(#57682),`__init__.py:235-240 @ 863e313`:
+**on_session_end 的 auto_extract**(需 plugin.yaml 声明 `hooks: [on_session_end]`):默认关;开关判断用 `is_truthy_value` 而非裸 truthiness——因为 schema 里 auto_extract 是字符串枚举,`"false"` 按裸真值判断是 True(#57682),`plugins/memory/holographic/__init__.py:235-240 @ 863e313`:
 
 ```python
     def on_session_end(self, messages: List[Dict[str, Any]]) -> None:

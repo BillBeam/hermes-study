@@ -26,7 +26,7 @@
 **收的方式随平台,收到之后的路只有一条。**
 
 Signal 的形态最能说明"平台现实"的荒诞度 —— 收用 SSE,发用 JSON-RPC,两个协议、
-一个进程外守护进程(`gateway/platforms/signal.py:2-5 @ 863e313`):
+一个进程外守护进程(`gateway/platforms/signal.py:3-6 @ 863e313`):
 
 ```
 Connects to a signal-cli daemon running in HTTP mode.
@@ -64,7 +64,7 @@ GitHub(`X-Hub-Signature-256: sha256=<hex>`)、GitLab(`X-Gitlab-Token`,**明文�
 自有 V2(`X-Webhook-Signature-V2` 签 `"<ts>.<body>"`,带时间戳防重放)、自有 V1。
 
 V2 的检查顺序留了一条注释,记录了一个真实的漏检
-(`gateway/platforms/webhook.py:1071-1075 @ 863e313`):
+(`gateway/platforms/webhook.py:1072-1076 @ 863e313`):
 
 ```python
         # Checked independently of (and before) legacy V1 below — a sender
@@ -193,7 +193,7 @@ SIGNAL_RATE_LIMIT_BUCKET_CAPACITY = 50  # server-side token-bucket capacity for 
 把 `**bold**` 转成 "纯文本 + `start:length:BOLD`",而 start/length 必须按 UTF-16 数,
 否则一个 emoji 就让后面所有样式错位。
 
-列表符号的处理值得单独看(`gateway/platforms/signal_format.py:31-42 @ 863e313`):
+列表符号的处理值得单独看(`gateway/platforms/signal_format.py:30-41 @ 863e313`):
 
 ```python
         """Replace Markdown bullet markers with plain Unicode bullets.
@@ -345,7 +345,7 @@ See #18451.
 | Relay | `authorization_is_upstream=True` | `send_exec_approval`(`relay/adapter.py:1702`) | 一对多 |
 | api_server | — | HTTP 审批端点 | OpenAI 兼容 |
 
-`WhatsAppBehaviorMixin` 的契约声明得非常显式(`gateway/platforms/whatsapp_common.py:19-31 @ 863e313`):
+`WhatsAppBehaviorMixin` 的契约声明得非常显式(`gateway/platforms/whatsapp_common.py:16-28 @ 863e313`):
 
 ```
 Mixin contract — the adapter must set these on ``self`` before any of the
@@ -393,7 +393,7 @@ DEFAULT_HOST = None
 本地健康检查和端口冲突探测。**正解是 `None`** —— 让事件循环按解析出的每个地址族
 各建一个监听套接字。
 
-端口冲突探测也随之改了(`gateway/platforms/webhook.py:304-306 @ 863e313`):
+端口冲突探测也随之改了(`gateway/platforms/webhook.py:303-305 @ 863e313`):
 
 ```python
         # Do not probe only one address family before binding. With the
@@ -409,7 +409,7 @@ Linux 下它只允许越过 TIME_WAIT,关掉会让快速重启在 ~60 秒内绑�
 
 ## 7. 【文档-代码冲突候选】
 
-**▲ B-17**:`gateway/platforms/whatsapp_cloud.py:14-19 @ 863e313` 的**模块 docstring 自身**:
+**▲ B-17**:`gateway/platforms/whatsapp_cloud.py:7-12 @ 863e313` 的**模块 docstring 自身**:
 
 ```
 - ``whatsapp.py``      — unofficial Baileys bridge, personal accounts, no

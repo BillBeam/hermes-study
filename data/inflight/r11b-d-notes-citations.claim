@@ -1,0 +1,45 @@
+agent: 片 D · 全 notes 314 处引用清理(H-R8FIX-b)
+dispatched: 2026-08-10 (R11B 派发)
+signal: RELEASED 片 D 完成信号(任务完成通知,含 42 文件清单与清理前后读数)
+path: notes/r11b-raw-notes-citation-cleanup.md
+path: notes/r2-20-adapters.md
+path: notes/r2-22-credential-pool.md
+path: notes/r2-23-classify-retry-fallback-cache.md
+path: notes/r3-10-approval-security.md
+path: notes/r3-20-schema-output-toolsearch.md
+path: notes/r3-30-execute-code-mcp-client.md
+path: notes/r4-01-environment-abstraction.md
+path: notes/r4-02-docker-local-terminal-process.md
+path: notes/r4-20-remote-backends-serverless.md
+path: notes/r4-30-browser-automation.md
+path: notes/r4-40-computer-use.md
+path: notes/r4-50-patch-parser-file-state.md
+path: notes/r5-01-state-schema-portability.md
+path: notes/r5-02-hermes-state-sessiondb.md
+path: notes/r5-10-fts5-session-search.md
+path: notes/r5-20-context-compression.md
+path: notes/r5-30-prompt-context-engineering.md
+path: notes/r5-40-checkpoint-memory.md
+path: notes/r6-01-loader-query-rewrite-optimize.md
+path: notes/r6-10-honcho.md
+path: notes/r6-20-openviking-byterover.md
+path: notes/r6-30-hindsight-supermemory-retaindb.md
+path: notes/r6-40-mem0-holographic.md
+path: notes/r6-60-mcp-oauth-cleanup.md
+path: notes/r7-raw-run-02-config-media-watchdog.md
+path: notes/r7-raw-run-03-turnrunner.md
+path: notes/r7-raw-run-05-gwr-queue-busy.md
+path: notes/r7-raw-run-07-start-watchers.md
+path: notes/r7-raw-run-08-stop-profiles-busycmd.md
+path: notes/r7-raw-run-09-handle-message.md
+path: notes/r7-raw-run-12-watch-lease-cache.md
+path: notes/r7-raw-session-py.md
+path: notes/r7b-10-base-adapter-contract.md
+path: notes/r7b-20-base-first-layer-guard.md
+path: notes/r7b-30-base-media-and-egress.md
+path: notes/r7b-40-api-server.md
+path: notes/r7b-50-builtin-adapters.md
+path: notes/r7b-60-relay-tunnel.md
+path: notes/r7b-95-tests.md
+path: notes/r7c-raw-status.md
+path: notes/r8d-02-coverage-audit.md

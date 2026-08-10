@@ -123,7 +123,7 @@ def is_zeroed_state_db(
 
 ### 1.2 层 2:WAL 模式与三种回退
 
-**背景注释块**把整个问题域写清楚了(hermes_state.py:286-314 @ 863e313,节选 289-305):
+**背景注释块**把整个问题域写清楚了(hermes_state.py:289-317 @ 863e313,节选 289-305):
 
 ```python
 # SQLite's WAL mode requires shared-memory (mmap) coordination and fcntl
@@ -141,7 +141,7 @@ def is_zeroed_state_db(
 # as ``disk I/O error`` rather than ``locking protocol``.
 #
 # Instead, fall back to ``journal_mode=DELETE`` (the pre-WAL default) which
-# works on NFS and ZFS.
+# works on NFS and ZFS.  Concurrency drops — concurrent readers are blocked
 ```
 
 识别"WAL 不兼容"的错误指纹(hermes_state.py:315-319 @ 863e313):
@@ -192,10 +192,12 @@ def is_sqlite_wal_reset_vulnerable(
     a fixed runtime is delivered, keep new databases out of WAL.
 ```
 
-**(c) 静默拒绝检测**。`PRAGMA journal_mode=WAL` 是"设置即查询":macOS NFS / SMB / AgentFS overlay 上它**不抛错但不生效**,只返回仍然生效的模式。所以必须信返回行而不是"没抛异常"(hermes_state.py:743-767 @ 863e313,节选):
+**(c) 静默拒绝检测**。`PRAGMA journal_mode=WAL` 是"设置即查询":macOS NFS / SMB / AgentFS overlay 上它**不抛错但不生效**,只返回仍然生效的模式。所以必须信返回行而不是"没抛异常"(区域 `hermes_state.py:743-767`,下面这段起于 747):
+
+`hermes_state.py:747-756 @ 863e313`
 
 ```python
-        # But macOS NFS — and SMB/CIFS, and the AgentFS
+        # except branch below. But macOS NFS — and SMB/CIFS, and the AgentFS
         # NFS overlay — refuse the switch WITHOUT raising: the pragma simply
         # returns the still-effective mode (e.g. ``delete``). Trust the
         # returned row, not the mere absence of an exception; otherwise we
@@ -240,10 +242,12 @@ def is_sqlite_wal_reset_vulnerable(
 
 ### 1.4 层 4:checkpoint 策略(何时把 WAL 刷回主库)
 
-- 常规:每 50 次成功写做一次 **PASSIVE** checkpoint(`_CHECKPOINT_EVERY_N_WRITES = 50`,hermes_state.py:1949;调用点 2623-2624)。为什么不用 TRUNCATE:历史上周期性 TRUNCATE 在大库(65K+ 页)上因独占锁下一次性 checkpoint 数千帧的 I/O 压力造成 B-tree 损坏(issue #45383),见 `hermes_state.py:2785-2801 @ 863e313`:
+- 常规:每 50 次成功写做一次 **PASSIVE** checkpoint(`_CHECKPOINT_EVERY_N_WRITES = 50`,hermes_state.py:1949;调用点 2623-2624)。为什么不用 TRUNCATE:历史上周期性 TRUNCATE 在大库(65K+ 页)上因独占锁下一次性 checkpoint 数千帧的 I/O 压力造成 B-tree 损坏(issue #45383),见区域 `hermes_state.py:2785-2801`,下面这段起于 2789:
+
+`hermes_state.py:2789-2796 @ 863e313`
 
 ```python
-        PASSIVE is safe for frequent
+        requiring an exclusive lock.  PASSIVE is safe for frequent
         periodic use because it does not block concurrent writers and
         cannot corrupt B-tree pages under I/O pressure.
 
@@ -357,7 +361,7 @@ def _connect_tracked_db(path, tracking_path=None, **kwargs):
 
 ### 2.1 连接布局
 
-每个 SessionDB 实例:**一条写连接**(`check_same_thread=False`,`timeout=1.0`,`isolation_level=None` 自管事务)+ 进程内 `threading.Lock` 串行化本进程写(hermes_state.py:2142-2154 @ 863e313):
+每个 SessionDB 实例:**一条写连接**(`check_same_thread=False`,`timeout=1.0`,`isolation_level=None` 自管事务)+ 进程内 `threading.Lock` 串行化本进程写(hermes_state.py:2143-2155 @ 863e313):
 
 ```python
                 self._conn = _connect_tracked_db(
@@ -395,7 +399,9 @@ def _connect_tracked_db(path, tracking_path=None, **kwargs):
 
 ### 2.2 写协议:BEGIN IMMEDIATE + 时间预算 + 抖动重试
 
-统一入口 `_execute_write`(hermes_state.py:2562-2690 @ 863e313)。核心循环:
+统一入口 `_execute_write`(区域 `hermes_state.py:2562-2690`)。核心循环起于 2608:
+
+`hermes_state.py:2608-2620 @ 863e313`
 
 ```python
         while True:
@@ -454,10 +460,12 @@ BEGIN IMMEDIATE 让锁冲突在事务**开始**时暴露而非 commit 时。`loc
 
 ### 2.3 跨进程业务锁:compression_locks 表
 
-DB 内的租约表(DDL 在 hermes_state_common.py:326-331)承载"谁在压缩这个会话"的跨进程互斥。获取是单事务的 DELETE-expired + INSERT OR IGNORE + SELECT 确认(hermes_state.py:4054-4121 @ 863e313);过期锁与**死进程锁**都可回收——holder 串格式 `pid=<n>:...`,只有内核证明该 PID 不存在才立即回收,任何存疑(legacy 格式、权限错、同进程)都等 TTL(hermes_state.py:94-118 @ 863e313):
+DB 内的租约表(DDL 在 hermes_state_common.py:326-331)承载"谁在压缩这个会话"的跨进程互斥。获取是单事务的 DELETE-expired + INSERT OR IGNORE + SELECT 确认(hermes_state.py:4054-4121 @ 863e313);过期锁与**死进程锁**都可回收——holder 串格式 `pid=<n>:...`,只有内核证明该 PID 不存在才立即回收,任何存疑(legacy 格式、权限错、同进程)都等 TTL(区域 `hermes_state.py:94-118`,下面这段起于 100):
+
+`hermes_state.py:100-105 @ 863e313`
 
 ```python
-    Reclaim
+    for the full TTL makes every new turn repeatedly attempt compaction. Reclaim
     only when the kernel proves that PID no longer exists; legacy/unstructured
     holders, same-process holders, permission errors, and any probe doubt
     remain protected until normal TTL expiry (conservative: PID reuse must
@@ -484,7 +492,9 @@ DB 内的租约表(DDL 在 hermes_state_common.py:326-331)承载"谁在压缩这
 
 ### 3.1 会话怎么落盘:增量 append-only,每轮一个批事务
 
-会话行创建是**宽容 upsert**:gateway 先建裸行(source+user_id),agent 随后带真 model/model_config/system_prompt 再调 `create_session`,`ON CONFLICT` 用 COALESCE 只补 NULL、绝不覆盖已有值(hermes_state.py:2948-2958 文档、2992-3012 SQL @ 863e313,节选):
+会话行创建是**宽容 upsert**:gateway 先建裸行(source+user_id),agent 随后带真 model/model_config/system_prompt 再调 `create_session`,`ON CONFLICT` 用 COALESCE 只补 NULL、绝不覆盖已有值(文档在 `hermes_state.py:2948-2958`,SQL 见下)
+
+`hermes_state.py:2992-2994 @ 863e313`
 
 ```python
                    ON CONFLICT(id) DO UPDATE SET
@@ -519,13 +529,13 @@ DB 内的租约表(DDL 在 hermes_state_common.py:326-331)承载"谁在压缩这
 
 ### 3.3 /new 与 /reset 的状态层语义:**永远轮换,从不清空**
 
-- CLI `/new`:先把当前轮未 flush 的消息补 flush 进**旧**会话(#47202 防丢),然后 `end_session(old_session_id, "new_session")`,再生成新 session_id;新库行在首次 flush 时惰性创建;立即空掉的旧会话被清理防止刷屏 /resume(cli.py:8138-8156 @ 863e313,关键行 8151):
+- CLI `/new`:先把当前轮未 flush 的消息补 flush 进**旧**会话(#47202 防丢),然后 `end_session(old_session_id, "new_session")`,再生成新 session_id;新库行在首次 flush 时惰性创建;立即空掉的旧会话被清理防止刷屏 /resume(cli.py:8151-8169 @ 863e313,关键行 8151):
 
 ```python
             self._session_db.end_session(old_session_id, "new_session")
 ```
 
-- gateway `/new`/`/reset` → `reset_session`:内存映射换新 entry + 新 id,旧行用 `promote_to_session_reset` 而非 `end_session` 关闭(gateway/session.py:2929-2940 @ 863e313):
+- gateway `/new`/`/reset` → `reset_session`:内存映射换新 entry + 新 id,旧行用 `promote_to_session_reset` 而非 `end_session` 关闭(gateway/session.py:2931-2942 @ 863e313):
 
 ```python
                 # Promote (not plain end_session): an accidental
@@ -537,7 +547,9 @@ DB 内的租约表(DDL 在 hermes_state_common.py:326-331)承载"谁在压缩这
                     _promote(db_end_session_id, "session_reset")
 ```
 
-两个原语的语义差(hermes_state.py:3591-3665 @ 863e313):`end_session` **第一个 reason 赢**(`WHERE ... AND ended_at IS NULL`,已结束即 no-op——压缩分裂会话必须保住 `end_reason='compression'`,不被 /resume 后失同步的 CLI 用别的 reason 覆盖);`promote_to_session_reset` 则额外允许覆盖两个"事故性"reason:
+两个原语的语义差(区域 `hermes_state.py:3591-3665`;下面这段起于 3653):`end_session` **第一个 reason 赢**(`WHERE ... AND ended_at IS NULL`,已结束即 no-op——压缩分裂会话必须保住 `end_reason='compression'`,不被 /resume 后失同步的 CLI 用别的 reason 覆盖);`promote_to_session_reset` 则额外允许覆盖两个"事故性"reason:
+
+`hermes_state.py:3653-3659 @ 863e313`
 
 ```python
             cursor = conn.execute(
@@ -564,7 +576,7 @@ DB 内的租约表(DDL 在 hermes_state_common.py:326-331)承载"谁在压缩这
 
 ### 4.1 轮换式(rotation fork):`publish_compression_child`
 
-老式/gateway 压缩把父会话关闭、开新子会话装压缩后转录。关键是**单事务原子发布**(hermes_state.py:3488-3589 @ 863e313):
+老式/gateway 压缩把父会话关闭、开新子会话装压缩后转录。关键是**单事务原子发布**(hermes_state.py:3503-3604 @ 863e313):
 
 ```python
         """Atomically close a parent and publish its durable compression child.
@@ -579,7 +591,9 @@ DB 内的租约表(DDL 在 hermes_state_common.py:326-331)承载"谁在压缩这
 
 ### 4.2 就地式(in-place):`archive_and_compact`
 
-#38763 之后的方向:会话终生一个 id,压缩不轮换。实现是"软归档 + 插入压缩集"的单事务(hermes_state.py:6938-7008 @ 863e313,核心):
+#38763 之后的方向:会话终生一个 id,压缩不轮换。实现是"软归档 + 插入压缩集"的单事务(区域 `hermes_state.py:6938-7008`,核心一段起于 6987):
+
+`hermes_state.py:6987-6994 @ 863e313`
 
 ```python
             conn.execute(

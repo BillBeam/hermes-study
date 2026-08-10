@@ -5,7 +5,7 @@
 
 ## 0. 统一模型:spawn-per-call
 
-`base.py:1-7 @ 863e313` 一句话定位整簇:
+`tools/environments/base.py:1-7 @ 863e313` 一句话定位整簇:
 ```python
 """Base class for all Hermes execution environment backends.
 
@@ -35,17 +35,29 @@ or a temp file (local).
 用 `_ThreadedProcessHandle`(base.py:374-445)把"阻塞的 `exec_fn`"适配成这个接口——在一个 worker 线程里
 跑阻塞调用,stdout 经 `os.pipe` 暴露成可 select 的流。
 
-`base.py:374-382 @ 863e313`:
+`tools/environments/base.py:374-381 @ 863e313`:
 ```python
 class _ThreadedProcessHandle:
-    """Adapt a blocking ``exec_fn() -> (stdout_text, returncode)`` into the
-    ``ProcessHandle`` protocol so ``_wait_for_process`` can poll it uniformly.
+    """Adapter for SDK backends (Modal, Daytona) that have no real subprocess.
 
-    SDK backends (Modal, Daytona) expose a single blocking exec call, not a
-    real OS process.  Running it on a worker thread and surfacing its output
-    through an ``os.pipe`` lets the shared poll/drain/interrupt loop treat it
-    exactly like a ``subprocess.Popen``.
+    Wraps a blocking ``exec_fn() -> (output_str, exit_code)`` in a background
+    thread and exposes a ProcessHandle-compatible interface.  An optional
+    ``cancel_fn`` is invoked on ``kill()`` for backend-specific cancellation
+    (e.g. Modal sandbox.terminate, Daytona sandbox.stop).
+    """
 ```
+
+> **R11B 引用更正(片 D)**:原文此处贴的 docstring 是
+> "Adapt a blocking ``exec_fn() -> (stdout_text, returncode)`` into the ``ProcessHandle``
+> protocol so ``_wait_for_process`` can poll it uniformly. / SDK backends (Modal, Daytona)
+> expose a single blocking exec call, not a real OS process. Running it on a worker thread
+> and surfacing its output through an ``os.pipe`` lets the shared poll/drain/interrupt loop
+> treat it exactly like a ``subprocess.Popen``."
+> ——**这段文字在基线 863e313 全仓不存在**(`grep -rn "Adapt a blocking" --include=*.py`
+> 零命中,搜索面为基线全部 `.py` 文件)。它是转述被当成逐字摘录贴了出来。
+> 依据:`tools/environments/base.py:375` 起的真实 docstring 见上,已按基线原文回抄。
+> **结论实质不变**——真实 docstring 说的是同一件事(把阻塞 `exec_fn` 包进后台线程、
+> 暴露成 ProcessHandle 兼容接口、`cancel_fn` 挂到 `kill()`),正文第 34-36 行的叙述仍然成立。
 
 **取舍**:所有后端共享 `_wait_for_process` / `_wrap_command` / `execute` 这些"不被覆盖"的方法,后端只填
 "怎么起一个 bash"。代价是 SDK 型后端要多一层线程 + 管道适配。
@@ -56,7 +68,7 @@ init 跑一段 bootstrap 脚本,把登录 shell 的状态 dump 到快照文件�
 会话变量)、函数定义、alias、shell 选项。三处防绕过/防撕裂设计,每处都是一次真实事故:
 
 - **原子写防半截读**(#38249):快照先写进 `mktemp` 的临时文件,再 `mv -f` 原子替换。因为并发的
-  `source()` 调用可能读到另一条命令正在重写的快照。`base.py:706 @ 863e313`:
+  `source()` 调用可能读到另一条命令正在重写的快照。`tools/environments/base.py:706 @ 863e313`:
   ```python
   f"mv -f {_snap_tmp} {_quoted_snap} || rm -f {_snap_tmp}\n"
   ```
@@ -82,7 +94,7 @@ init 跑一段 bootstrap 脚本,把登录 shell 的状态 dump 到快照文件�
 6. **发 CWD 标记**(870-872):`printf '\n<marker>%s<marker>\n' "$(pwd -P)"`——所有后端(含 local,#63255 起)
    都从 stdout 解析这个标记拿到新 cwd,不再需要临时文件。
 
-`base.py:870-872 @ 863e313`:
+`tools/environments/base.py:870-872 @ 863e313`:
 ```python
         parts.append(
             f"printf '\\n{self._cwd_marker}%s{self._cwd_marker}\\n' \"$(pwd -P)\""

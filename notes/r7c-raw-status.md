@@ -1049,7 +1049,7 @@ append 到 `~/.hermes/gateway-starts.log`,窗口内启动次数超阈值就返�
 `grep -i status notes/r7b-*.md` 在 R7B 全部 9 篇底稿里只有 1 处命中,且与本项无关
 (`notes/r7b-20-base-first-layer-guard.md:126` 的斜杠命令列表)。
 
-真正的移交项在 **R7**(`notes/r7-90-doc-conflict-rulings.md:210-214`):
+真正的移交项在 **R7**(`notes/r7-90-doc-conflict-rulings.md:215-219`):
 
 > ### B3. gateway-internals.md Key Files 表 status.py 描述与其 docstring 不符 —— 记录待 R7C
 > - 文档表:`gateway/status.py | Token lock management for profile-scoped gateway instances`

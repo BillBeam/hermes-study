@@ -30,7 +30,7 @@
 
 **机制**:
 
-三态状态机 `None/ok → exhausted → dead`。`credential_pool.py:68-76 @ 863e313`:
+三态状态机 `None/ok → exhausted → dead`。`agent/credential_pool.py:68-76 @ 863e313`:
 
 ```python
 STATUS_OK = "ok"
@@ -42,7 +42,7 @@ STATUS_EXHAUSTED = "exhausted"
 STATUS_DEAD = "dead"
 ```
 
-条目本体是 dataclass `PooledCredential`,`credential_pool.py:185-196 @ 863e313`:
+条目本体是 dataclass `PooledCredential`,`agent/credential_pool.py:185-196 @ 863e313`:
 
 ```python
 @dataclass
@@ -61,7 +61,7 @@ class PooledCredential:
 
 状态字段五件套:`last_status / last_status_at / last_error_code / last_error_reason / last_error_message / last_error_reset_at`(196-200);身份字段:`id`(6 位 hex,234:`data.setdefault("id", uuid.uuid4().hex[:6])`)、`source`(来源标签,如 `env:OPENROUTER_API_KEY`、`device_code`、`manual`)、`priority`(排序键)。
 
-Provider 特有元数据不进 dataclass 字段,走 `extra` dict + `__getattr__` 透传,`credential_pool.py:159-171 @ 863e313`:
+Provider 特有元数据不进 dataclass 字段,走 `extra` dict + `__getattr__` 透传,`agent/credential_pool.py:159-171 @ 863e313`:
 
 ```python
 # Fields that are only round-tripped through JSON — never used for logic as attributes.
@@ -71,7 +71,7 @@ _EXTRA_KEYS = frozenset({
     "agent_key_obtained_at", "tls", "secret_source", "secret_fingerprint",
 ```
 
-`credential_pool.py:220-223 @ 863e313`:
+`agent/credential_pool.py:220-223 @ 863e313`:
 
 ```python
     def __getattr__(self, name: str):
@@ -80,7 +80,7 @@ _EXTRA_KEYS = frozenset({
         raise AttributeError(f"'{type(self).__name__}' object has no attribute {name!r}")
 ```
 
-**"持久化 token" ≠ "运行时 key"**:`runtime_api_key` 属性把两者解耦——Nous 的运行时凭据是 `agent_key`(NAS invoke JWT),不是 OAuth access_token,`credential_pool.py:263-270 @ 863e313`:
+**"持久化 token" ≠ "运行时 key"**:`runtime_api_key` 属性把两者解耦——Nous 的运行时凭据是 `agent_key`(NAS invoke JWT),不是 OAuth access_token,`agent/credential_pool.py:263-270 @ 863e313`:
 
 ```python
     @property
@@ -92,7 +92,7 @@ _EXTRA_KEYS = frozenset({
                 (self.agent_key, self.agent_key_expires_at),
 ```
 
-进入 DEAD 态的判据:仅限 401 + 已知的 OAuth 永久失效 reason,`credential_pool.py:81-88 @ 863e313`:
+进入 DEAD 态的判据:仅限 401 + 已知的 OAuth 永久失效 reason,`agent/credential_pool.py:81-88 @ 863e313`:
 
 ```python
 _TERMINAL_AUTH_REASONS = frozenset({
@@ -104,7 +104,7 @@ _TERMINAL_AUTH_REASONS = frozenset({
     "refresh_token_reused", # Single-use refresh token consumed by another process
 ```
 
-状态迁移点 `_mark_exhausted`,`credential_pool.py:810-813 @ 863e313`:
+状态迁移点 `_mark_exhausted`,`agent/credential_pool.py:810-813 @ 863e313`:
 
 ```python
         if self._is_terminal_auth_failure(status_code, normalized_error):
@@ -115,14 +115,14 @@ _TERMINAL_AUTH_REASONS = frozenset({
 
 DEAD 的退出方式不是 TTL:manual 来源的 DEAD 条目 24h 后被剪枝(`DEAD_MANUAL_PRUNE_TTL_SECONDS = 24 * 60 * 60`,101 行;剪枝逻辑 1891-1906),singleton 播种的 DEAD 条目只能靠显式重登录的写侧同步清除(`_available_entries` 中 1907-1912 直接 `continue`)。
 
-**为什么**:DEAD 态是被 issue 逼出来的,`credential_pool.py:803-807 @ 863e313`:
+**为什么**:DEAD 态是被 issue 逼出来的,`agent/credential_pool.py:803-807 @ 863e313`:
 
 ```python
         # Permanent OAuth failures (token_invalidated, token_revoked, etc.)
         # transition to STATUS_DEAD instead of STATUS_EXHAUSTED.  Without this,
         # a revoked credential gets a 1-hour TTL cooldown and then re-enters
         # rotation, failing immediately every hour until the user manually
-        # removes it (issue #32849).
+        # removes it (issue #32849).  DEAD entries are excluded from rotation
 ```
 
 **取舍**:extra dict 牺牲了类型安全换 schema 弹性;三态而非细粒度枚举(如 refreshing/probing)换取磁盘表示简单——瞬时子状态全部落在 reason/error_code 字段上由读取方解释。
@@ -137,7 +137,7 @@ DEAD 的退出方式不是 TTL:manual 来源的 DEAD 条目 24h 后被剪枝(`DE
 
 **机制**:
 
-四种策略,`credential_pool.py:109-118 @ 863e313`:
+四种策略,`agent/credential_pool.py:109-118 @ 863e313`:
 
 ```python
 STRATEGY_FILL_FIRST = "fill_first"
@@ -146,7 +146,7 @@ STRATEGY_RANDOM = "random"
 STRATEGY_LEAST_USED = "least_used"
 ```
 
-策略从 `config.yaml` 的 `credential_pool_strategies.<provider>` 读取,非法值回退 `fill_first`(521-534)。`_select_unlocked` 先算 `_available_entries(clear_expired=True, refresh=True)`(过滤冷却中/DEAD、清除到期冷却、触发 OAuth 刷新),再按策略挑选:random 随机(1995-1998);least_used 取 `request_count` 最小并自增(2000-2006);round_robin 把选中者移到队尾并重写全体 priority 后持久化(2008-2015);fill_first 默认取第一个,`credential_pool.py:2017-2019 @ 863e313`:
+策略从 `config.yaml` 的 `credential_pool_strategies.<provider>` 读取,非法值回退 `fill_first`(521-534)。`_select_unlocked` 先算 `_available_entries(clear_expired=True, refresh=True)`(过滤冷却中/DEAD、清除到期冷却、触发 OAuth 刷新),再按策略挑选:random 随机(1995-1998);least_used 取 `request_count` 最小并自增(2000-2006);round_robin 把选中者移到队尾并重写全体 priority 后持久化(2008-2015);fill_first 默认取第一个,`agent/credential_pool.py:2017-2019 @ 863e313`:
 
 ```python
         entry = available[0]
@@ -172,7 +172,7 @@ STRATEGY_LEAST_USED = "least_used"
 
 稳定 id 的绑定由 `sync_credential_pool_entry_id`(`agent_runtime_helpers.py:897-913`)在每次换 key 后重算,防 OAuth 刷新导致 api_key 值漂移后归因失败。
 
-**身份匹配不上任何条目时的有界回退(#70401)**:提供了身份但匹配不到条目时,绝不标记任何 key(避免误伤),但轮换次数以"可用条目一圈"为上限,`credential_pool.py:2077-2080 @ 863e313`:
+**身份匹配不上任何条目时的有界回退(#70401)**:提供了身份但匹配不到条目时,绝不标记任何 key(避免误伤),但轮换次数以"可用条目一圈"为上限,`agent/credential_pool.py:2077-2080 @ 863e313`:
 
 ```python
                 self._unmatched_rotation_streak += 1
@@ -183,7 +183,7 @@ STRATEGY_LEAST_USED = "least_used"
 
 超限返回 None 让错误上浮;单条目池直接判定"无处可转"返回 None(2100-2107)。streak 在任何一次真实命中或成功 select 后清零(1774、2111)。
 
-**Sibling 一起标死**:同一 runtime key 可能背着多个池条目(显式条目 + `model_config` 自动播种条目),只标第一个会导致选择器把同一把已耗尽的 key 再递回来、caller 无限 `continue`。`credential_pool.py:2131-2137 @ 863e313`:
+**Sibling 一起标死**:同一 runtime key 可能背着多个池条目(显式条目 + `model_config` 自动播种条目),只标第一个会导致选择器把同一把已耗尽的 key 再递回来、caller 无限 `continue`。`agent/credential_pool.py:2131-2137 @ 863e313`:
 
 ```python
             failed_runtime_key = getattr(entry, "runtime_api_key", None)
@@ -195,7 +195,7 @@ STRATEGY_LEAST_USED = "least_used"
                     if sibling.runtime_api_key == failed_runtime_key:
 ```
 
-**并发租约(delegate 子代理用)**:`acquire_lease()` 优先选租约数低于软上限(`DEFAULT_MAX_CONCURRENT_PER_CREDENTIAL = 1`,575 行)的条目,全部到顶时仍返回最少租约者而非阻塞,`credential_pool.py:2205-2213 @ 863e313`:
+**并发租约(delegate 子代理用)**:`acquire_lease()` 优先选租约数低于软上限(`DEFAULT_MAX_CONCURRENT_PER_CREDENTIAL = 1`,575 行)的条目,全部到顶时仍返回最少租约者而非阻塞,`agent/credential_pool.py:2205-2213 @ 863e313`:
 
 ```python
             below_cap = [
@@ -223,7 +223,7 @@ STRATEGY_LEAST_USED = "least_used"
 
 **问题**:不同失败该冷却多久?401 可能是瞬时鉴权抖动;429 是限流;402 是没钱;403 既可能是边缘节点瞬时限流也可能是花费上限(billing)。单 key 池里一小时的冷却等于一小时硬故障。
 
-**机制**:常量分级,`credential_pool.py:124-132 @ 863e313`:
+**机制**:常量分级,`agent/credential_pool.py:124-132 @ 863e313`:
 
 ```python
 EXHAUSTED_TTL_401_SECONDS = 5 * 60           # 5 minutes
@@ -234,7 +234,7 @@ EXHAUSTED_TTL_DEFAULT_SECONDS = 60 * 60      # 1 hour
 EXHAUSTED_TTL_SOLE_CREDENTIAL_SECONDS = 60   # 1 minute
 ```
 
-决策函数 `_exhausted_ttl`,`credential_pool.py:332-342 @ 863e313`:
+决策函数 `_exhausted_ttl`,`agent/credential_pool.py:332-342 @ 863e313`:
 
 ```python
     if error_code == 401:
@@ -258,7 +258,7 @@ EXHAUSTED_TTL_SOLE_CREDENTIAL_SECONDS = 60   # 1 minute
 
 reset 时间来源有三:错误上下文里的 `reset_at/resets_at/retry_until` 绝对时间戳(408-412,epoch 秒/毫秒/ISO 都收,345-372);报文里的相对延迟正则(`_extract_retry_delay_seconds`,375-395,识别 `quotaResetDelay`、`retry after Ns`、OpenCode Go 周限的 `Resets in 4hr 5min`)。
 
-**failure_reason 为什么要持久化**:HTTP 状态码不足以定级——403 的 billing 和 403 的 edge-throttle 冷却需求相反。分类器(`agent/error_classifier.py`)的裁决以字符串形式随条目写入磁盘,`credential_pool.py:163-170 @ 863e313`(`_EXTRA_KEYS` 内注释):
+**failure_reason 为什么要持久化**:HTTP 状态码不足以定级——403 的 billing 和 403 的 edge-throttle 冷却需求相反。分类器(`agent/error_classifier.py`)的裁决以字符串形式随条目写入磁盘,`agent/credential_pool.py:164-171 @ 863e313`(`_EXTRA_KEYS` 内注释):
 
 ```python
     # Classified failure semantics for the last exhaustion, as decided by
@@ -322,7 +322,7 @@ token 变化(重授权)则永不复活旧冷却(1628-1631)。
 
 **(c) 选择前从外部真源拉取**。`_available_entries` 对处于 EXHAUSTED/DEAD 的 OAuth 条目,先从其外部真源同步(别的进程可能已刷新):anthropic ← `~/.claude/.credentials.json`(1843-1848)、nous / openai-codex / xai-oauth ← auth.json singleton(1853-1882)。同步成功即清空错误状态并持久化(见 `_sync_codex_entry_from_auth_store` 958-967 的 `field_updates` 全清)。这一步是"另一个进程重登录 → 本进程池条目冻结在 `last_error_reset_at` 后面几个小时"这个 bug 的解药(890-901 docstring)。
 
-**(d) Profile ↔ 全局根双层读写**。读:profile 池空时按 provider 回退读全局根,profile 有任何条目即整体遮蔽(`read_credential_pool`,`hermes_cli/auth.py:1539-1548` docstring,引 #18594);写:refresh 后若 grant 本来解析自全局根,只写回根、绝不给 profile 创建遮蔽键,`credential_pool.py:1193-1200 @ 863e313`(#74339):
+**(d) Profile ↔ 全局根双层读写**。读:profile 池空时按 provider 回退读全局根,profile 有任何条目即整体遮蔽(`read_credential_pool`,`hermes_cli/auth.py:1539-1548` docstring,引 #18594);写:refresh 后若 grant 本来解析自全局根,只写回根、绝不给 profile 创建遮蔽键,`agent/credential_pool.py:1194-1201 @ 863e313`(#74339):
 
 ```python
                 # Fix: use ``_load_provider_state_with_source`` to learn
@@ -333,7 +333,7 @@ token 变化(重授权)则永不复活旧冷却(1628-1631)。
                 # key that blocks both the root fallback and the write-through
 ```
 
-写回全局根的动机(#48415/#43589):`credential_pool.py:584-590 @ 863e313`:
+写回全局根的动机(#48415/#43589):`agent/credential_pool.py:583-589 @ 863e313`:
 
 ```python
     Best-effort write-through for the multi-profile rotation hazard
@@ -341,7 +341,7 @@ token 变化(重授权)则永不复活旧冷却(1628-1631)。
     refresh_token on refresh, so when a profile pool refresh rotates a grant
     it resolved from the root fallback, the rotated chain must land back in
     root. Otherwise root keeps a now-revoked refresh token and every other
-    profile reading the stale root grant dies with ``refresh_token_reused``
+    profile reading the stale root grant dies with ``refresh_token_reused`` /
 ```
 
 另注意 `_sync_device_code_entry_to_auth_store` 全部走 `set_active=False`(1159-1167 注释):token 轮换是副作用,不允许悄悄翻转用户的 active_provider。
@@ -360,7 +360,7 @@ token 变化(重授权)则永不复活旧冷却(1628-1631)。
 
 **主动刷新判定** `_entry_needs_refresh`(1745-1767):anthropic 按 `expires_at_ms` 提前 120s;codex/xai 按 JWT 声明加 skew;nous 显式不在枚举时刷新(1762-1766 注释:"Nous refresh can require network access and should happen when runtime credentials are actually resolved, not merely when the pool is enumerated")。
 
-**Deferred refresh(锁外刷新)**:单次使用 token 的 provider(codex/xai)在 `_available_entries` 里不当场刷,收集成 `pending_refresh` 返回,`credential_pool.py:1941-1944 @ 863e313`:
+**Deferred refresh(锁外刷新)**:单次使用 token 的 provider(codex/xai)在 `_available_entries` 里不当场刷,收集成 `pending_refresh` 返回,`agent/credential_pool.py:1941-1944 @ 863e313`:
 
 ```python
             if refresh and self._entry_needs_refresh(entry):
@@ -371,7 +371,7 @@ token 变化(重授权)则永不复活旧冷却(1628-1631)。
 
 `select()` 在锁外执行这些刷新,然后**重选一次**(1769-1782);`acquire_lease()` 同样(2178-2189)。这就是 `self._lock` 用 RLock 的原因(639-644 注释):锁外刷新路径调用的 `_replace_entry/_persist` 自己拿锁,锁内调用者可重入。
 
-**单次使用 token 的原子刷新序列**:sync→POST→write-back 整段裹在跨进程 flock 里,超时按刷新 POST 超时 + 余量放大(`_single_use_refresh_lock_timeout`,1329-1346),`credential_pool.py:1296-1305 @ 863e313`:
+**单次使用 token 的原子刷新序列**:sync→POST→write-back 整段裹在跨进程 flock 里,超时按刷新 POST 超时 + 余量放大(`_single_use_refresh_lock_timeout`,1329-1346),`agent/credential_pool.py:1296-1305 @ 863e313`:
 
 ```python
         # Codex and xAI OAuth refresh tokens are single-use.  The
@@ -384,7 +384,7 @@ token 变化(重授权)则永不复活旧冷却(1628-1631)。
 
 **刷新失败的三级处理**(`_refresh_entry_impl` 的 except 块,1425-1689):① 重同步真源,若 refresh_token 已变说明输给了并发方 → 采纳新链并清状态返回(xai 1473-1490、codex 1548-1565、nous 1622-1638、anthropic 走 credentials 文件重试一次 1430-1466);② 判定为终态刷新错误(`_is_terminal_*_refresh_error`)→ **隔离(quarantine)**:清掉 auth.json 里的 token、写入 `last_auth_error{relogin_required: True}`、把所有 singleton 播种条目从池中移除并以 `removed_ids` 落盘(xai 1496-1543、codex 1571-1618、nous 1639-1687);③ 其余 → `_mark_exhausted(entry, None)`(1688)。清 auth.json 前有比对护栏:只有 store 里的 refresh_token 为空或与本条目一致才清(1507-1509),防止把别人刚写的新链清掉。
 
-**Codex 配额提前恢复探测(#43747)**:Codex 429 的 `last_error_reset_at` 可以在几天后(周窗口),但用户可能提前解锁;选择路径上对 429 形错误做节流的活探测,命中则解除冻结,`credential_pool.py:1712-1718 @ 863e313`:
+**Codex 配额提前恢复探测(#43747)**:Codex 429 的 `last_error_reset_at` 可以在几天后(周窗口),但用户可能提前解锁;选择路径上对 429 形错误做节流的活探测,命中则解除冻结,`agent/credential_pool.py:1711-1717 @ 863e313`:
 
 ```python
         A Codex 429 persists a ``last_error_reset_at`` that can be days in
@@ -414,7 +414,7 @@ token 变化(重授权)则永不复活旧冷却(1628-1631)。
 
 **Env 播种偏好 .env**:`get_env_prefer_dotenv`(2830-2846)以 `~/.hermes/.env` 为权威、os.environ 兜底,并处理未解析的 `op://` 引用;理由:2824-2827 注释("Stale env vars from parent processes (Codex CLI, test scripts, etc.) should not override deliberate changes to the .env file")。
 
-**非破坏性读(#9331)**:进程 A 没有某 env var 不能删掉别的进程还在用的磁盘条目——`load_pool` 剪枝时 env 来源不剪,`credential_pool.py:3129-3137 @ 863e313`:
+**非破坏性读(#9331)**:进程 A 没有某 env var 不能删掉别的进程还在用的磁盘条目——`load_pool` 剪枝时 env 来源不剪,`agent/credential_pool.py:3129-3137 @ 863e313`:
 
 ```python
         # ``load_pool()`` is a non-destructive read for env-seeded entries: a
@@ -444,7 +444,7 @@ in the same shape:
 
 注册顺序即匹配优先级(first match),copilot 的 `env:*` 必须排在通用 env 步骤之前(378-386:"ORDER MATTERS...")。所有权决定清理方式:自有文件删(`hermes_pkce` 219 行 `oauth_file.unlink()`)、他人文件只 suppress 不删(claude_code 194-204、qwen-cli 322-332、Codex CLI 的 `~/.codex/auth.json` 288-303)。
 
-**播种的用户同意护栏**:anthropic 只有被显式配置为 provider 时才自动发现外部 OAuth(2466-2476,引 PR #4210:"Without this gate, auxiliary client fallback chains silently read ~/.claude/.credentials.json without user consent");且用户在 setup 选了 API-key 路线(有 `ANTHROPIC_API_KEY` 且无 OAuth env)时,**禁止**播种 OAuth 并主动剪掉历史 OAuth 条目,`credential_pool.py:2486-2492 @ 863e313`:
+**播种的用户同意护栏**:anthropic 只有被显式配置为 provider 时才自动发现外部 OAuth(2466-2476,引 PR #4210:"Without this gate, auxiliary client fallback chains silently read ~/.claude/.credentials.json without user consent");且用户在 setup 选了 API-key 路线(有 `ANTHROPIC_API_KEY` 且无 OAuth env)时,**禁止**播种 OAuth 并主动剪掉历史 OAuth 条目,`agent/credential_pool.py:2486-2492 @ 863e313`:
 
 ```python
         # into the anthropic pool — otherwise rotation on a 401/429 silently
@@ -452,7 +452,7 @@ in the same shape:
         # Code identity injection, `mcp_` tool-name rewrite, and claude-cli
         # User-Agent header (`agent/anthropic_adapter.py:2128`).  Users who
         # explicitly opted into the API-key path are explicitly opting OUT of
-        # that masquerade.
+        # that masquerade.  Prefer ~/.hermes/.env over os.environ for the
 ```
 
 **磁盘边界脱敏**(`credential_persistence.py`):白名单之外的一切非 manual 来源视为 borrowed,`agent/credential_persistence.py:20-26 @ 863e313`:
@@ -494,7 +494,7 @@ it before subsequent attempts, we eliminate the amplification effect.
 - **check**:每次 Nous 请求前读文件,`nous_rate_limit_remaining()` 返回剩余秒或 None;过期即读即删(147-158)。
 - **clear**:任一会话成功请求后删除文件(163-170)。
 
-**真假限流判别** `is_genuine_nous_rate_limit`(192-244):Nous Portal 是多上游聚合器,429 有两种含义,`agent/nous_rate_guard.py:203-213 @ 863e313`:
+**真假限流判别** `is_genuine_nous_rate_limit`(192-244):Nous Portal 是多上游聚合器,429 有两种含义,`agent/nous_rate_guard.py:202-212 @ 863e313`:
 
 ```python
       (a) The caller's own RPM / RPH / TPM / TPH bucket on Nous is
@@ -567,7 +567,7 @@ it before subsequent attempts, we eliminate the amplification effect.
 
 **问题**:一次 401/402 到底"杀死"了什么?跳过候选的判断曾在六个调用点各写一套字符串比较,每修一处漏五处(模块头 7-12 列了 #22548/#70893/#59561/#72468/#62984 等六个事故)。
 
-**机制**:失败作用域三轴枚举,凭据轴定义 `agent/backend_identity.py:47-50 @ 863e313`:
+**机制**:失败作用域三轴枚举,凭据轴定义 `agent/backend_identity.py:48-51 @ 863e313`:
 
 ```python
     #: Auth 401 / payment 402: evidence against the shared credential —
@@ -596,7 +596,7 @@ reason → scope 映射:`"auth error"` 与 `"payment error"` 归 CREDENTIAL,未�
 
 ## 9. 边界交互:池如何被消费
 
-**注入链**:启动时 `hermes_cli/runtime_provider.py:1867-1871 @ 863e313` 建池并首选:
+**注入链**:启动时 `hermes_cli/runtime_provider.py:1866-1871 @ 863e313` 建池并首选:
 
 ```python
     try:
@@ -662,18 +662,18 @@ reason → scope 映射:`"auth error"` 与 `"payment error"` 归 CREDENTIAL,未�
 
 文档:`website/docs/user-guide/features/credential-pools.md`。
 
-**不符 ①(方法不存在)**:文档 Thread Safety 节列举 `mark_used()`,`credential-pools.md:209 @ 863e313`:
+**不符 ①(方法不存在)**:文档 Thread Safety 节列举 `mark_used()`,`website/docs/user-guide/features/credential-pools.md:209 @ 863e313`:
 
 ```
-The credential pool uses a threading lock for all state mutations (`select()`, `mark_exhausted_and_rotate()`, `try_refresh_current()`, `mark_used()`).
+The credential pool uses a threading lock for all state mutations (`select()`, `mark_exhausted_and_rotate()`, `try_refresh_current()`, `mark_used()`). This ensures safe concurrent access when the gateway handles multiple chat sessions simultaneously.
 ```
 
 代码里全仓 `grep mark_used` 零命中(`Grep pattern=mark_used glob=*.py` → No matches)。该方法不存在;`request_count` 自增实际发生在 least_used 策略的 `_select_unlocked` 里(credential_pool.py:2000-2006)。**证伪文档**。
 
-**不符 ②(env 剪枝语义已反转)**:`credential-pools.md:193`:
+**不符 ②(env 剪枝语义已反转)**:`website/docs/user-guide/features/credential-pools.md:193 @ 863e313`:
 
 ```
-Auto-seeded entries are updated on each pool load — if you remove an env var, its pool entry is automatically pruned.
+Auto-seeded entries are updated on each pool load — if you remove an env var, its pool entry is automatically pruned. Manual entries (added via `hermes auth add`) are never auto-pruned.
 ```
 
 代码自 #9331 起 `load_pool` 显式**不**剪 env 条目(credential_pool.py:3129-3137,`prune_env_sources=False`,摘录见 §6)。env 条目只在 `hermes auth` 命令确认来源消失时才剪。**证伪文档**(文档描述的是 #9331 之前的旧行为)。

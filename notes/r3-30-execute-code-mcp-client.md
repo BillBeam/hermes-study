@@ -83,7 +83,7 @@ SANDBOX_ALLOWED_TOOLS = frozenset([
 
 - **本地 POSIX → AF_UNIX(UDS)**。父进程在 `/tmp`(macOS 因 104 字节 AF_UNIX 路径限制强制用 `/tmp`)建一个 `.sock`,`listen(1)`,并 `chmod 0600` 用文件权限当访问门:
 
-  `code_execution_tool.py:1413-1416 @ 863e313`
+  `tools/code_execution_tool.py:1413-1416 @ 863e313`
   ```python
   server_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
   server_sock.bind(sock_path)
@@ -93,7 +93,7 @@ SANDBOX_ALLOWED_TOOLS = frozenset([
 
 - **本地 Windows → 环回 TCP**。`AF_UNIX` 在 Windows Python 上不可靠,退回 `127.0.0.1` 临时端口,端点写成 `tcp://host:port`:
 
-  `code_execution_tool.py:1407-1411 @ 863e313`
+  `tools/code_execution_tool.py:1407-1411 @ 863e313`
   ```python
   if _use_tcp_rpc:
       server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -119,7 +119,7 @@ SANDBOX_ALLOWED_TOOLS = frozenset([
 
 **机制**:每次 execute_code 生成一次性 token `secrets.token_urlsafe(32)`,注入子进程 env,子进程每条 RPC 请求都带 token,服务端用 `secrets.compare_digest` 常数时间比对,失败即 `Unauthorized` 且**不派发**:
 
-`code_execution_tool.py:703-711 @ 863e313`
+`tools/code_execution_tool.py:703-711 @ 863e313`
 ```python
 if not rpc_token or not secrets.compare_digest(
     # Compare as bytes: compare_digest raises TypeError on a
@@ -148,27 +148,28 @@ if not rpc_token or not secrets.compare_digest(
 
 **机制**:`_scrub_child_env`(`:208-299`)按**顺序**产出洗净 env(顺序即优先级):
 
-`code_execution_tool.py:253-273 @ 863e313`
+`tools/code_execution_tool.py:253-273 @ 863e313`
 ```python
-for k, v in source_env.items():
-    if is_passthrough(k):
-        resolved = resolve_passthrough_value(k, v)
-        if resolved is not None:
-            scrubbed[k] = resolved
-        continue
-    if any(s in k.upper() for s in _SECRET_SUBSTRINGS):
-        continue
-    if any(k.startswith(p) for p in _SAFE_ENV_PREFIXES):
-        scrubbed[k] = v
-        continue
-    if k in _HERMES_CHILD_ALLOWED:
-        scrubbed[k] = v
-        continue
-    if is_windows and k.upper() in _WINDOWS_ESSENTIAL_ENV_VARS:
-        scrubbed[k] = v
-        continue
-    if k.startswith("HERMES_"):
-        _dropped_hermes.append(k)
+    for k, v in source_env.items():
+        if is_passthrough(k):
+            resolved = resolve_passthrough_value(k, v)
+            if resolved is not None:
+                scrubbed[k] = resolved
+            continue
+        if any(s in k.upper() for s in _SECRET_SUBSTRINGS):
+            continue
+        if any(k.startswith(p) for p in _SAFE_ENV_PREFIXES):
+            scrubbed[k] = v
+            continue
+        if k in _HERMES_CHILD_ALLOWED:
+            scrubbed[k] = v
+            continue
+        if is_windows and k.upper() in _WINDOWS_ESSENTIAL_ENV_VARS:
+            scrubbed[k] = v
+            continue
+        if k.startswith("HERMES_"):
+...
+            _dropped_hermes.append(k)
 ```
 
 规则栈:① passthrough(技能/config 显式声明,A4 解析);② **secret 子串黑名单先行**(`_SECRET_SUBSTRINGS`,`:152-162`:`KEY/TOKEN/SECRET/PASSWORD/PASSWD/AUTH/DSN/WEBHOOK/CREDS/BEARER/APIKEY`——注释特意说明 `PASS` 故意不加,因误伤 `BYPASS_CACHE/COMPASS_DIR`);③ 安全前缀白名单(`_SAFE_ENV_PREFIXES`,`:149-151`:`PATH/HOME/USER/LANG/LC_/TERM/TMPDIR/...`);④ 运营性 `HERMES_*` 精确名单(`_HERMES_CHILD_ALLOWED`,`:168-174`:仅 `HERMES_HOME/PROFILE/CONFIG/ENV/DELEGATED_CHILD_CONTEXT`);⑤ Windows 必需 OS 变量精确名单(`:182-205`,没它连 `socket.socket()` 都会 WinError 10106)。
@@ -177,13 +178,15 @@ for k, v in source_env.items():
 
 **delegate 上下文桥接(易漏点)**:delegate_task 子进程用 ContextVar 标记,而 execute_code 跨进程边界会丢,所以洗净后再补一层——若当前是委派子上下文,`scrub_kanban_env` 剥掉 Kanban 变量,防止 passthrough 反向给委派子进程重新授予看板变更能力:
 
-`code_execution_tool.py:289-298 @ 863e313`
+`tools/code_execution_tool.py:290-299 @ 863e313`
 ```python
-from agent.delegation_context import (
-    is_delegated_child_process_context, scrub_kanban_env,
-)
-if is_delegated_child_process_context():
-    scrubbed = scrub_kanban_env(scrubbed)
+        from agent.delegation_context import (
+            is_delegated_child_process_context,
+            scrub_kanban_env,
+        )
+...
+        if is_delegated_child_process_context():
+            scrubbed = scrub_kanban_env(scrubbed)
 ```
 
 **设计理由(issue 号)**:`#27303` 明确移除了原来宽泛的 `HERMES_` 前缀放行,因为它会泄漏 `HERMES_BASE_URL/HERMES_KANBAN_DB/HERMES_*_WEBHOOK` 等含非 secret 子串的配置(`:144-148`)。被丢弃的 `HERMES_*` 变量会 `logger.debug` 一次,指向 env_passthrough 逃生口(`:274-282`)。
@@ -264,29 +267,31 @@ if _MULTIPLEX_ACTIVE:
 
 第一层——**整脚本一次性审批**(跨进程前的门):`execute_code` 在派生子进程前先 `check_execute_code_guard`,因为脚本里的 `subprocess/os.system/ctypes` 根本不过 `terminal()`/`DANGEROUS_PATTERNS`:
 
-`code_execution_tool.py:1307-1312 @ 863e313`
+`tools/code_execution_tool.py:1307-1312 @ 863e313`
 ```python
-from tools.approval import check_execute_code_guard
-_guard = check_execute_code_guard(
-    code, env_type,
-    has_host_access=_docker_has_host_access(_env_config),
-)
-if not _guard.get("approved", False):
-    return json.dumps({... "error": _guard.get("message") ...})
+    from tools.approval import check_execute_code_guard
+    _guard = check_execute_code_guard(
+        code, env_type,
+        has_host_access=_docker_has_host_access(_env_config),
+    )
+    if not _guard.get("approved", False):
+        return json.dumps({
 ```
 
 守卫策略(`tools/approval.py:4229-4298`):隔离后端(vercel_sandbox / 无 host 绑定的容器)跳过;`--yolo`/`approvals.mode=off` 跳过;**cron 无人在场默认 deny**(`:4273-4290`);只有网关/ask 上下文拿整脚本一次性审批;纯本地非交互非网关会话返回 approved(文档化的局限,`:4240-4246`)。smart 模式把整脚本喂给 aux LLM 评估(`:4315-4344`)。
 
 第二层——**审批/sudo 回调注入 RPC 线程**:RPC 线程用 `propagate_context_to_thread` 包装,把父线程的 ContextVar + 审批/sudo 回调搬进 worker 线程:
 
-`code_execution_tool.py:1421-1428 @ 863e313`
+`tools/code_execution_tool.py:1421-1428 @ 863e313`
 ```python
-rpc_thread = threading.Thread(
-    target=propagate_context_to_thread(_rpc_server_loop),
-    args=(server_sock, task_id, tool_call_log,
-          tool_call_counter, max_tool_calls, sandbox_tools, stop_event, rpc_token,),
-    daemon=True,
-)
+        rpc_thread = threading.Thread(
+            target=propagate_context_to_thread(_rpc_server_loop),
+            args=(
+                server_sock, task_id, tool_call_log,
+                tool_call_counter, max_tool_calls, sandbox_tools, stop_event, rpc_token,
+            ),
+            daemon=True,
+        )
 ```
 
 `propagate_context_to_thread`(`tools/thread_context.py:64-120`)`copy_context()` 捕获父线程回调,worker 里 `set_approval/set_sudo` 装上、`finally` 里清空;**fail-closed**:回调装载失败就留 `None`,而 `prompt_dangerous_approval` 在无回调时**拒绝**危险命令(`:72-76`)。远端文件 RPC 的 `_rpc_poll_loop` 同样这样包(`:1145-1146`,注释 `#33057`)。
@@ -307,7 +312,7 @@ rpc_thread = threading.Thread(
 
 **机制**:`generate_hermes_tools_module`(`:431-463`)把 `SANDBOX_ALLOWED_TOOLS & enabled_tools` 的交集逐个渲染成 stub:每个工具一段 `def name(sig): doc; return _call(name, args_expr)`,模板表在 `_TOOL_STUBS`(`:330-373`)。传输不同拼不同 header(`_UDS_TRANSPORT_HEADER` / `_FILE_TRANSPORT_HEADER`),两者都内嵌 `_COMMON_HELPERS`(`json_parse/shell_quote/retry`,`:468-504`)。
 
-`code_execution_tool.py:451-456 @ 863e313`
+`tools/code_execution_tool.py:451-456 @ 863e313`
 ```python
 stub_functions.append(
     f"def {func_name}({sig}):\n"
@@ -318,17 +323,18 @@ stub_functions.append(
 
 UDS 版 `_call`(`:545-570`)每次一整个 send+recv 用 `_call_lock` 串行化(RPC 服务端单连接、无 request-id,并发会串响应,`:513-517`);读到 `\n` 结尾即一帧。文件版 `_call`(`:588-636`)`_seq_lock` 保护自增序号(`_seq += 1` 非原子),写 `.tmp`+rename,自适应轮询等 `res_` 文件。stub 里发送的请求带 token:
 
-`code_execution_tool.py:547-551 @ 863e313`
+`tools/code_execution_tool.py:547-551 @ 863e313`
 ```python
-request = json.dumps({
-    "tool": tool_name, "args": args,
-    "token": os.environ.get("HERMES_RPC_TOKEN", ""),
-}) + "\\n"
+    request = json.dumps({
+        "tool": tool_name,
+        "args": args,
+        "token": os.environ.get("HERMES_RPC_TOKEN", ""),
+    }) + "\\n"
 ```
 
 服务端派发前还剥掉危险 terminal 参数(短命脚本不该用后台/pty):
 
-`code_execution_tool.py:646, 736-738 @ 863e313`
+`tools/code_execution_tool.py:646, 736-738 @ 863e313`
 ```python
 _TERMINAL_BLOCKED_PARAMS = {"background", "pty", "notify_on_complete", "watch_patterns"}
 ...
@@ -353,7 +359,7 @@ if tool_name == "terminal" and isinstance(tool_args, dict):
 
 **机制**:父进程用后台读线程排空子进程 stdout,**head+tail 策略**(前 40% + 后 60%,`:1515-1516`),stderr 只留 head(错误早出),避免管道死锁(`:1511-1580`)。组装时给出显式截断元数据(`stdout_truncated/bytes_omitted/...`),因为纯文本截断标记可能被下游再截(`_assemble_stdout_result`,`:80-119`)。然后:
 
-`code_execution_tool.py:1638-1650 @ 863e313`
+`tools/code_execution_tool.py:1638-1650 @ 863e313`
 ```python
 from tools.ansi_strip import strip_ansi
 stdout_text = strip_ansi(stdout_text)
@@ -404,26 +410,32 @@ Hermes 作为 MCP **客户端**连接外部 server(stdio 子进程 / HTTP)。外
 
 **机制**:命名规范 `mcp__<server>__<tool>`,双下划线分隔:
 
-`mcp_tool.py:5519-5526 @ 863e313`
+`tools/mcp_tool.py:5519-5526 @ 863e313`
 ```python
 def mcp_prefixed_tool_name(server_name: str, tool_name: str) -> str:
+...
     safe_server = sanitize_mcp_name_component(server_name)
     safe_tool = sanitize_mcp_name_component(tool_name)
     return f"{MCP_TOOL_NAME_PREFIX}{safe_server}{_MCP_NAME_DELIM}{safe_tool}"
 ```
 `sanitize_mcp_name_component`(`:5497-5505`)把 `[^A-Za-z0-9_]` 全换 `_`(有损),所以 `read-file` 与 `read_file` 会撞。`_register_server_tools`(`:5810`)先把所有候选(原始工具 + 生成的 resource/prompt 工具)算归一化名,**同名不同来源 → 全部跳过**,不选任意 handler:
 
-`mcp_tool.py:5925-5943 @ 863e313`
+`tools/mcp_tool.py:5925-5943 @ 863e313`
 ```python
-ambiguous_names = {
-    registry_name: sorted(origins)
-    for registry_name, origins in origins_by_name.items()
-    if len(origins) > 1
-}
-for registry_name, origins in sorted(ambiguous_names.items()):
-    logger.error(
-        "MCP server '%s': name normalization collision for '%s' from %s; "
-        "skipping every colliding entry instead of choosing an arbitrary handler", ...)
+    ambiguous_names = {
+        registry_name: sorted(origins)
+        for registry_name, origins in origins_by_name.items()
+        if len(origins) > 1
+    }
+    for registry_name, origins in sorted(ambiguous_names.items()):
+        logger.error(
+            "MCP server '%s': name normalization collision for '%s' from %s; "
+            "skipping every colliding entry instead of choosing an arbitrary "
+            "handler",
+            name,
+            registry_name,
+            ", ".join(origins),
+        )
 ```
 
 跨 server / 撞内建的处理(`:5945-5965`):若归一化名已被别的 `mcp-` toolset 拥有 → 跳过保留原主;若撞内建工具 → 跳过保留内建。且注册是并行的,预检只是 advisory,`registry.register()` 之后再查一次 `get_toolset_for_tool` 作为**原子归属门**(`:5977-5987`)。
@@ -442,15 +454,16 @@ for registry_name, origins in sorted(ambiguous_names.items()):
 
 **机制**:`_scan_mcp_description`(`:573-591`)对每条描述跑 10 条正则(`_MCP_INJECTION_PATTERNS`,`:549-570`):ignore previous instructions / you are now a / your new task is / `system:` / `<system>` 角色标签 / do not tell / `curl|wget https?://` / base64 decode / `exec(|eval(` / `import subprocess`。命中 **WARNING 级日志,不阻断**:
 
-`mcp_tool.py:584-591 @ 863e313`
+`tools/mcp_tool.py:584-591 @ 863e313`
 ```python
-if findings:
-    logger.warning(
-        "MCP server '%s' tool '%s': suspicious description content — %s. "
-        "Description: %.200s",
-        server_name, tool_name, "; ".join(findings), description,
-    )
-return findings
+    if findings:
+        logger.warning(
+            "MCP server '%s' tool '%s': suspicious description content — %s. "
+            "Description: %.200s",
+            server_name, tool_name, "; ".join(findings),
+            description,
+        )
+    return findings
 ```
 
 在 `_register_server_tools` 注册每个工具前调用(`:5866`);懒注册路径(B6)也调(`:6085`,注释"the cache file is user-writable JSON, so run the same injection scan")。
@@ -469,19 +482,23 @@ return findings
 
 **机制**:`_run_stdio`(`:2377`)在 spawn 前、且在 watchdog 包裹前,查 OSV 恶意软件库(仅 `MAL-*` 通告,忽略普通 CVE):
 
-`mcp_tool.py:2406-2422 @ 863e313`
+`tools/mcp_tool.py:2406-2422 @ 863e313`
 ```python
-from tools.osv_check import check_package_for_malware
-try:
-    malware_error = await asyncio.wait_for(
-        asyncio.to_thread(check_package_for_malware, command, args),
-        timeout=_OSV_MALWARE_CHECK_TIMEOUT_S,   # 12.0s
-    )
-except asyncio.TimeoutError:
-    logger.warning("... OSV malware preflight timed out ... proceeding without the check.")
-    malware_error = None
-if malware_error:
-    raise ValueError(f"MCP server '{self.name}': {malware_error}")
+        from tools.osv_check import check_package_for_malware
+        try:
+            malware_error = await asyncio.wait_for(
+                asyncio.to_thread(check_package_for_malware, command, args),
+                timeout=_OSV_MALWARE_CHECK_TIMEOUT_S,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "MCP server '%s': OSV malware preflight timed out after %.0fs "
+                "(network slow/unreachable) — proceeding without the check.",
+                self.name, _OSV_MALWARE_CHECK_TIMEOUT_S,
+            )
+            malware_error = None
+        if malware_error:
+            raise ValueError(
 ```
 
 `check_package_for_malware`(`tools/osv_check.py:66-111`)从 `command` 推生态(`npx→npm`,`uvx/pipx→PyPI`,其它跳过)、从 args 解析包名版本、查 `https://api.osv.dev/v1/query`,命中 `MAL-*` 返回 `BLOCKED: ...`。**fail-open**:网络错/超时/解析失败一律放行(`:93-97`)。结果缓存 1h(clean 和 blocked 都缓存,失败不缓存)——因为重连/recycle 会对同包反复预检,`#75485` 记录过 16h 内 779K 次 DNS 查询(`osv_check.py:29-37`)。
@@ -500,16 +517,21 @@ if malware_error:
 
 **机制**:`_filter_suspicious_mcp_servers`(`mcp_tool.py:4613-4637`)在**任何 stdio spawn 前**丢掉 exfil 形状的 config,委托 `hermes_cli/mcp_security.py:validate_mcp_server_entry`(`:121-177`)。它只拦三种窄形状:
 
-`hermes_cli/mcp_security.py:159-175 @ 863e313`
+`hermes_cli/mcp_security.py:158-174 @ 863e313`
 ```python
-# 2. Network exfiltration shape.
-if _EGRESS_PATTERN.search(script):
-    issue = (f"MCP server '{name}' uses shell interpreter '{command}' with network egress in args")
-    if _EXFIL_HINT_PATTERN.search(script): issue += " and exfiltration-shaped arguments"
-    issues.append(issue)
-# 3. OS persistence shape (SSH key / PAM / sudoers / cron / rc files).
-if _PERSISTENCE_PATTERN.search(script):
-    issues.append(f"... write to an OS persistence surface ... this is the hermes-0day backdoor shape ...")
+    # 2. Network exfiltration shape.
+    if _EGRESS_PATTERN.search(script):
+        issue = (
+            f"MCP server '{name}' uses shell interpreter '{command}' with "
+            f"network egress in args"
+        )
+        if _EXFIL_HINT_PATTERN.search(script):
+            issue += " and exfiltration-shaped arguments"
+        issues.append(issue)
+...
+    # 3. OS persistence shape (SSH key / PAM / sudoers / cron / rc files).
+    if _PERSISTENCE_PATTERN.search(script):
+        issues.append(
 ```
 
 前置还有硬编码 IOC 黑名单(攻击者 SSH 公钥、`hermes-0day` 字样、China Telecom 源 IP),命中即拒(`:138-147`)。触发条件:`command` basename 属 shell 解释器(`bash/sh/zsh/.../powershell`,`:33-45`)且 inline script 命中 egress(`curl|wget|nc|/dev/tcp/|Invoke-WebRequest`,`:47-54`)或 persistence(`authorized_keys|.ssh/|/etc/ssh|/etc/pam.d|/etc/sudoers|crontab|.bashrc...`,`:64-74`)。模块注释明确**save 时(dashboard/CLg)和 spawn 时(discovery/cron/startup)双查**,所以手改或预植的条目也在执行前被拦(`:21-24`)。
@@ -532,13 +554,16 @@ if _PERSISTENCE_PATTERN.search(script):
 
 (1) **父死 watchdog 包裹**:不直接 spawn MCP 命令,而是 spawn `mcp_stdio_watchdog.py --ppid <pid> -- <real cmd>`:
 
-`mcp_tool.py:720-727 @ 863e313`
+`tools/mcp_tool.py:720-727 @ 863e313`
 ```python
-watchdog_args = [
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "mcp_stdio_watchdog.py"),
-    "--ppid", str(my_pid), "--", command, *args,
-]
-return sys.executable, watchdog_args
+    watchdog_args = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "mcp_stdio_watchdog.py"),
+        "--ppid", str(my_pid),
+        "--",
+        command,
+        *args,
+    ]
+    return sys.executable, watchdog_args
 ```
 watchdog(`mcp_stdio_watchdog.py`)`start_new_session=True` 起真命令(自成进程组),透明转发 stdin/stdout/stderr(MCP stdio 协议直接走这些管道,必须是 no-op relay,`:121-127`),后台线程每 2s 比 `getppid()` 是否变(`_is_orphaned`,`:57-59`),父一没就 SIGTERM→宽限→SIGKILL 整个进程组并退出(`_terminate_process_group`,`:62-92`)。POSIX-only(`:709-714`)。且转发 SIGTERM/SIGINT 给子组,否则优雅关闭反而杀不到独立进程组的子进程(`:135-140`)。
 
@@ -604,8 +629,7 @@ watchdog(`mcp_stdio_watchdog.py`)`start_new_session=True` 起真命令(自成进
 **文档说了什么**:README 第 28 行(`Delegates and parallelizes` 行)逐字:
 `README.md:28 @ 863e313`
 ```
-Spawn isolated subagents for parallel workstreams. Write Python scripts that
-call tools via RPC, collapsing multi-step pipelines into zero-context-cost turns.
+<tr><td><b>Delegates and parallelizes</b></td><td>Spawn isolated subagents for parallel workstreams. Write Python scripts that call tools via RPC, collapsing multi-step pipelines into zero-context-cost turns.</td></tr>
 ```
 `website/docs/user-guide/security.md:507` 补一句:"Both `execute_code` and `terminal` strip sensitive environment variables from child processes to prevent credential exfiltration by LLM-generated code."
 

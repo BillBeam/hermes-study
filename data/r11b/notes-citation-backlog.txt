@@ -1,0 +1,314 @@
+[MISMATCH] r2-20-adapters.md:122  hermes_cli/providers.py:671 -> not found within +/-40
+[MISSING-FILE] r2-22-credential-pool.md:33  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:45  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:64  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:74  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:83  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:95  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:107  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:118  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:140  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:149  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:175  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:186  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:198  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:226  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:237  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:261  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:325  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:336  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:363  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:374  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:387  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:417  credential_pool.py
+[MISSING-FILE] r2-22-credential-pool.md:447  credential_pool.py
+[MISMATCH] r2-22-credential-pool.md:497  agent/nous_rate_guard.py:203 -> actually at [202] [fixable: agent/nous_rate_guard.py:203-213 -> agent/nous_rate_guard.py:202-212]
+[MISMATCH] r2-22-credential-pool.md:570  agent/backend_identity.py:47 -> actually at [48] [fixable: agent/backend_identity.py:47-50 -> agent/backend_identity.py:48-51]
+[MISMATCH] r2-22-credential-pool.md:599  hermes_cli/runtime_provider.py:1867 -> actually at [1866, 1893]
+[MISSING-FILE] r2-22-credential-pool.md:665  credential-pools.md
+[MISSING-FILE] r2-22-credential-pool.md:673  credential-pools.md
+[MISMATCH] r2-23-classify-retry-fallback-cache.md:250  agent/prompt_caching.py:77 -> actually at [75] [fixable: agent/prompt_caching.py:77-81 -> agent/prompt_caching.py:75-79]
+[MISSING-FILE] r3-10-approval-security.md:50  approval.py
+[MISSING-FILE] r3-10-approval-security.md:89  approval.py
+[MISSING-FILE] r3-10-approval-security.md:99  approval.py
+[MISSING-FILE] r3-10-approval-security.md:120  approval.py
+[MISSING-FILE] r3-10-approval-security.md:170  approval.py
+[MISSING-FILE] r3-10-approval-security.md:186  approval.py
+[MISSING-FILE] r3-10-approval-security.md:204  approval.py
+[MISSING-FILE] r3-10-approval-security.md:232  url_safety.py
+[MISSING-FILE] r3-10-approval-security.md:253  url_safety.py
+[MISSING-FILE] r3-10-approval-security.md:296  threat_patterns.py
+[MISSING-FILE] r3-10-approval-security.md:318  skills_guard.py
+[MISSING-FILE] r3-10-approval-security.md:358  tirith_security.py
+[MISSING-FILE] r3-10-approval-security.md:378  tirith_security.py
+[MISSING-FILE] r3-10-approval-security.md:417  tool_guardrails.py
+[MISSING-FILE] r3-10-approval-security.md:455  write_approval.py
+[MISMATCH] r3-20-schema-output-toolsearch.md:20  model_tools.py:570 -> actually at [571] [fixable: model_tools.py:570-572 -> model_tools.py:571-573]
+[MISMATCH] r3-20-schema-output-toolsearch.md:43  model_tools.py:763 -> actually at [764] [fixable: model_tools.py:763-767 -> model_tools.py:764-768]
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:89  schema_sanitizer.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:95  schema_sanitizer.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:106  schema_sanitizer.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:121  schema_sanitizer.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:134  schema_sanitizer.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:156  schema_sanitizer.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:173  schema_sanitizer.py
+[MISMATCH] r3-20-schema-output-toolsearch.md:222  tools/tool_result_storage.py:1 -> actually at [5] [fixable: tools/tool_result_storage.py:1-23 -> tools/tool_result_storage.py:5-27]
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:236  tool_output_limits.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:244  budget_config.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:250  tool_result_storage.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:259  tool_result_storage.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:311  tool_search.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:320  tool_search.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:340  tool_search.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:357  tool_search.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:430  lazy_deps.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:439  lazy_deps.py
+[MISSING-FILE] r3-20-schema-output-toolsearch.md:472  fuzzy_match.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:86  code_execution_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:96  code_execution_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:122  code_execution_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:151  code_execution_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:180  code_execution_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:267  code_execution_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:282  code_execution_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:310  code_execution_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:321  code_execution_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:331  code_execution_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:356  code_execution_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:407  mcp_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:416  mcp_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:445  mcp_tool.py
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:472  mcp_tool.py
+[MISMATCH] r3-30-execute-code-mcp-client.md:503  hermes_cli/mcp_security.py:159 -> actually at [158] [fixable: hermes_cli/mcp_security.py:159-175 -> hermes_cli/mcp_security.py:158-174]
+[MISSING-FILE] r3-30-execute-code-mcp-client.md:535  mcp_tool.py
+[MISMATCH] r3-30-execute-code-mcp-client.md:605  README.md:28 -> not found within +/-40
+[MISSING-FILE] r4-01-environment-abstraction.md:8  base.py
+[MISSING-FILE] r4-01-environment-abstraction.md:38  base.py
+[MISSING-FILE] r4-01-environment-abstraction.md:59  base.py
+[MISSING-FILE] r4-01-environment-abstraction.md:85  base.py
+[MISSING-FILE] r4-02-docker-local-terminal-process.md:18  docker.py
+[MISSING-FILE] r4-02-docker-local-terminal-process.md:80  process_registry.py
+[MISSING-FILE] r4-20-remote-backends-serverless.md:63  base.py
+[MISSING-FILE] r4-20-remote-backends-serverless.md:108  modal.py
+[MISSING-FILE] r4-20-remote-backends-serverless.md:127  daytona.py
+[MISSING-FILE] r4-20-remote-backends-serverless.md:147  vercel_sandbox.py
+[MISSING-FILE] r4-20-remote-backends-serverless.md:205  modal.py
+[MISSING-FILE] r4-20-remote-backends-serverless.md:233  managed_modal.py
+[MISSING-FILE] r4-20-remote-backends-serverless.md:250  daytona.py
+[MISSING-FILE] r4-20-remote-backends-serverless.md:267  vercel_sandbox.py
+[MISSING-FILE] r4-20-remote-backends-serverless.md:293  singularity.py
+[MISSING-FILE] r4-20-remote-backends-serverless.md:332  file_sync.py
+[MISMATCH] r4-30-browser-automation.md:155  tools/browser_tool.py:1984 -> not found within +/-40
+[MISMATCH] r4-30-browser-automation.md:228  tools/browser_supervisor.py:11 -> not found within +/-40
+[MISMATCH] r4-30-browser-automation.md:250  tools/browser_supervisor.py:646 -> actually at [647] [fixable: tools/browser_supervisor.py:646 -> tools/browser_supervisor.py:647]
+[MISMATCH] r4-30-browser-automation.md:257  tools/browser_supervisor.py:734 -> actually at [738] [fixable: tools/browser_supervisor.py:734 -> tools/browser_supervisor.py:738]
+[MISMATCH] r4-30-browser-automation.md:480  agent/browser_provider.py:58 -> actually at [57] [fixable: agent/browser_provider.py:58 -> agent/browser_provider.py:57]
+[MISMATCH] r4-30-browser-automation.md:487  agent/browser_provider.py:82 -> actually at [81] [fixable: agent/browser_provider.py:82 -> agent/browser_provider.py:81]
+[MISMATCH] r4-30-browser-automation.md:509  agent/browser_registry.py:19 -> not found within +/-40
+[MISMATCH] r4-30-browser-automation.md:520  tools/browser_tool.py:659 -> not found within +/-40
+[MISMATCH] r4-30-browser-automation.md:570  tools/browser_cdp_tool.py:414 -> actually at [413] [fixable: tools/browser_cdp_tool.py:414 -> tools/browser_cdp_tool.py:413]
+[MISMATCH] r4-30-browser-automation.md:589  tools/browser_cdp_tool.py:137 -> actually at [135] [fixable: tools/browser_cdp_tool.py:137 -> tools/browser_cdp_tool.py:135]
+[MISMATCH] r4-30-browser-automation.md:667  tools/browser_supervisor.py:282 -> actually at [281] [fixable: tools/browser_supervisor.py:282 -> tools/browser_supervisor.py:281]
+[MISSING-FILE] r4-40-computer-use.md:95  schema.py
+[MISSING-FILE] r4-40-computer-use.md:115  browser_route.py
+[MISSING-FILE] r4-40-computer-use.md:139  backend.py
+[MISSING-FILE] r4-40-computer-use.md:155  backend.py
+[MISSING-FILE] r4-40-computer-use.md:178  cua_backend.py
+[MISSING-FILE] r4-40-computer-use.md:200  cua_backend.py
+[MISSING-FILE] r4-40-computer-use.md:210  cua_backend.py
+[MISSING-FILE] r4-40-computer-use.md:232  cua_backend.py
+[MISSING-FILE] r4-40-computer-use.md:270  vision_routing.py
+[MISSING-FILE] r4-40-computer-use.md:286  vision_routing.py
+[MISSING-FILE] r4-40-computer-use.md:314  vision_routing.py
+[MISSING-FILE] r4-40-computer-use.md:353  permissions.py
+[MISSING-FILE] r4-40-computer-use.md:382  tool.py
+[MISSING-FILE] r4-40-computer-use.md:405  cua_backend.py
+[MISSING-FILE] r4-40-computer-use.md:415  cua_backend.py
+[MISSING-FILE] r4-40-computer-use.md:452  browser_route.py
+[MISSING-FILE] r4-40-computer-use.md:477  browser_route.py
+[MISSING-FILE] r4-40-computer-use.md:509  doctor.py
+[MISSING-FILE] r4-40-computer-use.md:528  doctor.py
+[MISSING-FILE] r4-40-computer-use.md:556  computer_use_tool.py
+[MISSING-FILE] r4-50-patch-parser-file-state.md:12  patch_parser.py
+[MISSING-FILE] r4-50-patch-parser-file-state.md:59  file_state.py
+[MISMATCH] r5-01-state-schema-portability.md:59  hermes_state_schema.py:496 -> not found within +/-40
+[MISMATCH] r5-01-state-schema-portability.md:96  hermes_state_schema.py:854 -> actually at [863] [fixable: hermes_state_schema.py:854-884 -> hermes_state_schema.py:863-893]
+[MISSING-FILE] r5-01-state-schema-portability.md:171  session_activity.py
+[MISMATCH] r5-02-hermes-state-sessiondb.md:126  hermes_state.py:286 -> actually at [289] [fixable: hermes_state.py:286-314 -> hermes_state.py:289-317]
+[MISMATCH] r5-02-hermes-state-sessiondb.md:195  hermes_state.py:743 -> not found within +/-40
+[MISMATCH] r5-02-hermes-state-sessiondb.md:243  hermes_state.py:2785 -> not found within +/-40
+[MISMATCH] r5-02-hermes-state-sessiondb.md:360  hermes_state.py:2142 -> actually at [2143] [fixable: hermes_state.py:2142-2154 -> hermes_state.py:2143-2155]
+[MISMATCH] r5-02-hermes-state-sessiondb.md:398  hermes_state.py:2562 -> not found within +/-40
+[MISMATCH] r5-02-hermes-state-sessiondb.md:457  hermes_state.py:94 -> not found within +/-40
+[MISMATCH] r5-02-hermes-state-sessiondb.md:487  hermes_state.py:2948 -> not found within +/-40
+[MISMATCH] r5-02-hermes-state-sessiondb.md:522  cli.py:8138 -> actually at [8151] [fixable: cli.py:8138-8156 -> cli.py:8151-8169]
+[MISMATCH] r5-02-hermes-state-sessiondb.md:528  gateway/session.py:2929 -> actually at [2931] [fixable: gateway/session.py:2929-2940 -> gateway/session.py:2931-2942]
+[MISMATCH] r5-02-hermes-state-sessiondb.md:540  hermes_state.py:3591 -> not found within +/-40
+[MISMATCH] r5-02-hermes-state-sessiondb.md:567  hermes_state.py:3488 -> actually at [3503] [fixable: hermes_state.py:3488-3589 -> hermes_state.py:3503-3604]
+[MISMATCH] r5-02-hermes-state-sessiondb.md:582  hermes_state.py:6938 -> actually at [6906, 6910, 6917]
+[MISMATCH] r5-10-fts5-session-search.md:304  hermes_state.py:2860 -> actually at [2862] [fixable: hermes_state.py:2860-2892 -> hermes_state.py:2862-2894]
+[MISMATCH] r5-10-fts5-session-search.md:440  hermes_state_search.py:1819 -> actually at [1822] [fixable: hermes_state_search.py:1819-1872 -> hermes_state_search.py:1822-1875]
+[MISMATCH] r5-10-fts5-session-search.md:578  native/fts5_cjk/fts5_cjk.c:1 -> actually at [4] [fixable: native/fts5_cjk/fts5_cjk.c:1-18 -> native/fts5_cjk/fts5_cjk.c:4-21]
+[MISMATCH] r5-20-context-compression.md:103  agent/context_compressor.py:2559 -> not found within +/-40
+[MISMATCH] r5-20-context-compression.md:334  agent/context_compressor.py:679 -> actually at [693] [fixable: agent/context_compressor.py:679-697 -> agent/context_compressor.py:693-711]
+[MISMATCH] r5-20-context-compression.md:439  agent/conversation_compression.py:2325 -> actually at [2324] [fixable: agent/conversation_compression.py:2325-2334 -> agent/conversation_compression.py:2324-2333]
+[MISMATCH] r5-20-context-compression.md:480  agent/conversation_compression.py:3178 -> actually at [3177] [fixable: agent/conversation_compression.py:3178-3207 -> agent/conversation_compression.py:3177-3206]
+[MISMATCH] r5-30-prompt-context-engineering.md:57  agent/system_prompt.py:571 -> actually at [569] [fixable: agent/system_prompt.py:571-577 -> agent/system_prompt.py:569-575]
+[MISMATCH] r5-30-prompt-context-engineering.md:110  agent/system_prompt.py:281 -> actually at [280] [fixable: agent/system_prompt.py:281-297 -> agent/system_prompt.py:280-296]
+[MISMATCH] r5-30-prompt-context-engineering.md:140  agent/system_prompt.py:503 -> actually at [500] [fixable: agent/system_prompt.py:503-513 -> agent/system_prompt.py:500-510]
+[MISMATCH] r5-30-prompt-context-engineering.md:186  agent/prompt_builder.py:2188 -> actually at [2159, 2187]
+[MISMATCH] r5-30-prompt-context-engineering.md:339  agent/context_engine.py:229 -> actually at [232] [fixable: agent/context_engine.py:229-235 -> agent/context_engine.py:232-238]
+[MISSING-FILE] r5-30-prompt-context-engineering.md:405  tool_executor.py
+[MISSING-FILE] r5-30-prompt-context-engineering.md:475  prompt-assembly.md
+[MISSING-FILE] r5-30-prompt-context-engineering.md:481  prompt-assembly.md
+[MISMATCH] r5-40-checkpoint-memory.md:74  tools/checkpoint_manager.py:239 -> actually at [265] [fixable: tools/checkpoint_manager.py:239-276 -> tools/checkpoint_manager.py:265-302]
+[MISMATCH] r5-40-checkpoint-memory.md:282  tools/memory_tool.py:74 -> actually at [76] [fixable: tools/memory_tool.py:74-81 -> tools/memory_tool.py:76-83]
+[MISMATCH] r5-40-checkpoint-memory.md:324  tools/memory_tool.py:100 -> actually at [102, 137]
+[MISMATCH] r5-40-checkpoint-memory.md:398  agent/memory_provider.py:15 -> actually at [16] [fixable: agent/memory_provider.py:15-22 -> agent/memory_provider.py:16-23]
+[MISMATCH] r5-40-checkpoint-memory.md:416  agent/memory_manager.py:404 -> actually at [411] [fixable: agent/memory_manager.py:404-427 -> agent/memory_manager.py:411-434]
+[MISMATCH] r5-40-checkpoint-memory.md:438  agent/memory_manager.py:547 -> actually at [562] [fixable: agent/memory_manager.py:547-595 -> agent/memory_manager.py:562-610]
+[MISMATCH] r5-40-checkpoint-memory.md:465  agent/memory_manager.py:652 -> actually at [648] [fixable: agent/memory_manager.py:652-661 -> agent/memory_manager.py:648-657]
+[MISSING-FILE] r6-01-loader-query-rewrite-optimize.md:59  query_rewrite.py
+[MISSING-FILE] r6-10-honcho.md:55  session.py
+[MISSING-FILE] r6-10-honcho.md:133  session.py
+[MISSING-FILE] r6-10-honcho.md:183  client.py
+[MISSING-FILE] r6-10-honcho.md:201  session.py
+[MISSING-FILE] r6-10-honcho.md:215  session.py
+[MISMATCH] r6-10-honcho.md:257  agent/memory_manager.py:355 -> actually at [354] [fixable: agent/memory_manager.py:355-361 -> agent/memory_manager.py:354-360]
+[MISSING-FILE] r6-10-honcho.md:271  __init__.py
+[MISSING-FILE] r6-10-honcho.md:302  __init__.py
+[MISSING-FILE] r6-10-honcho.md:330  __init__.py
+[MISSING-FILE] r6-10-honcho.md:412  session.py
+[MISSING-FILE] r6-10-honcho.md:438  session.py
+[MISSING-FILE] r6-10-honcho.md:449  __init__.py
+[MISSING-FILE] r6-10-honcho.md:527  oauth_flow.py
+[MISSING-FILE] r6-10-honcho.md:535  oauth_flow.py
+[MISSING-FILE] r6-10-honcho.md:572  oauth.py
+[MISSING-FILE] r6-10-honcho.md:593  oauth.py
+[MISMATCH] r6-10-honcho.md:671  cli.py:1113 -> not found within +/-40
+[MISMATCH] r6-10-honcho.md:695  README.md:26 -> not found within +/-40
+[MISMATCH] r6-10-honcho.md:737  tests/test_honcho_startup_fail_open.py:50 -> actually at [70] [fixable: tests/test_honcho_startup_fail_open.py:50-84 -> tests/test_honcho_startup_fail_open.py:70-104]
+[MISMATCH] r6-10-honcho.md:752  tests/honcho_plugin/test_session.py:236 -> actually at [266] [fixable: tests/honcho_plugin/test_session.py:236-267 -> tests/honcho_plugin/test_session.py:266-297]
+[MISSING-FILE] r6-20-openviking-byterover.md:40  __init__.py
+[MISSING-FILE] r6-20-openviking-byterover.md:81  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:68  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:81  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:91  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:125  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:138  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:161  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:173  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:181  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:197  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:203  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:230  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:242  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:259  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:273  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:333  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:366  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:380  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:396  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:458  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:494  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:509  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:522  __init__.py
+[MISSING-FILE] r6-30-hindsight-supermemory-retaindb.md:541  __init__.py
+[MISSING-FILE] r6-40-mem0-holographic.md:70  __init__.py
+[MISSING-FILE] r6-40-mem0-holographic.md:86  __init__.py
+[MISSING-FILE] r6-40-mem0-holographic.md:99  _setup.py
+[MISSING-FILE] r6-40-mem0-holographic.md:113  __init__.py
+[MISSING-FILE] r6-40-mem0-holographic.md:134  __init__.py
+[MISSING-FILE] r6-40-mem0-holographic.md:150  __init__.py
+[MISSING-FILE] r6-40-mem0-holographic.md:164  __init__.py
+[MISSING-FILE] r6-40-mem0-holographic.md:171  __init__.py
+[MISSING-FILE] r6-40-mem0-holographic.md:184  __init__.py
+[MISSING-FILE] r6-40-mem0-holographic.md:205  __init__.py
+[MISSING-FILE] r6-40-mem0-holographic.md:216  __init__.py
+[MISSING-FILE] r6-40-mem0-holographic.md:227  __init__.py
+[MISSING-FILE] r6-40-mem0-holographic.md:252  _backend.py
+[MISSING-FILE] r6-40-mem0-holographic.md:283  _oss_providers.py
+[MISSING-FILE] r6-40-mem0-holographic.md:323  _setup.py
+[MISSING-FILE] r6-40-mem0-holographic.md:335  _setup.py
+[MISSING-FILE] r6-40-mem0-holographic.md:411  holographic.py
+[MISSING-FILE] r6-40-mem0-holographic.md:424  holographic.py
+[MISSING-FILE] r6-40-mem0-holographic.md:441  holographic.py
+[MISSING-FILE] r6-40-mem0-holographic.md:454  holographic.py
+[MISSING-FILE] r6-40-mem0-holographic.md:485  store.py
+[MISSING-FILE] r6-40-mem0-holographic.md:517  retrieval.py
+[MISSING-FILE] r6-40-mem0-holographic.md:536  retrieval.py
+[MISSING-FILE] r6-40-mem0-holographic.md:571  __init__.py
+[MISSING-FILE] r6-60-mcp-oauth-cleanup.md:58  mcp/client/auth/oauth2.py
+[MISSING-FILE] r6-60-mcp-oauth-cleanup.md:67  mcp/client/auth/oauth2.py
+[MISSING-FILE] r6-60-mcp-oauth-cleanup.md:80  mcp/client/auth/oauth2.py
+[MISMATCH] r6-60-mcp-oauth-cleanup.md:149  tools/mcp_oauth.py:432 -> actually at [434] [fixable: tools/mcp_oauth.py:432-437 -> tools/mcp_oauth.py:434-439]
+[MISMATCH] r6-60-mcp-oauth-cleanup.md:159  tools/mcp_oauth.py:389 -> actually at [390] [fixable: tools/mcp_oauth.py:389-415 -> tools/mcp_oauth.py:390-416]
+[MISMATCH] r6-60-mcp-oauth-cleanup.md:432  website/docs/guides/oauth-over-ssh.md:152 -> not found within +/-40
+[MISMATCH] r7-raw-run-02-config-media-watchdog.md:65  gateway/run.py:1939 -> actually at [1950] [fixable: gateway/run.py:1939-1955 -> gateway/run.py:1950-1966]
+[MISMATCH] r7-raw-run-02-config-media-watchdog.md:75  gateway/config.py:234 -> actually at [243] [fixable: gateway/config.py:234 -> gateway/config.py:243]
+[MISMATCH] r7-raw-run-02-config-media-watchdog.md:167  gateway/run.py:2036 -> actually at [2037] [fixable: gateway/run.py:2036-2056 -> gateway/run.py:2037-2057]
+[MISMATCH] r7-raw-run-02-config-media-watchdog.md:970  gateway/run.py:3246 -> actually at [3247] [fixable: gateway/run.py:3246-3253 -> gateway/run.py:3247-3254]
+[MISMATCH] r7-raw-run-03-turnrunner.md:41  gateway/turn_context.py:11 -> actually at [13] [fixable: gateway/turn_context.py:11-24 -> gateway/turn_context.py:13-26]
+[MISSING-FILE] r7-raw-run-03-turnrunner.md:324  run.py
+[MISSING-FILE] r7-raw-run-03-turnrunner.md:377  run.py
+[MISMATCH] r7-raw-run-03-turnrunner.md:626  gateway/run.py:4191 -> actually at [4190] [fixable: gateway/run.py:4191-4213 -> gateway/run.py:4190-4212]
+[MISMATCH] r7-raw-run-03-turnrunner.md:771  gateway/run.py:4326 -> actually at [4327] [fixable: gateway/run.py:4326-4348 -> gateway/run.py:4327-4349]
+[MISMATCH] r7-raw-run-03-turnrunner.md:1383  gateway/run.py:5171 -> actually at [5170] [fixable: gateway/run.py:5171-5176 -> gateway/run.py:5170-5175]
+[MISMATCH] r7-raw-run-03-turnrunner.md:1562  gateway/run.py:5484 -> actually at [5479] [fixable: gateway/run.py:5484-5492 -> gateway/run.py:5479-5487]
+[MISMATCH] r7-raw-run-05-gwr-queue-busy.md:89  gateway/run.py:7705 -> actually at [7722, 7738]
+[MISMATCH] r7-raw-run-05-gwr-queue-busy.md:188  gateway/run.py:7755 -> actually at [7762] [fixable: gateway/run.py:7755-7780 -> gateway/run.py:7762-7787]
+[MISMATCH] r7-raw-run-05-gwr-queue-busy.md:257  gateway/run.py:7805 -> actually at [7815] [fixable: gateway/run.py:7805-7825 -> gateway/run.py:7815-7835]
+[MISMATCH] r7-raw-run-05-gwr-queue-busy.md:589  gateway/run.py:8528 -> actually at [8519, 8534]
+[MISMATCH] r7-raw-run-05-gwr-queue-busy.md:633  run_agent.py:3150 -> actually at [3149] [fixable: run_agent.py:3150-3159 -> run_agent.py:3149-3158]
+[MISMATCH] r7-raw-run-05-gwr-queue-busy.md:730  gateway/run.py:8666 -> actually at [8678] [fixable: gateway/run.py:8666-8703 -> gateway/run.py:8678-8715]
+[MISMATCH] r7-raw-run-07-start-watchers.md:422  gateway/run.py:11441 -> actually at [11442] [fixable: gateway/run.py:11441-11449 -> gateway/run.py:11442-11450]
+[MISMATCH] r7-raw-run-07-start-watchers.md:779  gateway/run.py:12400 -> actually at [12401] [fixable: gateway/run.py:12400-12404 -> gateway/run.py:12401-12405]
+[MISMATCH] r7-raw-run-08-stop-profiles-busycmd.md:243  gateway/run.py:13217 -> actually at [13216] [fixable: gateway/run.py:13217-13223 -> gateway/run.py:13216-13222]
+[MISSING-FILE] r7-raw-run-09-handle-message.md:1202  gateway-internals.md
+[MISMATCH] r7-raw-run-12-watch-lease-cache.md:132  gateway/run.py:21666 -> actually at [21665] [fixable: gateway/run.py:21666-21676 -> gateway/run.py:21665-21675]
+[MISMATCH] r7-raw-run-12-watch-lease-cache.md:197  gateway/run.py:21833 -> actually at [21832] [fixable: gateway/run.py:21833-21837 -> gateway/run.py:21832-21836]
+[MISMATCH] r7-raw-run-12-watch-lease-cache.md:321  gateway/run.py:22025 -> actually at [22024] [fixable: gateway/run.py:22025-22030 -> gateway/run.py:22024-22029]
+[MISMATCH] r7-raw-run-12-watch-lease-cache.md:345  gateway/run.py:22076 -> actually at [22075] [fixable: gateway/run.py:22076-22084 -> gateway/run.py:22075-22083]
+[MISMATCH] r7-raw-run-12-watch-lease-cache.md:542  gateway/run.py:22571 -> actually at [22572] [fixable: gateway/run.py:22571-22576 -> gateway/run.py:22572-22577]
+[MISMATCH] r7-raw-run-12-watch-lease-cache.md:577  gateway/run.py:22646 -> actually at [22645] [fixable: gateway/run.py:22646-22652 -> gateway/run.py:22645-22651]
+[MISMATCH] r7-raw-run-12-watch-lease-cache.md:595  gateway/run.py:22630 -> actually at [22631] [fixable: gateway/run.py:22630-22643 -> gateway/run.py:22631-22644]
+[MISMATCH] r7-raw-session-py.md:350  gateway/session.py:463 -> actually at [465] [fixable: gateway/session.py:463-476 -> gateway/session.py:465-478]
+[MISMATCH] r7-raw-session-py.md:432  gateway/session.py:666 -> actually at [665] [fixable: gateway/session.py:666-674 -> gateway/session.py:665-673]
+[MISMATCH] r7-raw-session-py.md:860  gateway/session.py:1437 -> actually at [1435] [fixable: gateway/session.py:1437-1453 -> gateway/session.py:1435-1451]
+[MISMATCH] r7-raw-session-py.md:919  gateway/session.py:1508 -> actually at [1507] [fixable: gateway/session.py:1508-1516 -> gateway/session.py:1507-1515]
+[MISMATCH] r7-raw-session-py.md:942  gateway/session.py:1601 -> actually at [1603] [fixable: gateway/session.py:1601-1610 -> gateway/session.py:1603-1612]
+[MISMATCH] r7-raw-session-py.md:1151  gateway/session.py:2162 -> actually at [2163] [fixable: gateway/session.py:2162-2169 -> gateway/session.py:2163-2170]
+[MISMATCH] r7b-10-base-adapter-contract.md:71  gateway/platforms/base.py:2969 -> actually at [2971] [fixable: gateway/platforms/base.py:2969-2977 -> gateway/platforms/base.py:2971-2979]
+[MISSING-FILE] r7b-10-base-adapter-contract.md:82  base.py
+[MISMATCH] r7b-10-base-adapter-contract.md:160  gateway/platforms/base.py:3030 -> actually at [3040] [fixable: gateway/platforms/base.py:3030-3042 -> gateway/platforms/base.py:3040-3052]
+[MISMATCH] r7b-10-base-adapter-contract.md:226  gateway/platforms/base.py:5566 -> actually at [5567] [fixable: gateway/platforms/base.py:5566-5576 -> gateway/platforms/base.py:5567-5577]
+[MISMATCH] r7b-10-base-adapter-contract.md:263  gateway/platforms/base.py:2770 -> actually at [2768] [fixable: gateway/platforms/base.py:2770-2774 -> gateway/platforms/base.py:2768-2772]
+[MISMATCH] r7b-10-base-adapter-contract.md:342  gateway/platforms/base.py:5611 -> actually at [5616] [fixable: gateway/platforms/base.py:5611-5619 -> gateway/platforms/base.py:5616-5624]
+[MISMATCH] r7b-20-base-first-layer-guard.md:63  gateway/platforms/base.py:5325 -> actually at [5320] [fixable: gateway/platforms/base.py:5325-5330 -> gateway/platforms/base.py:5320-5325]
+[MISMATCH] r7b-20-base-first-layer-guard.md:268  gateway/platforms/base.py:6423 -> actually at [6424] [fixable: gateway/platforms/base.py:6423-6432 -> gateway/platforms/base.py:6424-6433]
+[MISSING-FILE] r7b-20-base-first-layer-guard.md:280  base.py
+[MISMATCH] r7b-20-base-first-layer-guard.md:351  docs/session-lifecycle.md:455 -> actually at [454, 462, 466, 477]
+[MISMATCH] r7b-30-base-media-and-egress.md:19  gateway/platforms/base.py:1451 -> not found within +/-40
+[MISMATCH] r7b-30-base-media-and-egress.md:40  gateway/platforms/base.py:1191 -> actually at [1190] [fixable: gateway/platforms/base.py:1191-1194 -> gateway/platforms/base.py:1190-1193]
+[MISMATCH] r7b-30-base-media-and-egress.md:60  gateway/platforms/base.py:1330 -> not found within +/-40
+[MISMATCH] r7b-30-base-media-and-egress.md:122  gateway/platforms/base.py:1349 -> not found within +/-40
+[MISMATCH] r7b-30-base-media-and-egress.md:193  gateway/platforms/base.py:770 -> actually at [771] [fixable: gateway/platforms/base.py:770-800 -> gateway/platforms/base.py:771-801]
+[MISMATCH] r7b-30-base-media-and-egress.md:229  gateway/platforms/base.py:405 -> actually at [410] [fixable: gateway/platforms/base.py:405-437 -> gateway/platforms/base.py:410-442]
+[MISMATCH] r7b-40-api-server.md:96  gateway/platforms/api_server.py:2058 -> actually at [2060] [fixable: gateway/platforms/api_server.py:2058-2062 -> gateway/platforms/api_server.py:2060-2064]
+[MISMATCH] r7b-40-api-server.md:171  gateway/platforms/api_server.py:6955 -> actually at [6957] [fixable: gateway/platforms/api_server.py:6955-6970 -> gateway/platforms/api_server.py:6957-6972]
+[MISMATCH] r7b-40-api-server.md:224  gateway/platforms/api_server.py:1731 -> actually at [1729] [fixable: gateway/platforms/api_server.py:1731-1739 -> gateway/platforms/api_server.py:1729-1737]
+[MISMATCH] r7b-50-builtin-adapters.md:29  gateway/platforms/signal.py:2 -> actually at [3] [fixable: gateway/platforms/signal.py:2-5 -> gateway/platforms/signal.py:3-6]
+[MISMATCH] r7b-50-builtin-adapters.md:67  gateway/platforms/webhook.py:1071 -> actually at [1072] [fixable: gateway/platforms/webhook.py:1071-1075 -> gateway/platforms/webhook.py:1072-1076]
+[MISMATCH] r7b-50-builtin-adapters.md:196  gateway/platforms/signal_format.py:31 -> actually at [30] [fixable: gateway/platforms/signal_format.py:31-42 -> gateway/platforms/signal_format.py:30-41]
+[MISMATCH] r7b-50-builtin-adapters.md:348  gateway/platforms/whatsapp_common.py:19 -> actually at [16] [fixable: gateway/platforms/whatsapp_common.py:19-31 -> gateway/platforms/whatsapp_common.py:16-28]
+[MISMATCH] r7b-50-builtin-adapters.md:396  gateway/platforms/webhook.py:304 -> actually at [303] [fixable: gateway/platforms/webhook.py:304-306 -> gateway/platforms/webhook.py:303-305]
+[MISMATCH] r7b-50-builtin-adapters.md:412  gateway/platforms/whatsapp_cloud.py:14 -> actually at [7] [fixable: gateway/platforms/whatsapp_cloud.py:14-19 -> gateway/platforms/whatsapp_cloud.py:7-12]
+[MISMATCH] r7b-60-relay-tunnel.md:38  gateway/relay/descriptor.py:15 -> actually at [18] [fixable: gateway/relay/descriptor.py:15-29 -> gateway/relay/descriptor.py:18-32]
+[MISMATCH] r7b-60-relay-tunnel.md:50  gateway/relay/descriptor.py:44 -> actually at [43] [fixable: gateway/relay/descriptor.py:44-48 -> gateway/relay/descriptor.py:43-47]
+[MISMATCH] r7b-60-relay-tunnel.md:87  gateway/relay/descriptor.py:101 -> actually at [102] [fixable: gateway/relay/descriptor.py:101-106 -> gateway/relay/descriptor.py:102-107]
+[MISMATCH] r7b-60-relay-tunnel.md:296  gateway/relay/auth.py:61 -> actually at [62] [fixable: gateway/relay/auth.py:61-81 -> gateway/relay/auth.py:62-82]
+[MISMATCH] r7b-60-relay-tunnel.md:424  gateway/relay/transport.py:18 -> actually at [19] [fixable: gateway/relay/transport.py:18-20 -> gateway/relay/transport.py:19-21]
+[MISMATCH] r7b-95-tests.md:15  pyproject.toml:176 -> not found within +/-40
+[MISMATCH] r7c-raw-status.md:1052  notes/r7-90-doc-conflict-rulings.md:210 -> actually at [215] [fixable: notes/r7-90-doc-conflict-rulings.md:210-214 -> notes/r7-90-doc-conflict-rulings.md:215-219]
+[MISMATCH] r8d-02-coverage-audit.md:39  scripts/assign_layers.py:162 -> not found within +/-40
+[MISMATCH] r8d-02-coverage-audit.md:46  scripts/assign_layers.py:222 -> not found within +/-40

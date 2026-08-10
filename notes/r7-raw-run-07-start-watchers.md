@@ -419,7 +419,7 @@ send_message 名称解析)。
 
 ### 1.11 阶段 10:恢复顺序三部曲(11437–11472)
 
-gateway/run.py:11441-11449 @ 863e313
+gateway/run.py:11442-11450 @ 863e313
 ```python
         # Delivery-obligation redelivery runs FIRST: a session whose final
         # response was generated but never confirmed-delivered has its answer
@@ -776,7 +776,7 @@ task 已 done(重启预算耗尽 / 终态异常)则 WARN 并重拉;活着则直�
 封顶频率**无限重试**(网络恢复即自愈,永不要求人工干预);non-retryable 立即出队;
 熔断器(`/platform pause/resume`)保留为**手动**工具——
 
-gateway/run.py:12400-12404 @ 863e313
+gateway/run.py:12401-12405 @ 863e313
 ```python
         remains available for manual operator control via ``/platform list``
         and ``/platform resume <name>``, but is no longer triggered

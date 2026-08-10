@@ -1199,7 +1199,7 @@ Gateway: "Paired! You're now authorized."
 流程在代码里一步都对不上。
 
 **▲C2 "Running-Agent Guard" 的 if-链与 `self._running_agents` 字典已不存在**。
-gateway-internals.md:126-129 @ 863e313:
+`website/docs/developer-guide/gateway-internals.md:127-129 @ 863e313`:
 ```python
 if _quick_key in self._running_agents:
     if canonical == "model":

@@ -247,7 +247,7 @@ breakpoint plus the last 3 messages.
 ### `_can_carry_marker` 排除规则(`:72-93`)
 原生 Anthropic 布局:一律可(适配器会把顶层 marker 迁进块内)。envelope 布局(OpenRouter 等)只认 content part 内 marker,因此排除:空 content 消息(纯 tool_calls 的 assistant 空转)、空 tool 消息、list 末元素非 dict 的 content——这些位置的顶层 marker 会被 provider 无声忽略,**白烧 1/4 断点**:
 
-`agent/prompt_caching.py:77-81 @ 863e313`
+`agent/prompt_caching.py:75-79 @ 863e313`
 ```python
     On the native Anthropic layout every message works (top-level markers are
     relocated by the adapter). On the envelope layout (OpenRouter et al.) only

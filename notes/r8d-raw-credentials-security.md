@@ -520,9 +520,11 @@ Results carry key NAMES and config PATHS only."。逐个函数核过:
 只剥 `content-length` / `content-type`,凭据头一个不剥。我在本机(两个 127.0.0.1 监听口,不出网)
 跑了对照实验:
 
-```verify
+> **R11B 更正**:本块的脚本只存在于当轮会话的 scratchpad(原路径含会话标识,已抹去)、**从未落库**,重跑无法复现,因此它不是「shell 命令即证据」意义上的可重跑证据 —— 由 ```verify 改标 ```console。**结论本身不变**,依据仍是块内输出与同节的行号锚点。
+
+```console
 cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python \
-  /tmp/claude-0/-home-user-hermes-study/fbb1600e-20de-5792-ad86-4da1cc2e90e9/scratchpad/redirect_leak_demo.py
+  <scratchpad>/redirect_leak_demo.py
 # python: 3.11.15
 # plain urllib.request.urlopen -> sink saw Authorization = 'Bearer AI_GATEWAY_SECRET'
 # open_credentialed_url        -> sink saw Authorization = None

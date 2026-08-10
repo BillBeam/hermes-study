@@ -18,7 +18,10 @@
 
 ### 1.2 判定顺序(`validate_media_delivery_path`,`gateway/platforms/base.py:1451-1527 @ 863e313`)
 
-```
+下面这张步骤表是**本文作者按源码整理的流程摘要,不是逐字源码**,故按制度用 ```text 声明;
+每一步右侧的 `base.py:NNNN` 是该步骤在源码里的位置。
+
+```text
 输入 path
  1. 去引号/尾标点清洗                              base.py:1474-1479
  2. expanduser;非绝对路径 → None                   base.py:1481-1488
@@ -37,7 +40,7 @@
 containment / denylist check." 否则 `~/.hermes/cache/images/x.png → /etc/shadow`
 会以允许根的身份通过。
 
-**第 5 步无条件优先于拒绝名单**,这是刻意的(`gateway/platforms/base.py:1191-1194 @ 863e313`):
+**第 5 步无条件优先于拒绝名单**,这是刻意的(`gateway/platforms/base.py:1190-1193 @ 863e313`):
 
 ```python
 # Hard denylist applied even when a path would otherwise pass recency trust.
@@ -57,7 +60,9 @@ containment / denylist check." 否则 `~/.hermes/cache/images/x.png → /etc/sha
     return raw in ("1", "true", "yes", "on")
 ```
 
-(`gateway/platforms/base.py:1330-1331 @ 863e313`;默认关闭的理由在 `:1147-1155`)
+(开关读取在 `gateway/platforms/base.py:1330-1331 @ 863e313`;默认关闭的理由是下面这段注释)
+
+`gateway/platforms/base.py:1154-1159 @ 863e313`
 
 ```python
 # Strict mode toggles the original allowlist+recency path-validation behavior.
@@ -119,14 +124,14 @@ containment / denylist check." 否则 `~/.hermes/cache/images/x.png → /etc/sha
 - 整目录拒绝的只有两个(`:1384-1394`):`pairing/`、`mcp-tokens/`,后者存活的
   MCP OAuth bearer token(与 R6 精读的 `tools/mcp_oauth.py` 是同一份凭据)。
 
-而且注释点明这份清单**必须与写侧对齐**(`gateway/platforms/base.py:1349-1354 @ 863e313`):
+而且注释点明这份清单**必须与写侧对齐**(`gateway/platforms/base.py:1345-1349 @ 863e313`):
 
 ```python
-    # The set mirrors the canonical read guard in
+    # HERMES_HOME root. The set mirrors the canonical read guard in
     # agent/file_safety.py (get_read_block_error / build_write_denied_*) so the
     # delivery (read/exfil) side can't trail the write side: a credential the
     # agent is forbidden to write or read must also never be auto-attached to a
-    # chat reply.
+    # chat reply. Enumerated explicitly per-file rather than denying the whole
 ```
 
 **可迁移原则**:凭据清单是**一份**,读、写、外发三个面共用;任何一面单独维护都会滞后。
@@ -190,7 +195,7 @@ URL 侧同理(`gateway/platforms/base.py:633-668 @ 863e313`):`safe_url_for_log`
 **所有平台最终都会到达**的 `cache_*_from_bytes` 上。这样一个新适配器不做任何事
 也自动受保护。
 
-流式下载则要**双重检查**(`gateway/platforms/base.py:770-800 @ 863e313`):
+流式下载则要**双重检查**(`gateway/platforms/base.py:771-801 @ 863e313`):
 
 ```python
     """Read an httpx streaming response body without exceeding the media cap.
@@ -226,7 +231,7 @@ async def _ssrf_redirect_guard(response):
 
 ## 3. 出网:代理解析栈
 
-`resolve_proxy_url`(`gateway/platforms/base.py:405-437 @ 863e313`)的优先级:
+`resolve_proxy_url`(`gateway/platforms/base.py:410-442 @ 863e313`)的优先级:
 
 ```python
     """Return a proxy URL from env vars, or macOS system proxy.

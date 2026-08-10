@@ -1,0 +1,10 @@
+agent: 片 C · 六章锚点排版(H-R8D-g)
+dispatched: 2026-08-10 (R11B 派发)
+signal: RELEASED 片 C 完成信号(任务完成通知,含六章前后读数与全 chapters 比例)
+path: notes/r11b-raw-chapter-anchors.md
+path: chapters/r2-turn-loop-and-model-access.md
+path: chapters/r4-execution-environments.md
+path: chapters/r5-session-state-and-persistence.md
+path: chapters/r6-memory-provider-ecosystem.md
+path: chapters/r7-gateway-session-core.md
+path: chapters/r7b-platform-integration.md

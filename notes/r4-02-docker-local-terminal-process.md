@@ -15,7 +15,7 @@
   (docker.py:1958-1966);
 - persist=False → stop + rm(每进程隔离)。
 
-`docker.py:1953-1957 @ 863e313`:
+`tools/environments/docker.py:1955-1959 @ 863e313`:
 ```python
         # The persist-mode no-op is the issue-#20561 contract: the container
         # outlives Hermes processes, processes inside it stay alive, and
@@ -77,10 +77,10 @@ calls"——就是 r4-01 快照重放机制对用户/模型的呈现;但描述**
 - **watch_patterns + strike 熔断**(process_registry.py:67-71, 236-333):监视输出匹配模式(如"Server
   started")触发通知。但一个刷屏的进程会让匹配狂发——连续 `WATCH_STRIKE_LIMIT=3` 个 strike 窗口后
   **永久禁用该会话的 watch**,降级为 notify_on_complete,并发一条"watch disabled"说明(只发一次)。
-  `process_registry.py:287-289 @ 863e313`:
+  `tools/process_registry.py:287-289 @ 863e313`:
   ```python
                         # Promote to notify_on_complete so the agent still gets
-                        # the completion signal even after watch is disabled.
+                        # exactly one notification when the process actually ends.
                         session.notify_on_complete = True
   ```
 - **本地 PTY/pipe 与沙箱内 nohup 双路径**(process_registry.py:9 附近):本地进程直接管;远端沙箱内的后台

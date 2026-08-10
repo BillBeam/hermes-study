@@ -301,7 +301,7 @@ AFTER UPDATE OF content, tool_name, tool_calls ON messages
 
 ### 2.4 分块回填引擎(无后台线程;CAS 认领 + 节流)
 
-设计动机,`hermes_state.py:2860-2892 @ 863e313`(节选):
+设计动机,`hermes_state.py:2862-2894 @ 863e313`(节选):
 
 ```python
     # `optimize_fts_storage()` (the `hermes sessions optimize-storage`
@@ -437,7 +437,7 @@ CJK 判定的码点表(统一表意文字/扩展 A/B、CJK 符号、平/片假�
 
 ### 3.4 零结果拉丁回退(#54242)
 
-unicode61 不在拉丁与相邻 CJK 之间切边界,`修改youer服务端` 整体一个 token,`MATCH "youer"` 永远 0 命中。修法:主查询 0 结果且非 CJK 且不要 tool 行时,依次退 cjk 索引(把拉丁段切出来,等价精确 token 命中)→ trigram(需每词 ≥3 字符),**严格只增不重排**,`hermes_state_search.py:1819-1872 @ 863e313`(决策注释节选):
+unicode61 不在拉丁与相邻 CJK 之间切边界,`修改youer服务端` 整体一个 token,`MATCH "youer"` 永远 0 命中。修法:主查询 0 结果且非 CJK 且不要 tool 行时,依次退 cjk 索引(把拉丁段切出来,等价精确 token 命中)→ trigram(需每词 ≥3 字符),**严格只增不重排**,`hermes_state_search.py:1822-1875 @ 863e313`(决策注释节选):
 
 ```python
         # so MATCH "youer" finds nothing even though the substring is present
@@ -451,7 +451,7 @@ unicode61 不在拉丁与相邻 CJK 之间切边界,`修改youer服务端` 整�
         # unicode61 ranking — strictly additive, never reorders existing
         # hits. Trade-off on the trigram leg: any zero-result Latin query
         # gains substring semantics (e.g. "cat" can then match
-        # "concatenate").
+        # "concatenate"). Genuinely absent terms still return []. Skipped for
 ```
 
 三个 FTS 路径向 MATCH 传参前都做同一处理:非算子 token 逐个 `"..."` 包裹(内部 `"`→`""`),AND/OR/NOT 保留(`hermes_state_search.py:1259-1266`)。
@@ -575,7 +575,7 @@ _DEMOTED_SESSION_SOURCES = ("cron",)
 
 ### 5.1 策略:包装 unicode61,CJK 连段重发射为 bigram
 
-自述,`native/fts5_cjk/fts5_cjk.c:1-18 @ 863e313`(节选):
+自述,`native/fts5_cjk/fts5_cjk.c:4-21 @ 863e313`(节选):
 
 ```c
 ** Why: SQLite's unicode61 tokenizer treats a CJK run as ONE token

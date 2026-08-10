@@ -1,0 +1,62 @@
+convert_tools
+    替身 tests/agent/transports/test_transport.py:35
+    生产 agent/transports/chat_completions.py:352
+convert_tools
+    替身 tests/agent/transports/test_transport.py:65
+    生产 agent/transports/chat_completions.py:352
+is_relay_media_url
+    替身 tests/gateway/relay/test_relay_media.py:72
+    生产 gateway/relay/media.py:92
+is_completion_consumed
+    替身 tests/gateway/test_internal_event_bypass_pairing.py:39
+    生产 tools/process_registry.py:1217
+_running_agent_count
+    替身 tests/gateway/test_shutdown_cache_cleanup.py:54
+    生产 gateway/run.py:7378
+__init__
+    替身 tests/gateway/test_stale_self_heal_agent_cache_eviction.py:65
+    生产 hermes_state.py:9680
+_b64url_no_pad
+    替身 tests/hermes_cli/test_dashboard_auth_native_flow.py:43
+    生产 hermes_cli/dashboard_auth/native_flow.py:139
+__exit__
+    替身 tests/hermes_cli/test_nous_billing_request.py:31
+    生产 hermes_cli/win_pty_bridge.py:183
+click
+    替身 tests/tools/test_computer_use.py:254
+    生产 tools/computer_use/backend.py:139
+drag
+    替身 tests/tools/test_computer_use.py:255
+    生产 tools/computer_use/backend.py:153
+scroll
+    替身 tests/tools/test_computer_use.py:256
+    生产 tools/computer_use/backend.py:167
+type_text
+    替身 tests/tools/test_computer_use.py:257
+    生产 tools/computer_use/backend.py:182
+click
+    替身 tests/tools/test_computer_use.py:294
+    生产 tools/computer_use/backend.py:139
+drag
+    替身 tests/tools/test_computer_use.py:295
+    生产 tools/computer_use/backend.py:153
+scroll
+    替身 tests/tools/test_computer_use.py:296
+    生产 tools/computer_use/backend.py:167
+type_text
+    替身 tests/tools/test_computer_use.py:297
+    生产 tools/computer_use/backend.py:182
+click
+    替身 tests/tools/test_computer_use.py:333
+    生产 tools/computer_use/backend.py:139
+drag
+    替身 tests/tools/test_computer_use.py:334
+    生产 tools/computer_use/backend.py:153
+scroll
+    替身 tests/tools/test_computer_use.py:335
+    生产 tools/computer_use/backend.py:167
+type_text
+    替身 tests/tools/test_computer_use.py:336
+    生产 tools/computer_use/backend.py:182
+
+同名同体的测试替身函数:20 处,涉及测试文件 8 个

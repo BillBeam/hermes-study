@@ -240,7 +240,7 @@
 ### 2.3 `_start_secondary_profile_adapters`(13180–13266)
 
 - 非 multiplex 直接返回 0(13195–13196);`profiles_to_serve(multiplex=True)`(hermes_cli/profiles.py:957,纯目录扫描,启动路径必须便宜)给出 `(name, home)` 对,active profile 跳过(由 primary 启动循环负责,13226–13227)。
-- **claims 预占表**(13204–13223):`claimed: Dict[tuple, str]` 资源→属主 profile。先把 primary 已连 adapter 的凭据指纹与 listener 声明记到 active 名下;再把 `_failed_platforms`(primary 重连队列)里存的 `credential_claim`/`listener_claim` 也预占——`gateway/run.py:13217-13223 @ 863e313`:
+- **claims 预占表**(13204–13223):`claimed: Dict[tuple, str]` 资源→属主 profile。先把 primary 已连 adapter 的凭据指纹与 listener 声明记到 active 名下;再把 `_failed_platforms`(primary 重连队列)里存的 `credential_claim`/`listener_claim` 也预占——`gateway/run.py:13216-13222 @ 863e313`:
 ```python
         # A retryable primary still owns its configured credential and listener.
         # Reserve both while it is queued so a secondary cannot take the endpoint

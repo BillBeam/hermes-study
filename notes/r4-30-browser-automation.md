@@ -154,7 +154,7 @@ if snap_result.get("success"):
 **navigate 自动附带快照**:`browser_navigate` 成功后自动跑一次 compact snapshot 塞进返回,省掉模型再单独调 `browser_snapshot`。schema 里明说这点:
 `tools/browser_tool.py:1984` @ 863e313
 ```python
-"description": "Navigate to a URL in the browser. ... Returns a compact page snapshot with interactive elements and ref IDs — no need to call browser_snapshot separately after navigating.",
+        "description": "Navigate to a URL in the browser. Initializes the session and loads the page. Must be called before other browser tools. For simple information retrieval, prefer web_search or web_extract (faster, cheaper). For plain-text endpoints — URLs ending in .md, .txt, .json, .yaml, .yml, .csv, .xml, raw.githubusercontent.com, or any documented API endpoint — prefer curl via the terminal tool or web_extract; the browser stack is overkill and much slower for these. Use browser tools when you need to interact with a page (click, fill forms, dynamic content). Returns a compact page snapshot with interactive elements and ref IDs — no need to call browser_snapshot separately after navigating.",
 ```
 
 **click/type 怎么按 ref 定位**:极简——把 `@eN` 原样透传给 CLI 的 `click`/`fill` 命令,ref 的解析(ref → 元素句柄)全在 agent-browser 里。Python 只补 `@` 前缀:
@@ -225,12 +225,20 @@ if isinstance(value, str):
 ### 3.1 场景:一个 `confirm()` 把 agent 冻住
 
 页面 JS 跑 `if (confirm("删除?")) {...}`。原生对话框会**阻塞页面 JS 线程**;没有监督,agent 完全不知道弹窗开着,后续 `browser_snapshot`/`browser_click` 要么挂起要么抛不透明错误。supervisor 就是为堵这个洞(以及 OOPIF 不可见)而生:
-`tools/browser_supervisor.py:11` @ 863e313
-```python
+`website/docs/developer-guide/browser-supervisor.md:11-13 @ 863e313`
+
+```
 1. **Native JS dialogs** (`alert`/`confirm`/`prompt`/`beforeunload`) block the
    page's JS thread. Without supervision, the agent has no way to know a
    dialog is open — subsequent tool calls hang or throw opaque errors.
 ```
+
+> **R11B 引用更正(片 D)**:原锚点写的是 `tools/browser_supervisor.py:11`,**文件错了**
+> ——这三行逐字出自设计文档 `website/docs/developer-guide/browser-supervisor.md:11-13`,
+> 不是 `.py` 源码;两者恰好都在第 11 行,是同号异文件的经典误锚。
+> 依据:`grep -rn "Native JS dialogs" --include=*.py --include=*.md .` 在基线全仓
+> **只命中该 `.md` 一处**(`.py` 侧零命中)。**结论实质不变**:supervisor 的存在理由仍是
+> 原生对话框阻塞与 OOPIF 不可见这两个洞,只是这句话的出处是设计文档而非模块 docstring。
 
 ### 3.2 进程/线程/loop 三层与崩溃恢复
 
@@ -247,14 +255,14 @@ if not self._ready_event.wait(timeout=timeout):
 ```
 
 **崩溃恢复 = 自动重连循环**。这是 supervisor 最关键的鲁棒性设计:Browserbase 的 CDP 代理会在任意短命客户端(比如 agent-browser 每条命令那次 CDP 连接)断开时**把整条 CDP socket 拆掉**;supervisor 用带指数退避的重连循环扛过去,重连后重置 session id、重新附着,但**保留** `_pending_dialogs`/`_frames` 让事件重新对账:
-`tools/browser_supervisor.py:646` @ 863e313
+`tools/browser_supervisor.py:647` @ 863e313
 ```python
-Holds a reconnecting loop so we survive the remote closing the
-WebSocket — Browserbase in particular tears down the CDP socket
-every time a short-lived client (e.g. agent-browser's per-command
-CDP client) disconnects.
+        Holds a reconnecting loop so we survive the remote closing the
+        WebSocket — Browserbase in particular tears down the CDP socket
+        every time a short-lived client (e.g. agent-browser's per-command
+        CDP client) disconnects.  We drop our state snapshot keys that
 ```
-`tools/browser_supervisor.py:734` @ 863e313
+`tools/browser_supervisor.py:738` @ 863e313
 ```python
 await asyncio.sleep(backoff)
 backoff = min(backoff * 2, 10.0)
@@ -477,18 +485,19 @@ the browser session itself.  The agent simply won't see
 ### 4.2 机制:ABC + 注册表 + 三级解析
 
 `BrowserProvider` ABC 定契约:`name`/`is_available`/`create_session`/`close_session`/`emergency_cleanup`,session 元数据形状固定(含 `cdp_url`、遗留键名 `bb_session_id`),让分派器是**纯注册表查表、零 per-provider 分支**:
-`agent/browser_provider.py:58` @ 863e313
+`agent/browser_provider.py:57` @ 863e313
 ```python
 The lifecycle shape preserves the legacy ``CloudBrowserProvider`` contract
 bit-for-bit so the dispatcher in :mod:`tools.browser_tool` is a pure
 registry lookup — no per-provider conditionals, no shape translation.
 ```
 `is_available` 契约**禁止网络调用**(注册期/每次 `hermes tools` 都会跑):
-`agent/browser_provider.py:82` @ 863e313
+`agent/browser_provider.py:81` @ 863e313
 ```python
-Typically a cheap check (env var present, managed-gateway token
-readable, optional Python dep importable). Must NOT make network
-calls
+        Typically a cheap check (env var present, managed-gateway token
+        readable, optional Python dep importable). Must NOT make network
+        calls — this runs at tool-registration time and on every
+        ``hermes tools`` paint.
 ```
 注册表 `_resolve` 三级:① 显式 `local` → None(禁云);② 显式配置名**无视 is_available** 直接返回(为的是给用户精确的"X_API_KEY 未设"报错而非静默换后端);③ 遗留偏好序 `browser-use → browserbase` 按可用性过滤:
 `agent/browser_registry.py:167` @ 863e313
@@ -506,23 +515,25 @@ _LEGACY_PREFERENCE = (
 )
 ```
 **Firecrawl 故意不在自动序里**——因为它和 web-extract 插件共用 key,自动路由会让只想用 web-extract 的用户白烧付费浏览器额度;必须显式 `browser.cloud_provider: firecrawl` 才生效:
-`agent/browser_registry.py:19` @ 863e313
+`agent/browser_registry.py:19-23 @ 863e313`
 ```python
-``firecrawl`` is
-intentionally NOT in the legacy walk — users only get Firecrawl as a
-cloud browser when they explicitly set ``browser.cloud_provider:
-firecrawl``
+   Browserbase as the older direct-credentials fallback). ``firecrawl`` is
+   intentionally NOT in the legacy walk — users only get Firecrawl as a
+   cloud browser when they explicitly set ``browser.cloud_provider:
+   firecrawl``, matching pre-migration behaviour where Firecrawl was never
+   auto-selected.
 ```
 
 ### 4.3 遗留 shim 与测试面兼容
 
 `browser_tool.py` 里 `_PROVIDER_REGISTRY` 是遗留 class-name shim,仅为让 monkeypatch 的测试夹具继续工作;真实查询已改走 `agent.browser_registry`:
-`tools/browser_tool.py:659` @ 863e313
+`tools/browser_tool.py:658-662 @ 863e313`
 ```python
-The legacy
-class-name registry below is preserved as a backward-compat shim so test
-fixtures ... keep working — but ``_get_cloud_provider()`` now consults
-:mod:`agent.browser_registry` for the actual lookup.
+# :mod:`agent.browser_registry` at plugin-discovery time. The legacy
+# class-name registry below is preserved as a backward-compat shim so test
+# fixtures that ``monkeypatch.setattr(browser_tool, "_PROVIDER_REGISTRY", ...)``
+# keep working — but ``_get_cloud_provider()`` now consults
+# :mod:`agent.browser_registry` for the actual lookup.
 ```
 ABC 还保留 `is_configured()`/`provider_name()` 老名做薄委托,避免改~6处 callsite 和下游子类:
 `agent/browser_provider.py:171` @ 863e313
@@ -567,13 +578,13 @@ async def _do_cdp():
     )
 ```
 为什么必须走 supervisor?因为**无状态单发在 Browserbase 上会撞签名 URL 过期**——每次 `browser_cdp` 新开一条 CDP 连接跟不上 Browserbase 的签名 URL 轮换,只有 supervisor 的长连有效 session 能撑住:
-`tools/browser_cdp_tool.py:414` @ 863e313
+`tools/browser_cdp_tool.py:413` @ 863e313
 ```python
-frame is an OOPIF with a live session tracked by the CDP
-supervisor), routes the call through the supervisor's existing
-WebSocket — which is how you Runtime.evaluate *inside* an
-iframe on backends where per-call fresh CDP connections would
-hit signed-URL expiry (Browserbase)
+            frame is an OOPIF with a live session tracked by the CDP
+            supervisor), routes the call through the supervisor's existing
+            WebSocket — which is how you Runtime.evaluate *inside* an
+            iframe on backends where per-call fresh CDP connections would
+            hit signed-URL expiry (Browserbase) or expensive reattach.
 ```
 **无 `frame_id`** → 无状态路径,`attachToTarget(flatten=True)` 在同一 browser-level WS 上多路复用一个 page session 发命令,连接用完即弃:
 `tools/browser_cdp_tool.py:197` @ 863e313
@@ -586,11 +597,11 @@ browser-level WebSocket, then send ``method`` with that ``sessionId``.
 ### 5.3 逃生舱不是安全后门:共用私网/密钥防护
 
 逃生舱**继承**主干的 SSRF/私网边界——否则它就成了绕过 `browser_snapshot`/`browser_console` 防护的"兄弟旁路"。若云浏览器已落在私网页面,除白名单只读方法(如 `Target.getTargets`/`Page.navigate`)外的 raw CDP 一律拦:
-`tools/browser_cdp_tool.py:137` @ 863e313
+`tools/browser_cdp_tool.py:135` @ 863e313
 ```python
-``browser_cdp`` is intentionally an escape hatch, but it still shares the
-same cloud/private-network boundary as ``browser_snapshot``,
-``browser_console`` and ``browser_eval``.
+    ``browser_cdp`` is intentionally an escape hatch, but it still shares the
+    same cloud/private-network boundary as ``browser_snapshot``,
+    ``browser_console`` and ``browser_eval``.  If a cloud browser has landed on
 ```
 白名单(只读/导航,不读页面 body/cookie/DOM):
 `tools/browser_cdp_tool.py:31` @ 863e313
@@ -664,7 +675,7 @@ R1 报告断言:**浏览器自动化架构 = CDP supervisor + 对话框桥 + raw
 
 **◇ 文档-代码命名不符(以代码为准)**:两处文档把"事后可见的历史对话框"字段叫 `browser_state`,但代码里**根本没有 `browser_state` 这个键**——实际合并进 `browser_snapshot` 的键是 `recent_dialogs`(及 `pending_dialogs`/`frame_tree`)。
 - 文档:`website/docs/developer-guide/browser-supervisor.md:89`「agent sees it after the fact via `browser_state` inside `browser_snapshot`」;`website/docs/user-guide/features/browser.md:591`「Agent still sees the dialog in `browser_state` history」。
-- 代码(实际键名):`tools/browser_supervisor.py:282` @ 863e313
+- 代码(实际键名):`tools/browser_supervisor.py:281` @ 863e313
   ```python
   if self.recent_dialogs:
       out["recent_dialogs"] = [d.to_dict() for d in self.recent_dialogs]

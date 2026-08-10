@@ -516,3 +516,25 @@ R10B 报告写 **48% / 56% / 64% / 79%**;它自己指定的可复现来源
    `website/docs` 那 787 文件——它是唯一未实测的 L3 形态,先做它能把"第三种形态"的风险清掉。
 2. **`round=R6` 的 L2 遗留(243 文件 / 116,078 行,`plugins/**`)**没在本轮动,理由见 §6.6,已立 H-R11A-f。
 3. **H-R8D-j 的运行期集合**需要一轮愿意扩共享环境的轮次来收。
+
+---
+
+## 勘误(R11B 追加,正文不改)
+
+**1. ■-R11A-01 的修法一层被撤回(§8.2 与 `notes/r11a-90-handover-rulings.md` §1)。**
+
+本报告 §8.2 写「正确比较值 `self._base_url` 就在同一个类的构造里」。**这条修法必要但不充分,
+而它在本轮之前已被 R9C 证伪过**:`urllib.request.urlopen` 默认跟随 302 且把 `Authorization`
+原样带到新主机,于是一个主机完全合法的 URL 只要对端回一个 302,bearer 就到了别处——
+**主机校验对此判「通过」**。要害不是比错了值,是**校验发生在错的时刻**。
+
+完整修法指向仓库自带的 `hermes_cli/urllib_security.py` 的
+`SafeCredentialRedirectHandler` / `open_credentialed_url`。
+
+**缺陷判定(■)本身不动**,R9C 与 R11A 两轮一致;被撤的只有修法那一层,**不另立新案号**
+——正确版早在 R9C 已在册。可重跑实证补在 `data/r11b/probes/relay_media_redirect_probe.py`
+(R9C 那次的脚本指向占位路径 `/path/to/redirect_probe2.py`、从未落库,
+而本报告 §7 引用的全语料证据扫描其实已经记下它跑不动)。
+全文见 `notes/r11b-92-fix-regression-correction.md`。
+
+**2. 引用行号漂移(按制度逐处点名)。** 本轮未改本报告任何引用行号。
