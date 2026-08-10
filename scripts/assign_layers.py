@@ -609,7 +609,17 @@ RULES = [
     ("plugins/memory/**/plugin.yaml", "L2", "R6"),
     ("plugins/memory/**/*.py", "L1", "R6"),
     ("plugins/memory/*.py", "L1", "R6"),
-    ("plugins/**", "L2", "R6"),
+    # R11C 结清 H-R11A-f。R11A 有意未改,理由是这 243 个 L2 分散在一条兜底规则与
+    # 两条显式点名规则之间,"只改兜底会留 16 个不一致"。裁定:**那 16 个不是不一致,
+    # 是另一种失败,应当保留可见** —— 于是给两种失败两个不同的 round 值,而不是把
+    # 它们合并成一个数。
+    #   兜底 227 个 / 114,899 行 -> UNCLAIMED:R6 从未点名过它们,是"没人认领"。
+    #   显式 16 个(memory 的 8 个 README + 8 个 plugin.yaml)-> 留 R6:R6 的规则注释
+    #   明写"README/plugin.yaml 留 L2(文档与元数据,结构级即可)",即**点名了却没做**。
+    # 保留 R6 与 R11B 不改那 38 个文件 status 的理由同源:改掉就抹掉了"哪一轮原本
+    # 声称要做"这条线索,而正是这条线索让缺口能被发现。两桶此后各自可数:
+    #   UNCLAIMED|R1-inventoried 与 R6|R1-inventoried。
+    ("plugins/**", "L2", "UNCLAIMED"),
     ("tui_gateway/**", "L2", "R10"),
     ("acp_adapter/**", "L2", "R10"),
     ("ui-tui/**", "L2", "R10"),
