@@ -276,8 +276,10 @@ def get_source_environment() -> MutableMapping[str, str]:
 
 实跑复现(不接触基线,脚本在 scratchpad):
 
-```verify
-cd /tmp/claude-0/-home-user-hermes-study/3424cdf2-b29d-5662-991f-0a608e47a84d/scratchpad && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_run_secret_cli.py
+> **R11B 更正**:本块的脚本只存在于当轮会话的 scratchpad(原路径含会话标识,已抹去)、**从未落库**,重跑无法复现,因此它不是「shell 命令即证据」意义上的可重跑证据 —— 由 ```verify 改标 ```console。**结论本身不变**,依据仍是块内输出与同节的行号锚点。
+
+```console
+cd <scratchpad> && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_run_secret_cli.py
 ```
 
 ```console
@@ -376,8 +378,10 @@ scheme 唯一性(这是 `scheme` 字段目前的**全部**实际作用):
 但 `str.isalnum()` 在 Python 里是 **Unicode 感知**的,`café`、全角 `ｖａｕｌｔ` 都返回 `True`,
 且它们的 `.lower()` 等于自身,于是全部通过校验:
 
-```verify
-cd /tmp/claude-0/-home-user-hermes-study/3424cdf2-b29d-5662-991f-0a608e47a84d/scratchpad && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_name_validation.py
+> **R11B 更正**:本块的脚本只存在于当轮会话的 scratchpad(原路径含会话标识,已抹去)、**从未落库**,重跑无法复现,因此它不是「shell 命令即证据」意义上的可重跑证据 —— 由 ```verify 改标 ```console。**结论本身不变**,依据仍是块内输出与同节的行号锚点。
+
+```console
+cd <scratchpad> && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_name_validation.py
 ```
 
 ```console
@@ -458,8 +462,10 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 直接违反上面 docstring 的 "a broken bundled source can never break registration of the others"。
 实跑(拦掉 `cryptography` 的导入):
 
-```verify
-cd /tmp/claude-0/-home-user-hermes-study/3424cdf2-b29d-5662-991f-0a608e47a84d/scratchpad && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_import_coupling.py
+> **R11B 更正**:本块的脚本只存在于当轮会话的 scratchpad(原路径含会话标识,已抹去)、**从未落库**,重跑无法复现,因此它不是「shell 命令即证据」意义上的可重跑证据 —— 由 ```verify 改标 ```console。**结论本身不变**,依据仍是块内输出与同节的行号锚点。
+
+```console
+cd <scratchpad> && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_import_coupling.py
 ```
 
 ```console
@@ -918,8 +924,10 @@ cache problem must never block Hermes startup.
 
 实跑对照(同一 `cache_ttl_seconds=0`):
 
-```verify
-cd /tmp/claude-0/-home-user-hermes-study/3424cdf2-b29d-5662-991f-0a608e47a84d/scratchpad && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_op_ttl0.py
+> **R11B 更正**:本块的脚本只存在于当轮会话的 scratchpad(原路径含会话标识,已抹去)、**从未落库**,重跑无法复现,因此它不是「shell 命令即证据」意义上的可重跑证据 —— 由 ```verify 改标 ```console。**结论本身不变**,依据仍是块内输出与同节的行号锚点。
+
+```console
+cd <scratchpad> && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_op_ttl0.py
 ```
 
 ```console
@@ -1472,8 +1480,10 @@ Security model (mirrors the TS provider line-for-line where it matters):
 
 实跑逐个问 `get_write_denied_error`:
 
-```verify
-cd /tmp/claude-0/-home-user-hermes-study/3424cdf2-b29d-5662-991f-0a608e47a84d/scratchpad && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_write_deny.py
+> **R11B 更正**:本块的脚本只存在于当轮会话的 scratchpad(原路径含会话标识,已抹去)、**从未落库**,重跑无法复现,因此它不是「shell 命令即证据」意义上的可重跑证据 —— 由 ```verify 改标 ```console。**结论本身不变**,依据仍是块内输出与同节的行号锚点。
+
+```console
+cd <scratchpad> && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_write_deny.py
 ```
 
 ```console
@@ -1747,8 +1757,10 @@ synced into those sandboxes so the agent can access them.
 
 后果有两层,第二层才是重点:
 
-```verify
-cd /tmp/claude-0/-home-user-hermes-study/3424cdf2-b29d-5662-991f-0a608e47a84d/scratchpad && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_op_cache_guard.py
+> **R11B 更正**:本块的脚本只存在于当轮会话的 scratchpad(原路径含会话标识,已抹去)、**从未落库**,重跑无法复现,因此它不是「shell 命令即证据」意义上的可重跑证据 —— 由 ```verify 改标 ```console。**结论本身不变**,依据仍是块内输出与同节的行号锚点。
+
+```console
+cd <scratchpad> && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_op_cache_guard.py
 ```
 
 ```console
@@ -1817,8 +1829,10 @@ Bitwarden 缓存当年犯过一模一样的错、修了、还留了注释;1Passw
 
 实跑对照:
 
-```verify
-cd /tmp/claude-0/-home-user-hermes-study/3424cdf2-b29d-5662-991f-0a608e47a84d/scratchpad && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_credfiles.py
+> **R11B 更正**:本块的脚本只存在于当轮会话的 scratchpad(原路径含会话标识,已抹去)、**从未落库**,重跑无法复现,因此它不是「shell 命令即证据」意义上的可重跑证据 —— 由 ```verify 改标 ```console。**结论本身不变**,依据仍是块内输出与同节的行号锚点。
+
+```console
+cd <scratchpad> && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python repro_credfiles.py
 ```
 
 ```console

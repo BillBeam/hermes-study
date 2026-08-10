@@ -431,9 +431,11 @@ names with a colon: []
 是空的(它进的是 `skipped`),于是 `hermes update` 的 `~ N user-modified (kept)` 提示**不会**提到它。
 复现(全程在临时目录,不碰基线):
 
-```verify
+> **R11B 更正**:本块的脚本只存在于当轮会话的 scratchpad(原路径含会话标识,已抹去)、**从未落库**,重跑无法复现,因此它不是「shell 命令即证据」意义上的可重跑证据 —— 由 ```verify 改标 ```console。**结论本身不变**,依据仍是块内输出与同节的行号锚点。
+
+```console
 cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python \
-  /tmp/claude-0/-home-user-hermes-study/7bb8d911-baae-5ad8-b04c-246e8f637991/scratchpad/repro_bundled.py
+  <scratchpad>/repro_bundled.py
 ```
 
 ```console
@@ -673,8 +675,10 @@ def resolve_sync_base_url() -> Optional[str]:
 **结论:是的,凭据会被带到配置指定的任意 URL 上,包括明文 http,没有任何主机白名单或 scheme 校验。**
 判据(全程只读基线,`HERMES_HOME` 指向临时目录):
 
-```verify
-cd /home/user/hermes-agent && HERMES_HOME=/tmp/claude-0/-home-user-hermes-study/7bb8d911-baae-5ad8-b04c-246e8f637991/scratchpad/fakehome \
+> **R11B 更正**:本块的脚本只存在于当轮会话的 scratchpad(原路径含会话标识,已抹去)、**从未落库**,重跑无法复现,因此它不是「shell 命令即证据」意义上的可重跑证据 —— 由 ```verify 改标 ```console。**结论本身不变**,依据仍是块内输出与同节的行号锚点。
+
+```console
+cd /home/user/hermes-agent && HERMES_HOME=<scratchpad>/fakehome \
 /home/user/hermes-venv/bin/python -c "
 import sys; sys.path.insert(0,'/home/user/hermes-agent')
 from tools import skills_sync_client as ssc
@@ -924,9 +928,11 @@ Authorization header -> Bearer eyJ-FAKE-NOUS-BEARER
 `tests/tools/test_skills_sync_client.py` 里的 `_MockState` / `_make_handler`,
 所以线上行为口径与项目自己的测试一致):
 
-```verify
+> **R11B 更正**:本块的脚本只存在于当轮会话的 scratchpad(原路径含会话标识,已抹去)、**从未落库**,重跑无法复现,因此它不是「shell 命令即证据」意义上的可重跑证据 —— 由 ```verify 改标 ```console。**结论本身不变**,依据仍是块内输出与同节的行号锚点。
+
+```console
 cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python \
-  /tmp/claude-0/-home-user-hermes-study/7bb8d911-baae-5ad8-b04c-246e8f637991/scratchpad/repro_pull.py
+  <scratchpad>/repro_pull.py
 ```
 
 ```console
@@ -1066,9 +1072,11 @@ B-only file survived (no deletion on pull)? True
 `■ 缺陷 6(propose 组织镜像里的 skill,会插到错误路径并每轮加深一层嵌套)`。
 输入→现象(同样用仓库自带 mock server;admin token,所以 CAS 直接合并,排除 202 提案路径的干扰):
 
-```verify
+> **R11B 更正**:本块的脚本只存在于当轮会话的 scratchpad(原路径含会话标识,已抹去)、**从未落库**,重跑无法复现,因此它不是「shell 命令即证据」意义上的可重跑证据 —— 由 ```verify 改标 ```console。**结论本身不变**,依据仍是块内输出与同节的行号锚点。
+
+```console
 cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python \
-  /tmp/claude-0/-home-user-hermes-study/7bb8d911-baae-5ad8-b04c-246e8f637991/scratchpad/repro_propose.py
+  <scratchpad>/repro_propose.py
 ```
 
 ```console

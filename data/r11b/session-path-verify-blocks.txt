@@ -1,0 +1,19 @@
+含会话 UUID:
+1	notes/r8d-raw-credentials-security.md
+4	notes/r9a-raw-skills-sync.md
+7	notes/r9c-raw-secret-sources.md
+
+仅含会话临时目录:
+2	notes/r10-96-ts-suites.md
+1	notes/r10b-96-tests.md
+1	notes/r10b-raw-build-package.md
+2	notes/r10b-raw-capability-panels.md
+2	notes/r10b-raw-chat-composer.md
+3	notes/r10b-raw-i18n-l3.md
+2	notes/r10b-raw-lib-themes.md
+2	notes/r10b-raw-message-render.md
+1	notes/r10b-raw-pane-shell-ui.md
+2	notes/r10b-raw-settings-billing.md
+1	notes/r10b-raw-shell-overlays.md
+1	notes/r10b-raw-store-state.md
+1	notes/r9d-90-handover-single-call-site-misses.md
