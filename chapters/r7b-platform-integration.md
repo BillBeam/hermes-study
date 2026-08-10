@@ -127,6 +127,8 @@ flowchart TB
 
 **设计**。基类给出一组方法,**默认值全部取最保守**:
 
+`gateway/platforms/base.py:2943-2960 @ 863e313`
+
 ```python
     def supports_draft_streaming(
         self,
@@ -139,13 +141,13 @@ flowchart TB
         False or when ``send_draft`` raises.
 ```
 
-(`gateway/platforms/base.py:2943-2960 @ 863e313`)
-
 请注意加粗的这半句:**"返回 False **或者 `send_draft` 抛异常**都回落编辑路径"**。
 这是一条很划算的设计:**能力位说谎也不会挂**。适配器作者可以乐观地声明支持,
 真跑不通时异常本身就是第二道降级信号。
 
 **"长度"这个维度值得单独讲**,因为它反直觉:
+
+`gateway/platforms/base.py:190-202 @ 863e313`
 
 ```python
 def utf16_len(s: str) -> int:
@@ -156,11 +158,12 @@ def utf16_len(s: str) -> int:
     Plane (emoji like 😀, CJK Extension B, musical symbols, …) are encoded as
     surrogate pairs and therefore consume **two** UTF-16 code units each, even
     though Python's ``len()`` counts them as one.
+
+    Ported from nearai/ironclaw#2304 which discovered the same discrepancy in
+    Rust's ``chars().count()``.
     """
     return len(s.encode("utf-16-le")) // 2
 ```
-
-(`gateway/platforms/base.py:190-202 @ 863e313`)
 
 > **术语**:*UTF-16 码元* —— UTF-16 编码里的一个 16 位单位。BMP(基本多文种平面)
 > 以外的字符(绝大多数 emoji)要用**两个**码元表示,称为"代理对"。
@@ -176,13 +179,13 @@ def utf16_len(s: str) -> int:
 
 **一条不显眼但很重要的宪法条款**藏在渲染钩子上方:
 
+`gateway/platforms/base.py:3040-3042 @ 863e313`
+
 ```python
     # The contract is presentation-only: nothing rendered here is persisted to
     # conversation history.  History is owned by the agent; what an adapter
     # chooses to "eat" must never change the bytes the agent stored.
 ```
-
-(`gateway/platforms/base.py:3040-3042 @ 863e313`)
 
 适配器可以自由改写**呈现**(iMessage 渲染不了工具调用的花括号 chrome,那就吃掉),
 但**不得改变 agent 存下的字节**。没有这条,"哪个平台看到什么"会污染"模型记得什么",
@@ -196,13 +199,13 @@ def utf16_len(s: str) -> int:
 
 **三个字典构成全部状态**:
 
+`gateway/platforms/base.py:2782-2785 @ 863e313`
+
 ```python
         self._active_sessions: Dict[str, asyncio.Event] = {}
         self._pending_messages: Dict[str, MessageEvent] = {}
         self._session_tasks: Dict[str, asyncio.Task] = {}
 ```
-
-(`gateway/platforms/base.py:2782-2785 @ 863e313`)
 
 | 字典 | 职责 |
 |---|---|
@@ -240,11 +243,11 @@ handle_message(event)
 
 #### 为什么审批命令必须"内联"
 
+`gateway/platforms/base.py:5598 @ 863e313`
+
 ```python
             #   - deadlock (/approve, /deny — agent is blocked on Event.wait)
 ```
-
-(`gateway/platforms/base.py:5598 @ 863e313`)
 
 **故事**:agent 要执行一条危险命令,于是暂停下来等你批准 —— 它此刻正阻塞在一个
 `Event.wait` 上。你回一句 `/approve`。如果这条消息按常规进了"待处理单槽",
@@ -274,6 +277,8 @@ await self._process_message_background(pending_event, session_key)
 调用栈深一层。约 2000 条之后,C 栈耗尽,整个网关进程 **SIGSEGV** ——
 不是抛异常,是段错误,没有 traceback,日志里什么都没有。
 
+`gateway/platforms/base.py:6323-6329 @ 863e313`
+
 ```python
                 # Spawn a fresh task for the pending message instead of
                 # recursing.  Issue #17758: `await
@@ -283,20 +288,22 @@ await self._process_message_background(pending_event, session_key)
                 # exhaust at ~2000 frames and SIGSEGV the process.
 ```
 
-(`gateway/platforms/base.py:6324-6330 @ 863e313`)
-
 修法是**交棒**:起一个新任务、把属主转移过去、当前帧立刻返回让栈退掉。
 
 而在交棒的整个过程中,守卫**必须一直留着**:
 
+`gateway/platforms/base.py:6310-6317 @ 863e313`
+
 ```python
                 # Keep the _active_sessions entry live across the turn chain
                 # and only CLEAR the interrupt Event — do NOT delete the entry.
-                # ... Two agents on one
+                # If we deleted here, a concurrent inbound message arriving
+                # during the awaits below would pass the Level-1 guard, spawn
+                # its own _process_message_background, and run simultaneously
+                # with the recursive drain below.  Two agents on one
                 # session_key = duplicate responses, duplicate tool calls.
+                # Clearing the Event keeps the guard live so follow-ups take
 ```
-
-(`gateway/platforms/base.py:6309-6316 @ 863e313`)
 
 这就是 3.2 节那个"清空 Event 但保留键"中间态的用处。
 
@@ -305,19 +312,39 @@ await self._process_message_background(pending_event, session_key)
 这一处是全簇最精妙的,值得慢读。
 
 **保守策略 A**:释放守卫时要校验身份 —— "我释放的必须是我装的那一个"。
-如果别的路径(比如 `/reset`)已经换了一个新守卫上去,**跳过释放**
-(`gateway/platforms/base.py:5327-5330 @ 863e313`)。合理:否则旧任务的收尾
-会把 `/reset` 刚装的守卫误删。
+如果别的路径(比如 `/reset`)已经换了一个新守卫上去,**跳过释放**:
 
-**保守策略 B**:判断锁"陈旧"时,**没有属主任务不算陈旧**
-(`gateway/platforms/base.py:5337-5342 @ 863e313`)。合理:守卫可能由
-`handle_message` 以外的路径装上,误判会把正在跑的回合的守卫清掉。
+`gateway/platforms/base.py:5328-5330 @ 863e313`
+
+```python
+        if guard is not None and current_guard is not guard:
+            return
+        del self._active_sessions[session_key]
+```
+
+合理:否则旧任务的收尾会把 `/reset` 刚装的守卫误删。
+
+**保守策略 B**:判断锁"陈旧"时,**没有属主任务不算陈旧**:
+
+`gateway/platforms/base.py:5337-5341 @ 863e313`
+
+```python
+        When there is no owner task at all, that usually means the guard was
+        installed by some path other than handle_message() (tests sometimes
+        install guards directly) — don't treat that as stale.  The on-entry
+        self-heal only needs to handle the production split-brain case where
+        an owner task was recorded, then exited without clearing its guard.
+```
+
+合理:守卫可能由 `handle_message` 以外的路径装上,误判会把正在跑的回合的守卫清掉。
 
 **两条各自正确。合起来呢?**
 
 假设策略 A 触发了(守卫身份不匹配,跳过释放),而代码此时仍然删掉了属主任务记录。
 现在的状态是:**守卫还在,属主没了**。下一条消息进来触发自愈 —— 策略 B 说
 "没有属主任务,不算陈旧" —— **不清理**。守卫永远留着,会话**永久死锁**。
+
+`gateway/platforms/base.py:6498-6507 @ 863e313`
 
 ```python
         Release-then-conditional-delete is the #48300 fix: when a concurrent
@@ -326,20 +353,21 @@ await self._process_message_background(pending_event, session_key)
         mismatch and the lock stays installed. If we deleted ``_session_tasks``
         unconditionally (the old order), ``_session_task_is_stale`` would later
         see no owner task and report "not stale", so the orphaned guard would
-        never be healed — a permanent session deadlock.
+        never be healed — a permanent session deadlock. Keeping the done-task
+        entry when the guard survives lets the on-entry self-heal detect the
+        stale lock and clear it on the next inbound message.
+        """
 ```
 
-(`gateway/platforms/base.py:6497-6506 @ 863e313`)
-
 修法:**只有守卫真的释放了,才删属主记录**。
+
+`gateway/platforms/base.py:6508-6510 @ 863e313`
 
 ```python
         self._release_session_guard(session_key, guard=interrupt_event)
         if session_key not in self._active_sessions:
             self._session_tasks.pop(session_key, None)
 ```
-
-(`gateway/platforms/base.py:6508-6510 @ 863e313`)
 
 **可迁移的原则**:当两个机制各自为了安全而"保守跳过"时,要检查它们的**跳过路径
 是否互相依赖**。两个独立正确的保守策略,组合起来可能构成一个不可恢复态。
@@ -362,6 +390,8 @@ await self._process_message_background(pending_event, session_key)
 
 **没有会话 ID,怎么认出这是同一段对话?**
 
+`gateway/platforms/api_server.py:1268-1278 @ 863e313`
+
 ```python
     """Derive a stable session ID from the conversation's first user message.
 
@@ -377,8 +407,6 @@ await self._process_message_background(pending_event, session_key)
     return f"api-{digest}"
 ```
 
-(`gateway/platforms/api_server.py:1269-1279 @ 863e313`)
-
 **洞察**:无状态客户端虽然不给 ID,但它每次发来的东西里**有一部分是这段对话的不变量** ——
 系统提示 + 第一条用户消息。哈希它们就得到一个确定性 ID。**零客户端改造。**
 
@@ -392,6 +420,8 @@ await self._process_message_background(pending_event, session_key)
 | `X-Hermes-Session-Id` | **哪一段转写**(续接历史,开新会话时轮换) | 防**读**别人历史 |
 | `X-Hermes-Session-Key` | **谁的记忆**(长期记忆作用域,跨转写不变) | 防**写进**别人记忆域 |
 
+`gateway/platforms/api_server.py:2051-2055 @ 863e313`
+
 ```python
         The session key is a stable per-channel identifier that scopes
         long-term memory (e.g. Honcho sessions) across transcripts.  It
@@ -399,13 +429,16 @@ await self._process_message_background(pending_event, session_key)
         either, both, or neither.
 ```
 
-(`gateway/platforms/api_server.py:2051-2055 @ 863e313`)
+两者都要求配置了 API key 才接受。理由写得很直白:
 
-两者都要求配置了 API key 才接受。理由写得很直白
-(`gateway/platforms/api_server.py:3954-3958 @ 863e313`):
+`gateway/platforms/api_server.py:3955-3958 @ 863e313`
 
-> Without this gate, any unauthenticated client could read arbitrary session
-> history by guessing/enumerating session IDs.
+```python
+        # Security: session continuation exposes conversation history, so it is
+        # only allowed when the API key is configured and the request is
+        # authenticated.  Without this gate, any unauthenticated client could
+        # read arbitrary session history by guessing/enumerating session IDs.
+```
 
 #### 让错误状态无法表达(#10760)
 
@@ -418,16 +451,17 @@ await self._process_message_background(pending_event, session_key)
 
 修法不是"记得传 `async_delivery=False`",而是**把这个参数从签名里删掉**:
 
+`gateway/platforms/api_server.py:5933-5939 @ 863e313`
+
 ```python
         This is the SINGLE structural chokepoint every API-server agent-entry
         path must use to seed session context — it hardwires
         ``platform="api_server"`` and ``async_delivery=False`` so a new route
         physically cannot reintroduce the silent-no-op bug (#10760) by
         forgetting to mark the channel as non-delivering. There is no
-        ``async_delivery`` parameter to get wrong
+        ``async_delivery`` parameter to get wrong; the stateless HTTP path can
+        never wake the agent after the turn ends, on ANY route.
 ```
-
-(`gateway/platforms/api_server.py:5933-5939 @ 863e313`)
 
 **可迁移的原则**:当一个必须永远取某值的参数反复被忘记时,正确的修法是**消灭这个参数**,
 而不是加文档、加断言、加 code review checklist。让错误状态不可表达。
@@ -439,6 +473,8 @@ await self._process_message_background(pending_event, session_key)
 适配器随即被丢弃,但**连接没关**。2.5 天后泄漏约 501 个连接 / 1002 个文件描述符,
 撞上 `EMFILE`,**整个网关**(不只是这一个适配器)挂掉。
 
+`gateway/platforms/api_server.py:6992-7000 @ 863e313`
+
 ```python
             # transient blip — the key will not become valid on its own. A
             # bare ``return False`` makes the reconnect watcher in
@@ -446,17 +482,27 @@ await self._process_message_background(pending_event, session_key)
             # backoff cap, re-instantiating the adapter (and its
             # ResponseStore sqlite connection) every retry (#38803: ~501
             # leaked connections / 1002 fds over 2.5 days until EMFILE took
-            # the whole gateway down).
+            # the whole gateway down). Non-retryable drops it from the
+            # reconnect queue — same treatment as the port-conflict guard
+            # (api_server_port_in_use). The guard already logged the
+            # specific rejection reason just above.
 ```
-
-(`gateway/platforms/api_server.py:6991-6999 @ 863e313`)
 
 **可迁移的原则**:失败分类(可重试 / 不可重试)是**资源安全**问题,不只是用户体验问题。
 "配置错误"被误分类成"瞬时故障",代价是一个无限循环,每圈泄漏一点资源。
 
 同一类事故在这一簇出现了**两次** —— 另一次是七个长驻适配器的 HTTP 连接池默认
-空闲期太长,在透明代理后累加撞上 macOS 的 256 fd 上限
-(`gateway/platforms/_http_client_limits.py:12-19 @ 863e313`,issue #18451)。
+空闲期太长,在透明代理后累加撞上 macOS 的 256 fd 上限:
+
+`gateway/platforms/_http_client_limits.py:12-15 @ 863e313`
+
+```python
+sit in ``CLOSE_WAIT`` longer than that before the local socket actually
+drains — which, multiplied across 7 long-lived adapters plus the LLM
+client and MCP clients, walks straight into the default 256 fd limit.
+See #18451.
+```
+
 **文件描述符是网关的第一稀缺资源。**
 
 ---
@@ -492,6 +538,8 @@ def validate_media_delivery_path(path: str) -> Optional[str]:
 
 **两个模式的取舍被明确写了下来**:
 
+`gateway/platforms/base.py:1155-1161 @ 863e313`
+
 ```python
 # Off by default — symmetric with inbound (we accept any document type the
 # user uploads), and with the denylist still blocking obvious credential /
@@ -500,12 +548,12 @@ def validate_media_delivery_path(path: str) -> Optional[str]:
 # user should set this to true.
 ```
 
-(`gateway/platforms/base.py:1154-1160 @ 863e313`)
-
 默认宽(除机密外都能发),公开部署应开严格模式。理由是**对称性**:入站什么类型都收,
 出站也就什么类型都发,只挡机密。
 
 **严格模式用"文件够新"当信任信号,而这个启发式被打破过一次**:
+
+`gateway/platforms/base.py:1360-1363 @ 863e313`
 
 ```python
         # Google Workspace skill: auto-refreshing OAuth token (mtime bumps
@@ -513,8 +561,6 @@ def validate_media_delivery_path(path: str) -> Optional[str]:
         # pending-exchange session/verifier file.
         "google_token.json",
 ```
-
-(`gateway/platforms/base.py:1360-1363 @ 863e313`)
 
 一个每回合自动续期的 OAuth token,**永远"新鲜"**,时间窗对它完全失效。
 修法不是改时间窗,而是把它移进硬拒绝名单。
@@ -538,6 +584,8 @@ def validate_media_delivery_path(path: str) -> Optional[str]:
 
 **答案是把能力位从"方法"变成"数据"**:
 
+`gateway/relay/descriptor.py:42-56 @ 863e313`
+
 ```python
 class CapabilityDescriptor:
     """Immutable capability descriptor negotiated at relay handshake.
@@ -557,8 +605,6 @@ class CapabilityDescriptor:
     len_unit: str  # "chars" | "utf16"
 ```
 
-(`gateway/relay/descriptor.py:42-56 @ 863e313`)
-
 对照 3.1 节:`max_message_length`、`len_unit`、`supports_draft_streaming` ——
 **同一组维度,只是这次从对端传过来。**
 
@@ -566,19 +612,28 @@ class CapabilityDescriptor:
 
 connector 可以同时前置 Discord 和 Telegram,于是会发来**多个**描述符:
 
+`gateway/relay/ws_transport.py:832-836 @ 863e313`
+
 ```python
-            # Accumulate them keyed by the descriptor's own platform so
+            # Phase 1.5 multi-platform: one descriptor frame arrives per hello'd
+            # identity. Accumulate them keyed by the descriptor's own platform so
             # the adapter can resolve PER-CHAT capabilities (e.g. Discord's 2000
             # vs Telegram's 4096 max_message_length) instead of collapsing N
             # platforms onto whichever descriptor arrived last.
-            ...
+```
+
+紧接着几行定下"首个即默认":
+
+`gateway/relay/ws_transport.py:839-844 @ 863e313`
+
+```python
             # The FIRST descriptor of this connection generation is the session
             # default (the primary identity's) — later arrivals must NOT
             # overwrite it, or the scalar capability surface silently becomes
             # last-writer-wins across platforms.
+            if self._descriptor is None:
+                self._descriptor = descriptor
 ```
-
-(`gateway/relay/ws_transport.py:833-843 @ 863e313`)
 
 没有那句"首个即默认",标量能力面会变成**最后到达者胜** —— Telegram 的 4096
 覆盖 Discord 的 2000,回复被 Discord 拒收。
@@ -587,28 +642,35 @@ connector 可以同时前置 Discord 和 Telegram,于是会发来**多个**描�
 
 描述符来自网络对端,所以反序列化是一个信任边界:
 
-```python
-        # A connector may advertise max_message_length 0 ("no limit"), and a
-        # buggy/hostile one may send 0 or a negative; either is a degenerate
-        # value that would flow straight into the adapter's MAX_MESSAGE_LENGTH
-        # and truncate_message().
-```
+`gateway/relay/descriptor.py:109-115 @ 863e313`
 
-(`gateway/relay/descriptor.py:107-113 @ 863e313`)
+```python
+        # Normalize the chunking bound at the trust boundary. A connector may
+        # advertise max_message_length 0 ("no limit"), and a buggy/hostile one
+        # may send 0 or a negative; either is a degenerate value that would flow
+        # straight into the adapter's MAX_MESSAGE_LENGTH and truncate_message().
+        # Map it to the documented 4096 default (docs/relay-connector-contract.md;
+        # mirrors from_platform_entry's `or 4096`) so from_json never yields a
+        # descriptor that can't chunk a real message.
+```
 
 `max_message_length = 0` 是**合法 JSON、类型正确**的值,但它会一路流进截断函数,
 把每条回复截成空串 —— **全量静默数据丢失**。所以边界上要做取值归一化(映射到 4096)。
 
 #### relay 安全模型的支点
 
+`gateway/relay/ws_transport.py:232-240 @ 863e313`
+
 ```python
         # Authentic upstream-trust signal: this event arrived over the
-        # per-instance-authenticated relay WS ...
-        # Stamped here, never read off the wire.
+        # per-instance-authenticated relay WS, so the connector already resolved
+        # it to this instance's owner-bound author. ``platform`` is the
+        # UNDERLYING platform (e.g. discord), not ``relay`` — authz keys the
+        # upstream-trust decision off THIS flag, not off ``platform`` (which
+        # would miss because the relay adapter is registered under
+        # ``Platform.RELAY``). Stamped here, never read off the wire.
         delivered_via_upstream_relay=True,
 ```
-
-(`gateway/relay/ws_transport.py:232-240 @ 863e313`)
 
 **"本地盖章,永不读线"**。这个标志的含义是"本事件从已鉴权的 WS 上进来",
 所以它**只能由接收端根据自己所在的代码路径盖章**。如果它是线上的一个字段,
@@ -630,14 +692,16 @@ connector 可以同时前置 Discord 和 Telegram,于是会发来**多个**描�
 Discord 的按钮点击要求 **3 秒内 ACK**,否则用户看到"交互失败"。托管在云端的网关
 可能在冷启动或跨地域,做不到。
 
+`gateway/relay/ws_transport.py:877-882 @ 863e313`
+
 ```python
-            # forwarded passthrough-plane request (Discord
+        elif ftype == "passthrough_forward":
+            # Phase 5 §5.1: a forwarded passthrough-plane request (Discord
             # interaction, Twilio, …) the connector already edge-ACKed. It rides
             # the SAME outbound WS as inbound messages so a hosted gateway needs
-            # no public inbound port.
+            # no public inbound port. Dispatch to the adapter's handler; the
+            # bufferId (when present, §5.3 buffered flip) is passed for ack.
 ```
-
-(`gateway/relay/ws_transport.py:877-881 @ 863e313`)
 
 connector 在边缘先 ACK,再把真实请求顺着**已有的出站连接**转发进来。
 **一条出站单向 WebSocket,同时解决了"NAT 后无公网 IP"和"延迟敏感的边缘 ACK"两个问题。**
@@ -729,7 +793,17 @@ connector 在边缘先 ACK,再把真实请求顺着**已有的出站连接**转�
 **▲3 / ▲5**。`ADDING_A_PLATFORM.md` 让你参考 `gateway/platforms/telegram.py`、
 `discord.py`、`whatsapp.py` —— **三个里两个不存在**(已迁到插件目录)。
 更有意思的是 ▲5:**同样的失效引用也出现在 `whatsapp_cloud.py` 自己的模块 docstring 里**
-(`gateway/platforms/whatsapp_cloud.py:7-12 @ 863e313`)。
+——它拿一个已经不在这个目录下的 `whatsapp.py` 跟自己作对比:
+
+`gateway/platforms/whatsapp_cloud.py:7-11 @ 863e313`
+
+```python
+- ``whatsapp.py``      — unofficial Baileys bridge, personal accounts, no
+                         public URL needed, account-ban risk.
+- ``whatsapp_cloud.py`` (this file) — official Meta Cloud API, Business
+                         account required, public webhook URL required,
+                         token-based auth.
+```
 上一轮的规律是"接线声明会说谎";本轮把它推进一格:**代码注释里的路径引用同样会腐烂,
 而且更难被发现。**
 
@@ -744,8 +818,19 @@ connector 在边缘先 ACK,再把真实请求顺着**已有的出站连接**转�
 
 **这五个交互方法里,两个有基类桩(`send_clarify`、`send_slash_confirm`)、三个没有**
 (`send_exec_approval` / `send_model_picker` / `send_choice_picker`),而文档**对这个分界只字未提**。
-优雅降级是真的,但那三个的降级实现在**调用点的类型探测**
-(`gateway/slash_commands.py:3463 @ 863e313`)。
+优雅降级是真的,但那三个的降级实现在**调用点的类型探测**——调用方自己 `getattr` 探一下
+适配器类上有没有这个方法,没有就当"不支持"处理:
+
+`gateway/slash_commands.py:3461-3466 @ 863e313`
+
+```python
+        has_picker = (
+            adapter is not None
+            and getattr(type(adapter), "send_choice_picker", None) is not None
+        )
+        if not has_picker:
+            return False
+```
 
 > **为什么从 ▲ 降到 ◇。** 本章初稿写的是"文档把这三个方法列在『有基类默认桩』的标题下"——
 > **文档从来没有这么说**,那三个在另一个标题下。▲ 的定义是"文档所述与代码矛盾",
@@ -778,8 +863,16 @@ relay 这一簇有 `tests/gateway/relay/test_contract_doc_conformance.py`,
 **唯独不含 `plugins/`,而 ▲3 的失效路径正指向 `plugins/platforms/*/adapter.py`。**
 自检手法覆盖面看着不小,却恰好绕开了唯一相关的那个目录,**连它自己的 ▲3 都发现不了。**
 
-*(R7C 修订:此处原写作"只扫 `gateway/` 目录",扫描集表述有误,已按
-`gateway/platforms/ADDING_A_PLATFORM.md:400-402 @ 863e313` 更正;结论不变。)*
+自检 grep 的原文如下(R7C 修订:此处原写作"只扫 `gateway/` 目录",扫描集表述有误,
+已按下面这段原文更正;结论不变):
+
+`gateway/platforms/ADDING_A_PLATFORM.md:400-402 @ 863e313`
+
+```bash
+# Grep for your platform name to find any missed integration points
+grep -r "telegram\|discord\|whatsapp\|slack" gateway/ tools/ agent/ cron/ hermes_cli/ toolsets.py \
+  --include="*.py" -l | sort -u
+```
 
 这就是第 4 节第 24 条原则的来源。
 

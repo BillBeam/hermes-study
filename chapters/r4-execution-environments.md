@@ -101,10 +101,18 @@ flowchart TD
 且它发生在 `/workspace` 里。但如果每条命令是一个独立的、跑完就退的 `bash -c` 进程,那么第二条 `export`
 的变量随进程一起消失,第三条就是空的。怎么让一串"用完即弃"的进程表现得像一个连续的、有记忆的 shell?
 
-**设计**:**会话快照重放**。基类 `base.py` 一句话定死了整簇的模型(`tools/environments/base.py:1-7 @ 863e313`):
+**设计**:**会话快照重放**。基类 `tools/environments/base.py` 开篇一句话定死了整簇的模型:
 
-> Unified spawn-per-call model: every command spawns a fresh `bash -c` process. A session snapshot (env vars,
-> functions, aliases) is captured once at init and re-sourced before each command.
+`tools/environments/base.py:1-6 @ 863e313`
+
+```python
+"""Base class for all Hermes execution environment backends.
+
+Unified spawn-per-call model: every command spawns a fresh ``bash -c`` process.
+A session snapshot (env vars, functions, aliases) is captured once at init and
+re-sourced before each command. CWD persists via in-band stdout markers (remote)
+or a temp file (local).
+```
 
 具体分两步。开工时(init)跑一段登录 shell,把四类状态 dump 到一个快照文件:环境变量、shell 函数、别名、
 shell 选项。之后每条命令被包成六段脚本,顺序固定(`tools/environments/base.py:781-875 @ 863e313`):①存好"透传变量"(见下)②`source`
@@ -127,11 +135,35 @@ parts.append(
   看到旧的完整版、要么新的完整版,不会看到半截。
 - **临时名必须每个写者唯一**:那为什么不用 `$$`(进程 PID)当临时名?因为在 `&` 启动的子壳里 `$$` 是
   父壳的 PID,两个并发写者会撞同一个临时名。那 `$BASHPID`?它在 macOS 自带的老 bash 3.2 上根本不存在,
-  展开成空字符串、又撞名。只有 `mktemp` 跨 bash 版本都能给每个写者一个唯一路径(`tools/environments/base.py:666-677 @ 863e313`)。
+  展开成空字符串、又撞名。只有 `mktemp` 跨 bash 版本都能给每个写者一个唯一路径——这三种方案的取舍
+  被完整地注在代码旁:
+
+  `tools/environments/base.py:666-674 @ 863e313`
+
+  ```python
+        # The temp name MUST be unique per concurrent writer.  ``$$`` is the
+        # bash PID, but in ``&``-launched subshells (how concurrent terminal
+        # calls run) ``$$`` stays the *parent* shell's PID — so two concurrent
+        # writers would pick the SAME temp name, clobber each other's temp
+        # mid-write, and mv would then publish a torn file (the corruption is
+        # only narrowed, not closed).  ``$BASHPID`` would be unique per writer,
+        # but macOS ships bash 3.2 which does NOT provide it — the name expands
+        # empty there, so every writer shares one temp path and the race is
+        # back.  ``mktemp`` allocates a per-writer unique path portably across
+  ```
+
 - **函数要按名字过滤、不能按行过滤**:dump 函数时想滤掉下划线开头的私有 helper(bash 补全的内部函数)。
   直觉写法 `declare -f | grep -vE '^_'` 是**按行**删的——它删掉了函数头那一行,却留下孤儿的 `{ …函数体… }`,
   污染快照,让之后每条命令都 `exit 127`(命令未找到)。正确做法是先用 `declare -F` 选出要保留的**名字**,
-  再整体 dump(`tools/environments/base.py:697-699 @ 863e313`)。
+  再整体 dump:
+
+  `tools/environments/base.py:697-699 @ 863e313`
+
+  ```python
+            f"__hermes_fns=$(declare -F | awk '{{print $3}}' | grep -vE '^_[^_]') || true\n"
+            f"[ -n \"$__hermes_fns\" ] && declare -f $__hermes_fns "
+            f">> {_snap_tmp} 2>/dev/null || true\n"
+  ```
 
 还有一处和秘密有关的细节:某些"透传变量"可能带着某个 profile 的秘密值。它们被存进**shell 变量而不是拼进
 命令字符串**,免得秘密从进程参数列表或日志里泄露;快照文件本身也 `umask 077`(只有属主可读),因为它
@@ -151,7 +183,22 @@ Modal 的云 SDK 发起的一次**阻塞调用**——你调一个函数,它卡�
 函数调用。上层那套宝贵的等待循环(带中断、超时、心跳、防挂死)只想写一遍,怎么让这两种东西都能塞进去?
 
 **设计**:定义一个**极窄的鸭子类型协议** `ProcessHandle`——只要求四个方法一个属性:`poll()`(结束了吗)、
-`kill()`、`wait()`、`stdout`(一条可读的流)、`returncode`(`tools/environments/base.py:356-371 @ 863e313`)。
+`kill()`、`wait()`、`stdout`(一条可读的流)、`returncode`。协议本身连注释带方法签名不到十行:
+
+`tools/environments/base.py:356-365 @ 863e313`
+
+```python
+class ProcessHandle(Protocol):
+    """Duck type that every backend's _run_bash() must return.
+
+    subprocess.Popen satisfies this natively.  SDK backends (Modal, Daytona)
+    return _ThreadedProcessHandle which adapts their blocking calls.
+    """
+
+    def poll(self) -> int | None: ...
+    def kill(self) -> None: ...
+    def wait(self, timeout: float | None = None) -> int: ...
+```
 
 > **术语锚定 · 鸭子类型 / Protocol**:不要求后端继承某个基类,只要求它"长得像"——有这几个方法就行。
 > Python 的 `Protocol` 就是这种"结构化接口"。
@@ -159,7 +206,23 @@ Modal 的云 SDK 发起的一次**阻塞调用**——你调一个函数,它卡�
 - **真子进程后端**(local / docker / ssh / singularity):`_run_bash` 直接返回 Python 标准库的
   `subprocess.Popen`,它天生就满足这个协议,一行适配都不用。
 - **阻塞式云 SDK 后端**(Modal / Daytona / Vercel):没有真进程,于是用一个适配器
-  `_ThreadedProcessHandle`(`tools/environments/base.py:374-445 @ 863e313`)把"一次阻塞调用"**伪装**成一个进程:在一个后台工作线程里
+  `_ThreadedProcessHandle`(整段实现在 `tools/environments/base.py:374-445 @ 863e313`)把"一次阻塞调用"
+  **伪装**成一个进程。它的自述就是这个伪装的说明书:
+
+  `tools/environments/base.py:374-381 @ 863e313`
+
+  ```python
+  class _ThreadedProcessHandle:
+      """Adapter for SDK backends (Modal, Daytona) that have no real subprocess.
+
+      Wraps a blocking ``exec_fn() -> (output_str, exit_code)`` in a background
+      thread and exposes a ProcessHandle-compatible interface.  An optional
+      ``cancel_fn`` is invoked on ``kill()`` for backend-specific cancellation
+      (e.g. Modal sandbox.terminate, Daytona sandbox.stop).
+      """
+  ```
+
+  具体做法是:在一个后台工作线程里
   跑那个阻塞调用,把它的输出一次性写进一个 `os.pipe()`(真的操作系统管道)的写端,于是上层的等待循环
   照常 `select()` + 读管道读端;用一个 `threading.Event` 桥接 `poll()`/`wait()`(事件没置位就是"还在跑");
   `kill()` 则调用后端传进来的"取消函数"。
@@ -171,7 +234,23 @@ Modal 的云 SDK 发起的一次**阻塞调用**——你调一个函数,它卡�
 
 有一个后端是例外:**代管 Modal**(网关持有沙箱、走 HTTP REST)连 `_run_bash` 这层都不用,它直接接管了
 更上层的 `execute()`,自己写轮询循环——因为当前目录追踪和环境快照在**网关服务端**做,base 那套
-包装/快照机制对它整个不适用(`tools/environments/modal_utils.py:58-67 @ 863e313`)。这提醒我们:抽象要允许"极端后端整段跳过"。
+包装/快照机制对它整个不适用。这个"跳过"是**显式声明**的,不是悄悄绕过:
+
+`tools/environments/modal_utils.py:59-67 @ 863e313`
+
+```python
+    """Execution flow for the *managed* Modal transport (gateway-owned sandbox).
+
+    This deliberately overrides :meth:`BaseEnvironment.execute` because the
+    tool-gateway handles command preparation, CWD tracking, and env-snapshot
+    management on the server side.  The base class's ``_wrap_command`` /
+    ``_wait_for_process`` / snapshot machinery does not apply here — the
+    gateway owns that responsibility.  See ``ManagedModalEnvironment`` for the
+    concrete subclass.
+    """
+```
+
+这提醒我们:抽象要允许"极端后端整段跳过"。
 
 **可迁移**:让后端只需返回一个 `poll/kill/wait/stdout` 鸭子类型,统一的等待/中断/超时/心跳逻辑只写一次;
 阻塞式 SDK 用"工作线程 + `os.pipe` 造真文件描述符 + 事件桥接"降维成进程;无本地进程的后端,中断=掀沙箱,
@@ -182,32 +261,98 @@ Modal 的云 SDK 发起的一次**阻塞调用**——你调一个函数,它卡�
 ### 3.3 七种后端、两种范式,和"空闲休眠"的四种真相
 
 **场景**:你今天让 agent 在云沙箱里 `pip install numpy`,会话结束;明天同一个任务再开,你希望 numpy 还在,
-而且这中间不为闲置的机器付钱。README 说"Daytona 和 Modal 提供 serverless 持久化——空闲时休眠、按需唤醒"
-(`README.md:29 @ 863e313`)。这句话背后,代码到底怎么实现的?
+而且这中间不为闲置的机器付钱。README 是这么承诺的:
+
+`README.md:29 @ 863e313`
+
+> <tr><td><b>Runs anywhere, not just your laptop</b></td><td>Seven terminal backends — local, Docker, SSH, Singularity, Modal, Daytona, and Vercel Sandbox. Daytona and Modal offer serverless persistence — your agent's environment hibernates when idle and wakes on demand, costing nearly nothing between sessions. Run it on a $5 VPS or a GPU cluster.</td></tr>
+
+这句话背后,代码到底怎么实现的?
 
 **设计**:先说数字——**七种后端确实是七种**。工厂函数按类型分支恰好七个:local、docker、singularity、
-modal、daytona、vercel_sandbox、ssh(`tools/terminal_tool.py:1633-1760 @ 863e313`)。代管 Modal 不是第八个,是 modal 这一
-类型下的一个传输子模式。
+modal、daytona、vercel_sandbox、ssh(整条分支链见 `tools/terminal_tool.py:1633-1760 @ 863e313`)。
+链条起头是这样:
+
+`tools/terminal_tool.py:1635-1638 @ 863e313`
+
+```python
+    if env_type == "local":
+        return _LocalEnvironment(cwd=cwd, timeout=timeout)
+
+    elif env_type == "docker":
+```
+
+代管 Modal 不是第八个,是 modal 这一类型下的一个传输子模式。
 
 再说持久化——查下来,"空闲休眠"底下是**四种完全不同的物理机制**:
 
 - **Modal(直连)= 文件系统快照**:不是后台探测空闲,而是**清理时对文件系统拍一张快照、销毁沙箱**,下次
-  创建时从快照 id 复活(`tools/environments/modal.py:451-469 @ 863e313`)。快照 id 存在一个 JSON 台账里,键带 `direct:` 命名空间前缀,
-  避免同一任务在不同传输模式下的快照串味,还带一条从旧格式裸键迁移过来的路径。
+  创建时从快照 id 复活。注意这段是在**清理**路径上,由 `self._persistent` 门控:
+
+  `tools/environments/modal.py:451-455 @ 863e313`
+
+  ```python
+        if self._persistent:
+            try:
+                async def _snapshot():
+                    img = await self._sandbox.snapshot_filesystem.aio()
+                    return img.object_id
+  ```
+
+  快照 id 存在一个 JSON 台账里(整段见 `tools/environments/modal.py:451-469 @ 863e313`),键带 `direct:`
+  命名空间前缀,避免同一任务在不同传输模式下的快照串味,还带一条从旧格式裸键迁移过来的路径。
 - **Daytona = 停机 / 开机同一实体**:靠"stop 同一个沙箱、下次 start 回来",文件系统天然随实体保留。注意它
-  创建时显式设 `auto_stop_interval=0`(`tools/environments/daytona.py:125 @ 863e313`)——**关掉了 Daytona 平台自己的空闲自动停机**,改由
-  hermes 在清理时主动 `stop()`。
+  创建时显式设 `auto_stop_interval=0`——**关掉了 Daytona 平台自己的空闲自动停机**,改由 hermes 在清理时
+  主动 `stop()`:
+
+  `tools/environments/daytona.py:120-126 @ 863e313`
+
+  ```python
+            self._sandbox = self._daytona.create(
+                CreateSandboxFromImageParams(
+                    image=image,
+                    name=sandbox_name,
+                    labels=labels,
+                    auto_stop_interval=0,
+                    resources=resources,
+  ```
+
 - **Vercel = 快照**:和 Modal 直连同构,清理拍 `snapshot()`、创建时 `source=snapshot` 复活,并额外带"每条
-  命令前健康检查、沙箱被平台回收就透明重建"的自愈逻辑(`tools/environments/vercel_sandbox.py:448-511 @ 863e313`)。
-- **代管 Modal = 真·空闲休眠**:创建时给网关传一个 `idleTimeoutMs`(至少 5 分钟)(`tools/environments/managed_modal.py:189 @ 863e313`),
-  这才是"服务端 idle 到点休眠"的语义。
+  命令前健康检查、沙箱被平台回收就透明重建"的自愈逻辑。它的快照函数同样由 `_persistent` 门控:
+
+  `tools/environments/vercel_sandbox.py:448-449 @ 863e313`
+
+  ```python
+    def _snapshot_sandbox(self, sandbox: Sandbox) -> str | None:
+        if not self._persistent or not self._task_id:
+  ```
+
+- **代管 Modal = 真·空闲休眠**:创建时给网关传一个 `idleTimeoutMs`,下限 5 分钟,这才是"服务端 idle
+  到点休眠"的语义:
+
+  `tools/environments/managed_modal.py:189 @ 863e313`
+
+  ```python
+              "idleTimeoutMs": max(300_000, int(self.timeout * 1000)),
+  ```
 
 于是 README 那句话要**修正两处**(证据见 §5):其一,"空闲时休眠"对直连 Modal 和 Daytona 都不精确——它们
 是**会话结束即休眠**(清理触发),不是后台空闲探测,只有代管 Modal 才有真 idle 计时;其二,**Vercel 同样
 提供快照持久化**,README 只字未提,漏了它。
 
 顺带一个和安全相关的**负面发现**:出口流量管控(iron-proxy,给命令注入代理 + CA 强制走审计出口)目前
-**只接线在 Docker 后端**(`tools/environments/docker.py:393-531 @ 863e313`),对 SSH/Modal/Daytona/Vercel/Singularity 全部零命中。也就是说
+**只接线在 Docker 后端**——整个接线函数的名字里就写着 `_for_docker`:
+
+`tools/environments/docker.py:393-395 @ 863e313`
+
+```python
+def _egress_proxy_args_for_docker() -> tuple[list[str], dict[str, str], list[str]]:
+    """Build the docker mount/env/host args needed to route a sandbox through
+    the iron-proxy egress firewall.
+```
+
+对 SSH/Modal/Daytona/Vercel/Singularity 全部零命中(整段见
+`tools/environments/docker.py:393-531 @ 863e313`)。也就是说
 "出口管控"和"选哪个后端"是**正交**的两件事——选了远端后端不等于就有出口隔离。这是文档没讲清的一处覆盖
 边界,记为学习产出。
 
@@ -227,12 +372,40 @@ modal、daytona、vercel_sandbox、ssh(`tools/terminal_tool.py:1633-1760 @ 863e3
 
 - **正向同步是事务性的**:每个周期先算 diff(用"修改时间 + 大小"快判哪些文件变了),然后 bulk 上传 + 删除,
   **全部成功才提交**状态;任何一步抛异常就回滚,而且**故意不推进限速时钟**——好让下一个周期立刻重试而不是
-  被限速挡住(`tools/environments/file_sync.py:241-250 @ 863e313`)。用"修改时间+大小"快判、`sha256` 精判,避免每条命令都全量重传。
+  被限速挡住。"为什么故意不推进"是这段回滚代码里最长的一条注释:
+
+  `tools/environments/file_sync.py:241-250 @ 863e313`
+
+  ```python
+        except Exception as exc:
+            self._synced_files = prev_files
+            self._pushed_hashes = prev_hashes
+            # Do NOT advance _last_sync_time here: a failed cycle rolls state
+            # back so the next cycle can retry. Bumping the rate-limit clock on
+            # failure would make the next non-forced sync() return early (the
+            # guard above), suppressing that retry for up to _sync_interval and
+            # leaving the remote with stale files — contradicting this method's
+            # documented "next cycle retries everything" contract.
+            logger.warning("file_sync: sync failed, rolled back state: %s", exc)
+  ```
+
+  用"修改时间+大小"快判、`sha256` 精判,避免每条命令都全量重传。
 - **反向拉回有四层护栏**:凭据文件**只上不下**(防沙箱污染你的本机凭据);解压时 `extractall(filter="data")`
   防路径穿越;tar 超过 2 GiB 直接拒绝解压(防撑爆磁盘);并发的多个网关沙箱用文件锁 `flock` 串行化。冲突
   策略是 last-write-wins:你本机和沙箱都改了同一个文件,记一条警告、用沙箱版覆盖。
 - **信号延迟**:同步进行到一半时,如果你按了 Ctrl+C,它先把这个中断"记下来待办"、等这次同步做完再补投
-  信号——免得半路打断留下半同步状态(`tools/environments/file_sync.py:301-334 @ 863e313`)。
+  信号——免得半路打断留下半同步状态(整段见 `tools/environments/file_sync.py:301-334 @ 863e313`)。
+  这里还藏着一个必须知道的限制:`signal.signal()` 只能在主线程调,而网关场景下清理可能跑在工作线程上,
+  所以它**先判断自己在不在主线程**,不在就跳过延迟而不是崩掉:
+
+  `tools/environments/file_sync.py:303-306 @ 863e313`
+
+  ```python
+        # signal.signal() only works from the main thread. In gateway
+        # contexts cleanup() may run from a worker thread — skip SIGINT
+        # deferral there rather than crashing.
+        on_main_thread = threading.current_thread() is threading.main_thread()
+  ```
 
 **可迁移**:同步引擎与传输解耦(回调注入);正向"全成才提交、失败不推进限速钟",反向要有凭据单向、并发
 串行、尺寸/重试、信号延迟这几层护栏 + 明确的冲突策略。这些护栏无一例外都是被真实事故打磨出来的。
@@ -246,12 +419,41 @@ modal、daytona、vercel_sandbox、ssh(`tools/terminal_tool.py:1633-1760 @ 863e3
 
 **设计**:`terminal_tool` 在把命令交给后端前,做几处**针对具体故障**的 shell 语义修补:
 
-- **`A && B &` 重写(`tools/terminal_tool.py:805-884 @ 863e313`)**:bash 里 `&`(后台化)的优先级**低于** `&&`,所以
-  `A && B &` 实际是"把整个 `A && B` 丢进一个后台子壳"——结果 A 也在后台跑了,前台终端立刻返回、拿不到
-  A 的退出码。harness 把它重写成 `A && { B & }`:保住 `&&` 的错误语义(A 在前台跑、失败就不跑 B),只把
+- **`A && B &` 重写**:bash 里 `&`(后台化)的优先级**低于** `&&`,所以 `A && B &` 实际是"把整个
+  `A && B` 丢进一个后台子壳"——结果 A 也在后台跑了,前台终端立刻返回、拿不到 A 的退出码。改写函数的
+  docstring 把这个陷阱连同它的后果讲全了(整段实现见 `tools/terminal_tool.py:805-884 @ 863e313`):
+
+  `tools/terminal_tool.py:805-812 @ 863e313`
+
+  ```python
+      """Wrap `A && B &` (or `A || B &`) to `A && { B & }` at depth 0.
+
+      Bash parses ``A && B &`` with `&&` tighter than `&`, so it forks a
+      subshell for the whole `A && B` compound and backgrounds it. Inside
+      the subshell, `B` runs foreground, so the subshell waits for `B` to
+      finish. When `B` is a long-running process (`python3 -m http.server`,
+      `yes > /dev/null`, anything that doesn't naturally exit), the subshell
+      never exits. It leaks as a process stuck in ``wait4`` forever — and
+  ```
+
+  harness 把它重写成 `A && { B & }`:保住 `&&` 的错误语义(A 在前台跑、失败就不跑 B),只把
   B 放后台。这个改写幂等、只在顶层做。
-- **`sudo -S` 密码管道(`tools/terminal_tool.py:1040-1053 @ 863e313`)**:配了 sudo 密码时,把 `sudo` 改写成 `sudo -S`
-  (从标准输入读密码),密码按命令里 sudo 出现的次数重复喂进去(复合命令 `sudo a && sudo b` 要喂两行)。
+- **`sudo -S` 密码管道**:配了 sudo 密码时,把 `sudo` 改写成 `sudo -S`(从标准输入读密码),密码按命令里
+  sudo 出现的次数重复喂进去(复合命令 `sudo a && sudo b` 要喂两行)。要不要向用户**索要**密码,由一个
+  显式的交互性判断决定,不是无条件弹窗:
+
+  `tools/terminal_tool.py:1040-1046 @ 863e313`
+
+  ```python
+      should_prompt_for_sudo = (
+          env_var_enabled("HERMES_INTERACTIVE") or has_sudo_prompt_callback
+      )
+      if not has_configured_password and not sudo_password and should_prompt_for_sudo:
+          sudo_password = _prompt_for_sudo_password(timeout_seconds=45)
+          if sudo_password:
+              _set_cached_sudo_password(sudo_password)
+  ```
+
   密码走标准输入、**绝不进命令字符串**,免得从进程参数或日志泄露。
 - **前台/后台引导**:工具描述明确告诉模型"永远别用 `nohup`/`setsid`/尾部 `&`——要放后台就用
   `background=true` 让 Hermes 跟踪进程",把后台进程管理统一收拢到下一节的注册表。
@@ -271,13 +473,40 @@ modal、daytona、vercel_sandbox、ssh(`tools/terminal_tool.py:1633-1760 @ 863e3
 **设计**:后台进程交给 `ProcessRegistry` 管,针对上面三件事各有一招:
 
 - **崩溃恢复靠 JSON 检查点**:进程会话写进一个检查点文件,Hermes 重启后能恢复对在跑进程的跟踪
-  (`tools/process_registry.py:9 @ 863e313`)。
-- **PID 复用防误杀**:每个进程会话额外存 `host_start_time`——内核记录的进程启动时刻(来自
-  `/proc/<pid>/stat`)。杀之前先比对启动时刻:PID 被系统回收给别的进程后,启动时刻必然不同,于是
-  "认得出这不是我当初那个进程",不误杀(`tools/process_registry.py:103 @ 863e313`)。
-- **刷屏熔断(strike)**:盯输出匹配模式(如"Server started")触发通知,但一个刷屏进程会让匹配狂发。连续
-  三个 strike 窗口后**永久禁用这个会话的模式监视**,降级成"只在进程退出时通知一次",并发一条"监视已禁用"
-  的说明(只发一次)(`tools/process_registry.py:236-333 @ 863e313`)。降级时仍保住"退出通知",让 agent 不至于彻底失去信号。
+  ——这是模块头部那张能力清单里的一条:
+
+  `tools/process_registry.py:9-10 @ 863e313`
+
+  ```python
+    - Crash recovery via JSON checkpoint file
+    - Session-scoped tracking for gateway reset protection
+  ```
+
+- **PID 复用防误杀**:每个进程会话额外存 `host_start_time`——内核记录的进程启动时刻。杀之前先比对启动
+  时刻:PID 被系统回收给别的进程后,启动时刻必然不同,于是"认得出这不是我当初那个进程",不误杀。
+  这个字段连来源带用途都注在行尾:
+
+  `tools/process_registry.py:103 @ 863e313`
+
+  ```python
+      host_start_time: Optional[int] = None       # kernel start ticks (/proc/<pid>/stat f22) — PID-reuse guard
+  ```
+
+- **刷屏熔断(strike)**:盯输出匹配模式(如"Server started")触发通知,但一个刷屏进程会让匹配狂发。
+  限流、strike 计数、以及"连续 N 次就禁用"的整条规则,都写在这个方法的 docstring 里:
+
+  `tools/process_registry.py:241-244 @ 863e313`
+
+  ```python
+        Per-session rate limit: at most ONE watch-match notification per
+        WATCH_MIN_INTERVAL_SECONDS. Any match arriving inside the cooldown
+        window is dropped and counts as ONE strike for that window. After
+        WATCH_STRIKE_LIMIT consecutive strike windows, watch_patterns is
+  ```
+
+  连续三个 strike 窗口后**永久禁用这个会话的模式监视**,降级成"只在进程退出时通知一次",并发一条
+  "监视已禁用"的说明(只发一次)(整段见 `tools/process_registry.py:236-333 @ 863e313`)。
+  降级时仍保住"退出通知",让 agent 不至于彻底失去信号。
 
 远端沙箱里的后台进程还有一条不同的路径:因为云沙箱没有真管道,它用 `nohup` + 日志/PID/退出码三个文件
 轮询来模拟"跟踪一个后台进程"。
@@ -292,19 +521,66 @@ modal、daytona、vercel_sandbox、ssh(`tools/terminal_tool.py:1633-1760 @ 863e3
 **场景**:你用 Docker 后端。Hermes 进程重启了(或崩了),那个装了一堆依赖、还跑着后台服务的容器,该保留
 还是删掉?每次重建要几秒、还丢容器内的后台进程;但留着又怕堆积一堆没人管的孤儿容器。
 
-**设计**:默认 `persist_across_processes=True`(`tools/environments/docker.py:871 @ 863e313`),清理是**三态**的:显式拆除就 stop+rm;
-每进程隔离模式就 stop+rm;而**默认的 persist 模式对容器 no-op**——只丢掉进程内的句柄,让下次启动靠 Docker
-标签重新探到那个还在运行的容器直接接管(`tools/environments/docker.py:1958-1966 @ 863e313`)。这是 issue #20561 的契约:容器活过 Hermes
-进程,容器内的后台进程也继续活,下次启动瞬间复用。
+**设计**:默认 `persist_across_processes=True`——它就写在构造函数的参数默认值上:
+
+`tools/environments/docker.py:871 @ 863e313`
+
+```python
+        persist_across_processes: bool = True,
+```
+
+清理是**三态**的:显式拆除就 stop+rm;每进程隔离模式就 stop+rm;而**默认的 persist 模式对容器 no-op**
+——只丢掉进程内的句柄,让下次启动靠 Docker 标签重新探到那个还在运行的容器直接接管。三态分支长这样:
+
+`tools/environments/docker.py:1958-1966 @ 863e313`
+
+```python
+        if force_remove:
+            should_stop = True
+            should_remove = True
+        elif self._persist_across_processes:
+            # No-op for the container. Drop the in-process handle so a fresh
+            # __init__ will re-probe via labels (and find the running
+            # container) instead of trying to reuse a stale Python reference.
+            self._container_id = None
+            return
+```
+
+这是 issue #20561 的契约:容器活过 Hermes 进程,容器内的后台进程也继续活,下次启动瞬间复用。
 
 但 atexit(退出钩子)会被 SIGKILL/OOM/崩溃绕过,留下真正的孤儿容器。所以配一个**孤儿回收器**:扫描带
-hermes 标签、状态是 exited、且退出时刻早于 600 秒前的容器删除。三条安全约束:**运行中的容器永不回收**
-(可能属于正在用它的兄弟 Hermes 进程,杀了会让兄弟的命令崩)、默认只扫本 profile、只删够老的(刚退出
-正要被复用的不动)(`tools/environments/docker.py:144-164 @ 863e313`)。
+hermes 标签、状态是 exited、且退出时刻早于 600 秒前的容器删除。它的三条安全约束和各自的理由,
+一条不落地写在 docstring 里:
 
-**这里定一桩 R1 就挂起的账**:官方文档 `website/docs/user-guide/features/tools.md:88 @ 863e313` 白纸黑字写
-"The container is stopped and removed on shutdown(容器在关机时停止并删除)"。但代码默认是 persist、
-清理对容器 no-op、容器跨进程存活。**以代码为准:默认跨进程持久,关机不删。**
+`tools/environments/docker.py:152-163 @ 863e313`
+
+```python
+    Targets containers that match all of:
+
+    * ``label=hermes-agent=1`` (created by this codebase)
+    * ``status=exited`` (running containers are NEVER reaped — they may
+      belong to a sibling Hermes process whose reuse path will pick them
+      up; killing them would crash the sibling mid-command)
+    * (optional) ``label=hermes-profile=<profile_filter>`` (sweep only the
+      caller's profile by default; a hermes process in profile A must not
+      tear down profile B's containers)
+    * ``State.FinishedAt`` older than *max_age_seconds* ago (so a sibling
+      process that just exited and is about to be replaced doesn't get
+      its container yanked out from under it)
+```
+
+即:**运行中的容器永不回收**、默认只扫本 profile、只删够老的(刚退出正要被复用的不动)。
+
+**这里定一桩 R1 就挂起的账**。官方文档那一段的**最后一句**白纸黑字写着"容器在关机时停止并删除":
+
+`website/docs/user-guide/features/tools.md:88 @ 863e313`
+
+> **One persistent container, shared across the whole process.** Hermes starts a single long-lived container on first use (`docker run -d ... sleep infinity`) and routes every terminal, file, and `execute_code` call through `docker exec` into that same container. Working-directory changes, installed packages, environment tweaks, and files written to `/workspace` all carry over from one tool call to the next, across `/new`, `/reset`, and `delegate_task` subagents, for the lifetime of the Hermes process. The container is stopped and removed on shutdown.
+
+按制度要求把整句连同它的上下文一并判定:这一整段前面几句(单一长生命周期容器、`docker exec` 路由、
+跨 `/new` 与 `/reset` 保留)**全部与代码一致**,只有最后那半句 "The container is stopped and removed on
+shutdown" 与代码相反——代码默认是 persist、清理对容器 no-op、容器跨进程存活。
+**以代码为准:默认跨进程持久,关机不删。**
 
 **要让 :88 那句成立,得改的是 `terminal.docker_persist_across_processes`,不是 `container_persistent`。**
 这两个是**不同的键**,落到**不同的属性**上,管**两件不同的事**:
@@ -337,9 +613,13 @@ bind-mount 目录,还被 `should_remove` 前置:
 
 **顺带撤销一句定性**:早先说 `website/docs/user-guide/features/tools.md:88 @ 863e313` 与 `:90` "同一页自相矛盾"。其实 `:90` 讲的是**另一个开关**
 (`container_persistent` 管 `/workspace` 与 `/root`),它对自己那个开关的描述是**准确的**。
-而仓库自己的另一页把这个区别说得很清楚——`website/docs/user-guide/configuration.md:315 @ 863e313`
-的表格原话就是 `container_persistent` "controls the bind-mount workspace dirs, **distinct from**
-`docker_persist_across_processes`"。**真实缺口是 `website/docs/user-guide/features/tools.md:88 @ 863e313` 从不提那个真正管事的键**,
+而仓库自己的另一页把这个区别说得很清楚:
+
+`website/docs/user-guide/configuration.md:315 @ 863e313`
+
+> | `TERMINAL_CONTAINER_PERSISTENT` | `container_persistent` | `true` / `false` — controls the bind-mount workspace dirs, distinct from `docker_persist_across_processes` |
+
+**真实缺口是 `website/docs/user-guide/features/tools.md:88 @ 863e313` 从不提那个真正管事的键**,
 而它链接过去的 `configuration.md` 写对了——**这是"信息不全 + 未指向正确的键",不是"自打脸"。**
 
 **可迁移**:容器复用用"标签 + (任务,profile) 键",persist 模式清理对容器 no-op;配一个"退出且够老才删"的
@@ -354,9 +634,26 @@ bind-mount 目录,还被 `should_remove` 前置:
 只管**单个 agent 内**一批工具的路径冲突,管不了**跨子代理**这种读后写竞态。
 
 **设计**:一个进程级单例 `FileStateRegistry`,记三样东西——每个 agent 对每个文件的读时间戳、每个文件的
-全局最后写者、每个路径一把锁。文件工具写之前调 `check_stale`:如果本 agent 上次读之后有别人写过这个文件,
-返回一个警告让它重读再写(`tools/file_state.py:142 @ 863e313`)。它刻意独立于"单 agent 内的路径冲突检查",三层各管一段
-并发粒度。有逃生阀 `HERMES_DISABLE_FILE_STATE_GUARD=1`。
+全局最后写者、每个路径一把锁。文件工具写之前调 `check_stale`,它按严重度分三类过期,并且**只警告不抛异常**
+——拦不拦由调用方决定:
+
+`tools/file_state.py:142-152 @ 863e313`
+
+```python
+    def check_stale(self, task_id: str, resolved: str) -> Optional[str]:
+        """Return a model-facing warning if this write would be stale.
+
+        Three staleness classes, in order of severity:
+
+          1. Sibling subagent wrote this file after this agent's last read.
+          2. External/unknown change (mtime differs from our last read).
+          3. Agent never read the file (write-without-read).
+
+        Returns ``None`` when the write is safe.  Does not raise — callers
+        decide whether to block or warn.
+```
+
+它刻意独立于"单 agent 内的路径冲突检查",三层各管一段并发粒度。有逃生阀 `HERMES_DISABLE_FILE_STATE_GUARD=1`。
 
 另一个支撑件是 **V4A 补丁解析**(`patch_parser.py`)。V4A 是多个编码 agent(codex、cline 等)共用的补丁
 格式,一份文本里能一次做多个操作(更新/新建/删/移文件)。解析分两阶段:先把文本解析成结构化操作,再通过
@@ -377,11 +674,31 @@ bind-mount 目录,还被 `should_remove` 前置:
 **设计**:一个 browser **supervisor(监督器)** 通过 CDP(Chrome DevTools Protocol)驱动浏览器,核心是一座
 **对话桥(dialog bridge)**。它往页面里注入拦截逻辑,把原生对话框转成可编程的记录:哪些自动关、哪些留给
 agent 决定,都被记进一个环形缓冲区(最近 20 条)。这个缓冲区在代码里叫 `recent_dialogs`。桥接用一个刻意
-不可解析的假主机名 `hermes-dialog-bridge.invalid`(`tools/browser_supervisor.py:95 @ 863e313`)当内部通道标识,避免和真实
-网络请求混淆。
+不可解析的假主机名当内部通道标识,避免和真实网络请求混淆——注释里连"为什么这个主机名不必存在"都写了:
 
-这里有一处**文档定案**:开发者文档有两处把这个字段叫 `browser_state`(`website/docs/developer-guide/browser-supervisor.md:89 @ 863e313`、
-`website/docs/user-guide/features/browser.md:591 @ 863e313`),但代码里的权威名是 `recent_dialogs`——而且**同一份开发者文档的别处**(JSON 示例、
+`tools/browser_supervisor.py:93-96 @ 863e313`
+
+```python
+# Fetch domain before any network resolution happens, so the hostname never
+# has to exist.  Keep this ASCII + URL-safe; we also gate Fetch patterns on it.
+DIALOG_BRIDGE_HOST = "hermes-dialog-bridge.invalid"
+DIALOG_BRIDGE_URL_PATTERN = f"http://{DIALOG_BRIDGE_HOST}/*"
+```
+
+这里有一处**文档定案**:两份文档都把这个字段叫 `browser_state`。开发者指南在讲 `auto_dismiss` 这档策略时写:
+
+`website/docs/developer-guide/browser-supervisor.md:88-89 @ 863e313`
+
+> - `auto_dismiss` — record and dismiss immediately; agent sees it after the
+>   fact via `browser_state` inside `browser_snapshot`.
+
+用户指南那张策略表的同一行也一样:
+
+`website/docs/user-guide/features/browser.md:591 @ 863e313`
+
+> | `auto_dismiss` | Capture, dismiss immediately. Agent still sees the dialog in `browser_state` history but doesn't have to act. |
+
+但代码里的权威名是 `recent_dialogs`——而且**同一份开发者文档的别处**(JSON 示例、
 字段说明)又用的是 `recent_dialogs`,文档内部自己就不一致。以代码为准:字段叫 `recent_dialogs`。
 
 **可迁移**:驱动浏览器要有一层监督器承接"阻塞式原生对话框"这类自动化杀手,把它们转成可编程记录 + 策略
@@ -404,14 +721,36 @@ agent 能同时用一台机器。实现上,Hermes **自己不调操作系统 API
 
 几个要点:
 
-- **恰好三个平台**,以 frozenset 硬编码、三处一致:`_RUNTIME_PLATFORMS = frozenset({"darwin","win32","linux"})`
-  (`tools/computer_use/permissions.py:34-35 @ 863e313`)。每平台底层栈不同(macOS 私有 SkyLight、Windows Win32 API、Linux 最新加入、X11
+- **恰好三个平台**,以 frozenset 硬编码、三处一致:
+
+  `tools/computer_use/permissions.py:34-35 @ 863e313`
+
+  ```python
+  # Platforms with a cua-driver runtime backend (mirrors the toolset platform_gate).
+  _RUNTIME_PLATFORMS = frozenset({"darwin", "win32", "linux"})
+  ```
+
+  每平台底层栈不同(macOS 私有 SkyLight、Windows Win32 API、Linux 最新加入、X11
   今天可用、Wayland 经 XWayland),但对 Hermes 全透明,藏在 cua-driver 里。
 - **截图三模式**:`som`(截图 + 给每个可点元素画数字编号 + 无障碍树)、`vision`(纯截图)、`ax`(纯无障碍树、
   无图,给纯文本模型用)。模型看到编号后 `click(element=14)`,比让它报像素坐标可靠得多。
 - **"传输成功"不等于"真的生效"**:动作结果里 `ok` 只表示传输层成功,另带一套语义裁决字段(有没有回读
-  确认、效果是 confirmed 还是 suspected_noop、下一步该不该升级投递档),让模型按"验证 → 升级"的阶梯走
-  (`tools/computer_use/backend.py:73-80 @ 863e313`,issue #67052)。老版本 driver 上不支持的高级投递档会**明确拒绝而不是静默降级**。
+  确认、效果是 confirmed 还是 suspected_noop、下一步该不该升级投递档),让模型按"验证 → 升级"的阶梯走。
+  这条区分写在结果 dataclass 的 docstring 里,连"老 driver 少了这些字段怎么办"都交代了:
+
+  `tools/computer_use/backend.py:74-80 @ 863e313`
+
+  ```python
+      Beyond the transport-level ``ok`` flag, this carries cua-driver's
+      structured action verdict so the model can follow the documented
+      verify → escalate ladder (NousResearch/hermes-agent#67052). ``ok`` stays
+      tool/transport success only — it is NOT the semantic verdict. Read
+      ``effect`` / ``escalation`` to decide the next rung. All structured
+      fields are optional and additive: an older driver that omits
+      ``structuredContent`` leaves them ``None`` and behavior is unchanged.
+  ```
+
+  老版本 driver 上不支持的高级投递档会**明确拒绝而不是静默降级**。
 - **每次 spawn cua-driver 都洗环境**:一条横切安全策略——启动这个第三方二进制的每一个点,都把 provider
   密钥从子进程环境里剥掉(`ANTHROPIC_API_KEY` 等一律不继承),有专门的测试逐点钉死。
 

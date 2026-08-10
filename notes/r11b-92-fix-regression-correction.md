@@ -42,14 +42,21 @@
 
 搜索面:`notes/r11a-90-handover-rulings.md` 全文(419 行),模式
 `302|urllib_security|SafeCredential|重定向`,不排除任何区段。
+**必须钉在 R11A 定稿那个提交上**,理由见下:
 
 ```verify
-grep -c "302\|urllib_security\|SafeCredential\|重定向" notes/r11a-90-handover-rulings.md
+git show 516302e:notes/r11a-90-handover-rulings.md \
+  | grep -c "302\|urllib_security\|SafeCredential\|重定向"
 ```
 
 ```text
 0
 ```
+
+*(初版这条命令量的是**工作区**。而本轮的更正正是写进这个文件的——更正一落笔,
+同一条命令就返回 4,证据命令关卡当场判 `differing=1`。**这条测量对"修好它"这个动作
+不幂等**,与本轮 §其三 那个点名覆盖率污染是同一个物种;所以它必须钉在
+**被测量的那个状态**上,而不是钉在"现在"。`516302e` 是 R11A 的最后一条 commit。)*
 
 **零命中。** R11A 的这条定案是在完全没有触及 R9C 论据的情况下写下的,
 所以这不是两轮结论之争,是**一条已定的案被后一轮无意识地写回了旧版本**。

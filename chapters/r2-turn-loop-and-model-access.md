@@ -55,7 +55,15 @@
 
 **先说一个会绊倒你的事实**:这个循环**不在**名字最像的 `run_agent.py` 里。那个文件里的
 `run_conversation` 只是个转发器,真正的循环在 `agent/conversation_loop.py`——一个把整个 agent 对象当
-第一个参数传进去的普通函数(`run_agent.py:7772 @ 863e313`)。这是"先写成一个巨型文件、后来才拆开"留下的
+第一个参数传进去的普通函数。转发器自己的 docstring 就是这么写的:
+
+`run_agent.py:7772 @ 863e313`
+
+```python
+        """Forwarder — see ``agent.conversation_loop.run_conversation``."""
+```
+
+这是"先写成一个巨型文件、后来才拆开"留下的
 痕迹:模块拆了,但耦合还在(函数直接读 agent 对象的几十个属性)。读这份代码不能假设它是干净的分层架构。
 顺带一提,官方文档 AGENTS.md 说循环"在 run_agent.py",已经过期了(见 §5)。
 
@@ -103,16 +111,57 @@ flowchart TD
 预算对象 `IterationBudget`。为什么要两个、还要"可退款"?因为:
 - 一个 agent 可以派生**子 agent**(委派子任务),子 agent 的迭代不该占父 agent 的额度,所以各持独立预算;
 - 有一种"廉价"的工具调用叫 `execute_code`(让模型写一段脚本一次调多个工具,R3 会讲),它不该吃预算,
-  所以用完**退款**(`agent/iteration_budget.py:45 @ 863e313` 的 `refund`)。
+  所以用完**退款**——预算对象为此专门开了一个方法:
+
+`agent/iteration_budget.py:45 @ 863e313`
+
+```python
+    def refund(self) -> None:
+        """Give back one iteration (e.g. for execute_code turns)."""
+```
 
 **一个反直觉的设计选择**:预算快用完时,**不往对话里插"你快没预算了"的提示**。为什么?有过一次真实教训:
 早期版本会在预算紧张时提示模型,结果模型一看"快没预算了"就在复杂任务上草草收尾、提前放弃(hermes
 的 issue #7915 记录了这个现象)。所以现在改成:预算真正耗尽时,发**一次特殊的调用**——把所有工具都去掉、
-只让模型基于已完成的工作写一个总结当最终答复(`agent/turn_finalizer.py:141 @ 863e313`)。不施压,只兜底。
+只让模型基于已完成的工作写一个总结当最终答复。收尾函数里那一段的注释把这个意图写得很直白:
 
-> **一处代码化石**:循环条件里还挂着 `or agent._budget_grace_call`,一个"再给一次机会"的开关。但全仓库
-> 没有任何代码把它打开——它只被初始化和消费为关(`agent/agent_init.py:892 @ 863e313`、`agent/conversation_loop.py:1445 @ 863e313`)。
-> 这是死代码,那个分支永远进不去。官方文档却把它当现役特性介绍。留着无害,但它提醒你:文档会骗人。
+`agent/turn_finalizer.py:128-131 @ 863e313`
+
+```python
+        # Budget exhausted — ask the model for a summary via one extra
+        # API call with tools stripped.  _handle_max_iterations injects a
+        # user message and makes a single toolless request.
+        _turn_exit_reason = f"max_iterations_reached({api_call_count}/{agent.max_iterations})"
+```
+
+不施压,只兜底。
+
+**一处代码化石**:循环条件里还挂着 `or agent._budget_grace_call`,一个"再给一次机会"的开关:
+
+`agent/conversation_loop.py:1415 @ 863e313`
+
+```python
+    while (api_call_count < agent.max_iterations and agent.iteration_budget.remaining > 0) or agent._budget_grace_call:
+```
+
+但全仓库没有任何代码把它**打开**。整个基线里这个名字只出现四次(搜索面:`grep -rn "_budget_grace_call"
+--include=*.py`,全仓,不排除任何目录;`tests/` 下另有一处只是断言它为 `False`):一次是上面这个读、
+一次是初始化为 `False`、两次是消费为 `False`。
+
+`agent/agent_init.py:892 @ 863e313`
+
+```python
+    agent._budget_grace_call = False
+```
+
+`agent/conversation_loop.py:1444-1445 @ 863e313`
+
+```python
+        if agent._budget_grace_call:
+            agent._budget_grace_call = False
+```
+
+这是死代码,那个分支永远进不去。官方文档却把它当现役特性介绍。留着无害,但它提醒你:文档会骗人。
 
 **可迁移**:双上限预算(调用数 + 可退款额度),父子独立计数;耗尽时用"最后一次无工具总结"兜底,
 而不是中途施压让模型摆烂。
@@ -142,8 +191,19 @@ flowchart LR
 ```
 
 - **interrupt(硬停)**:置中断标志,并按**线程 ID** 精确下发中断信号——这一点很关键,因为一个进程里
-  (比如消息网关)可能同时跑着多个 agent,中断信号必须只打中该 agent 的执行线程,不误伤别人
-  (`run_agent.py:3121 @ 863e313`)。还要扇出到正在跑的并发工具线程(否则一个卡在网络 IO 上的命令要等到
+  (比如消息网关)可能同时跑着多个 agent,中断信号必须只打中该 agent 的执行线程,不误伤别人。
+  源码把这个理由直接写在了代码上方:
+
+`run_agent.py:3119-3122 @ 863e313`
+
+```python
+        # Scope the interrupt to this agent's execution thread so other
+        # agents running in the same process (gateway) are not affected.
+        if self._execution_thread_id is not None:
+            _set_interrupt(True, self._execution_thread_id)
+```
+
+  还要扇出到正在跑的并发工具线程(否则一个卡在网络 IO 上的命令要等到
   自己超时),并递归传播给子 agent。
 - **steer(不打断,只搭话)**:什么都不停,只把你的话存起来,等当前这批工具执行完,追加到最后一条工具结果
   的末尾。为什么搭在工具结果上?因为 LLM 的对话有严格的角色交替规则(用户→助手→用户……),硬插一条
@@ -157,8 +217,28 @@ flowchart LR
 一方面某些服务商(Anthropic)对推理块有签名校验,不完整的会被拒;另一方面,把这段"思考"当普通文本写回
 对话历史,会被服务商的安全分类器当成 **prefill 攻击**(prefill:预先填入助手的话诱导模型,是一种越狱
 手法)而拦截,曾经**永久毒化过真实会话**——那个会话之后每一轮都失败。所以解法是:可见文本剥掉思考标记后
-存为一个降级 checkpoint,而说明性的脚手架文本只写进一个叫 **api_content 的侧车**(§3.8 详解),它只发给
-模型、不进给人看的转录(`agent/conversation_loop.py:122 @ 863e313`)。
+存为一个降级 checkpoint。重建函数的 docstring 把这条规则连同它要守住的缓存前缀一起写死了:
+
+`agent/conversation_loop.py:125-129 @ 863e313`
+
+```python
+    Incomplete provider reasoning blocks are not valid replay items (Anthropic
+    signs them; Responses reasoning items require their following output).
+    Preserve only the *visible* response text, demoted to ordinary text, then
+    add the correction as a real user message. This keeps role alternation
+    valid and leaves every previously cached message byte-for-byte unchanged.
+```
+
+而说明性的脚手架文本只写进一个叫 **api_content 的侧车**(§3.8 详解),它只发给模型、不进给人看的转录
+——这一条同样被写成了不变式:
+
+`agent/conversation_loop.py:146-148 @ 863e313`
+
+```python
+    INVARIANT — the scaffolding is provider-replay text, not transcript text.
+    ``[This response was interrupted by a user correction.]`` and its
+    ``Visible response before the interruption:`` header exist so the MODEL
+```
 
 **可迁移**:把"用户介入"按破坏性分三级;中断信号按线程/agent 定域,支持同进程多 agent;"不打断注入"
 搭在工具结果上以保角色交替;取消后的重建要区分"发给模型的字节"和"给人看的字节"。
@@ -173,27 +253,74 @@ flowchart LR
 
 **设计**:默认**永远用流式调用**(streaming:服务商把回复一个字一个字地推过来,而不是等全部生成完再一次性
 返回),哪怕没有任何界面在显示。为什么?因为**流式是健康检查的载体**——非流式调用只能干等,你分不清
-"模型在认真思考"和"连接挂死了";流式能看到"有多久没有新字了",据此判断挂死。所以默认走流式
-(`agent/conversation_loop.py:2348 @ 863e313`),只有四种情况退回非流式(服务商明确不支持、某些子进程
-传输、以及测试环境)。
+"模型在认真思考"和"连接挂死了";流式能看到"有多久没有新字了",据此判断挂死。这个理由就写在开关旁边:
+
+`agent/conversation_loop.py:2329-2335 @ 863e313`
+
+```python
+                # Always prefer the streaming path — even without stream
+                # consumers.  Streaming gives us fine-grained health
+                # checking (90s stale-stream detection, 60s read timeout)
+                # that the non-streaming path lacks.  Without this,
+                # subagents and other quiet-mode callers can hang
+                # indefinitely when the provider keeps the connection
+                # alive with SSE pings but never delivers a response.
+```
+
+开关本身默认打开(`agent/conversation_loop.py:2348 @ 863e313` 的 `_use_streaming = True`),只有四种情况
+退回非流式(服务商明确不支持、某些子进程传输、以及测试环境)。
 
 具体数字分三档,别当成一个无条件的常量:**云端 provider 默认 180 秒没有新内容就杀掉连接重连、
-读超时 120 秒**;**provider 自己的配置可以覆盖这两个默认**
-(`agent/chat_completion_helpers.py:4058-4061 @ 863e313` 的 "Provider-configured stale timeout
-takes priority over env default",读超时侧同形);**本地端点(Ollama / oMLX / llama-cpp)
-自动放宽到 900 秒**,理由是大上下文的 prefill 本身就可能跑 300 秒以上,按云端标准会被误杀。
+读超时 120 秒**;**provider 自己的配置可以覆盖这两个默认**——覆盖与兜底就写在同一段里,
+`env_float` 那行末尾的 `180.0` 就是"云端默认 180 秒"的出处:
+
+`agent/chat_completion_helpers.py:4058-4063 @ 863e313`
+
+```python
+    # Provider-configured stale timeout takes priority over env default.
+    _cfg_stale = get_provider_stale_timeout(agent.provider, agent.model)
+    if _cfg_stale is not None:
+        _stream_stale_timeout_base = _cfg_stale
+    else:
+        _stream_stale_timeout_base = env_float("HERMES_STREAM_STALE_TIMEOUT", 180.0)
+```
+
+读超时侧同形。第三档是**本地端点(Ollama / oMLX / llama-cpp)自动放宽到 900 秒**,
+理由是大上下文的 prefill 本身就可能跑 300 秒以上,按云端标准会被误杀。
 无论哪一档,连续 5 次因挂死被杀都会触发熔断——下一次调用直接抛错、不再干等网络
 (这是为了避免一个持续挂死的服务商反复浪费每次调用的完整超时时间)。
 
-> **一个值得学的小插曲**:源码里那段决定"用流式"的注释,写的是"90 秒挂死检测 / 60 秒读超时"——和实际
-> 的 180/120 对不上。查下来,90 秒其实是**非流式**路径的数字,注释把它抄错了(实际值在
-> `agent/chat_completion_helpers.py:4063 @ 863e313` 和 `:3028`,和官方环境变量文档一致)。连作者自己都会记错自己
-> 代码里的数字。这也是为什么这本书坚持给每个数字配行号——它逼着你去核对,而不是信注释。
+**一个值得学的小插曲**:回头看上面那段决定"用流式"的注释——它写的是 "90s stale-stream detection,
+60s read timeout",和紧接着两段代码里的 180 / 120 **对不上**。读超时那一侧的真实默认长这样:
+
+`agent/chat_completion_helpers.py:3023-3028 @ 863e313`
+
+```python
+        # Read timeout: config wins here too.  Otherwise use
+        # HERMES_STREAM_READ_TIMEOUT (default 120s) for cloud providers.
+        if _provider_timeout_cfg is not None:
+            _stream_read_timeout = _provider_timeout_cfg
+        else:
+            _stream_read_timeout = env_float("HERMES_STREAM_READ_TIMEOUT", 120.0)
+```
+
+查下来,90 秒其实是**非流式**路径的数字,注释把它抄串了(180/120 这两个值和官方环境变量文档一致)。
+连作者自己都会记错自己代码里的数字。这也是为什么这本书坚持给每个数字配行号——它逼着你去核对,
+而不是信注释。
 
 流式还带来一个并发问题。**场景**:一次调用挂死了,触发重试开了一个新的流;但旧线程上那个流还没死透,
 它迟到的字可能和新流的字**交错**写进对话,拼出一段乱码。**解法**:每个流开始前领一个单调递增的令牌
-存进自己的线程本地存储,每次要输出一个字时检查"我的令牌还是最新的吗",不是就丢弃(`run_agent.py:6277 @ 863e313
-@ 863e313`)。而且这个检查是"尽力而为"的——万一 agent 对象没这个方法(代码部分更新、热重载、测试替身),
+存进自己的线程本地存储,每次要输出一个字时检查"我的令牌还是最新的吗",不是就丢弃:
+
+`run_agent.py:6277-6279 @ 863e313`
+
+```python
+    def _claim_stream_writer(self) -> int:
+        """Claim exclusive ownership of the streaming delta sink for the calling
+        stream attempt and return its monotonic writer token (#65991).
+```
+
+而且这个检查是"尽力而为"的——万一 agent 对象没这个方法(代码部分更新、热重载、测试替身),
 就降级成"不设防、继续流",绝不因为一个方法缺失把整轮弄崩(以前真有 cron 任务这样崩过)。
 
 **可迁移**:把挂死检测内建在传输层,默认永远流式;多个流并存时用"单调令牌 + 线程本地"实现"最后的流
@@ -209,7 +336,15 @@ takes priority over env default",读超时侧同形);**本地端点(Ollama / oML
 **设计**:把"用哪种线协议"抽象成一个字符串 `api_mode`(线协议:两台机器之间约定的数据格式)。四种取值
 对应四种协议家族:`chat_completions`(OpenAI 风格,业界最通用)、`anthropic_messages`(Anthropic)、
 `codex_responses`(OpenAI 的 Responses API,Codex/xAI 用)、`bedrock_converse`(AWS Bedrock)。判定优先级是
-"服务商主机名强制 > Nous 双线路由 > 服务商注册表 > 兜底"(`hermes_cli/providers.py:671 @ 863e313`)。
+"服务商主机名强制 > Nous 双线路由 > 服务商注册表 > 兜底",全部收在一个函数里:
+
+`hermes_cli/providers.py:671-672 @ 863e313`
+
+```python
+def determine_api_mode(provider: str, base_url: str = "", model: str = "") -> str:
+    """Determine the API mode (wire protocol) for a provider/endpoint.
+```
+
 每种协议由一个独立的**适配器**负责双向翻译:出去时把内部统一的消息/工具翻成该协议的形状,回来时再归一
 回统一形状。
 
@@ -229,16 +364,49 @@ flowchart TD
 每个适配器里都藏着被真实故障磨出来的细节,讲三个最有代表性的故事:
 
 - **Anthropic 的身份伪装**。用订阅账户(OAuth 凭据)调 Anthropic 时,hermes 会把自己**伪装成 Anthropic
-  官方的 Claude Code 工具**:系统提示前面加一句 "You are Claude Code…",把消息里的 "Nous Research" 字样
-  替换成 "Anthropic"(绕过服务端的内容检查),把工具名 `read_file` 改写成 `mcp__read_file`,还带上
-  Claude Code 的 User-Agent。为什么改工具名?因为 Anthropic 的计费分类器把单下划线的 `mcp_` 前缀当成
-  第三方应用的指纹,会拒绝(`agent/anthropic_adapter.py:2903 @ 863e313`)。更细的:推理请求用
-  `claude-code/` 的 User-Agent,但令牌刷新请求却要用 `axios/1.7.9`——因为实测发现 `claude-code/` 的
-  UA 在令牌刷新端点会被限流。同一套伪装,两条路径两个 UA,全是被 429 错误一点点校准出来的。
+  官方的 Claude Code 工具**:系统提示前面加一句 "You are Claude Code…",再把提示里所有产品名整段换掉,
+  绕过服务端的内容检查:
+
+  `agent/anthropic_adapter.py:2898-2906 @ 863e313`
+
+  ```python
+        # 2. Sanitize system prompt — replace product name references
+        #    to avoid Anthropic's server-side content filters.
+        for block in system:
+            if isinstance(block, dict) and block.get("type") == "text":
+                text = block.get("text", "")
+                text = text.replace("Hermes Agent", "Claude Code")
+                text = text.replace("Hermes agent", "Claude Code")
+                text = text.replace("hermes-agent", "claude-code")
+                text = text.replace("Nous Research", "Anthropic")
+  ```
+
+  还要把工具名 `read_file` 改写成 `mcp__read_file`,并带上 Claude Code 的 User-Agent。为什么改工具名?
+  因为 Anthropic 的计费分类器把**单**下划线的 `mcp_` 前缀当成第三方应用的指纹,会拒绝:
+
+  `agent/anthropic_adapter.py:2909-2913 @ 863e313`
+
+  ```python
+        # 3. Normalize tool names so NOTHING goes on the OAuth wire with a
+        #    single-underscore ``mcp_`` prefix.  Anthropic's subscription/OAuth
+        #    billing classifier treats a single-underscore ``mcp_`` tool name as
+        #    a third-party-app fingerprint and rejects the request with HTTP 400
+        #    "Third-party apps now draw from extra usage, not plan limits"
+  ```
+
+  更细的:推理请求用 `claude-code/` 的 User-Agent,但令牌刷新请求却要用 `axios/1.7.9`——因为实测发现
+  `claude-code/` 的 UA 在令牌刷新端点会被限流。同一套伪装,两条路径两个 UA,全是被 429 错误一点点校准出来的。
 - **Codex 的 "Harmony token 中和"**。OpenAI 的 Codex 后端在协议里保留了一些特殊标记(像 `<|start|>`
   这样的控制符)。如果你的对话文本里**恰好出现了这些标记的字面拼写**,请求会在推理前被直接拒绝。解法是把
-  半角的竖线换成全角的竖线 `<｜start｜>`——源码里还是看得懂,但它不再是那个保留标记了(`agent/
-  agent/codex_responses_adapter.py:89 @ 863e313`)。
+  半角的竖线换成全角的竖线 `<｜start｜>`——源码里还是看得懂,但它不再是那个保留标记了。
+  函数名和它的一句话说明就是全部意图:
+
+  `agent/codex_responses_adapter.py:89-90 @ 863e313`
+
+  ```python
+  def _neutralize_harmony_tokens(text: str) -> str:
+      """Keep Harmony source readable without emitting reserved wire tokens."""
+  ```
 - **加密推理内容的"签发方隔离"**。有些协议会返回一段加密的推理内容,它被密封到签发它的那个端点上。
   如果你把 Codex 生成的这段加密内容,在故障转移后重放给 xAI,必然报错。所以归一时给每段推理盖上"谁签发的"
   的章,重放时丢弃跨签发方的内容。
@@ -264,7 +432,18 @@ harness 自动切到第二把,过一阵再回来试第一把;要是某把钥匙�
 彻底不可用,没有备胎可切;而 402(欠费)永远满冷却(马上重试没意义);永久性的 OAuth 失效(令牌被吊销)
 直接进 `dead` 态,不给任何冷却——否则会每小时解冻一次、每小时立刻再失败(hermes 的 issue #32849 就是
 这么来的:一把被吊销的钥匙每小时准时失败一次,烦了三天)。而且如果服务商在错误里明确告诉了你"几点恢复",
-那个时间优先于所有冷却档位(`agent/credential_pool.py:332 @ 863e313`)。
+那个时间优先于所有冷却档位。冷却函数开头这几行就是那张档位表:
+
+`agent/credential_pool.py:332-334 @ 863e313`
+
+```python
+    if error_code == 401:
+        return EXHAUSTED_TTL_401_SECONDS
+    base = EXHAUSTED_TTL_429_SECONDS if error_code == 429 else EXHAUSTED_TTL_DEFAULT_SECONDS
+```
+
+紧接着那段注释解释了"独苗为什么只冷却一分钟":`sole_credential` 只对**瞬态**限流缩短,
+欠费(402 / 分类为 billing)照旧满冷却,因为"快速重试帮不上一个真的没额度了的账户"。
 
 **一个反直觉的坑**:失败了要标记"是哪把钥匙失败的",但"当前钥匙"这个指针是**共享可变状态**——轮询会移动
 它,别的进程也会重置它。等你要标记失败时,这个指针很可能已经指向了另一把**健康**的钥匙。真实后果:一把
@@ -289,9 +468,20 @@ harness 自动切到第二把,过一阵再回来试第一把;要是某把钥匙�
 用 500 表示"上下文超长"。怎么统一处理?
 
 **设计**:所有异常先过一个**分类器** `classify_api_error`,它把五花八门的错误折叠成一个"失败原因"枚举
-加四个正交的恢复开关:`retryable`(能重试吗)/ `should_compress`(要压缩上下文吗)/
-`should_rotate_credential`(要换钥匙吗)/ `should_fallback`(要切模型吗)(`agent/error_classifier.py:88 @ 863e313
-@ 863e313`)。循环不再自己判断,只读这四个开关分派。
+加四个正交的恢复开关。这四个开关就是分类结果对象上并排的四个布尔字段,连"谁来读它们"都写在注释里:
+
+`agent/error_classifier.py:88-93 @ 863e313`
+
+```python
+    # Recovery action hints — the retry loop checks these instead of
+    # re-classifying the error itself.
+    retryable: bool = True
+    should_compress: bool = False
+    should_rotate_credential: bool = False
+    should_fallback: bool = False
+```
+
+循环不再自己判断,只读这四个开关分派。
 
 ```mermaid
 flowchart TD
@@ -312,7 +502,17 @@ flowchart TD
 
 退避用**抖动指数退避**(指数退避:失败一次等 2 秒,再失败等 4 秒、8 秒……;抖动:在等待时间上加一点随机,
 错开时刻)。为什么要抖动?因为多个会话可能同时撞上同一个限流的服务商,如果它们的退避时刻完全同步,
-就会同时重试、同时再被限流,形成"惊群"。抖动把它们的重试时刻错开(`agent/retry_utils.py:1 @ 863e313`)。
+就会同时重试、同时再被限流,形成"惊群"。这个模块的开篇就把理由写明了:
+
+`agent/retry_utils.py:1-5 @ 863e313`
+
+```python
+"""Retry utilities — jittered backoff for decorrelated retries.
+
+Replaces fixed exponential backoff with jittered delays to prevent
+thundering-herd retry spikes when multiple sessions hit the same
+rate-limited provider concurrently.
+```
 
 **可迁移**:把恢复语义编码成正交的布尔开关,而不是让调用方一层层 if 判断枚举;先归一化(沿异常链提取、
 拆开聚合器包裹)再匹配;顺序敏感的分类要写测试钉死;给"服务器过载"留一个独立于"限流"的通道,否则单钥匙
@@ -327,7 +527,14 @@ flowchart TD
 
 **设计**:一条备用链,一个游标从头往后走。每次调用故障转移函数消费链上一个元素,跳过不可用的(用递归
 实现)。这里官方文档说"如果已经激活过就立刻返回失败",是错的——真实的推进靠的是"游标有没有走到链尾",
-同一轮里可以反复调用逐级往后切(`agent/chat_completion_helpers.py:1764 @ 863e313`,§5 定案 a)。
+同一轮里可以反复调用逐级往后切(§5 定案 a)。判失败的条件只看游标,不看"是否激活过":
+
+`agent/chat_completion_helpers.py:1764-1765 @ 863e313`
+
+```python
+    if agent._fallback_index >= len(agent._fallback_chain):
+        # Chain exhausted.  If we actually walked a non-empty chain and the
+```
 
 难点不是"换模型名",而是**换模型意味着换一整套运行时状态**:清掉旧模型的上下文窗口大小、换五个字段
 (模型/服务商/地址/协议/请求身份)、清协议缓存、**重新绑定凭据池**(新服务商有自己的池)、重建客户端、
@@ -354,16 +561,36 @@ flowchart TD
 **设计**:关键是一个叫 **api_content 侧车**的机制。"侧车"(sidecar)指:一条消息除了给人看的干净内容,
 再挂一个旁路字段,存"实际发给模型的字节"。注入后的完整字节盖章存进这个侧车,和干净内容并排持久化;
 构建请求时,当前消息用侧车的字节、历史消息回放各自侧车里当初发出去的字节——这样**给人看的转录**和
-**发给模型的字节**永久分开,注入永远不改历史,缓存前缀逐字节稳定(`agent/turn_context.py:53 @ 863e313`)。
+**发给模型的字节**永久分开,注入永远不改历史,缓存前缀逐字节稳定。组装侧车的那个函数把这条界线
+写进了自己的 docstring:
+
+`agent/turn_context.py:58-62 @ 863e313`
+
+```python
+    """Compose the API-bound content of the current turn's user message.
+
+    Sources: memory-manager prefetch + ``pre_llm_call`` plugin context with
+    target="user_message" (the default). Both are appended to the *API copy*
+    of the user message only — the stored content stays clean.
+```
+
 任何要改写内容的操作(比如从历史里剥掉图片以省空间)必须主动丢掉那条消息的侧车——代价是一次缓存失效,
 但绝不会发出错误的内容。
 
 第二个机制是**缓存断点**的分配。Anthropic 每次请求最多允许 4 个缓存标记点(cache_control breakpoint)。
 默认布局把它们放在:稳定的系统提示前缀(跨会话都能复用)、系统提示尾部、最近 2 条消息(会话内复用)——
 共 2+2。只有当稳定前缀不存在时,才退回文档里说的那种"系统提示 + 最近 3 条"的老布局(§5 定案 b)。
+"4 个"这个上限在代码里就是一个字面的减法——系统提示用掉几个,剩下几个才轮到普通消息:
+
+`agent/prompt_caching.py:382 @ 863e313`
+
+```python
+    remaining = 4 - breakpoints_used
+```
+
 分配时还要跳过"服务商会忽略标记的位置"(比如一条只有工具调用、没有文字的空消息),否则白白浪费一个
 断点。故障转移换了服务商后,要先剥掉旧服务商的断点、再按新服务商的策略重贴,而且这个"剥"必须能证明
-字节完全还原,否则剥的动作本身就破坏了它要保护的前缀(`agent/prompt_caching.py:382 @ 863e313`)。
+字节完全还原,否则剥的动作本身就破坏了它要保护的前缀。
 
 **可迁移**:存储层永远是单一干净字符串,缓存形状只活在请求的临时拷贝里;注入走侧车,组装只有一个入口
 且"构建请求"和"持久化"共用它;缓存断点是稀缺预算,先写清"哪些位置的标记会被忽略"的判断,写入和判断
@@ -380,9 +607,22 @@ flowchart TD
 **设计**:一个**分段调度器**,把一批工具切成有序的"可并行段"和"顺序屏障段",保持模型的原始顺序。规则:
 只读工具(读文件、搜索、网页抓取)可以并行;写工具(写文件、打补丁)和任何**目标路径重叠**的调用之间要
 串行;交互式工具(需要问用户)是屏障。有个巧妙的细节:"搜索"会把它的搜索根目录登记为"读者",于是一个
-排在"写"之后的搜索会被排到写后面执行,而不是和写竞争(这就是经典的"同一块地方先写后读"竞态,
-`agent/tool_dispatch_helpers.py:116 @ 863e313`)。顺带纠正一处文档:官方说"多工具通过线程池并发",
-其实是分段的(§5 定案)。
+排在"写"之后的搜索会被排到写后面执行,而不是和写竞争(这就是经典的"同一块地方先写后读"竞态)。
+调度器的 docstring 把"分段"和"保序"两件事一起讲清了:
+
+`agent/tool_dispatch_helpers.py:116-122 @ 863e313`
+
+```python
+def _plan_tool_batch_segments(tool_calls, *, execution_cwd: Optional[Path] = None) -> List[tuple]:
+    """Split a tool-call batch into ordered ``(kind, calls)`` segments.
+
+    ``kind`` is ``"parallel"`` (a maximal contiguous run of parallel-safe
+    calls) or ``"sequential"`` (one or more barrier calls that must run
+    in-order on the sequential path).  Segments preserve the model's
+    original call order exactly — a later call never crosses an earlier
+```
+
+顺带纠正一处文档:官方说"多工具通过线程池并发",其实是分段的(§5 定案)。
 
 并发里每一道门都设了超时。**场景**:一个工具卡死在里面,或者一个审批插件挂起了。**解法**:启动顺序门
 和授权门都有超时,一个卡死的工具不能永久 park 住其他 worker,超时就降级为"乱序继续"而不是永久饿死。
@@ -421,7 +661,18 @@ flowchart TD
 
 最后那个"不存进数据库"是关键。放弃时会放一个 `(empty)` 哨兵作为占位,但它带一个"别持久化"的标记——
 因为如果把 `(empty)` 存进历史,下次你说"继续",模型会把这个 `(empty)` 当成一条真实的历史回复回放,
-长对话就会卡死在空响应循环里(`agent/conversation_loop.py:6848 @ 863e313`)。
+长对话就会卡死在空响应循环里:
+
+`agent/conversation_loop.py:6848-6853 @ 863e313`
+
+```python
+                    # This is a user-facing failure sentinel for the gateway,
+                    # not real assistant content. Persisting it makes later
+                    # "continue" turns replay assistant("(empty)") as if it
+                    # were a meaningful model response, which can keep long
+                    # tool-heavy sessions stuck in empty-response loops.
+                    assistant_msg["_empty_terminal_sentinel"] = True
+```
 
 **可迁移**:空响应恢复要是阶梯而非单一重试,每级配一次性守卫;所有合成的消息(提示、思考回填、哨兵)
 都要 (a) 保持角色交替 (b) 带可剥离的标记;放弃时的哨兵不能持久化。
@@ -437,14 +688,33 @@ flowchart TD
 持久化、组装结果并触发后台学习。
 
 整形转录的核心是一条不变式:**"只要给用户交付了一个答复,转录里就必须有一条对应的助手消息。"** 这条
-不变式放在**所有结束路径都流经的这一个咽喉**里校验和修复,而不是散在每个结束点(`agent/
-agent/turn_finalizer.py:308 @ 863e313`)。为什么重要?有过一次 bug:某些恢复路径给用户发了答复,但转录尾部
+不变式放在**所有结束路径都流经的这一个咽喉**里校验和修复,而不是散在每个结束点——源码的措辞几乎一样:
+
+`agent/turn_finalizer.py:300-303 @ 863e313`
+
+```python
+        # "unanswered" message. Close the durable turn at the source, at the
+        # single chokepoint every recovery ``break`` flows through, so the
+        # invariant "delivered final_response ⇒ assistant row in transcript"
+        # holds regardless of which path produced it. (#43849 / #44100)
+```
+
+为什么重要?有过一次 bug:某些恢复路径给用户发了答复,但转录尾部
 是一条"只有工具调用、没有文字"的助手消息——用户看到了回复,但转录里没有。结果下一轮,模型把整个"没被
 回答的"用户消息 backlog 重放,又回答了一遍。这个咽喉就是为了根治这类问题:尾部不是助手消息就补一条,
 是"只有工具调用"的就就地填上内容。
 
-后台学习也在这里触发,但**在答复送达用户之后**才 fork(派生)——绝不和用户的任务抢模型的注意力
-(`agent/turn_finalizer.py:716 @ 863e313`)。这是 R6"记忆与学习闭环"的接入点,本章只讲到触发时机。
+后台学习也在这里触发,但**在答复送达用户之后**才 fork(派生)——绝不和用户的任务抢模型的注意力:
+
+`agent/turn_finalizer.py:714-716 @ 863e313`
+
+```python
+    # Background memory/skill review — runs AFTER the response is delivered
+    # so it never competes with the user's task for model attention.
+    if final_response and not interrupted and (_should_review_memory or _should_review_skills):
+```
+
+这是 R6"记忆与学习闭环"的接入点,本章只讲到触发时机。
 
 **可迁移**:收尾是单一咽喉,所有结束路径共享同一套"整形 + 不变式 + 持久化 + 组装结果";
 "交付了什么就必须记录什么"这类不变式放在咽喉处;自我改进类的后台任务放在"答复已交付"之后触发。

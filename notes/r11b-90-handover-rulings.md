@@ -34,8 +34,8 @@ R10B 改成向 git 要顺序,却把**语料面**继续钉死在 `reports/`。
 「报告 + 与该轮同名的移交/定案底稿」,并保留 `--reports-only` 以便前后对比:
 
 ```verify
-echo "R10B 口径: $(python3 data/r11b/probes/handover_census_r11b.py --reports-only | tail -1)"
-echo "R11B 口径: $(python3 data/r11b/probes/handover_census_r11b.py | tail -1)"
+echo "R10B 口径: $(python3 data/r11b/probes/handover_census_r11b.py --reports-only --exclude round-11b | tail -1)"
+echo "R11B 口径: $(python3 data/r11b/probes/handover_census_r11b.py --exclude round-11b | tail -1)"
 ```
 
 ```text
@@ -103,12 +103,15 @@ R11B 口径: 扫描文件 45 份;总计 80 条,未结清 26 条
 
 **定案:关闭,本轮修掉并配负控。**
 
-`scripts/verify_evidence_commands.py:46 @ 863e313`
+修复后的现状(本轮改的就是这一处,行号已随之移动):
+
+`scripts/verify_evidence_commands.py:59 @ 863e313`
 
 ```python
-TIMEOUT = 900
+TIMEOUT = int(os.environ.get("HERMES_EVIDENCE_TIMEOUT", "900"))
 ```
 
+修复前这里是一句裸的 `TIMEOUT = 900`,且调用处**不捕 `subprocess.TimeoutExpired`**:
 一条超时命令让整轮扫描**中途崩掉,其后文件一个没查**,而它打印出来的仍是一份
 看起来完整的失败列表。**这与 R10B 立本关卡时抓到的形态同类**:输出看起来对,覆盖面其实是空的。
 
@@ -394,7 +397,53 @@ absent
 
 ## 3. H-R11A-e 的修法与负控
 
-见 §3 的实现说明与 `data/r11b/probes/evidence_gate_timeout_negative_control.sh`。
+### 3.1 修法
+
+`scripts/verify_evidence_commands.py` 原本对每条命令给 `timeout=TIMEOUT`,
+却**不捕 `subprocess.TimeoutExpired`**。改为:超时**逐条报 `[EVIDENCE-TIMEOUT]`、计入
+`timedout=`、让整轮退出码非零,但扫描继续**;并加 `HERMES_EVIDENCE_TIMEOUT` 环境入口
+(负控需要把上限从 15 分钟压到 2 秒)。
+
+### 3.2 负控(修复后)
+
+```verify
+bash data/r11b/probes/evidence_gate_timeout_negative_control.sh 2>&1 | tail -1
+```
+
+```text
+PASS=6 FAIL=0
+```
+
+六条断言里最要紧的一条是「**超时那份排在前面时,后一份仍然被检查到**」。
+
+### 3.3 修复前是什么样:一次如实的更正
+
+**第一次做前后对比是错的,必须写出来。** 我把同一份负控脚本拿到 HEAD 的克隆里
+(即修复前的脚本)跑,得到 `PASS=4 FAIL=2`,而且「超时之后后一份仍被检查」这条**通过了**
+——看起来修复前也没问题。
+
+**错在夹具**:`HERMES_EVIDENCE_TIMEOUT` 这个入口**本身就是修复的一部分**,
+修复前的脚本读不到它,`TIMEOUT` 仍是 900,于是 `sleep 30` 根本没超时,
+**那次运行里压根没有发生超时这件事**。一个没触发被测条件的对照,证明不了任何事。
+
+正确的做法是绕过环境入口,直接把模块里的 `TIMEOUT` 压低再调 `main()`:
+
+```console
+$ python3 -c "
+import sys; sys.path.insert(0, 'scripts')
+import verify_evidence_commands as m
+m.TIMEOUT = 2
+sys.argv = ['x', '<夹具A:sleep 30>', '<夹具B:必然不匹配>']
+m.main()"
+...
+subprocess.TimeoutExpired: Command '['bash', '-c', 'sleep 30']' timed out after 2 seconds
+```
+
+**进程以 traceback 死掉,夹具 B 一次都没被检查**(输出里没有任何 `EVIDENCE-DIFF`)。
+这就是 H-R11A-e 描述的形态,现在有了直接证据而不只是转述。
+
+*这一节留在这里,是因为它正是本轮 §其四 讲的那件事的又一个实例:
+**一个没有真正触发被测条件的检查,和一个通过的检查,在输出里长得一模一样。***
 
 ## 移交
 

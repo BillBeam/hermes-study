@@ -108,6 +108,11 @@ def main() -> int:
     ap.add_argument("--dest", help="只列最后去向包含该串的未结清项")
     ap.add_argument("--reports-only", action="store_true",
                     help="退回 R10B 的语料面,用于前后对比")
+    ap.add_argument("--exclude", default="",
+                    help="跳过报告名含该串的轮次(及其同轮底稿)。普查自己也会被"
+                         "写它的那一轮污染 —— 本轮把 R11B 的报告与移交底稿加进语料后,"
+                         "读数当场就变了。要报「扩面前后」这种前后对比,就得把当轮剔掉,"
+                         "与 CLAUDE.md「搜过没有类测量报两个读数」同源。")
     args = ap.parse_args()
 
     order = sorted((stamp(f"reports/{p.name}"), p.name)
@@ -115,6 +120,8 @@ def main() -> int:
     events: dict[str, list[tuple[str, str, str]]] = {}
     scanned = []
     for _, name in order:
+        if args.exclude and args.exclude in name:
+            continue
         sources = [REPORTS / name]
         if not args.reports_only:
             sources += companion_notes(round_of_report(name))

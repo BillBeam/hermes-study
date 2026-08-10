@@ -15,7 +15,17 @@
 2. **隔离靠一把确定性"会话键"(session key)**:从消息来源(平台/聊天/线程/发信人)拍出
    一个稳定字符串,如 `agent:main:telegram:dm:12345`。同键 = 同一场对话(共享历史),
    异键 = 完全隔离。DM 按人隔离、群默认按"群 × 人"隔离、线程默认全员共享——三条规则
-   全部集中在一个 130 行的函数里(`gateway/session.py:1058 @ 863e313`)。
+   全部集中在一个 130 行的函数里,连"群/线程要不要按人分"都是它的参数:
+
+   `gateway/session.py:1058-1062 @ 863e313`
+
+   ```python
+   def build_session_key(
+       source: SessionSource,
+       group_sessions_per_user: bool = True,
+       thread_sessions_per_user: bool = False,
+       profile: Optional[str] = None,
+   ```
 3. **并发安全靠三层互相配合的机制**:任务局部的 contextvars 会话上下文(治"我是谁"被并发
    覆盖)、按会话键分层的状态容器 SessionState(治 19 个裸 dict 的清理漂移)、按**最终
    会话 id** 加锁的回合租约 turn lease(治两个路由键写同一份转写的交错)。
@@ -43,8 +53,15 @@
                if self._busy_session_handler is not None:
    ```
 
-   这个 handler 由 `GatewayRunner` 在装配适配器时塞进来(`gateway/run.py:11096 @ 863e313`、`:12468`、
-   `:13410` 三处),**所以"忙时怎么办"的决策权在网关层,不在适配器层**——这一点很关键,
+   这个 handler 由 `GatewayRunner` 在装配适配器时塞进来(`:12468`、`:13410` 另有两处同形):
+
+   `gateway/run.py:11096 @ 863e313`
+
+   ```python
+               adapter.set_busy_session_handler(self._handle_active_session_busy_message)
+   ```
+
+   **所以"忙时怎么办"的决策权在网关层,不在适配器层**——这一点很关键,
    下面 §3.4 讲的四选一(interrupt / queue / steer / redirect)全都发生在网关侧。
 2. **`GatewayRunner._handle_message`**(`gateway/run.py:14328 @ 863e313`,1,400 行的总入口)
    接手:鉴权(陌生人 DM 会自动收到一个配对码,让机器人主人在 CLI 批准)、斜杠命令分流、
@@ -58,13 +75,47 @@
 顺利路径不难。难的全在并发与异常里——真实事故串出了本章全部机制:
 
 **一次真实的串线事故**(contextvars 之前):两条消息同时到,旧代码把"当前线程 id"写进
-进程全局的 `os.environ`,消息 A 的值被消息 B 覆盖,A 的后台通知发进了 B 的线程
-(`gateway/session_context.py:10-18 @ 863e313` 的 docstring 原文就是这场事故)。
+进程全局的 `os.environ`,消息 A 的值被消息 B 覆盖,A 的后台通知发进了 B 的线程。
+这段 docstring 原文就是这场事故的现场记录:
+
+`gateway/session_context.py:10-18 @ 863e313`
+
+```python
+The gateway processes messages concurrently via ``asyncio``.  When two
+messages arrive at the same time the old code did:
+
+    os.environ["HERMES_SESSION_THREAD_ID"] = str(context.source.thread_id)
+
+Because ``os.environ`` is *process-global*, Message A's value was
+silently overwritten by Message B before Message A's agent finished
+running.  Background-task notifications and tool calls therefore routed
+to the wrong thread.
+```
 
 **一次真实的转写绞碎事故**(#64934):用户在第二个聊天窗口 `/resume` 了同一场命名会话。
 忙时守卫按"路由键"加锁,而两个窗口是两个路由键——守卫全绿。两个回合各自装载历史、
 并发跑、交错落盘,最后转写里出现永久的 `user;user` 交替楔子,修复例程每次请求都在修、
-永远修不完(`gateway/turn_lease.py:3-15 @ 863e313`)。回合租约因此诞生。
+永远修不完。这一整条因果链就是回合租约模块的开篇:
+
+`gateway/turn_lease.py:3-15 @ 863e313`
+
+```python
+Why this exists (#64934): the gateway's busy guards are keyed by ROUTING KEY
+(``_active_sessions`` in the adapter, ``_running_agents`` in the runner), but
+the durable transcript is owned by SESSION_ID — and ``switch_session()`` makes
+the key→id mapping many-to-one (``/resume`` of a named session from a second
+chat/topic, CLI-continuity rebinding, async-delegation completion pinning,
+Telegram topic-binding tip-walks). Two routing keys mapped to one session_id
+run concurrent turns on two different agent objects, so no per-key guard ever
+sees the collision. The two turns then interleave their flushes on one
+transcript: rows persist in completion order instead of arrival order, the
+identity-marker dedup over shared history dicts can swallow a row outright,
+and the second turn runs on a history base that never saw the first turn's
+exchange — leaving a permanent ``user;user`` alternation wedge that
+``repair_message_sequence`` re-repairs on every request forever.
+```
+
+回合租约因此诞生。
 
 ## 2. 全景
 
@@ -128,20 +179,50 @@ flowchart TB
 
 三条隔离规则(`gateway/session.py:1058-1094 @ 863e313` docstring 与实现一致):
 - **DM 按人/私聊隔离**;万一适配器没给 chat_id,回落到发信人 id——否则所有无 chat_id 的
-  DM 会塌缩进一个共享会话,"一个缓存 agent 服务多个人的对话——跨用户历史泄漏"
-  (gateway/session.py:1119-1121 @ 863e313 注释原文的直译)。
+  DM 会塌缩进一个共享会话:
+
+  `gateway/session.py:1119-1122 @ 863e313`
+
+  ```python
+          # collapses into one shared "<ns>:<platform>:dm" session, and a
+          # single cached agent ends up serving multiple people's conversations —
+          # cross-user history bleed.  participant_id keeps DMs isolated per user.
+          dm_participant_id = source.user_id_alt or source.user_id
+  ```
+
 - **群默认"群 × 人"隔离**(`group_sessions_per_user=True`):同一个群里你和同事各有各的
   上下文,互不觉察。
 - **线程默认全员共享**(`thread_sessions_per_user=False`):Telegram 话题、Discord thread、
-  Slack thread 是"大家看得见的同一场讨论",共享才符合直觉(gateway/session.py:1087-1091 @ 863e313)。
+  Slack thread 是"大家看得见的同一场讨论",共享才符合直觉:
+
+  `gateway/session.py:1087-1091 @ 863e313`
+
+  ```python
+        - thread_id differentiates threads within that parent chat.  When
+          ``thread_sessions_per_user`` is False (default), threads are *shared* across all
+          participants — user_id is NOT appended, so every user in the thread
+          shares a single session.  This is the expected UX for threaded
+          conversations (Telegram forum topics, Discord threads, Slack threads).
+  ```
 
 三个精心处理的边角,都是真实平台的坑:
 - **WhatsApp 身份规范化**:桥接层会在 JID/LID 两种别名间翻转,不规范化就会"同一个人
   两个隔离会话"(gateway/session.py:1105-1106 @ 863e313、1138-1142)。
 - **Discord 预期线程**(prospective thread):在频道里发起、平台自动开线程回复的模式下,
   发起消息还没有 thread_id;适配器提前告知"回复将进哪个线程",键直接按那个未来线程拍,
-  并把 chat_type 槽归一为 "thread",让发起消息与后续线程消息**字节相同**——"频道发起、
-  线程继续"落在同一场会话(gateway/session.py:1144-1159 @ 863e313)。
+  并把 chat_type 槽归一为 "thread",让发起消息与后续线程消息**字节相同**
+  (整段见 `gateway/session.py:1144-1159 @ 863e313`):
+
+  `gateway/session.py:1144-1149 @ 863e313`
+
+  ```python
+      # thread_id yet, but the connector tells us the thread its reply WILL be
+      # auto-threaded into (prospective_thread_id == the message id, which becomes
+      # the thread id). Key the session on that so the initiating channel message
+      # and every follow-up that later arrives IN that thread (real thread_id ==
+      # prospective_thread_id) resolve to the SAME session — "initiate in channel,
+      # continue in thread". A real thread_id always wins when present.
+  ```
 - **多档案命名空间**:键首段 `agent:main` 的 "main" 不是分支名,是命名空间槽。多 profile
   多路复用(一进程多人格)把它换成 `agent:<profile>`,位置布局不变——旧会话字节兼容,
   两个 profile 服务同一个群也不会撞键(gateway/session.py:1038-1055 @ 863e313)。
@@ -158,7 +239,24 @@ asyncio 每个任务一份)承载会话身份,并配了一套三态协议:值 / 
 从未设置(哨兵 `_UNSET`,此时才回落 `os.environ` 兼容 CLI 与 cron)。最反直觉也最重要的
 一条:**消息处理器入口要先"重置"再"绑定"**——asyncio 的 `create_task` 会快照父任务的
 上下文,消息 B 的任务可能生在"消息 A 已绑定"的上下文里,不重置就有一个以 A 的身份
-起子进程的窗口(gateway/session_context.py:324-336 @ 863e313,配套测试 test_session_context_inheritance)。
+起子进程的窗口(配套测试 test_session_context_inheritance):
+
+`gateway/session_context.py:324-335 @ 863e313`
+
+```python
+    🔴 Why this exists — the cross-session ContextVar inheritance leak.
+    Each gateway message is processed in its own ``asyncio`` task, created via
+    ``create_task`` (which snapshots the *current* context with
+    ``copy_context``).  When message B's task is spawned from a context where a
+    concurrent message A had already called :func:`set_session_vars`, B inherits
+    A's **set** ContextVars.  Until B calls its own ``set_session_vars`` there is
+    a window where any subprocess B spawns (e.g. a tool shelling out) reads
+    *A's* ``HERMES_SESSION_*`` identity via the subprocess-env bridge.  The
+    bridge's ``_UNSET``-strip guard cannot help: the vars are not ``_UNSET``,
+    they are set-to-A.  Calling ``reset_session_vars`` at the top of the
+    per-message handler drops the inherited identity so the window strips safe
+    (no session) instead of leaking the foreign one; the handler then binds its
+```
 
 **东西**:`gateway/session_state.py` 把 GatewayRunner 曾经的 ~19 个裸 dict 按**清理时机**
 收进一个三层容器:
@@ -169,28 +267,128 @@ asyncio 每个任务一份)承载会话身份,并配了一套三态协议:值 / 
 | `ConversationState` | 会话边界(/new、过期、auto-reset) | /model /reasoning /fast 覆盖、队列、pin |
 | `PersistentState` | 各自生命周期 | 审批、run_generation(**永不清**)、hygiene 连败 |
 
-为什么按清理时机而不是按语义分?因为三类真实事故(#48031、#58403、#10702、#35809)
-全是"清理清单漏了新加的 dict"——把清单变成 dataclass 的 `clear()`,"加字段忘清理"
-从 code review 项变成不可能(gateway/session_state.py:3-19 @ 863e313)。
+为什么按清理时机而不是按语义分?因为三类真实事故全是"清理清单漏了新加的 dict"——把清单变成
+dataclass 的 `clear()`,"加字段忘清理"从 code review 项变成不可能。三类失败连 issue 号一起
+列在模块开头:
+
+`gateway/session_state.py:3-19 @ 863e313`
+
+```python
+GatewayRunner historically carried ~19 separate ``Dict[str, ...]`` attributes
+keyed by session_key, each with its own ad-hoc lifecycle.  Three failure
+classes grew out of that shape:
+
+1. Boundary drift — every conversation boundary carried a hand-copied
+   pop-list that went stale when a new dict was added (#48031, #58403,
+   #10702, #35809).  Mitigated by the ``_CONVERSATION_SCOPED_STATE`` registry,
+   now structurally fixed: the fields live in one ``ConversationState``
+   dataclass with a single ``clear()``.
+2. Turn-release drift — ad-hoc ``del self._running_agents[key]`` sites that
+   popped different subsets of the turn dicts.  Mitigated by
+   ``_release_running_agent_state``, now ``TurnState.clear()``.
+3. Wholesale-reset races — lazy-init paths like
+   ``self._session_reasoning_overrides = {}`` replaced the ENTIRE dict,
+   discarding concurrent sessions' entries when raced.  Structurally
+   impossible now: state is per-session, resets touch one field of one
+   ``SessionState``.
+```
 
 ### 3.3 回合租约与 run generation —— 写序与迟到者
 
 **事故重讲**(#64934,§1 的绞碎事故):守卫按路由键,转写按会话 id,`/resume` 让两键指一
 id,守卫集体失明。**修法**:在"会话解析已定案、历史尚未装载"的唯一位置,按**最终
-session_id** 加一把 asyncio 锁(`gateway/run.py:16584-16589 @ 863e313`);同键消息本来就被守卫扣住,
-所以这把锁在别名路由之外永远无争用。三条安全性质值得抄:
+session_id** 加一把 asyncio 锁——注意 `owner_key` 与 `generation` 一起被记进 token,
+下面第 1 条就靠它们:
+
+`gateway/run.py:16584-16589 @ 863e313`
+
+```python
+            _lease_token = await _lease_registry.acquire(
+                session_entry.session_id,
+                owner_key=_quick_key,
+                generation=run_generation,
+                timeout=_float_env("HERMES_AGENT_TIMEOUT", 1800),
+            )
+```
+
+同键消息本来就被守卫扣住,所以这把锁在别名路由之外永远无争用。三条安全性质值得抄:
 
 1. **身份检查释放**:token 记录 (路由键, 代数),只有"当前持有者本人"能释放——异常
-   回退路径上的过期 token 永远放不掉新回合的锁(gateway/turn_lease.py:274-302 @ 863e313)。
+   回退路径上的过期 token 永远放不掉新回合的锁(整段见 `gateway/turn_lease.py:274-302 @ 863e313`):
+
+   `gateway/turn_lease.py:275-280 @ 863e313`
+
+   ```python
+        """Release ``token``'s lease. Idempotent; ownership-checked.
+
+        Returns True only when this exact token was the current holder and
+        the lock was freed. A degraded token, a re-release, or a stale token
+        whose slot has since been granted to a newer turn are all safe
+        no-ops — a stale unwind can never release a newer turn's lease.
+        """
+   ```
+
 2. **超时 fail-open**:等锁超过阈值(与回合看门狗同钟,默认 1800s)就**降级不串行化**
-   继续跑,响亮记 ERROR——楔死会话比转写交错更糟(gateway/turn_lease.py:190-208 @ 863e313)。
+   继续跑,响亮记 ERROR——楔死会话比转写交错更糟(整段见 `gateway/turn_lease.py:190-208 @ 863e313`)。
+   连这个取舍都写进了日志文案本身:
+
+   `gateway/turn_lease.py:194-199 @ 863e313`
+
+   ```python
+            logger.error(
+                "turn lease wait timed out after %.0fs on session %s "
+                "(waiter: routing key %s gen %s; holder: routing key %s "
+                "gen %s) — failing open: this turn runs UNSERIALIZED against "
+                "the stuck holder rather than wedging the session; transcript "
+                "writes may interleave",
+   ```
+
 3. **压缩中途换 id 就"同锁挂双键"**:上下文压缩会在回合中把会话 id 轮换成子 id;
-   `rebind` 把同一把锁对象再登记到新 id 下,而不是搬锁状态(gateway/turn_lease.py:215-272 @ 863e313)。
+   `rebind` 把同一把锁对象再登记到新 id 下,而不是搬锁状态
+   (整段见 `gateway/turn_lease.py:215-272 @ 863e313`):
+
+   `gateway/turn_lease.py:215-221 @ 863e313`
+
+   ```python
+    def rebind(self, token: Optional[TurnLeaseToken], new_session_id: str) -> bool:
+        """Alias a HELD lease onto ``new_session_id`` after mid-turn rotation.
+
+        Compression can rotate the durable session_id while a turn is in
+        flight (session-hygiene pre-compression, in-agent compression). The
+        turn's flush then targets the NEW id — so the serialization boundary
+        must follow it, or an alias routing key resolving the new id (e.g. a
+   ```
 
 **迟到者**由 run generation 治:每个回合领一个单调递增代数,/stop /new 把代数翻新,
-旧回合迟到的落盘/清理副作用先验代、代不对就丢弃(gateway/run.py:23014-23047 @ 863e313,#28686 教训:
-计数器**永不重置**)。超时收割进程也走同一闸门——发现新回合已认领会话就放弃收割,
-绝不误杀新回合的进程(gateway/run.py:2848-2873 @ 863e313)。
+旧回合迟到的落盘/清理副作用先验代、代不对就丢弃(#28686 教训:计数器**永不清零**):
+
+`gateway/run.py:23014-23020 @ 863e313`
+
+```python
+    def _begin_session_run_generation(self, session_key: str) -> int:
+        """Claim a fresh run generation token for ``session_key``.
+
+        Every top-level gateway turn gets a monotonically increasing token.
+        If a later command like /stop or /new invalidates that token while the
+        old worker is still unwinding, the late result can be recognized and
+        dropped instead of bleeding into the fresh session.
+```
+
+超时收割进程也走同一闸门——发现新回合已认领会话就放弃收割,绝不误杀新回合的进程:
+
+`gateway/run.py:2848-2856 @ 863e313`
+
+```python
+    """Reap only background processes created by one abandoned turn.
+
+    ``task_id`` is session-scoped (task_id == session_id), not turn-scoped,
+    so a *replacement* turn on the same session can start and spawn its own
+    legitimate process while this reap is still in flight. ``is_still_current``
+    — a closure over the run_generation captured when the reaping turn began
+    or was interrupted — lets the caller detect that a newer turn has since
+    claimed the session and bail out instead of killing that newer turn's
+    process. The newer turn snapshots its own baseline independently, so
+```
 
 ### 3.4 忙时策略 —— interrupt / queue / steer / redirect 与自动降级
 
@@ -200,7 +398,20 @@ session_id** 加一把 asyncio 锁(`gateway/run.py:16584-16589 @ 863e313`);同�
 
 1. **合成事件永不打断**:后台完成通知(委托任务、终端 watch)以 `internal=True` 回注,
    若被当成用户文本,默认 interrupt 模式会打断正跑的回合并回一句"⚡ Interrupting"——
-   与"完成结果只在空闲时浮出"的不变量正相反,所以第一条就挡下、静默排队(8867-8879)。
+   与"完成结果只在空闲时浮出"的不变量正相反,所以第一条就挡下、静默排队(8867-8879):
+
+   `gateway/run.py:8867-8874 @ 863e313`
+
+   ```python
+        # --- Internal synthetic events must never interrupt/steer ---
+        # Async-delegation completions (delegate_task(background=true)) and
+        # background-process completions (terminal notify_on_complete) re-enter
+        # the originating session as internal MessageEvents. When the session
+        # is busy, treating them like a user TEXT message means interrupt-mode
+        # (the default busy_text_mode) aborts the active turn AND sends a "⚡
+        # Interrupting current task" ack — exactly the opposite of the design
+        # invariant that a completion surfaces as a NEW turn only when idle and
+   ```
 2. **两个自动降级**(interrupt → queue):正带活跃子代理(#30170——"一句对话式跟进不该
    毁掉几分钟的子代理工作")、或上下文压缩飞行中(#56391)。显式 /stop /new 不受影响,
    操作员永远有强制刹车(8897-8926)。
@@ -227,9 +438,22 @@ test_compression_interrupt_demotion_56391 等,本轮全部跑通。
 - **`stream_events.py`(171 行)**:类型化事件词汇表——MessageChunk / MessageStop(带
   final 位)/ Commentary(工具间隙的完整插话)/ ToolCallChunk / ToolCallFinished /
   LongToolHint / GatewayNotice。冻结 dataclass、零行为零 IO,只描述**发生了什么**。
-  历史动机写在模块头:过去 agent 用一把松散回调直接驱动投递,"工具进度气泡和流式草稿
-  在 Telegram 上互相赛跑",工具格式化逻辑长在 agent 侧而只有网关知道平台能渲染什么
-  (gateway/stream_events.py:1-17 @ 863e313)。
+  历史动机写在模块头:过去 agent 用一把松散回调直接驱动投递,于是"工具进度气泡和流式草稿
+  在 Telegram 上互相赛跑",工具格式化逻辑长在 agent 侧而只有网关知道平台能渲染什么:
+
+  `gateway/stream_events.py:1-9 @ 863e313`
+
+  ```python
+  """Structured streaming events — the agent→gateway delivery contract.
+
+  Historically the agent drove gateway delivery through a fan of loosely-typed
+  callbacks (``stream_delta_callback(text)``, ``tool_progress_callback(event_type,
+  tool_name, preview, args)``, ``interim_assistant_callback(text)`` …) and each
+  gateway callback decided *both* what to render and how to send it.  That
+  coupling is why tool-progress bubbles and the streaming draft raced each other
+  on Telegram, and why tool-call formatting lived agent-side even though only the
+  gateway knows what a given platform can render.
+  ```
 - **`stream_dispatch.py`(132 行)**:同步路由器。文本事件进 consumer;工具事件交
   **适配器**格式化——适配器可返回 None 把事件"吃掉"(平台渲染不了工具 chrome);
   "new" 模式按工具名去重。呈现层异常绝不穿透进 agent 工作线程(dispatch:88-93)。
@@ -264,13 +488,41 @@ test_compression_interrupt_demotion_56391 等,本轮全部跑通。
 | 会话过期 | asyncio,300s 一轮 | 重置策略到期 | finalize 钩子 + 缓存逐出 + 边界清理 |
 | 内存监控 | daemon 线程,300s | 定时 | 一行 `[MEMORY] rss=... gc=... threads=...` |
 
-三个值得抄的细节:
-- stall 策略是**纯函数**(session_stall.py 全文 121 行),观测缺失(None)**不算恢复**
-  ——"Do not treat observation gaps as recovery"(gateway/session_stall.py:57 @ 863e313);
-- 看门狗特意是线程:它的假设敌之一就是事件循环被饿死,守护不能与被守护者同生死
-  (gateway/run.py:2963 @ 863e313 docstring 原文);
-- 过期 finalize 连续失败 3 次后"标记完成、少清一点",可用性优先于完美清理
-  (gateway/run.py:12028-12037 @ 863e313)。
+三个值得抄的细节。第一,stall 策略是**纯函数**(`gateway/session_stall.py` 全文 121 行),
+观测缺失(`None`)**不算恢复**——闩继续闩着:
+
+`gateway/session_stall.py:57-59 @ 863e313`
+
+```python
+    # Unknown progress: hold the latch. Do not treat observation gaps as recovery.
+    if idle_seconds is None:
+        return False
+```
+
+第二,看门狗特意是线程:它的假设敌之一就是事件循环被饿死,守护不能与被守护者同生死。
+一行 docstring 说完:
+
+`gateway/run.py:2963 @ 863e313`
+
+```python
+    """Thread watchdog that remains runnable when gateway asyncio is starved."""
+```
+
+第三,过期 finalize 连续失败 3 次后"标记完成、少清一点",可用性优先于完美清理:
+
+`gateway/run.py:12028-12036 @ 863e313`
+
+```python
+                        if failures >= _MAX_FINALIZE_RETRIES:
+                            logger.warning(
+                                "Session finalize gave up after %d attempts for %s: %s. "
+                                "Marking as finalized to prevent infinite retry loop.",
+                                failures, entry.session_id, e,
+                            )
+                            await self.async_session_store.set_expiry_finalized(
+                                entry, clear_model_override=False
+                            )
+```
 
 **一个反转作结**:表里第四条线(内存监控)是本轮最意外的发现——模块从 cline 移植、
 注释详尽、测试齐全,但**全仓没有任何生产调用点**,连它 docstring 声称的
@@ -291,10 +543,37 @@ test_compression_interrupt_demotion_56391 等,本轮全部跑通。
 - **无状态的 API server**:走 handle_message 会用派生键跑出一个**平行的、没人看的会话**
   (键永远对不上真实回合用的裸 `X-Hermes-Session-Id`);所以改为**自 POST** 到进程内
   API server 的 `/v1/chat/completions`,带裸会话 id 头——与真实回合同一入口,续的是
-  真会话(gateway/wake.py:10-20 @ 863e313;这段 docstring 本身就是一页架构课)。
+  真会话。这段 docstring 本身就是一页架构课:
+
+  `gateway/wake.py:10-20 @ 863e313`
+
+  ```python
+  * Stateless request/response adapters (the API server,
+    ``supports_async_delivery = False``): ``handle_message`` would run the wake
+    turn under a ``build_session_key()``-derived key
+    (``agent:main:api_server:group:<sid>``) that NEVER matches the raw
+    ``X-Hermes-Session-Id`` key real gateway/HQ turns run under
+    (``_bind_api_server_session``), so the wake lands in a parallel, invisible
+    session. Instead we self-POST ``/v1/chat/completions`` on the in-pod API
+    server with the raw session id in the ``X-Hermes-Session-Id`` header — the
+    exact entry point real turns use — so the wake turn resumes the REAL
+    session, with full history, and its result is visible the next time the
+    client polls/reopens the conversation.
+  ```
+
   `API_SERVER_KEY` 缺失是硬错误:未认证的 API server 会 403 掉会话续写,与其让唤醒
-  落进没人看的新会话,不如响亮失败(gateway/wake.py:104-121 @ 863e313)。429(并发帽)退避重试,
-  **一切失败上抛**——调用方持有游标,只有它能决定重投;静默丢 = 用户永远等不到通知。
+  落进没人看的新会话,不如响亮失败:
+
+  `gateway/wake.py:104-106 @ 863e313`
+
+  ```python
+      ``API_SERVER_KEY`` being configured, so a missing key is a hard error —
+      raise loudly rather than run the wake in a fresh fingerprint-derived
+      session nobody is looking at.
+  ```
+
+  429(并发帽)退避重试,**一切失败上抛**——调用方持有游标,只有它能决定重投;
+  静默丢 = 用户永远等不到通知(整段见 `gateway/wake.py:104-121 @ 863e313`)。
 
 **共同原则:回注必须走真实入口,不造第三条特权通道。**
 
@@ -308,11 +587,38 @@ test_compression_interrupt_demotion_56391 等,本轮全部跑通。
 **下面三条治理线,一条对一个问题。**
 
 构建一个 `AIAgent`(LLM 客户端、工具 schema、memory provider、MCP 连接)很贵,网关按
-会话键缓存它。三条治理线防止缓存吃光内存:LRU 上限 128 + 空闲 TTL 1 小时
-(gateway/run.py:69-88 @ 863e313 常量区)+ 会话过期联动逐出(§3.6)。复用判据是**配置签名**
-(`_agent_config_signature`,gateway/run.py:22608 @ 863e313):会话的模型/工具/人格覆盖变了,签名变,
-旧 agent 弃用重建——"缓存的 agent 必须等价于按当前配置新建的 agent"。逐出前先提交
-记忆(memory commit before soft evict,gateway/run.py:23473 @ 863e313),学到的东西不随缓存蒸发。
+会话键缓存它。三条治理线防止缓存吃光内存,前两条就是常量区里的两个数:
+
+`gateway/run.py:69-75 @ 863e313`
+
+```python
+# --- Agent cache tuning ---------------------------------------------------
+# Bounds the per-session AIAgent cache to prevent unbounded growth in
+# long-lived gateways (each AIAgent holds LLM clients, tool schemas,
+# memory providers, etc.).  LRU order + idle TTL eviction are enforced
+# from _enforce_agent_cache_cap() and _session_expiry_watcher() below.
+_AGENT_CACHE_MAX_SIZE = 128
+_AGENT_CACHE_IDLE_TTL_SECS = 3600.0  # evict agents idle for >1h
+```
+
+第三条是会话过期联动逐出(§3.6)。复用判据是**配置签名**——它把模型、运行时、
+启用的工具集、临时人格一起哈希:
+
+`gateway/run.py:22608-22614 @ 863e313`
+
+```python
+    def _agent_config_signature(
+        model: str,
+        runtime: dict,
+        enabled_toolsets: list,
+        ephemeral_prompt: str,
+        cache_keys: dict | None = None,
+        user_id: str | None = None,
+```
+
+会话的模型/工具/人格覆盖变了,签名变,旧 agent 弃用重建——"缓存的 agent 必须等价于按当前
+配置新建的 agent"。逐出前先提交记忆(memory commit before soft evict,
+`gateway/run.py:23473 @ 863e313`),学到的东西不随缓存蒸发。
 
 ### 3.9 多 profile 多路复用 —— 一进程多人格
 
@@ -329,8 +635,23 @@ hermes 的做法是**一个进程装多个 profile**。
 
 单实例可以同时跑多个 profile(各自的模型、工具、记忆、人格):键命名空间隔离(§3.1)、
 per-profile 适配器组、凭据独占声明(两个 profile 抢同一个 bot token 会在启动时被拒)、
-路由规则按 specificity 匹配(thread > channel > guild,`gateway/profile_routing.py:63-102 @ 863e313`;
-Discord 线程还会沿 parent_chat_id 链匹配到频道路由)。端口绑定平台(webhook/api_server 等)
+路由规则按 specificity 匹配。"更具体的赢"就是一个加权打分,thread(8)> chat(4)> guild(2):
+
+`gateway/profile_routing.py:63-70 @ 863e313`
+
+```python
+    def specificity(self) -> int:
+        """Higher value = more specific match."""
+        s = 0
+        if self.guild_id:
+            s += 2
+        if self.chat_id:
+            s += 4
+        if self.thread_id:
+```
+
+(整段匹配逻辑见 `gateway/profile_routing.py:63-102 @ 863e313`;Discord 线程还会沿
+parent_chat_id 链匹配到频道路由。)端口绑定平台(webhook/api_server 等)
 只允许默认 profile 持有,次级 profile 经 `/p/<profile>/` URL 前缀复用同一监听——两 profile
 抢端口在启动时就 fail-fast(gateway/config.py:376-394 @ 863e313 + gateway/run.py:13293-13300 @ 863e313)。
 
