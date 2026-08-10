@@ -1,0 +1,101 @@
+cid	entity	entities	verdict	why	tag	tag_no_census	orphan_hits	mint_files	anchor_files
+H-1	1	4	SHAPE-CONFUSION	铸号文本里是片内定案号(▲/■/◇/◎-H-N)	REVIEW	REVIEW	n/a	notes/r10b-raw-capability-panels.md	apps/desktop/AGENTS.md;apps/desktop/src/contrib/plugin.ts
+H-1	2	4	REVIEWED	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	6	notes/r8a-90-doc-conflict-rulings.md;notes/r8b-02-h1-h2-config-debt.md	cli.py
+H-1	3	4	HIDDEN-DEBT	有真处置语但未点名本实体,且锚点此后无人再提	REVIEW	REVIEW	0	notes/r8d-raw-provider-identity.md	hermes_cli/auth.py;hermes_cli/models.py
+H-1	4	4	REVIEWED	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	2	notes/r9a-raw-research-pipeline.md	batch_runner.py
+H-17	1	2	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	COVERED	4	notes/r8a-90-doc-conflict-rulings.md;notes/r8c-90-rulings.md	hermes_cli/env_loader.py
+H-17	2	2	FALSE-POSITIVE	处置语落在本实体自己的铸号行/邻近	COVERED	COVERED	n/a	notes/r8c-10-h17-env-loader-race.md	gateway/run.py
+H-2	1	4	SHAPE-CONFUSION	铸号文本里是片内定案号(▲/■/◇/◎-H-N)	REVIEW	REVIEW	n/a	notes/r10b-raw-capability-panels.md	apps/desktop/src/contrib/runtime-loader.ts;apps/desktop/src/plugins/README.md
+H-2	2	4	REVIEWED	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	3	notes/r8a-90-doc-conflict-rulings.md;notes/r8b-02-h1-h2-config-debt.md	cli.py
+H-2	3	4	HIDDEN-DEBT	有真处置语但未点名本实体,且锚点此后无人再提	REVIEW	REVIEW	0	notes/r8d-raw-provider-identity.md	hermes_cli/models.py
+H-2	4	4	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	COVERED	0	notes/r9a-raw-research-pipeline.md	trajectory_compressor.py
+H-3	1	4	SHAPE-CONFUSION	铸号文本里是片内定案号(▲/■/◇/◎-H-N)	REVIEW	REVIEW	n/a	notes/r10b-raw-capability-panels.md	tools/skills_guard.py
+H-3	2	4	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	COVERED	6	notes/r8a-90-doc-conflict-rulings.md;notes/r8c-90-rulings.md	hermes_cli/web_server.py
+H-3	3	4	HIDDEN-DEBT	有真处置语但未点名本实体,且锚点此后无人再提	REVIEW	REVIEW	0	notes/r8d-raw-provider-identity.md	hermes_cli/provider_catalog.py
+H-3	4	4	DECLARED	该轮主线声明片内移交留在底稿(reports/round-9a-capability-organization.md:334)	REVIEW	REVIEW	0	notes/r9a-raw-research-pipeline.md	trajectory_compressor.py
+H-4	1	3	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	4	notes/r8a-90-doc-conflict-rulings.md	cli.py
+H-4	2	3	HIDDEN-DEBT	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r8d-raw-provider-identity.md	hermes_cli/providers.py
+H-4	3	3	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9a-raw-research-pipeline.md	mini_swe_runner.py
+H-5	1	3	REVIEWED	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	1	notes/r8a-90-doc-conflict-rulings.md	ui-tui/src/gatewayTypes.ts
+H-5	2	3	HIDDEN-DEBT	有真处置语但未点名本实体,且锚点此后无人再提	REVIEW	REVIEW	0	notes/r8d-raw-provider-identity.md	hermes_cli/model_normalize.py
+H-5	3	3	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	COVERED	0	notes/r9a-raw-research-pipeline.md	datagen-config-examples/web_research.yaml
+H-6	1	3	HIDDEN-DEBT	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r8d-raw-provider-identity.md	agent/agent_runtime_helpers.py;hermes_cli/providers.py;hermes_cli/runtime_provider.py
+H-6	2	3	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	n/a	notes/r9a-raw-delegate-tool.md	run_agent.py;tools/terminal_tool.py
+H-6	3	3	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9a-raw-research-pipeline.md	batch_runner.py
+H-7	1	4	SELF-RULED	处置语落在本实体自己的铸号行/邻近	COVERED	COVERED	11	notes/r8a-90-doc-conflict-rulings.md;notes/r8b-90-handover-rulings.md	hermes_cli/config.py
+H-7	2	4	FALSE-POSITIVE	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	n/a	notes/r8d-raw-credentials-security.md	hermes_cli/credential_lifecycle.py
+H-7	3	4	HIDDEN-DEBT	有真处置语但未点名本实体,且锚点此后无人再提	REVIEW	REVIEW	0	notes/r8d-raw-provider-identity.md	hermes_cli/model_normalize.py
+H-7	4	4	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	COVERED	0	notes/r9a-raw-research-pipeline.md	batch_runner.py
+H-9A-1	1	2	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	COVERED	0	notes/r9a-raw-moa.md	agent/agent_init.py;cli.py
+H-9A-1	2	2	DECLARED	该轮主线声明片内移交留在底稿(reports/round-9a-capability-organization.md:334)	REVIEW	REVIEW	0	notes/r9a-raw-skills-hub.md	tools/skills_tool.py
+H-9A-2	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9a-raw-moa.md	agent/moa_loop.py;cli.py
+H-9A-2	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9a-raw-skills-hub.md	tools/skills_tool.py
+H-9A-3	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9a-raw-moa.md	hermes_cli/config_defaults.py
+H-9A-3	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9a-raw-skills-hub.md	tools/skill_manager_tool.py
+H-9A-4	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9a-raw-moa.md	website/docs/user-guide/features/mixture-of-agents.md
+H-9A-4	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	6	notes/r9a-raw-skills-hub.md	tools/skills_hub.py
+H-9A-5	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9a-raw-moa.md	agent/moa_loop.py
+H-9A-5	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	2	notes/r9a-raw-skills-hub.md	tools/skills_guard.py
+H-9A-6	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9a-raw-moa.md	agent/moa_loop.py
+H-9A-6	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9a-raw-skills-hub.md	tools/skills_tool.py
+H-R10B-a	1	2	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	REVIEW	2	notes/r10-raw-tui-gateway-methods.md;reports/round-11b-review-and-reconciliation.md	tui_gateway/methods_session.py
+H-R10B-a	2	2	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	REVIEW	3	notes/r10b-raw-capability-panels.md	apps/desktop/src/plugins/gateway-pill/plugin.tsx
+H-R10B-b	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	REVIEW	NO-RULING	0	notes/r10-raw-tui-gateway-methods.md	tui_gateway/host_supervisor.py
+H-R10B-b	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	REVIEW	NO-RULING	0	notes/r10b-raw-capability-panels.md	apps/desktop/src/contrib/runtime-loader.ts;apps/desktop/src/plugins/hello-runtime/plugin.runtime.js
+H-R10B-c	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r10-raw-tui-gateway-methods.md	tui_gateway/host_supervisor.py
+H-R10B-c	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r10b-raw-capability-panels.md	hermes_cli/skills_hub.py;tools/skill_manager_tool.py
+H-R10B-d	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	REVIEW	NO-RULING	0	notes/r10-raw-tui-gateway-methods.md	tests/test_tui_gateway_server.py;tui_gateway/methods_tools.py
+H-R10B-d	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	REVIEW	NO-RULING	0	notes/r10b-raw-capability-panels.md	apps/desktop/src/contrib/types.ts
+H-R10B-e	1	3	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r10-raw-tui-gateway-methods.md	tui_gateway/project_tree.py
+H-R10B-e	2	3	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r10b-raw-capability-panels.md	apps/desktop/src/app/skills/index.tsx
+H-R10B-e	3	3	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	reports/round-10b-desktop-application.md	apps/desktop/playwright.config.ts
+H-R10B-f	1	2	DECLARED	该轮主线声明片内移交留在底稿(reports/round-10-client-interface-layer.md:531)	REVIEW	REVIEW	0	notes/r10-raw-tui-gateway-methods.md	tui_gateway/methods_complete.py
+H-R10B-f	2	2	DECLARED	该轮主线声明片内移交留在底稿(reports/round-10b-desktop-application.md:709)	REVIEW	REVIEW	0	notes/r10b-raw-capability-panels.md	apps/desktop/src/sdk/index.ts
+H-R10B-g	1	2	DECLARED	该轮主线声明片内移交留在底稿(reports/round-10-client-interface-layer.md:531)	REVIEW	REVIEW	0	notes/r10-raw-tui-gateway-methods.md	tui_gateway/methods_config.py;tui_gateway/methods_tools.py
+H-R10B-g	2	2	DECLARED	该轮主线声明片内移交留在底稿(reports/round-10b-desktop-application.md:709)	REVIEW	REVIEW	0	notes/r10b-raw-capability-panels.md	apps/desktop/src/app/command-palette/index.tsx
+H-R8C-f	1	3	FALSE-POSITIVE	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	n/a	notes/r10-raw-web-dashboard.md	web/src/App.tsx
+H-R8C-f	2	3	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	COVERED	2	notes/r10b-90-handover-rulings.md;reports/round-10-client-interface-layer.md;reports/round-8c-dashboard-and-web.md	hermes_cli/web_server.py
+H-R8C-f	3	3	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	COVERED	0	notes/r11a-90-handover-rulings.md	hermes_cli/backup.py
+H-R8D-e	1	2	FALSE-POSITIVE	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	n/a	notes/r9a-90-rulings.md	tools/skills_sync_client.py
+H-R8D-e	2	2	REVIEWED	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	4	reports/round-8d-cli-completion.md	hermes_cli/models.py
+H-R9A-a	1	3	DECLARED	该轮主线声明片内移交留在底稿(reports/round-9a-capability-organization.md:334)	REVIEW	REVIEW	0	notes/r9a-h-r8d-b-kanban-db.md	hermes_cli/kanban_db.py
+H-R9A-a	2	3	DECLARED	该轮主线声明片内移交留在底稿(reports/round-9a-capability-organization.md:334)	REVIEW	REVIEW	0	notes/r9a-raw-egress.md	hermes_cli/proxy_cli.py
+H-R9A-a	3	3	SELF-RULED	处置语落在本实体自己的铸号行/邻近	COVERED	COVERED	13	reports/round-9a-capability-organization.md;reports/round-9b-multimodal-delivery.md	gateway/relay/media.py
+H-R9A-b	1	3	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	COVERED	1	notes/r9a-h-r8d-b-kanban-db.md;notes/r9d-90-handover-process-and-verification.md;notes/r9d-91-handover-rulings.md;reports/round-9a-capability-organization.md	hermes_cli/kanban_db.py;tests/hermes_cli/test_kanban_db.py;tools/process_registry.py
+H-R9A-b	2	3	DECLARED	该轮主线声明片内移交留在底稿(reports/round-9a-capability-organization.md:334)	REVIEW	REVIEW	0	notes/r9a-raw-egress.md	agent/proxy_sources/iron_proxy.py
+H-R9A-b	3	3	REVIEWED	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	n/a	notes/r9d-raw-kanban-todo-cron.md	gateway/kanban_watchers.py
+H-R9A-c	1	3	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9a-h-r8d-b-kanban-db.md	hermes_cli/kanban_db.py
+H-R9A-c	2	3	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9a-raw-egress.md	tools/environments/docker.py
+H-R9A-c	3	3	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	10	notes/r9d-90-handover-process-and-verification.md;notes/r9d-91-handover-rulings.md;reports/round-9a-capability-organization.md	agent/display.py;agent/tool_result_classification.py;agent/verification_stop.py;tools/working_diff.py;website/docs/user-guide/features/hooks.md
+H-R9A-d	1	3	DECLARED	该轮主线声明片内移交留在底稿(reports/round-9a-capability-organization.md:334)	REVIEW	REVIEW	0	notes/r9a-h-r8d-b-kanban-db.md	website/docs/user-guide/features/kanban.md
+H-R9A-d	2	3	DECLARED	该轮主线声明片内移交留在底稿(reports/round-9a-capability-organization.md:334)	REVIEW	REVIEW	0	notes/r9a-raw-egress.md	website/docs/developer-guide/egress-internals.md
+H-R9A-d	3	3	SELF-RULED	处置语落在本实体自己的铸号行/邻近	COVERED	COVERED	1	notes/r9b-90-rulings.md;reports/round-9a-capability-organization.md;reports/round-9b-multimodal-delivery.md	tools/skills_sync_client.py
+H-R9A-g	1	2	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	COVERED	11	notes/r9d-91-handover-rulings.md;reports/round-9a-capability-organization.md	AGENTS.md
+H-R9A-g	2	2	FALSE-POSITIVE	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	n/a	notes/r9d-92-mainline-tests-and-crosschecks.md	toolsets.py
+H-R9B-1	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	1	notes/r9b-raw-pet.md	hermes_cli/pets.py
+H-R9B-1	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	n/a	notes/r9b-raw-voicein.md	tools/voice_mode.py
+H-R9B-2	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9b-raw-pet.md	agent/pet/generate/imagegen.py
+H-R9B-2	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9b-raw-voicein.md	hermes_cli/config_defaults.py;tools/wake_word.py
+H-R9B-3	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9b-raw-pet.md	tests/agent/test_pet_generate.py
+H-R9B-3	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9b-raw-voicein.md	tools/voice_mode.py
+H-R9B-4	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9b-raw-pet.md	agent/pet/render.py
+H-R9B-4	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9b-raw-voicein.md	tools/transcription_tools.py
+H-R9B-5	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9b-raw-pet.md	agent/pet/store.py
+H-R9B-5	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9b-raw-voicein.md	tools/voice_mode.py
+H-R9B-a	1	4	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	COVERED	2	notes/r9b-raw-tts.md	tools/tts_tool.py
+H-R9B-a	2	4	REVIEWED	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	n/a	notes/r9b-raw-video.md	website/docs/developer-guide/video-gen-provider-plugin.md
+H-R9B-a	3	4	REVIEWED	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	7	reports/round-9b-multimodal-delivery.md	tools/voice_mode.py
+H-R9B-a	4	4	REVIEWED	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	n/a	reports/round-9c-external-interfaces.md	tools/transcription_tools.py
+H-R9B-b	1	3	DECLARED	该轮主线声明片内移交留在底稿(reports/round-9b-multimodal-delivery.md:464)	REVIEW	REVIEW	0	notes/r9b-raw-tts.md	tests/tools/test_tts_streaming.py
+H-R9B-b	2	3	REVIEWED	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	n/a	notes/r9b-raw-video.md	agent/video_gen_registry.py
+H-R9B-b	3	3	REVIEWED	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	3	reports/round-9b-multimodal-delivery.md	tools/tts_tool.py
+H-R9B-c	1	3	DECLARED	该轮主线声明片内移交留在底稿(reports/round-9b-multimodal-delivery.md:464)	REVIEW	REVIEW	0	notes/r9b-raw-tts.md	tools/tts_tool.py
+H-R9B-c	2	3	REVIEWED	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	n/a	notes/r9b-raw-video.md	tools/video_generation_tool.py;tools/xai_video_tools.py
+H-R9B-c	3	3	REVIEWED	有真处置语未点名本实体,但锚点此后仍被提及	REVIEW	REVIEW	1	reports/round-9b-multimodal-delivery.md	tools/image_generation_tool.py
+H-R9B-d	1	2	NAMED	处置语点名了本实体的锚点或铸号文件	COVERED	COVERED	6	notes/r10-90-handover-rulings.md;notes/r10b-90-handover-rulings.md;notes/r11a-90-handover-rulings.md;reports/round-10-client-interface-layer.md;reports/round-11a-ops-and-delivery.md;reports/round-9b-multimodal-delivery.md	gateway/relay/media.py
+H-R9B-d	2	2	DECLARED	该轮主线声明片内移交留在底稿(reports/round-9b-multimodal-delivery.md:464)	REVIEW	REVIEW	0	notes/r9b-raw-tts.md	tools/tts_tool.py
+H-R9B-e	1	3	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r11a-90-handover-rulings.md	tests/gateway/test_teams.py
+H-R9B-e	2	3	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	0	notes/r9b-raw-tts.md	tools/tts_tool.py
+H-R9B-e	3	3	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	NO-RULING	NO-RULING	2	reports/round-9b-multimodal-delivery.md	pyproject.toml
+H-R9B-f	1	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	REVIEW	NO-RULING	0	notes/r9b-raw-tts.md	website/docs/user-guide/features/tts.md
+H-R9B-f	2	2	NO-CLOSURE	剔除普查文件后该号无 STRONG 处置语	REVIEW	NO-RULING	2	reports/round-9b-multimodal-delivery.md	tools/tts_tool.py
