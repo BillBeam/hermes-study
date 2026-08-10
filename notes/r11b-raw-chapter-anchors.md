@@ -23,7 +23,12 @@
 **这个描述只对六章中的一章成立**,详见 §2。
 
 清理前读数已复现,与派工书给的数字**逐字一致**(复现命令与逐字输出见 §3——
-清理前的数要用 `git show HEAD:` 把旧版取到临时目录再跑,因为工作区已被本轮改过)。
+清理前的数要用 `git show af60491:` 把旧版取到临时目录再跑,因为工作区已被本轮改过)。
+> **R11B 主线更正**:这三条命令原本写的是 `git show HEAD:`。**片 C 收工时这是对的**
+> (改动尚未提交,`HEAD` 就是清理前),但**本轮 commit 一落,`HEAD` 就变成了清理后**,
+> 三条命令当场从"取旧版"变成"取新版",证据命令关卡随即判 `differing=3`。
+> 已钉到 `af60491`(R11A 合入 main 的那条 commit,即本轮开工时的状态)。
+> **这是本轮第三次撞上同一个物种:一条量"清理前"的命令,不能钉在一个会移动的引用上。**
 
 ---
 
@@ -71,7 +76,7 @@ ANCHOR_ONLY=re.compile(r'^[（(]\s*' + BQ + r'[A-Za-z0-9_.][^' + BQ + r']*:\d+(?
 for f in ['r2-turn-loop-and-model-access','r4-execution-environments',
           'r5-session-state-and-persistence','r6-memory-provider-ecosystem',
           'r7-gateway-session-core','r7b-platform-integration']:
-    src=subprocess.run(['git','show','HEAD:chapters/%s.md'%f],capture_output=True,text=True).stdout
+    src=subprocess.run(['git','show','af60491:chapters/%s.md'%f],capture_output=True,text=True).stdout
     lines=src.splitlines(); i=0; n=0
     while i<len(lines):
         if FENCE.match(lines[i]):
@@ -107,14 +112,14 @@ r7b-platform-integration           块后锚点 20 处   清理前 OK 3
 
 ## 3. 逐章前后读数
 
-**清理前**(用 `git show HEAD:` 取六章旧版,单独跑一遍):
+**清理前**(用 `git show af60491:` 取六章旧版,单独跑一遍):
 
 ```verify
 cd /home/user/hermes-study && D=$(mktemp -d) && mkdir -p "$D/chapters" && \
 for f in r2-turn-loop-and-model-access r4-execution-environments \
          r5-session-state-and-persistence r6-memory-provider-ecosystem \
          r7-gateway-session-core r7b-platform-integration; do \
-  git show HEAD:chapters/$f.md > "$D/chapters/$f.md"; done && \
+  git show af60491:chapters/$f.md > "$D/chapters/$f.md"; done && \
 cd "$D" && python3 /home/user/hermes-study/scripts/verify_citations.py \
   /home/user/hermes-agent chapters/*.md 2>&1 | grep -E 'UNCHECKED [0-9]+/|^citations|^可校验'
 ```
@@ -237,7 +242,7 @@ cd /home/user/hermes-study && D=$(mktemp -d) && mkdir -p "$D/chapters" && \
 for f in r2-turn-loop-and-model-access r4-execution-environments \
          r5-session-state-and-persistence r6-memory-provider-ecosystem \
          r7-gateway-session-core r7b-platform-integration; do \
-  git show HEAD:chapters/$f.md > "$D/chapters/$f.md"; done && \
+  git show af60491:chapters/$f.md > "$D/chapters/$f.md"; done && \
 python3 - "$D" <<'PY'
 import re, sys
 sys.path.insert(0,'/home/user/hermes-study/scripts')
