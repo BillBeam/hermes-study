@@ -315,7 +315,7 @@ H-R10-f exit events after restart: []
 
 #### (e) 定级与后果
 
-**立 ■-R10B-01。** 触发路径不是边角:`useMainApp.ts:846` 的 `gw.start()` 正是
+**立 ■-R10B-01。** 触发路径不是边角:`ui-tui/src/app/useMainApp.ts:846` 的 `gw.start()` 正是
 **「gateway exited — recovering your session」那条恢复路径**。也就是说——
 界面告诉用户"正在为你恢复会话",然后**从这一刻起再也收不到任何网关事件**,
 并且**下一次网关死掉时连提示都不会有**(`pendingExit` 存下了,没人取)。

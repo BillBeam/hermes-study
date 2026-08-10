@@ -32,7 +32,7 @@ class LocalEnvironment(BaseEnvironment):
 
 ### 1.2 没有 PTY;进程组隔离 = `start_new_session=True`
 
-**回答任务的 "PTY?":这一层没有 PTY。** 前台终端命令是纯 pipe:stdout=PIPE、stderr 合并进 stdout、stdin 要么 DEVNULL 要么 pipe(`_pipe_stdin` 线程异步写,从 base 导入,local.py:17)。PTY 存在于别处(`hermes_cli/pty_bridge.py` 的交互 `!` shell、`tools/process_registry.spawn_local` 的后台进程),不属于环境后端。
+**回答任务的 "PTY?":这一层没有 PTY。** 前台终端命令是纯 pipe:stdout=PIPE、stderr 合并进 stdout、stdin 要么 DEVNULL 要么 pipe(`_pipe_stdin` 线程异步写,从 base 导入,tools/environments/local.py:17)。PTY 存在于别处(`hermes_cli/pty_bridge.py` 的交互 `!` shell、`tools/process_registry.spawn_local` 的后台进程),不属于环境后端。
 
 `tools/environments/local.py:1532-1553 @ 863e313`:
 ```python
@@ -84,7 +84,7 @@ class LocalEnvironment(BaseEnvironment):
                 _wait_for_group_exit(pgid, 2.0)
 ```
 
-组存活探测用 `killpg(pgid, 0)`,`PermissionError` 也算活(组存在只是无权发信号,local.py:1559-1568);等待循环里穿插 `proc.poll()` 收尸,否则死而未收的组长会让 killpg(pgid,0) 一直报组还活着(local.py:1570-1586)。Windows 分支走 `gateway.status.terminate_pid(force=True)`(local.py:1589-1599)。
+组存活探测用 `killpg(pgid, 0)`,`PermissionError` 也算活(组存在只是无权发信号,tools/environments/local.py:1559-1568);等待循环里穿插 `proc.poll()` 收尸,否则死而未收的组长会让 killpg(pgid,0) 一直报组还活着(tools/environments/local.py:1570-1586)。Windows 分支走 `gateway.status.terminate_pid(force=True)`(tools/environments/local.py:1589-1599)。
 
 **后台 spawn 面用的是"用户登录 shell",不是 bash。** `_find_shell` 只在 `$SHELL` 属于 POSIX-sh 家族时尊重它,否则回退 `_find_bash`——因为 spawn_local 的调用形态是 `[shell, "-lic", "set +m; …"]`,fish/csh/nushell 会直接语法报错;而 macOS 上强选 bash 3.2 又会被 `~/.bash_profile` 里的 `exec /bin/zsh -l` 吞掉 `-c` 参数(#42203):
 
@@ -101,7 +101,7 @@ _SPAWN_COMPATIBLE_SHELLS = frozenset({"bash", "zsh", "sh", "dash", "ksh", "mksh"
 
 ### 1.3 cwd 三道防线(local 特有)
 
-**第一道:构造期锚定相对 cwd。** config 里的 `TERMINAL_CWD` 若是相对路径且恰好等于进程当前目录的尾段(如 `hermes-agent` 而进程已在 `~/.hermes/hermes-agent`),`abspath` 会指向不存在的嵌套目录;`_resolve_local_initial_cwd` 检测尾段匹配后直接用当前目录(local.py:53-90,尾段比较在 83-88)。
+**第一道:构造期锚定相对 cwd。** config 里的 `TERMINAL_CWD` 若是相对路径且恰好等于进程当前目录的尾段(如 `hermes-agent` 而进程已在 `~/.hermes/hermes-agent`),`abspath` 会指向不存在的嵌套目录;`_resolve_local_initial_cwd` 检测尾段匹配后直接用当前目录(tools/environments/local.py:53-90,尾段比较在 83-88)。
 
 **第二道:每次 spawn 前的安全 cwd 恢复。** `os.path.isdir` 不够——`/root` 对非 root 用户 stat 成功但 Popen(cwd=…) 抛 PermissionError(#65583,root 启动的 CLI 把 `/root` 泄进共享状态,非 root gateway 的 cron 永久全挂);目录也可能被上一条命令 `rm -rf` 自己删掉(#17558)。所以先 `X_OK` 检查,再逐级向上找可进入的祖先,兜底 tempdir:
 
@@ -122,7 +122,7 @@ def _cwd_usable(path: str) -> bool:
     return os.path.isdir(path) and os.access(path, os.X_OK)
 ```
 
-`_run_bash` 集成处只在"目录真不存在"时告警,MSYS→Windows 纯归一不告警(local.py:1513-1526)。
+`_run_bash` 集成处只在"目录真不存在"时告警,MSYS→Windows 纯归一不告警(tools/environments/local.py:1513-1526)。
 
 **第三道:命令后 cwd 回写校验。** 共享 base 的 marker 解析,但 override 加了 Windows 归一 + isdir 验证 + 回滚:
 
@@ -153,7 +153,7 @@ local.py 有约 700 行(200-719、1268-1328)不是 LocalEnvironment 的方法,�
 
 **Blocklist 三层结构:**
 
-(a) 静态名单 `_HERMES_PROVIDER_ENV_BLOCKLIST`:从 provider 注册表 + `OPTIONAL_ENV_VARS`(tool/messaging 类别、password 型 setting)派生,再并上硬编码大名单(local.py:225-337)。两个刻意的反向决定值得记:AWS 通用凭据链**故意可继承**(SECURITY.md §3.2:本地终端是用户的可信操作 shell,只剥 Bedrock 专属 `AWS_BEARER_TOKEN_BEDROCK`,local.py:206-222);`CLAUDE_CODE_OAUTH_TOKEN` **故意 discard 出名单**——剥掉它曾导致 agent 起的 `claude` CLI 认证失败后清空共享凭据库,把用户交互会话登出(#55878):
+(a) 静态名单 `_HERMES_PROVIDER_ENV_BLOCKLIST`:从 provider 注册表 + `OPTIONAL_ENV_VARS`(tool/messaging 类别、password 型 setting)派生,再并上硬编码大名单(tools/environments/local.py:225-337)。两个刻意的反向决定值得记:AWS 通用凭据链**故意可继承**(SECURITY.md §3.2:本地终端是用户的可信操作 shell,只剥 Bedrock 专属 `AWS_BEARER_TOKEN_BEDROCK`,tools/environments/local.py:206-222);`CLAUDE_CODE_OAUTH_TOKEN` **故意 discard 出名单**——剥掉它曾导致 agent 起的 `claude` CLI 认证失败后清空共享凭据库,把用户交互会话登出(#55878):
 
 `tools/environments/local.py:324-333 @ 863e313`:
 ```python
@@ -169,11 +169,11 @@ local.py 有约 700 行(200-719、1268-1328)不是 LocalEnvironment 的方法,�
     blocked.discard("CLAUDE_CODE_OAUTH_TOKEN")
 ```
 
-(b) 动态模式谓词 `_is_hermes_internal_secret`:`AUXILIARY_<TASK>_API_KEY/_BASE_URL`(运行期注入的副 LLM 凭据)与 `GATEWAY_RELAY_*_SECRET/_KEY/_TOKEN`,静态注册表不可能列举,故用模式匹配,且**无条件剥离**、passthrough 也救不回(local.py:352-394)。
+(b) 动态模式谓词 `_is_hermes_internal_secret`:`AUXILIARY_<TASK>_API_KEY/_BASE_URL`(运行期注入的副 LLM 凭据)与 `GATEWAY_RELAY_*_SECRET/_KEY/_TOKEN`,静态注册表不可能列举,故用模式匹配,且**无条件剥离**、passthrough 也救不回(tools/environments/local.py:352-394)。
 
-(c) Tier-1 `_ALWAYS_STRIP_KEYS`:gateway bot token、GitHub auth、远程算力密钥等,连 `inherit_credentials=True`(用户授权的 claude/codex/gemini CLI)也照剥(local.py:539-571);Tier-2(provider key)才受 `inherit_credentials` 控制(local.py:608-625)。
+(c) Tier-1 `_ALWAYS_STRIP_KEYS`:gateway bot token、GitHub auth、远程算力密钥等,连 `inherit_credentials=True`(用户授权的 claude/codex/gemini CLI)也照剥(tools/environments/local.py:539-571);Tier-2(provider key)才受 `inherit_credentials` 控制(tools/environments/local.py:608-625)。
 
-另有 `_HERMES_FORCE_` 前缀:extra_env 里带此前缀的 key 去前缀后**强行注入**、绕过 blocklist(但仍过动态谓词),用于 Hermes 自己要给子进程递的值(local.py:470-486、1282-1286)。
+另有 `_HERMES_FORCE_` 前缀:extra_env 里带此前缀的 key 去前缀后**强行注入**、绕过 blocklist(但仍过动态谓词),用于 Hermes 自己要给子进程递的值(tools/environments/local.py:470-486、1282-1286)。
 
 **跨会话身份泄漏防线 `_inject_session_context_env`。** `HERMES_SESSION_*` 有 ContextVar 与 os.environ 双写,后者 last-writer-wins 永不清除;并发多会话宿主(gateway/ACP/API/TUI)下,一个未绑定 ContextVar 的任务 spawn 出的子进程会继承**别的会话**的身份。规则:一旦本进程 engaged 过 session-context 机制,ContextVar 即权威——UNSET 就从子环境剥掉,而非继承全局:
 
@@ -191,9 +191,9 @@ local.py 有约 700 行(200-719、1268-1328)不是 LocalEnvironment 的方法,�
             env.pop(var_name, None)
 ```
 
-**venv 标记剥离。** gateway 自己跑在 venv 里,`VIRTUAL_ENV`/`CONDA_PREFIX` 泄给 agent 对**其他** Python 项目跑 `uv`/`poetry` 时,会把那个项目的依赖 sync 进 Hermes 的 venv 路径,静默毁掉 gateway 环境(#23473,local.py:339-349)。
+**venv 标记剥离。** gateway 自己跑在 venv 里,`VIRTUAL_ENV`/`CONDA_PREFIX` 泄给 agent 对**其他** Python 项目跑 `uv`/`poetry` 时,会把那个项目的依赖 sync 进 Hermes 的 venv 路径,静默毁掉 gateway 环境(#23473,tools/environments/local.py:339-349)。
 
-**PATH 手术(_make_run_env 尾部,1296-1309):** 三步:`_append_missing_sane_path_entries`(POSIX 去空项/去重 + 追加 `_SANE_PATH` + Hermes 管理的 node/uv 目录,追加不前置——用户自己 PATH 上的工具优先,local.py:1171-1224)→ `_prepend_git_bash_dirs`(Windows,见 1.5)→ `_prepend_hermes_bin_dir`(systemd/cron 启动的 gateway 缺 `~/.local/bin` 等,导致插件 shell out 裸 `hermes` 报 127,local.py:1069-1140)。
+**PATH 手术(_make_run_env 尾部,1296-1309):** 三步:`_append_missing_sane_path_entries`(POSIX 去空项/去重 + 追加 `_SANE_PATH` + Hermes 管理的 node/uv 目录,追加不前置——用户自己 PATH 上的工具优先,tools/environments/local.py:1171-1224)→ `_prepend_git_bash_dirs`(Windows,见 1.5)→ `_prepend_hermes_bin_dir`(systemd/cron 启动的 gateway 缺 `~/.local/bin` 等,导致插件 shell out 裸 `hermes` 报 127,tools/environments/local.py:1069-1140)。
 
 ### 1.5 Windows:没有子类,是"同一个类 + 模块级路径代数"
 
@@ -221,21 +221,21 @@ local.py 有约 700 行(200-719、1268-1328)不是 LocalEnvironment 的方法,�
 
 即:**cd 目标 native→MSYS 再走 base 的 `~` 保留 quote;快照/临时文件路径先 MSYS 化再 shlex.quote。** 快照路径若保持 `C:/...` 形态,bootstrap 脚本会触发 MSYS 参数转换的 drivers\etc 失败(base.py:651-656 注释)。
 
-**`_find_bash` 候选与探活(722-929):** 顺序 = `HERMES_GIT_BASH_PATH` → 自带 PortableGit(`%LOCALAPPDATA%\hermes\git\bin` 与 MinGit 的 `usr\bin`)→ 已知 Git-for-Windows 安装点(避开 `shutil.which` 命中 WSL bash)→ PATH。每个候选用 `_bash_starts` 探活:`--noprofile --norc` 防坏 login 误杀,且**故意跑外部程序**(`/usr/bin/true; /usr/bin/cat --version`)——builtin-only 探针测不出 Mandatory ASLR 下的 MSYS fork/spawn 失败(local.py:897-905、814)。全部失败时查询系统 `ForceRelocateImages` 状态,命中则抛出带逐程序 `Set-ProcessMitigation` 修复命令的定向报错(831-894)。
+**`_find_bash` 候选与探活(722-929):** 顺序 = `HERMES_GIT_BASH_PATH` → 自带 PortableGit(`%LOCALAPPDATA%\hermes\git\bin` 与 MinGit 的 `usr\bin`)→ 已知 Git-for-Windows 安装点(避开 `shutil.which` 命中 WSL bash)→ PATH。每个候选用 `_bash_starts` 探活:`--noprofile --norc` 防坏 login 误杀,且**故意跑外部程序**(`/usr/bin/true; /usr/bin/cat --version`)——builtin-only 探针测不出 Mandatory ASLR 下的 MSYS fork/spawn 失败(tools/environments/local.py:897-905、814)。全部失败时查询系统 `ForceRelocateImages` 状态,命中则抛出带逐程序 `Set-ProcessMitigation` 修复命令的定向报错(831-894)。
 
-**非登录 fallback 的 coreutils 救援:** `bash -l` 坏掉(经典 `Directory \drivers\etc does not exist`)时 base 会转非登录 `bash -c`(base.py:567-570、726-741),但非登录 shell 不 source `/etc/profile`,`usr\bin` 里的 cat/mktemp/mv 全部失踪 → write_file 空错误、终端全 127。`_git_bash_bin_dirs` 从 bash.exe 反推 Git 根目录,按 `/etc/profile` 的顺序(mingw64 → usr/bin → bin)前置到 PATH(local.py:935-1005)。
+**非登录 fallback 的 coreutils 救援:** `bash -l` 坏掉(经典 `Directory \drivers\etc does not exist`)时 base 会转非登录 `bash -c`(base.py:567-570、726-741),但非登录 shell 不 source `/etc/profile`,`usr\bin` 里的 cat/mktemp/mv 全部失踪 → write_file 空错误、终端全 127。`_git_bash_bin_dirs` 从 bash.exe 反推 Git 根目录,按 `/etc/profile` 的顺序(mingw64 → usr/bin → bin)前置到 PATH(tools/environments/local.py:935-1005)。
 
-**MSYS 参数转换默认关闭:** `MSYS_NO_PATHCONV=1` + `MSYS2_ARG_CONV_EXCL=*` 双设(Git-for-Windows 只认前者,MSYS2/Cygwin 只认后者),防 `/FO`、`/Create` 之类被改写成 `C:/.../git/FO` 打坏 tasklist/schtasks(#56700、#56147;local.py:1244-1247)。
+**MSYS 参数转换默认关闭:** `MSYS_NO_PATHCONV=1` + `MSYS2_ARG_CONV_EXCL=*` 双设(Git-for-Windows 只认前者,MSYS2/Cygwin 只认后者),防 `/FO`、`/Create` 之类被改写成 `C:/.../git/FO` 打坏 tasklist/schtasks(#56700、#56147;tools/environments/local.py:1244-1247)。
 
 **`get_temp_dir`(1429-1475):** Windows 用 `HERMES_HOME/cache/terminal` 且强制正斜杠——同一字符串同时喂 bash 插值与 Python `open()`,并保证无空格(`%TEMP%` 常含空格,打断未加引号的 bash 插值);Termux 无 `/tmp`,优先 POSIX 形 `TMPDIR/TMP/TEMP`,再 `/tmp`(带 W_OK|X_OK 检查),再 `tempfile.gettempdir()`。
 
 ### 1.6 快照前的 shell init 注入(login 路径专属)
 
-`_run_bash(login=True)` 仅被 `init_session` bootstrap 使用;此时把 `terminal.shell_init_files`(或默认 `~/.profile → ~/.bash_profile → ~/.bashrc`,顺序有讲究:Debian bashrc 的交互 guard 会让非交互 source 早退,而 n/nvm 装在 profile 里)拼到脚本前面,每个文件 `[ -r f ] && . f 2>/dev/null || true` 守护,坏 rc 不毁快照(local.py:1351-1411、1496-1499)。非 login 调用不需要——它们 source 的就是快照。
+`_run_bash(login=True)` 仅被 `init_session` bootstrap 使用;此时把 `terminal.shell_init_files`(或默认 `~/.profile → ~/.bash_profile → ~/.bashrc`,顺序有讲究:Debian bashrc 的交互 guard 会让非交互 source 早退,而 n/nvm 装在 profile 里)拼到脚本前面,每个文件 `[ -r f ] && . f 2>/dev/null || true` 守护,坏 rc 不毁快照(tools/environments/local.py:1351-1411、1496-1499)。非 login 调用不需要——它们 source 的就是快照。
 
 ### 1.7 cleanup
 
-删快照 + cwd 文件,再 glob 清 `snap.tmp.*`——被打断的 mv 留下的原子写残骸(#38249;local.py:1670-1687)。
+删快照 + cwd 文件,再 glob 清 `snap.tmp.*`——被打断的 mv 留下的原子写残骸(#38249;tools/environments/local.py:1670-1687)。
 
 ### 重实现要点(local 后端)
 
@@ -256,7 +256,7 @@ local.py 有约 700 行(200-719、1268-1328)不是 LocalEnvironment 的方法,�
 
 ### 2.1 工具注册面:10 个 browser_* 工具
 
-`BROWSER_TOOL_SCHEMAS`(browser_tool.py:1981-2128)定义、文件尾 `registry.register` 接线(browser_tool.py:5017-5098):`browser_navigate`、`browser_snapshot`、`browser_click`、`browser_type`、`browser_scroll`、`browser_back`、`browser_press`、`browser_get_images`、`browser_vision`、`browser_console`,toolset 统一为 `"browser"`。前 9 个 `check_fn=check_browser_requirements`;vision 单独用 `check_browser_vision_requirements`——浏览器可用**且**视觉后端可解析才向模型广告,否则调用期报 provider 侧密文错误(#31179):
+`BROWSER_TOOL_SCHEMAS`(tools/browser_tool.py:1981-2128)定义、文件尾 `registry.register` 接线(tools/browser_tool.py:5017-5098):`browser_navigate`、`browser_snapshot`、`browser_click`、`browser_type`、`browser_scroll`、`browser_back`、`browser_press`、`browser_get_images`、`browser_vision`、`browser_console`,toolset 统一为 `"browser"`。前 9 个 `check_fn=check_browser_requirements`;vision 单独用 `check_browser_vision_requirements`——浏览器可用**且**视觉后端可解析才向模型广告,否则调用期报 provider 侧密文错误(#31179):
 
 `tools/browser_tool.py:4936-4951 @ 863e313`:
 ```python
@@ -456,7 +456,7 @@ browser_tool 是**无状态的 spawn-per-command 驱动层**;supervisor(R4 已�
             registered.append(spec)
 ```
 
-**注册/发现**:两个入口都调 `register_from_config`——CLI(`hermes_cli/main.py:10833-10836 @ 863e313`,传 `accept_hooks=_accept_hooks` 即 `--accept-hooks`)与 gateway(`gateway/run.py:10972-10974 @ 863e313`,传 False,由函数内部自行解析 env/config 通道);进程内幂等靠 `(event, matcher, command)` 三元组集合(shell_hooks.py:142-158),matcher 参与 key 因为同一脚本可合法地按工具分多条注册。事件名必须属于 `VALID_HOOKS`(定义在 `hermes_cli/plugins.py:135-175 @ 863e313`,含 pre/post_tool_call、pre/post_llm_call、pre_verify、on_session_*、subagent_*、transform_* 等约 20 个),拼错给 difflib "did you mean" 提示后跳过(326-340);`hooks:` 下的 `output_spill`/`outbound` 是保留子节不当事件(319-324)。matcher 仅对 pre/post_tool_call 生效,其他事件配了会警告并置 None(386-393);timeout 夹在 1..300,默认 60(138-139、395-417)。`HERMES_SAFE_MODE=1` 整体跳过注册(229-235)。
+**注册/发现**:两个入口都调 `register_from_config`——CLI(`hermes_cli/main.py:10833-10836 @ 863e313`,传 `accept_hooks=_accept_hooks` 即 `--accept-hooks`)与 gateway(`gateway/run.py:10972-10974 @ 863e313`,传 False,由函数内部自行解析 env/config 通道);进程内幂等靠 `(event, matcher, command)` 三元组集合(agent/shell_hooks.py:142-158),matcher 参与 key 因为同一脚本可合法地按工具分多条注册。事件名必须属于 `VALID_HOOKS`(定义在 `hermes_cli/plugins.py:135-175 @ 863e313`,含 pre/post_tool_call、pre/post_llm_call、pre_verify、on_session_*、subagent_*、transform_* 等约 20 个),拼错给 difflib "did you mean" 提示后跳过(326-340);`hooks:` 下的 `output_spill`/`outbound` 是保留子节不当事件(319-324)。matcher 仅对 pre/post_tool_call 生效,其他事件配了会警告并置 None(386-393);timeout 夹在 1..300,默认 60(138-139、395-417)。`HERMES_SAFE_MODE=1` 整体跳过注册(229-235)。
 
 ### 3.2 执行:`shell=False`,JSON over stdin/stdout
 
@@ -551,7 +551,7 @@ shell hook 是**审批之前的纯自动策略闸**:它只能产出 block/contex
 
 ## 4. tools/desktop_ui.py(40 行)—— 桌面渲染器事件桥
 
-全部机制一句话:**一个可选安装的 `(sid, event, payload)` 回调槽**。桌面版 `tui_gateway` 会话启动时 `set_emitter` 装入(`tui_gateway/server.py:9330-9334 @ 863e313`:`desktop_ui.set_emitter(lambda sid, event, payload: _emit(event, sid, payload))`);其他运行形态槽位保持 None,`available()` 为 False,桌面专属工具(`open_preview_tool.py:46`、`focus_pane_tool.py:26`、`react_to_message_tool.py:80` 均为调用方)据此回答 "desktop only"。事件路由键取会话环境的 `HERMES_UI_SESSION_ID`,保证事件落到**拥有当前回合的那扇窗口**;线程安全靠底层 `write_json` 的 `_stdout_lock`(docstring 声明,本文件自身无锁):
+全部机制一句话:**一个可选安装的 `(sid, event, payload)` 回调槽**。桌面版 `tui_gateway` 会话启动时 `set_emitter` 装入(`tui_gateway/server.py:9330-9334 @ 863e313`:`desktop_ui.set_emitter(lambda sid, event, payload: _emit(event, sid, payload))`);其他运行形态槽位保持 None,`available()` 为 False,桌面专属工具(`tools/open_preview_tool.py:46`、`tools/focus_pane_tool.py:26`、`tools/react_to_message_tool.py:80` 均为调用方)据此回答 "desktop only"。事件路由键取会话环境的 `HERMES_UI_SESSION_ID`,保证事件落到**拥有当前回合的那扇窗口**;线程安全靠底层 `write_json` 的 `_stdout_lock`(docstring 声明,本文件自身无锁):
 
 `tools/desktop_ui.py:32-40 @ 863e313`:
 ```python
@@ -572,8 +572,8 @@ def emit(event: str, payload: dict) -> bool:
 
 ## 5. 与文档/既有认知的出入
 
-1. **▲ "Windows 子类"不存在**。base.py:645-647 注释写 "the Windows subclass override converts a native ``C:\Users\x`` cwd"(`tools/environments/base.py:645-647 @ 863e313`),但全仓没有 Windows 专用 Environment 子类;所指实为 `LocalEnvironment._quote_cwd_for_cd`/`_quote_shell_path` 这两个跨平台 override(local.py:1477-1484)+ 模块级 `_IS_WINDOWS` 守卫函数。代码注释措辞与实际结构不符(功能无碍),本轮任务描述沿用了该措辞,一并修正认知。
-2. **◇ local.py 类 docstring 的 "CWD persists via file-based read" 已过时**(local.py:1419)。现行实现与远程后端共享 stdout marker 解析,`_update_cwd` 自己的 docstring 说明了这一点并保留 `_cwd_file` 仅作 cleanup 遗产(local.py:1635-1644、1670-1676)。
+1. **▲ "Windows 子类"不存在**。base.py:645-647 注释写 "the Windows subclass override converts a native ``C:\Users\x`` cwd"(`tools/environments/base.py:645-647 @ 863e313`),但全仓没有 Windows 专用 Environment 子类;所指实为 `LocalEnvironment._quote_cwd_for_cd`/`_quote_shell_path` 这两个跨平台 override(tools/environments/local.py:1477-1484)+ 模块级 `_IS_WINDOWS` 守卫函数。代码注释措辞与实际结构不符(功能无碍),本轮任务描述沿用了该措辞,一并修正认知。
+2. **◇ local.py 类 docstring 的 "CWD persists via file-based read" 已过时**(tools/environments/local.py:1419)。现行实现与远程后端共享 stdout marker 解析,`_update_cwd` 自己的 docstring 说明了这一点并保留 `_cwd_file` 仅作 cleanup 遗产(tools/environments/local.py:1635-1644、1670-1676)。
 3. **website/docs 本簇核对无冲突**:`user-guide/features/hooks.md`(consent 三通道、timeout 1..300 clamp、双 wire shape、"errors never crash the agent"、approval 观察 hook observer-only)与 `agent/shell_hooks.py` 逐条一致;`user-guide/features/browser.md`(auto_local_for_private_urls 默认开、关闭后需 allow_private_urls、restrict_evaluate 默认关且独立于 SSRF)与 `tools/browser_tool.py` 一致。R1/R3 已录的"文档为作者自绘地图"原则本轮未新增冲突条目。
 
 ---

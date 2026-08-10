@@ -498,7 +498,7 @@ fire-and-forget,任务加入 `self._background_tasks` 防 GC,done_callback 自�
             result = await self._run_in_executor_with_context(run_sync)
 ```
 
-要点:`session_id=task_id`(形如 `bg_HHMMSS_xxxxxx`,slash_commands.py:3312)→ 全新
+要点:`session_id=task_id`(形如 `bg_HHMMSS_xxxxxx`,gateway/slash_commands.py:3312)→ 全新
 会话,不碰当前 chat 的 session;`fallback_model` 从磁盘重读而非启动快照(#60955:
 用户改了 config 里的 fallback,后台任务仍用旧值);agent 用完必 `_cleanup_agent_resources`。
 
@@ -699,7 +699,7 @@ relay 侧实现:`gateway/relay/adapter.py:2085-2093 @ 863e313`(签名含
 **UTF-16 码元**(emoji 计双),所以用 `utf16_len`/`_prefix_within_utf16_limit`
 (`gateway/platforms/base.py:190-209 @ 863e313`)截到 80/77+"...",不用 Python 码点切片。
 
-**▲ 文档-代码冲突/缺陷候选(本段最重要的一条)**:run.py:19960-19965 对
+**▲ 文档-代码冲突/缺陷候选(本段最重要的一条)**:gateway/run.py:19960-19965 对
 `rename_thread` **无条件**传 `prefer_connector_created=` 与 `parent_chat_id=` 两个
 关键字参数;relay adapter 签名接受它们,但**原生 Discord 插件 adapter 的签名不接受**:
 
@@ -719,7 +719,7 @@ TypeError(async 函数坏 kwarg 在调用时同步抛),被 19972-19973 的
 `except Exception: logger.debug(...)` 静默吞掉——即**基线上原生 lane 的语义化改名
 大概率是静默 no-op**。测试只用宽签名的 fake 覆盖了 relay lane
 (`tests/gateway/relay/test_relay_threads.py:386-389 @ 863e313`),原生插件 adapter 的真实
-签名未被该路径测试。run.py:19930 注释"Native-marker lane keeps the legacy string guard"
+签名未被该路径测试。gateway/run.py:19930 注释"Native-marker lane keeps the legacy string guard"
 描述的意图与实际(TypeError)不符。待 R8+ 用测试验证定案。
 
 **重实现要点**:
@@ -954,7 +954,7 @@ slash-confirm(同一个 /approve 词,先解锁阻塞中的工具线程);接受 `
 确认(用户显然已经翻篇)。
 
 调用方:/new(`gateway/run.py:15066 @ 863e313`)、/reset|/clear(15260)、
-/reload-mcp(slash_commands.py:5233)、昂贵模型切换警告(slash_commands.py:2433,
+/reload-mcp(gateway/slash_commands.py:5233)、昂贵模型切换警告(gateway/slash_commands.py:2433,
 复用 `_request_slash_confirm` 但无 "always" 持久化——"每次昂贵切换都该显式决定")。
 
 **重实现要点**:
@@ -1311,8 +1311,8 @@ task-local 的——裸 `run_in_executor` 会让工具在工作线程里读到�
    `set_session_vars` 的 docstring(226-230)已写对;run.py 侧措辞过时。
 3. **◇ `stt_echo_transcripts` 配置覆盖不全**:`gateway/config.py:915 @ 863e313` 声明
    "Whether to echo raw STT transcripts back to the user",`_should_echo_stt_transcripts`
-   (run.py:19267-19269)只在 Telegram 语音消息 lane 被查(run.py:15935、21769);
-   Discord voice 频道的转写回显(run.py:19158-19165)不查该开关,恒回显。
+   (gateway/run.py:19267-19269)只在 Telegram 语音消息 lane 被查(gateway/run.py:15935、21769);
+   Discord voice 频道的转写回显(gateway/run.py:19158-19165)不查该开关,恒回显。
 4. **◇ 残缺注释**:`gateway/run.py:21024 @ 863e313`
    `# .update_response to continue — it doesn't re-check` 是半句(上文被编辑掉),
    无法读出主语;行为以代码为准(prompt 文件保留在盘、进程内靠 pending 标志抑制重发)。

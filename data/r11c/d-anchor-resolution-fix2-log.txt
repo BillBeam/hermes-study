@@ -1,0 +1,40 @@
+  改    1  notes/r10b-92-mainline-crosschecks.md
+  改    1  notes/r2-22-credential-pool.md
+  改    1  notes/r3-30-execute-code-mcp-client.md
+  改    2  notes/r4-40-computer-use.md
+  改    1  notes/r4-90-doc-conflict-rulings.md
+  改    2  notes/r6-10-honcho.md
+  改    1  notes/r6-40-mem0-holographic.md
+  改    1  notes/r6-90-doc-conflict-rulings.md
+  改    2  notes/r7-raw-run-04-gwr-init-routing.md
+  改    1  notes/r7-raw-run-05-gwr-queue-busy.md
+  改    2  notes/r7-raw-run-08-stop-profiles-busycmd.md
+  改    4  notes/r7-raw-run-09-handle-message.md
+  改    3  notes/r7-raw-run-10-agent-turn.md
+  改   14  notes/r7b-10-base-adapter-contract.md
+  改    1  notes/r7c-90-doc-conflict-rulings.md
+  改   15  notes/r7c-raw-authz-pairing.md
+  改    1  notes/r7c-raw-cron-sched-b.md
+  改    1  notes/r7c-raw-restart-readiness.md
+  改    2  notes/r7c-raw-slash-a.md
+  改    1  notes/r7c-raw-slash-b.md
+  改    1  notes/r7c-raw-slash-c.md
+  改    8  notes/r7c-raw-webhook-signing-docgap.md
+  改    1  notes/r8a-raw-migrations-env-secrets.md
+  改    1  notes/r8b-02-h1-h2-config-debt.md
+  改    6  notes/r8c-raw-auth-py.md
+  改    1  notes/r9d-90-handover-credential-landing.md
+
+已改写 75 处;点名留下 622 处 {'长度判据不唯一': 519, '内容判据不过': 103}
+
+改写最多的 10 个串:
+    19  base.py -> gateway/platforms/base.py
+    19  pairing.py -> gateway/pairing.py
+     7  auth.py -> hermes_cli/auth.py
+     6  webhook.py -> gateway/platforms/webhook.py
+     5  session.py -> gateway/session.py
+     3  config.py -> hermes_cli/config.py
+     2  computer-use.md -> website/docs/user-guide/features/computer-use.md
+     2  client.py -> plugins/memory/honcho/client.py
+     2  cron-internals.md -> website/docs/developer-guide/cron-internals.md
+     2  slash-commands.md -> website/docs/reference/slash-commands.md

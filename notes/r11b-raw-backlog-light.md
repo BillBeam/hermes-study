@@ -478,7 +478,7 @@ LOOPBACK_REDIRECT_URI = f"http://{LOOPBACK_HOST}:{LOOPBACK_PORT}/callback"
 ```
 
 `_bind_loopback_server` 先试 8765,`OSError` 就退到 `(LOOPBACK_HOST, 0)` 让内核派端口
-(`oauth_flow.py:293-297`)。因为**先 bind 后取 `server_address[1]`**,
+(`plugins/memory/honcho/oauth_flow.py:293-297`)。因为**先 bind 后取 `server_address[1]`**,
 「探测端口 → 释放 → 稍后再 bind」那个 TOCTOU 窗口根本不存在。
 这与 r6 章 §3.8 记的 MCP 侧「预留即持有」是同一条原则的两种写法。
 
@@ -1513,7 +1513,7 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_PYTHON=/home
 
 | 编号 | 锚点 + 摘录 | 一句话现象 | 建议去向 |
 |---|---|---|---|
-| **H-R11B-B2-a** | `tools/computer_use/__init__.py:26`:`overlay if the backend did not).` | 包的接线图列了一个全仓不存在的 `capture.py`(该行是它的续行),而它描述的 PNG 尺寸嗅探实际在 `tools/computer_use/tool.py:860`:`"""Return (width, height) for common inline screenshot formats.` 与 `cua_backend.py:946` **各写了一份**;需确认这是「计划中的拆分未发生」还是「拆完又被合回」 | 主线定案 ■-B2-01 时一并判;若入成品章,与 R4 章 §3.10 合并叙述 |
+| **H-R11B-B2-a** | `tools/computer_use/__init__.py:26`:`overlay if the backend did not).` | 包的接线图列了一个全仓不存在的 `capture.py`(该行是它的续行),而它描述的 PNG 尺寸嗅探实际在 `tools/computer_use/tool.py:860`:`"""Return (width, height) for common inline screenshot formats.` 与 `tools/computer_use/cua_backend.py:946` **各写了一份**;需确认这是「计划中的拆分未发生」还是「拆完又被合回」 | 主线定案 ■-B2-01 时一并判;若入成品章,与 R4 章 §3.10 合并叙述 |
 | **H-R11B-B2-b** | `hermes_cli/subcommands/memory.py:19`:`"Available providers: honcho, openviking, mem0, hindsight,\n"` | help 文本硬编码 7 个 provider,目录扫描实测 8 个(漏 `supermemory`);本片只查了这一处手抄名单,**未做全仓「provider 名单手抄本」普查**——`hermes_cli/config_defaults.py:1660`:`# "hindsight", "holographic", "retaindb", "byterover".` 的注释里还有一份同款 7 项名单 | 下一轮做一次 provider/toolset 名单手抄点普查,与 r8b 章 §4.3 的两份名单合并成一条跨轮结论 |
 | **H-R11B-B2-c** | `agent/reasoning_timeouts.py:62`:`_REASONING_STALE_TIMEOUT_FLOORS: tuple[tuple[str, int], ...] = (` | 这张 30 行静态表是「断连是否会触发压缩删历史」的唯一守门人(`agent/error_classifier.py:956`:`if get_reasoning_stale_timeout_floor(model) is not None:`),但**没有任何机制保证新推理模型上架时有人来加行**;需确认是否有 CI/脚本对着 models.dev 目录做覆盖检查 | 下一轮查 `models.dev` 目录同步链路(R8B 已知本容器该目录条目数为 0,需在有网环境判) |
 | **H-R11B-B2-d** | `plugins/memory/honcho/oauth_flow.py:365`:`    if returned_state != state:` | CSRF state 用 `!=` 直接比,非常量时间;MCP 侧(r6 章 §3.8)记的是「SDK 生成并常量时间比对」。本片判**不构成可利用面**(state 是 `secrets.token_urlsafe(32)`、失败即抛、无重试预言机),但两套 OAuth 客户端在同一仓库里对同一问题给出了不同强度的答案 | 仅记录,不建议改;若 R12 装订时讲「两套 OAuth 的取舍」,此处是最锋利的对照点 |

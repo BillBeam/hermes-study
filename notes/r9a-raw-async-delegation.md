@@ -2115,7 +2115,7 @@ cd /home/user/hermes-agent && grep -n "^MAX_DEPTH = " tools/delegate_tool.py && 
 ⚠️ 这条严格说属于「同步委派/深度」范围,同样请去重。我记在这里是因为它就在
 我判定 ▲1 的**同一段**里(判定一条文档断言必须把整段一并判定)。
 
-### ◎3 `AGENTS.md:1012-1014` 与 skill `background-systems.md:19-22` —— 「不持久」说得过于绝对
+### ◎3 `AGENTS.md:1012-1014` 与 skill `skills/autonomous-ai-agents/hermes-agent/references/background-systems.md:19-22` —— 「不持久」说得过于绝对
 
 `AGENTS.md:1012 @ 863e313`
 > Durability rule: background `delegate_task` is detached from the current

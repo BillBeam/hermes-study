@@ -31,7 +31,7 @@ to the wrong thread.
   ——`:74-82` 十个、`:90`、`:94`、`:96`、`:102`、`:122`、`:126-128` 三个。**引用范围一直是对的,
   只有数错了**,且该错数原样传进了成品章 `chapters/r7-*.md:145`。见 review-1 建议-6 / M-10。)*`get_session_env(name)` 的解析顺序:ContextVar 已设(哪怕
   空串)→ 直接返回、**不回落**;`_UNSET` → 回落 `os.environ`(CLI/cron/测试兼容)→ default
-  (`session_context.py:363-386`)。
+  (`gateway/session_context.py:363-386`)。
 - **三态生命周期**是精髓:
   - `set_session_vars(...)`(206-271)绑定全部变量,返回 tokens;
   - `clear_session_vars(tokens)`(274-312)处理器**退出**时调用:一律 `var.set("")`
@@ -177,9 +177,9 @@ exchange — leaving a permanent ``user;user`` alternation wedge that
 
 ### 实现
 - 每 resolved session_id 一个 `asyncio.Lock` + holder 记录(`_SessionLease`,100-112);
-  获取点在会话解析**定案之后、载入历史之前**(run.py:16568-16593:get_or_create →
+  获取点在会话解析**定案之后、载入历史之前**(gateway/run.py:16568-16593:get_or_create →
   异步委托 pinning → tip-walk switch 都在其上;wait 超时取 `HERMES_AGENT_TIMEOUT` 默认
-  1800s,与回合不活跃看门狗同钟,turn_lease.py:63-66 注释点明)。
+  1800s,与回合不活跃看门狗同钟,gateway/turn_lease.py:63-66 注释点明)。
 - **三条安全性质**(27-38):
   1. 代数域身份检查释放:token 记 (owner_key, generation),`release()` 只在"这个 token
      正是当前 holder"时才放锁(288-296);过期回退永远放不掉新回合的租约(#28686 教训)。
@@ -194,8 +194,8 @@ exchange — leaving a permanent ``user;user`` alternation wedge that
   **不合并串行化域**、留在旧 id 上、响亮记日志——fail-open 不死锁(250-267)。
 - 已知边界(40-47,docstring 自认):CLI-continuity 的跨进程共享在任何进程内锁之外
   (需要 DB 级租约,另案);mid-turn 压缩轮换有小的别名窗口,rebind 是补(#64934 flagged)。
-- 挂接:acquire 在 run.py:16584-16589;token 存 `TurnState.lease_token/lease_generation`
-  (run.py:16590-16593);释放在 dispatch 层 finally(`_release_turn_lease` run.py:22859)。
+- 挂接:acquire 在 gateway/run.py:16584-16589;token 存 `TurnState.lease_token/lease_generation`
+  (gateway/run.py:16590-16593);释放在 dispatch 层 finally(`_release_turn_lease` gateway/run.py:22859)。
   争用时 WARNING 点名 session 与两个路由键(174-188),与
   `agent/agent_runtime_helpers.note_turn_start` 的跨 agent 绊线成对(24-25)。
   行为规格:tests/gateway/test_turn_lease.py(本轮跑通)。
@@ -213,7 +213,7 @@ exchange — leaving a permanent ``user;user`` alternation wedge that
 4. 有界注册表逐出只碰 idle 条目;正确性优先于上限。
 5. 资源身份会中途轮换(压缩换 id)时,提供"同锁多键"的 rebind,而不是搬锁状态。
 
-## 机制 4:run generation(run.py:23014-23063)——迟到结果的代数闸门
+## 机制 4:run generation(gateway/run.py:23014-23063)——迟到结果的代数闸门
 
 ### 场景/问题(#28686)
 /stop、/new 打断旧回合后,旧 worker 还在异步收尾;它迟到的结果/清理若被当成"当前回合"
@@ -242,7 +242,7 @@ exchange — leaving a permanent ``user;user`` alternation wedge that
   `_bind_adapter_run_generation`(23049-23063)把代数塞给适配器的 interrupt 事件对象
   (`_hermes_run_generation` 属性),适配器层的取消也能识别代。
 - 消费侧例证:进程收割 `_reap_gateway_turn_processes` 的 `is_still_current` 闭包
-  (run.py:2851-2857)——超时收割前检查"是否已有新回合认领本会话",避免误杀新回合的进程;
+  (gateway/run.py:2851-2857)——超时收割前检查"是否已有新回合认领本会话",避免误杀新回合的进程;
   租约 release/rebind 只匹配当前代(turn_lease 上文)。
 
 ### 重实现要点

@@ -55,13 +55,13 @@ TRANSPORT_TO_API_MODE: Dict[str, str] = {
 | `codex_responses` | OpenAI Responses API（Codex/xAI/GitHub Copilot） | `codex_responses_adapter.py` | `transports/codex.py` |
 | `bedrock_converse` | AWS Bedrock Converse（boto3，绕过 OpenAI client） | `bedrock_adapter.py` | `transports/bedrock.py` |
 
-注意：`chat_completion_helpers.py:2687` 出现的 `"api_mode": "custom"` 只是 `relay_llm` 流式遥测的 metadata 标签，**不是**第五个分发值。
+注意：`agent/chat_completion_helpers.py:2687` 出现的 `"api_mode": "custom"` 只是 `relay_llm` 流式遥测的 metadata 标签，**不是**第五个分发值。
 
 `agent/vertex_adapter.py` 与 `agent/azure_identity_adapter.py` **不是独立 api_mode**：Vertex 走 `openai_chat`（overlay `auth_type="vertex"`，只解决 OAuth2 取 token + base_url，见 `providers/base.py`），Azure Entra 走 `anthropic_messages`/`chat_completions` 之上的 bearer-hook。
 
 ### 1.2 两套 provider 元数据系统（易混）
 
-- **`hermes_cli/providers.py`**：`ProviderDef` + `HermesOverlay`（`providers.py:34`/`:255`），叠在 models.dev 目录之上，字段 `transport`。这是 `determine_api_mode()` 用的老系统。
+- **`hermes_cli/providers.py`**：`ProviderDef` + `HermesOverlay`（`hermes_cli/providers.py:34`/`:255`），叠在 models.dev 目录之上，字段 `transport`。这是 `determine_api_mode()` 用的老系统。
 - **`providers/base.py` 的 `ProviderProfile`**（`providers/base.py:38`）：声明式 profile，字段 `api_mode: str = "chat_completions"`（`:44`），由 `plugins/model-providers/<name>/` 插件注册、`runtime_provider.get_provider_profile()` 消费。它还带请求期钩子：`prepare_messages`（`:117`）、`build_extra_body`（`:125`）、`build_api_kwargs_extras`（`:134`，用于 reasoning 配置放 extra_body 还是 top-level 的分叉）、`get_max_tokens`（`:167`）、`fetch_models`（`:181`）。两套系统的 `transport`/`api_mode` 字段语义等价，代码里并行存在。
 
 ### 1.3 统一分发点（"入口在哪"）
@@ -111,7 +111,7 @@ def build_api_kwargs(agent, api_messages: list, tools_for_api: list | None = Non
     return request_client.chat.completions.create(**api_kwargs)
 ```
 
-**(c) transport 注册表**：api_mode → transport 类的解析在 `agent/transports/__init__.py:26` `get_transport(api_mode)`，各 transport 模块 import 时自注册（`transports/anthropic.py:251 register_transport("anthropic_messages", ...)`）。agent 侧缓存入口 `run_agent.py:6652 _get_transport()`。transport 只做**格式转换 + 归一化**，不管 client 生命周期/流式（`transports/anthropic.py:1-5` 明说）。
+**(c) transport 注册表**：api_mode → transport 类的解析在 `agent/transports/__init__.py:26` `get_transport(api_mode)`，各 transport 模块 import 时自注册（`agent/transports/anthropic.py:251 register_transport("anthropic_messages", ...)`）。agent 侧缓存入口 `run_agent.py:6652 _get_transport()`。transport 只做**格式转换 + 归一化**，不管 client 生命周期/流式（`agent/transports/anthropic.py:1-5` 明说）。
 
 一句话记法：**`determine_api_mode()`（解析期）定 mode → `_get_transport()` 取 transport → `build_api_kwargs()`（出方向）→ `_dispatch_*`（发请求）→ `transport.normalize_response()`（回方向归一为 `NormalizedResponse`/OpenAI 形状）**。`NormalizedResponse`/`ToolCall` 的共享形状定义在 `transports/types.py`，协议私有状态塞进 `provider_data`（如 Codex 的 `call_id`/`response_item_id`、Gemini 的 `thought_signature`）。
 
@@ -184,7 +184,7 @@ def determine_api_mode(provider: str, base_url: str = "", model: str = "") -> st
 > 现按制度「摘录要跳段时优先拆成两个各自带锚点的块」拆成四块,每块逐字对齐基线并各自受校验;
 > 中文的五级标注移到块外的散文里。**结论实质不变**——五级顺序本来就是 docstring 自己写的。
 
-**host 强制**（`providers.py:614 host_mandated_api_mode`）是"覆盖"而非"补空"——即使 session 携带过期的 `chat_completions`（如 `/model` 切换残留），命中的 host 也强制改写。用 hostname 精确匹配（非子串），防 `api.openai.com.attacker.test`（#32243）：
+**host 强制**（`hermes_cli/providers.py:614 host_mandated_api_mode`）是"覆盖"而非"补空"——即使 session 携带过期的 `chat_completions`（如 `/model` 切换残留），命中的 host 也强制改写。用 hostname 精确匹配（非子串），防 `api.openai.com.attacker.test`（#32243）：
 - `api.kimi.com` + 路径 `/coding` → `anthropic_messages`（`:637`）
 - `api.anthropic.com` 或 URL 以 `/anthropic` 结尾 → `anthropic_messages`（`:639`）
 - 官方 OpenAI host 家族（`is_official_openai_host`，含 `us./eu.api.openai.com`）→ `codex_responses`（`:645`）
@@ -215,8 +215,8 @@ def determine_api_mode(provider: str, base_url: str = "", model: str = "") -> st
 
 ### 3.2 响应方向归一
 
-在 `transports/anthropic.py:80 normalize_response()`（非 adapter 内）。要点：
-- 逐 content block → `text_parts`/`reasoning_parts`/`tool_calls`；每块过 `_to_plain_data`（`anthropic_adapter.py:1849`，SDK 对象转纯 dict，防循环引用）+ `_sanitize_replay_block`（捕获时就剥离 `parsed_output/caller/citations=None`，防持久化后重放 400，`transports/anthropic.py:117`）。
+在 `agent/transports/anthropic.py:80 normalize_response()`（非 adapter 内）。要点：
+- 逐 content block → `text_parts`/`reasoning_parts`/`tool_calls`；每块过 `_to_plain_data`（`agent/anthropic_adapter.py:1849`，SDK 对象转纯 dict，防循环引用）+ `_sanitize_replay_block`（捕获时就剥离 `parsed_output/caller/citations=None`，防持久化后重放 400，`agent/transports/anthropic.py:117`）。
 - **有序块通道**：仅当该轮**既有签名 thinking 又有 tool_use** 时，才把逐字有序 `ordered_blocks` 塞进 `provider_data["anthropic_content_blocks"]`（`:182`）——只有这种交错形状会被并行 list 重建成错误顺序而使签名失效。
 - stop_reason 映射 `_STOP_REASON_MAP`（`:234`）：`end_turn`→`stop`、`tool_use`→`tool_calls`、`refusal`→`content_filter`。
 
@@ -252,7 +252,7 @@ def determine_api_mode(provider: str, base_url: str = "", model: str = "") -> st
    text = text.replace("hermes-agent", "claude-code")
    text = text.replace("Nous Research", "Anthropic")
    ```
-3. **tool 名 `mcp__` 双下划线化**（`_to_oauth_wire_name`，`:2927`）：Anthropic 订阅计费分类器把单下划线 `mcp_` 当第三方 app 指纹并 400，故 `read_file`→`mcp__read_file`、`mcp_linear_get_issue`→`mcp__linear_get_issue`；`normalize_response` 用注册表反解回原名（`transports/anthropic.py:134`）。
+3. **tool 名 `mcp__` 双下划线化**（`_to_oauth_wire_name`，`:2927`）：Anthropic 订阅计费分类器把单下划线 `mcp_` 当第三方 app 指纹并 400，故 `read_file`→`mcp__read_file`、`mcp_linear_get_issue`→`mcp__linear_get_issue`；`normalize_response` 用注册表反解回原名（`agent/transports/anthropic.py:134`）。
 4. client header（`build_anthropic_client:892`）：`anthropic-beta: ...,claude-code-20250219,oauth-2025-04-20`（`_OAUTH_ONLY_BETAS:357`）+ `user-agent: claude-code/<version> (external, cli)` + `x-app: cli`。version 通过 `claude --version` 动态探测（`_detect_claude_code_version:370`，fallback `2.1.74`）——Anthropic 会拒版本太旧的 OAuth 请求。
 
 **(D) OAuth 凭据刷新链** `resolve_anthropic_token()`（`:1357`）——5 级优先级：`ANTHROPIC_TOKEN` → `CLAUDE_CODE_OAUTH_TOKEN` → `ANTHROPIC_API_KEY` → Claude Code 凭据文件（`~/.claude/.credentials.json` + macOS Keychain `read_claude_code_credentials:1040`，两源按 expiresAt 调和）→ Hermes credential_pool。刷新单用（single-use）竞态处理是亮点：`_refresh_oauth_token`（`:1159`）**先重读 live 凭据**，若 Claude Code 已自行轮换就直接采纳其新 token，避免拿已失效的 refresh_token 去 POST（`:1180-1191`）。刷新走 `refresh_anthropic_oauth_pure`（`:1095`，client_id `9d1c250a-...`，端点 `platform.claude.com` 优先、`console.anthropic.com` 兜底）。写回 `_write_claude_code_credentials`（`:1212`）用 `O_EXCL` + `0600` 原子写（防 TOCTOU 泄露 OAuth token）。
@@ -293,9 +293,9 @@ def determine_api_mode(provider: str, base_url: str = "", model: str = "") -> st
 
 **(A) Harmony token 中和** `_neutralize_harmony_tokens()`（`:89`）——ChatGPT Codex backend 保留 Harmony 线协议 token `<|start|>`/`<|end|>`/`<|channel|>` 等，文本里出现字面拼写会被在推理前 `invalid_prompt: Request blocked` 拒掉。中和策略：把半角 `<|x|>` 替换成全角管道 `<｜x｜>`（`_FULLWIDTH_PIPE:86`，源码仍可读、但不是保留 token）。且处理 Cf 类隐藏字符（U+200B 会被 backend 先剥掉再检测，故把所有 Unicode format control 视作可被移除，防"藏字符再拼回 token"绕过，`:98-124`）。`_neutralize_harmony_structure`（`:127`）递归处理 JSON，但**拒绝**在 object key 里出现保留 token（改 key 会破坏 tool schema 契约，直接 ValueError）。
 
-**门控**：中和只对 ChatGPT Codex backend 开启——`conversation_loop.py:2229/2389` 传 `sanitize_harmony_tokens=agent._is_codex_backend()` → `transports/codex.py:621 preflight_kwargs` → `codex_responses_adapter.py:965`。对 xAI/其他 Responses 端点关闭（gate off 时字节级保留，见测试 4.5）。
+**门控**：中和只对 ChatGPT Codex backend 开启——`agent/conversation_loop.py:2229/2389` 传 `sanitize_harmony_tokens=agent._is_codex_backend()` → `agent/transports/codex.py:621 preflight_kwargs` → `agent/codex_responses_adapter.py:965`。对 xAI/其他 Responses 端点关闭（gate off 时字节级保留，见测试 4.5）。
 
-**(B) encrypted_content issuer 隔离** `_classify_responses_issuer()`（`:28`）——`reasoning.encrypted_content` 密封到签发端点，把 Codex 铸的 blob 重放给 xAI 必得 `HTTP 400 invalid_encrypted_content`。issuer kind：`xai_responses`/`github_responses`/`codex_backend`/`other:<base_url>`。归一时 `_normalize_codex_response` 把 issuer 盖章到每个 reasoning item 的 `_issuer_kind`（`:1398`）；重放时 `_chat_messages_to_responses_input` 的 `current_issuer_kind` 守卫（`:508`）丢弃跨 issuer 的 reasoning item（未盖章的 legacy item 放行）。issuer 由 `transports/codex.py:193 _resolve_issuer_kind` 从 build_kwargs/convert_messages 的 params 推得并缓存 `_last_issuer_kind`（`:187`）供 normalize 回填。
+**(B) encrypted_content issuer 隔离** `_classify_responses_issuer()`（`:28`）——`reasoning.encrypted_content` 密封到签发端点，把 Codex 铸的 blob 重放给 xAI 必得 `HTTP 400 invalid_encrypted_content`。issuer kind：`xai_responses`/`github_responses`/`codex_backend`/`other:<base_url>`。归一时 `_normalize_codex_response` 把 issuer 盖章到每个 reasoning item 的 `_issuer_kind`（`:1398`）；重放时 `_chat_messages_to_responses_input` 的 `current_issuer_kind` 守卫（`:508`）丢弃跨 issuer 的 reasoning item（未盖章的 legacy item 放行）。issuer 由 `agent/transports/codex.py:193 _resolve_issuer_kind` 从 build_kwargs/convert_messages 的 params 推得并缓存 `_last_issuer_kind`（`:187`）供 normalize 回填。
 
 **(C) GitHub Copilot connection 隔离**（`:439`）：`is_github_responses` 时无条件删 `codex_message_items` 的 `id`（Copilot 把 id 绑到具体 backend connection，凭据轮换/重启/负载均衡换连接都会让 stale id 401 "input item ID does not belong to this connection"，#32716）。
 
@@ -335,7 +335,7 @@ Harmony 中和、issuer 隔离在 `README/AGENTS.md/website/docs` **完全无记
 
 ### 5.4 特有机制/取舍
 
-- 自建 `GeminiNativeClient`（`:956`）暴露 `.chat.completions.create()` 门面，让上层 45+ 处 OpenAI 调用零改动。选用时机：`is_native_gemini_base_url()`（`:62`，`generativelanguage.googleapis.com` 且非 `/openai` 结尾）判真则在 `agent_runtime_helpers.py:2284` 构造它。
+- 自建 `GeminiNativeClient`（`:956`）暴露 `.chat.completions.create()` 门面，让上层 45+ 处 OpenAI 调用零改动。选用时机：`is_native_gemini_base_url()`（`:62`，`generativelanguage.googleapis.com` 且非 `/openai` 结尾）判真则在 `agent/agent_runtime_helpers.py:2284` 构造它。
 - 鉴权/quota 诊断丰富：`probe_gemini_tier`（`:72`，探 free/paid）、`is_free_tier_quota_error`（`:149`）、`is_standard_key_auth_error`（`:166`，Google 2026-06 起拒 legacy Standard key 的误导性 401 → 给正确指引 `_STANDARD_KEY_GUIDANCE:189`）。
 - header 里 UA `hermes-agent/<ver> (gemini-native)` + `X-Goog-Api-Client`（`:1001`，partner integration 约定）。
 
@@ -370,7 +370,7 @@ Harmony 中和、issuer 隔离在 `README/AGENTS.md/website/docs` **完全无记
 
 ### 6.4 特有机制/取舍
 
-- **双客户端路径**：Anthropic Claude 模型（`is_anthropic_bedrock_model:459`）走 `build_anthropic_bedrock_client`（`anthropic_adapter.py:915`，用 SDK 的 `AnthropicBedrock`，拿 full Claude 特性 + `context-1m` beta 解锁 1M 窗口，否则 Bedrock 上被封 200K）；非 Claude 走 Converse。
+- **双客户端路径**：Anthropic Claude 模型（`is_anthropic_bedrock_model:459`）走 `build_anthropic_bedrock_client`（`agent/anthropic_adapter.py:915`，用 SDK 的 `AnthropicBedrock`，拿 full Claude 特性 + `context-1m` beta 解锁 1M 窗口，否则 Bedrock 上被封 200K）；非 Claude 走 Converse。
 - client 缓存 + stale-connection 剔除（`invalidate_runtime_client:120`、`is_stale_connection_error:172` 按 traceback 模块判定）。
 - 鉴权走 AWS 默认凭据链（IAM/SSO/env，`has_aws_credentials:325`、`resolve_bedrock_region:356`），零 API key 管理。boto3 延迟 import（`:45`/`_require_boto3:64`），非 [all] extra（lazy_deps 按需装）。
 
@@ -382,7 +382,7 @@ Harmony 中和、issuer 隔离在 `README/AGENTS.md/website/docs` **完全无记
 
 **gemini_schema.py（140 行）** `sanitize_gemini_schema()`（`:37`）：白名单 `_GEMINI_SCHEMA_ALLOWED_KEYS`（`:11`，剥 `$schema`/`additionalProperties` 等 Gemini `Schema` 子集外的键），递归 properties/items/anyOf；`integer/number/boolean` 的 enum 值**字符串化**（Gemini 要求 enum 全 string，`:83`）；`required` 严格过滤到本节点 `properties` 里存在的名（MCP server 常发 required-无-properties 的坏 schema 会整请求 400，port kilocode#11955，`:118`）。
 
-**moonshot_schema.py（269 行）** `_repair_schema()`（`:44`）修 Moonshot flavored JSON Schema 三规则：每个属性须带 `type`（`_fill_missing_type:162` 启发式推断）、`anyOf` 的 type 须在子节点非父（`:90`，且塌缩 null 分支）、object 须带 `required` 数组即使空（`_ensure_required_array:143`）。`is_moonshot_model()`（`:246`）按模型名（含 aggregator 前缀 `kimi-*`/`moonshot*`/`k3`）识别，`transports/chat_completions.py:450/644` 处调用 `sanitize_moonshot_tools`。
+**moonshot_schema.py（269 行）** `_repair_schema()`（`:44`）修 Moonshot flavored JSON Schema 三规则：每个属性须带 `type`（`_fill_missing_type:162` 启发式推断）、`anyOf` 的 type 须在子节点非父（`:90`，且塌缩 null 分支）、object 须带 `required` 数组即使空（`_ensure_required_array:143`）。`is_moonshot_model()`（`:246`）按模型名（含 aggregator 前缀 `kimi-*`/`moonshot*`/`k3`）识别，`agent/transports/chat_completions.py:450/644` 处调用 `sanitize_moonshot_tools`。
 
 **lmstudio_reasoning.py（60 行）** `resolve_lmstudio_effort()`（`:35`）：把 Hermes effort ladder 映射到 LM Studio 词汇（`off→none`/`on→medium`，`max/ultra→xhigh` clamp），再 clamp 到模型 `allowed_options`；越界返回 `None`（"省略字段"让 server 用模型默认，而非静默换一个 effort）。
 
@@ -401,9 +401,9 @@ Harmony 中和、issuer 隔离在 `README/AGENTS.md/website/docs` **完全无记
 
 ## 9. 定案任务结论
 
-**(a) ◇ Nous Portal 双线协议路由（providers.py:666 按模型前缀选协议）+ ▲ 文档缺口 → 证实（修正行号）**
+**(a) ◇ Nous Portal 双线协议路由（hermes_cli/providers.py:666 按模型前缀选协议）+ ▲ 文档缺口 → 证实（修正行号）**
 
-代码证实。核心是 `nous_api_mode()`（`providers.py:652`），模型前缀判定在：
+代码证实。核心是 `nous_api_mode()`（`hermes_cli/providers.py:652`），模型前缀判定在：
 
 `hermes_cli/providers.py:666 @ 863e313`
 ```python
@@ -412,13 +412,13 @@ Harmony 中和、issuer 隔离在 `README/AGENTS.md/website/docs` **完全无记
     return "chat_completions"
 ```
 
-Portal 把 `anthropic/*` 目录服务在 native `/v1/messages`，其余走 OpenAI-compat `/chat/completions`（`:652-668` docstring）。`determine_api_mode`（`:693`）对 `{nous,nous-portal,nousresearch}` 走这条 carve-out——因为 Hermes overlay 对整个 Nous 目录只标 `openai_chat`（`providers.py:57`），不 carve 会把 Claude 钉在错线上。空/未知 model 兜底 `chat_completions`（历史 Nous transport，更安全）。Portal 端点还带三处特化：Bearer JWT 鉴权（`_requires_bearer_auth`→`_is_nous_portal_endpoint:561`，只信 prod host + `NOUS_INFERENCE_BASE_URL` override host，拒 lookalike）、verbatim 目录 id（`build_anthropic_kwargs:2869` 跳过 normalize_model_name 保 `anthropic/claude-opus-4.8` 前缀+点）、签名 thinking 原生重放（`_manage_thinking_signatures` 例外，`:2487`）、`tags`/`session_id` body 字段合并到 Messages 线（`_merge_nous_portal_messages_extra_body`，`chat_completion_helpers.py:1188`）。
+Portal 把 `anthropic/*` 目录服务在 native `/v1/messages`，其余走 OpenAI-compat `/chat/completions`（`:652-668` docstring）。`determine_api_mode`（`:693`）对 `{nous,nous-portal,nousresearch}` 走这条 carve-out——因为 Hermes overlay 对整个 Nous 目录只标 `openai_chat`（`hermes_cli/providers.py:57`），不 carve 会把 Claude 钉在错线上。空/未知 model 兜底 `chat_completions`（历史 Nous transport，更安全）。Portal 端点还带三处特化：Bearer JWT 鉴权（`_requires_bearer_auth`→`_is_nous_portal_endpoint:561`，只信 prod host + `NOUS_INFERENCE_BASE_URL` override host，拒 lookalike）、verbatim 目录 id（`build_anthropic_kwargs:2869` 跳过 normalize_model_name 保 `anthropic/claude-opus-4.8` 前缀+点）、签名 thinking 原生重放（`_manage_thinking_signatures` 例外，`:2487`）、`tags`/`session_id` body 字段合并到 Messages 线（`_merge_nous_portal_messages_extra_body`，`agent/chat_completion_helpers.py:1188`）。
 
 **▲ 文档缺口**：`website/docs/developer-guide/provider-runtime.md` 列了"Nous Portal"（`:47`）但**只字未提双线/模型前缀路由**；README/AGENTS.md 亦无。属"代码有、文档无"的自绘地图缺口。任务给的行号 `666` 与 863e313 实测一致（`nous_api_mode` 内的前缀判定）。
 
 **(b) ◇ Codex Responses 的 Harmony 中和 → 证实**
 
-见 §4.3(A)。`_neutralize_harmony_tokens`（`codex_responses_adapter.py:89`）把 `<|start|>` 等保留 token 换全角管道，处理 Cf 隐藏字符防绕过。门控在 ChatGPT Codex backend（`agent._is_codex_backend()` → `sanitize_harmony_tokens`）。文档无记载。
+见 §4.3(A)。`_neutralize_harmony_tokens`（`agent/codex_responses_adapter.py:89`）把 `<|start|>` 等保留 token 换全角管道，处理 Cf 隐藏字符防绕过。门控在 ChatGPT Codex backend（`agent._is_codex_backend()` → `sanitize_harmony_tokens`）。文档无记载。
 
 **(c) ◇ Anthropic OAuth / Claude Code 身份伪装 → 证实**
 

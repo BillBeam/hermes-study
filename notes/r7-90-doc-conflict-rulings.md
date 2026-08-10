@@ -35,12 +35,12 @@
 - **文档**:`gateway-internals.md:88 @ 863e313`(Two-Level Message Guard 第二层):
   "Everything else triggers `running_agent.interrupt()`"。
 - **代码**:第二层实际是一台模式机,"everything else 一律 interrupt"至少错四处:
-  1. internal 合成事件**永不**打断/steer,静默排队(run.py:8867-8879,注释明言设计不变量);
-  2. steer 模式经 `running_agent.steer()` 中途注入,失败回落 queue(run.py:8929-8961);
-  3. interrupt 模式有两个自动降级:活跃子代理(#30170,run.py:8905-8915)与压缩飞行中
-     (#56391,run.py:8916-8926)一律降为 queue;
-  4. 支持 `_supports_active_turn_redirect` 的 agent 走 redirect 原地转向(run.py:8962-8976)。
-  默认模式确为 interrupt(`_load_busy_input_mode` run.py:8278-8288:非法/未设→"interrupt"),
+  1. internal 合成事件**永不**打断/steer,静默排队(gateway/run.py:8867-8879,注释明言设计不变量);
+  2. steer 模式经 `running_agent.steer()` 中途注入,失败回落 queue(gateway/run.py:8929-8961);
+  3. interrupt 模式有两个自动降级:活跃子代理(#30170,gateway/run.py:8905-8915)与压缩飞行中
+     (#56391,gateway/run.py:8916-8926)一律降为 queue;
+  4. 支持 `_supports_active_turn_redirect` 的 agent 走 redirect 原地转向(gateway/run.py:8962-8976)。
+  默认模式确为 interrupt(`_load_busy_input_mode` gateway/run.py:8278-8288:非法/未设→"interrupt"),
   文档的方向没错,分支图谱严重过时。
 - **裁决**:证伪(描述的是 steer/redirect/降级机制引入前的行为)。
   第一层(base.py `_pending_messages` + interrupt event)锚在 R7B 文件,移交 R7B 复核。
@@ -80,7 +80,7 @@
                             f"{platform_name} {code}`"
                         )
 ```
-  且配对响应全程限速(run.py:14474-14478,14501-14510)。
+  且配对响应全程限速(gateway/run.py:14474-14478,14501-14510)。
 - **裁决**:证伪。用户文档 messaging/index.md 与代码一致(R1 已核),开发者文档方向写反。
   pairing.py 本体(哈希码、锁定)移交 R7C。
 
@@ -89,11 +89,11 @@
 - **文档**:官方文档仅 cron-internals.md:132 在 Chronos 托管语境提 scale-to-zero;
   README/AGENTS.md/website docs 无网关侧记载(R1 判断)。
 - **代码**:网关侧完整存在:后台活工作判定 `_scale_to_zero_has_live_background_work`
-  (run.py:7429-7455:background tasks + async delegation + process registry 三查)、
-  idle 超时配置 `gateway.scale_to_zero.idle_timeout_minutes`(run.py:7457-7469)、
-  armed 判定(run.py:7494-7528,含 #relay-only 修复:只数 enabled 平台,注释 7504-7512)、
-  `HERMES_SCALE_TO_ZERO` 挂牌(run.py:7531-7533 docstring "no HERMES_SCALE_TO_ZERO stamp")、
-  watcher(run.py:7611-7667)。
+  (gateway/run.py:7429-7455:background tasks + async delegation + process registry 三查)、
+  idle 超时配置 `gateway.scale_to_zero.idle_timeout_minutes`(gateway/run.py:7457-7469)、
+  armed 判定(gateway/run.py:7494-7528,含 #relay-only 修复:只数 enabled 平台,注释 7504-7512)、
+  `HERMES_SCALE_TO_ZERO` 挂牌(gateway/run.py:7531-7533 docstring "no HERMES_SCALE_TO_ZERO stamp")、
+  watcher(gateway/run.py:7611-7667)。
 - **裁决**:◇ 证实(代码有、地图无)。helper 文件 gateway/scale_to_zero.py 移交 R7C 深读。
 
 ### A6. 能力点 12:活动心跳的网关侧消费 —— ◇ 证实(R7 部分)
@@ -101,11 +101,11 @@
 - **要点**:agent 侧 `_touch_activity`(run_agent.py,R2 域)维护的活动时间戳,在网关侧被
   **三个看门狗共用一钟**消费(#72039 单一进度源契约):
   1. 回合级不活跃看门狗:线程轮询 `get_activity_summary().seconds_since_activity`
-     (run.py:2964-2975),超时打断 + 按基线收割进程;
-  2. stall 通知:`_session_activity_for_stall`(run.py:12129-12144)同源取数,
+     (gateway/run.py:2964-2975),超时打断 + 按基线收割进程;
+  2. stall 通知:`_session_activity_for_stall`(gateway/run.py:12129-12144)同源取数,
      策略纯函数在 session_stall.py(27-60,观测缺失不算恢复);
-  3. 回合租约等待超时与看门狗同取 `HERMES_AGENT_TIMEOUT` 默认 1800(run.py:16588,
-     turn_lease.py:63-66 注释点名同钟设计)。
+  3. 回合租约等待超时与看门狗同取 `HERMES_AGENT_TIMEOUT` 默认 1800(gateway/run.py:16588,
+     gateway/turn_lease.py:63-66 注释点名同钟设计)。
 - **裁决**:◇ 证实。kanban 评论 steer 注入侧(kanban_watchers.py)移交 R7C。
 
 ## B. 本轮新发现(3 条)
@@ -114,15 +114,15 @@
 
 - **文档(代码内 docstring)**:`gateway/profile_routing.py:6-9 @ 863e313`:
   "platform + chat_id + thread_id (exact thread) — specificity 14"。
-- **代码**:算术为 guild=2、chat=4、thread=8(profile_routing.py:63-72);同 docstring 的
+- **代码**:算术为 guild=2、chat=4、thread=8(gateway/profile_routing.py:63-72);同 docstring 的
   配置示例 thread-route 只声明 chat+thread(33-37)→ specificity 12,不是 14;
   14 仅当 guild+chat+thread 三者齐备。排序语义(最specific先匹配)不受影响。
 - **裁决**:docstring 数字示意失准,机制正确。轻微,不影响使用。
 
 ### B2. `_TELEGRAM_NOISY_STATUS_RE` 命名漂移 —— ▲(轻微,子代理 run-01 发现、主线复核)
 
-- 常量名带 `_TELEGRAM_` 前缀(run.py:90),但消费者 `_prepare_gateway_status_message`
-  对**所有**非 raw-text 聊天平台生效(run.py:725-755;#39293 已把 #28533 的 Telegram-only
+- 常量名带 `_TELEGRAM_` 前缀(gateway/run.py:90),但消费者 `_prepare_gateway_status_message`
+  对**所有**非 raw-text 聊天平台生效(gateway/run.py:725-755;#39293 已把 #28533 的 Telegram-only
   过滤推广到全部聊天面)。名字是历史遗留,误导作用域。
 
 ### B4. stream_consumer 模块头仍称 edit-only transport —— ▲(docstring 滞后)
@@ -130,7 +130,7 @@
 - **文档(模块 docstring)**:`gateway/stream_consumer.py:10-11 @ 863e313`:
   "Design: Uses the edit transport (send initial message, then editMessageText)"。
 - **代码**:`StreamConsumerConfig.transport` 已支持 `auto/draft/edit/off` 四态,Telegram DM
-  可走原生 draft 动画(stream_consumer.py:142-153,1669-1750);edit 只是默认与回落。
+  可走原生 draft 动画(gateway/stream_consumer.py:142-153,1669-1750);edit 只是默认与回落。
 - **裁决**:docstring 写于 draft 通道引入前,未更新。机制侧详见 r7-raw-stream-consumer。
 
 ### B5. start() docstring 返回值语义失实 —— ▲(子代理 run-07 发现、主线复核)
@@ -138,7 +138,7 @@
 - **文档(docstring)**:`gateway/run.py:10668 @ 863e313`:"Returns True if at least one
   adapter connected successfully"。
 - **代码**:start() 全路径 return True(10664-11576 区间 grep 无 `return False`);失败通过
-  exit-reason 属性(should_exit_with_failure/exit_code,run.py:6664-6677)表达,
+  exit-reason 属性(should_exit_with_failure/exit_code,gateway/run.py:6664-6677)表达,
   connected_count==0 走四层决策树(纯致命 exit 78 / degraded / cron-only)而非返回 False。
 - **裁决**:证伪;返回值已退化为惯例,真实信号在属性上。
 
@@ -176,8 +176,8 @@
 
 ### B9. run-13 段其余三条(子代理发现、主线抽验 docstring 侧)
 
-- `main()` 的 `--verbose` 旗标解析后从未使用(run.py:27021 起参数区)——死旗标。
-- run.py:25115 附近注释称 "env var takes precedence",而 #18413 之后实际是 config 无条件
+- `main()` 的 `--verbose` 旗标解析后从未使用(gateway/run.py:27021 起参数区)——死旗标。
+- gateway/run.py:25115 附近注释称 "env var takes precedence",而 #18413 之后实际是 config 无条件
   覆盖 env——注释滞后。
 - `_start_cron_ticker` docstring 引用的 debug.py 仅存在于 docstring,仓库无此文件。
 
@@ -206,7 +206,7 @@
 - 被调方(原生 Discord 插件适配器):`plugins/platforms/discord/adapter.py:6866-6872
   @ 863e313`——签名仅收 `only_if_current_name`,不收 `prefer_connector_created`/
   `parent_chat_id` → 原生 lane 调用抛 TypeError,被 `except Exception: logger.debug(...)`
-  (run.py:19972-19974)吞成 debug 日志——**原生 Discord 自动线程语义改名疑似静默失效**
+  (gateway/run.py:19972-19974)吞成 debug 日志——**原生 Discord 自动线程语义改名疑似静默失效**
   (relay lane 的 rename_thread 收全参,测试仅覆盖 relay fake)。
 - **处置**:hermes-agent 只读,不修;记录为"能力探测靠 TypeError + 宽 except"的反例。
   注:被调方在 R7B 文件,但调用方与吞异常点均在 run.py(R7),故本轮记案,R7B 轮复核

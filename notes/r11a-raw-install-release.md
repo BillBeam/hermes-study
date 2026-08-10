@@ -423,7 +423,7 @@ cd /home/user/hermes-agent && printf 'scripts/install.sh 里 node-bootstrap = %s
 scripts/install.sh 里 node-bootstrap = 0 处
 ```
 
-于是同一件事(装 Node)有两份独立实现:`install.sh` 的 `check_node`/`install_node`(`:820-975`)与 `node-bootstrap.sh` 的 `ensure_node`(`:393`)。两者的**接受门槛不同**(`node_satisfies_build` 要 ≥22.22,`HERMES_NODE_MIN_VERSION` 默认 20),**策略也不同**(`install.sh` 完全没有 fnm/proto/nvm 分支)。`node-bootstrap.sh:50-57` 的 `_nb_get_link_dir` 注释直接写着 "Mirrors get_command_link_dir() from install.sh"——**两份代码互为镜像、靠注释维持同步**,这是典型的"复制粘贴型契约"。
+于是同一件事(装 Node)有两份独立实现:`install.sh` 的 `check_node`/`install_node`(`:820-975`)与 `node-bootstrap.sh` 的 `ensure_node`(`:393`)。两者的**接受门槛不同**(`node_satisfies_build` 要 ≥22.22,`HERMES_NODE_MIN_VERSION` 默认 20),**策略也不同**(`install.sh` 完全没有 fnm/proto/nvm 分支)。`scripts/lib/node-bootstrap.sh:50-57` 的 `_nb_get_link_dir` 注释直接写着 "Mirrors get_command_link_dir() from install.sh"——**两份代码互为镜像、靠注释维持同步**,这是典型的"复制粘贴型契约"。
 
 ### 2.8 install_psutil_android.py
 

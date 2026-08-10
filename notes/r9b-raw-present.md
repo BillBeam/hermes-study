@@ -2042,7 +2042,7 @@ SUPPORTED_LANGUAGES: tuple[str, ...] = (
 这一段的最后一句 "Unknown values fall back to English." 紧接在枚举之后,
 把「不在这张表里」定义为「unknown」。读者据此会得出「设 `ar` 会回落英文」,
 而实际会加载 `locales/ar.yaml`。**整段合起来是假的**,不只是保守。
-同一处的中文站点译文有同样的缺漏(`website/i18n/zh-Hans/.../configuration.md:1255`),
+同一处的中文站点译文有同样的缺漏(`website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-guide/configuration.md:1255`),
 YAML 注释行(`website/docs/user-guide/configuration.md:1662`)也是同一张 16 项列表。
 
 **▲-2 `vision_analyze` 的模块 docstring 与实现不符:说"用 OpenRouter 上的 Gemini 3 Flash

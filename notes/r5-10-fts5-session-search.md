@@ -202,7 +202,7 @@ def load_fts5_cjk_extension(conn: sqlite3.Connection) -> bool:
 
 | 索引 | 能力 | 缺陷(原文证据) |
 |---|---|---|
-| `messages_fts` (unicode61) | 词级排序检索,体积最小,覆盖 tool 行 | 整段 CJK 是一个 token,2 字查询永不命中(`fts5_cjk.c:4-8`);拉丁字母粘在 CJK 边上不切分(#54242,`hermes_state_search.py:1819-1826`) |
+| `messages_fts` (unicode61) | 词级排序检索,体积最小,覆盖 tool 行 | 整段 CJK 是一个 token,2 字查询永不命中(`native/fts5_cjk/fts5_cjk.c:4-8`);拉丁字母粘在 CJK 边上不切分(#54242,`hermes_state_search.py:1819-1826`) |
 | `messages_fts_trigram` (trigram) | 任意文字子串匹配 + rank + snippet | 体积 ~2.6x、故排除 tool 行(`hermes_state_common.py:470-473`);每词 ≥3 字符(`hermes_state_search.py:1212-1227`);需 SQLite ≥ 3.34 |
 | `messages_fts_cjk` (cjk_unicode61) | 2 字 CJK 精确子串、索引速度;拉丁/CJK 混排切开 | 依赖可加载 C 扩展,宿主可能没有(`hermes_state.py:1560-1564`);孤立单字只有 unigram,单字查询语义比 LIKE 窄(`hermes_state_search.py:1194-1210`) |
 
@@ -596,7 +596,7 @@ _DEMOTED_SESSION_SOURCES = ("cron",)
 ```
 
 结构四件套:
-1. **委托构造**:`cjkCreate` 通过 `fts5_api.xFindTokenizer("unicode61")` 拿到内建 tokenizer 并实例化,额外参数原样透传(如 `remove_diacritics 2`),`fts5_cjk.c:173-194`。
+1. **委托构造**:`cjkCreate` 通过 `fts5_api.xFindTokenizer("unicode61")` 拿到内建 tokenizer 并实例化,额外参数原样透传(如 `remove_diacritics 2`),`native/fts5_cjk/fts5_cjk.c:173-194`。
 2. **回调拦截**:`cjkTokenize` 把自己的 `cjkInnerCallback` 塞给 unicode61,每个 unicode61 token 过 `cjk_emit` 再发射(204-213)。
 3. **`cjk_emit` 核心**(96-165):快路径——token 内无 CJK 码点则原样透传;否则线性切分:非 CJK 段整段发射;CJK 连段用三元素滚动边界数组发 overlapping bigram,单字连段发 unigram;字节偏移按 token 内位置映射并 clamp 到 `[iStart,iEnd)`(CJK 折叠是恒等,偏移精确;变长折叠的重音拉丁只影响高亮不影响匹配,86-95)。CJK 判定表(34-47)比 Python 端多覆盖谚文字母 Jamo、兼容表意字、片假名音标扩展。自带宽容 UTF-8 解码器(无效字节按单字节解码,保证终止,49-70)。
 4. **注册**:`SELECT fts5(?1)` + `sqlite3_bind_pointer` 拿 `fts5_api`,`xCreateTokenizer(pFts, "cjk_unicode61", ...)` 注册;入口 `sqlite3_ftscjk_init`(SQLite 按文件名推导)+ 下划线拼法别名(217-252)。

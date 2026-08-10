@@ -2048,7 +2048,7 @@ AGENTS.md 全文 grep 不到 `slash_commands.py`。
 (2264–2273)只存在于 `_finish_switch`;picker 回调闭包(1812–2059)两者皆无,
 且写透无条件(1936–1945)。`restore_snapshot` 全文只在 1765/2247 出现。
 文档 `slash-commands.md:77` 只说 "`--once` applies to the next turn only",
-未区分打字/点选。测试 `tests/gateway/test_48031_...py:77-87` 是 AST 断言
+未区分打字/点选。测试 `tests/gateway/test_48031_model_switch_after_auto_reset.py:77-87` 是 AST 断言
 「模块里某处有 `was_auto_reset = False`」,**不区分路径**,所以两处缺口都没被钉住。
 
 ### ◇-03 `/goal` 的 5 个子命令在 messaging 文档里缺席
@@ -2091,7 +2091,7 @@ AGENTS.md 全文 grep 不到 `slash_commands.py`。
 
 调度层 `gateway/run.py:15250-15256`(宽容,坏输入→1)vs handler
 `gateway/slash_commands.py:2955-2964`(严格,坏输入→报错)。
-后果:`/undo -y`(文档 `slash-commands.md:310` 给 CLI 建议的写法)在 gateway 上
+后果:`/undo -y`(文档 `website/docs/reference/slash-commands.md:310` 给 CLI 建议的写法)在 gateway 上
 先弹确认框、批准后再报参数错误。
 
 ### ◇-08 `_resolve_slash_confirm` 是幽灵 API

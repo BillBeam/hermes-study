@@ -108,9 +108,9 @@
 - Telegram 专属 fresh-final(编辑不刷新时间戳问题),移植自 openclaw/openclaw#72038。
 - 副产物:Telegram 的 `pause_typing_for_chat` 闭包(23782-23787),作为 `on_before_finalize`
   传给 consumer——最终编辑前先停 typing,避免"正在输入…"盖在完整回复上。
-- 与 `StreamConsumerConfig` 的字段一一对应(stream_consumer.py:128-153):
+- 与 `StreamConsumerConfig` 的字段一一对应(gateway/stream_consumer.py:128-153):
   `edit_interval / buffer_threshold / cursor / buffer_only / fresh_final_after_seconds / transport / chat_type`。
-  `transport` 语义(stream_consumer.py:142-149 注释):auto/draft/edit/off,off 由网关在构造 consumer 前处理。
+  `transport` 语义(gateway/stream_consumer.py:142-149 注释):auto/draft/edit/off,off 由网关在构造 consumer 前处理。
 
 **重实现要点**:① 把"平台能力差异"收敛为一个构造函数,双语义用显式参数而非布尔魔法;② 不支持编辑的平台必须整体跳过流式(否则重复消息);③ 光标是配置项且可按平台清空;④ finalize 前钩子(暂停 typing)与 consumer 解耦成闭包;⑤ 重构保真:两个调用点的历史语义逐字保留并写进 docstring。
 
@@ -931,8 +931,8 @@ main():Windows stdio UTF-8 → argparse(--config/-v)→ 可选 YAML 构造 Gatew
 
 1. **memory_monitor 无生产调用点**。gateway/memory_monitor.py 模块 docstring 声称
    "The timer runs in a background thread and shuts down cleanly with the gateway"、
-   "Config: ``logging.memory_monitor`` in ``config.yaml``"(memory_monitor.py:13-14、27-28
-   @ 863e313),但全仓 grep 显示 `start_memory_monitoring`(memory_monitor.py:139)只被
+   "Config: ``logging.memory_monitor`` in ``config.yaml``"(gateway/memory_monitor.py:13-14、27-28
+   @ 863e313),但全仓 grep 显示 `start_memory_monitoring`(gateway/memory_monitor.py:139)只被
    tests/gateway/test_memory_monitor.py 调用——`start_gateway` 与 `runner.start()` 均无启动点。
    即该基线上内存监控是**接线未通电**的模块(本轮任务描述中的"memory_monitor 启动点"在
    start_gateway 里并不存在)。定案:◇ 文档(模块自述)超前于代码。

@@ -1,0 +1,38 @@
+语料:277 份 .md(chapters/notes/reports/reviews),剔除本轮 r11c-*
+甲′ 关卡正则命中 = 25533
+乙  宽正则命中   = 25558   (差 25 个 = 关卡看不见的)
+乙 中不可解析 = 1212 / 25558 = 4.7%
+
+分类(互斥,RESOLVED* 与不可解析各类加总 = 乙):
+  RESOLVED-BASELINE     24066   其中关卡看不见 15
+  RESOLVED-STUDY          243   其中关卡看不见 1
+  RESOLVED-EXTLESS         37   其中关卡看不见 0
+  ABSPATH                  12   其中关卡看不见 1
+  UNIQUE-SUFFIX           318   其中关卡看不见 1
+  AMBIGUOUS               859   其中关卡看不见 0
+  NOT-IN-TREE              23   其中关卡看不见 7
+  (NONPATH 非锚点)            69   不进分母
+
+不可解析锚点 TOP 20(路径串 -> 出现次数):
+    156  __init__.py   (基线 171 个同名候选)
+     95  base.py   (基线 9 个同名候选)
+     69  web_server.py   (基线 1 个同名候选)
+     37  config.py   (基线 4 个同名候选)
+     33  session.py   (基线 3 个同名候选)
+     26  client.py   (基线 4 个同名候选)
+     25  gateway-internals.md   (基线 2 个同名候选)
+     22  cron-internals.md   (基线 2 个同名候选)
+     21  status.py   (基线 3 个同名候选)
+     21  pairing.py   (基线 3 个同名候选)
+     19  session-storage.md   (基线 2 个同名候选)
+     19  conversation_loop.py   (基线 1 个同名候选)
+     18  security.md   (基线 2 个同名候选)
+     17  tools.md   (基线 2 个同名候选)
+     17  auth.py   (基线 5 个同名候选)
+     16  run.py   (基线 1 个同名候选)
+     15  url_safety.py   (基线 1 个同名候选)
+     14  provider-runtime.md   (基线 2 个同名候选)
+     14  sessions.py   (基线 1 个同名候选)
+     13  slash-commands.md   (基线 3 个同名候选)
+
+明细 -> data/r11c/d-anchor-resolution-census-after.tsv  (1229 行)

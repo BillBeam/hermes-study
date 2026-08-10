@@ -211,20 +211,20 @@ Extracted verbatim from ``hermes_cli/web_server.py`` (pure schema move).
 
 | 模型 | 行号 | 裸 dict 字段 | 对应端点 | 有无其他校验兜底 |
 |---|---|---|---|---|
-| `ConfigUpdate` | `web_models.py:18` | `config: dict` | `PUT /api/config` | **几乎没有**:`_denormalize_config_from_web` + `_deep_merge` + `save_config`,不校验根键名(本轮另一段已定案) |
-| `CronJobUpdate` | `web_models.py:377` | `updates: dict` | `PATCH /api/cron/jobs/{id}` | **部分**:`_normalize_dashboard_cron_updates` 只对已知键做归一化,**未知键原样透传**给 `update_job`;`context_from` / 执行字段另有校验 |
-| `MCPServersReplace` | `web_models.py:404` | `servers: Dict[str, Dict[str, Any]]` | `PUT /api/mcp/servers`(整表替换) | **有**:`_replace_mcp_servers` 返回 `(ok, issues)`,不 ok 就 400 |
-| `SessionImport` | `web_models.py:311` | `sessions: List[Dict[str, Any]]` | `POST /api/sessions/import` | 由 `sessions.py` 导入逻辑自行判形,Pydantic 层无约束 |
-| `MemoryProviderConfigUpdate` | `web_models.py:45` | `values: Dict[str, Any]` | `PUT /api/memory/providers/{name}/config` | **有**:`surface=declared` 走 provider 声明的 schema;否则 `_write_memory_provider_config_values` 兜底,`ValueError → 400` |
-| `MemoryProviderSetupRequest` | `web_models.py:49` | `values: Dict[str, Any]` | `POST /api/memory/providers/{name}/setup` | 同上,复用 `_write_memory_provider_config_values` |
-| `AutomationBlueprintInstantiate` | `web_models.py:383` | `values: Dict[str, Any]` | `POST /api/automations/blueprints/instantiate` | 由 blueprint 的 slot 定义消费,Pydantic 层无约束 |
-| `MessagingPlatformUpdate` | `web_models.py:65` | `env: Dict[str, str]` | `PUT /api/messaging/platforms/{name}` | 值是 `str`,**键名不受约束**(写 .env) |
-| `MCPServerCreate` | `web_models.py:390` | `env: Dict[str, str]` | `POST /api/mcp/servers` | 同上,写进该 server 的 env |
-| `MCPCatalogInstall` | `web_models.py:419` | `env: Dict[str, str]` | `POST /api/mcp/catalog/install` | 同上 |
-| `ToolsetEnvUpdate` | `web_models.py:668` | `env: Dict[str, str]` | `PUT /api/tools/toolsets/{name}/env` | **有,而且是本表里最严的**:键名必须落在该 toolset 可见 provider 的 `env_vars` 并集里,否则 400(见 §7) |
-| `ProfileExport` | `web_models.py:581` | `extra_files: Dict[str, str]` | `POST /api/profiles/{name}/export` | 文件名→内容,键名即写入的文件名,由导出逻辑兜底 |
-| `CronJobCreate` | `web_models.py:361` | `context_from: Optional[Any]`(不是 dict,但同样"无类型") | `POST /api/cron/jobs` | **有**:`_cron_string_list` + `_validate_dashboard_cron_context_from` 逐个校验 job 存在 |
-| `MoaConfigPayload` | `web_models.py:201` | `presets: dict[str, MoaPresetPayload]` | `PUT /api/moa/config` | **不算裸 dict**:值类型是具名模型,只有 preset 名字自由 |
+| `ConfigUpdate` | `hermes_cli/web_models.py:18` | `config: dict` | `PUT /api/config` | **几乎没有**:`_denormalize_config_from_web` + `_deep_merge` + `save_config`,不校验根键名(本轮另一段已定案) |
+| `CronJobUpdate` | `hermes_cli/web_models.py:377` | `updates: dict` | `PATCH /api/cron/jobs/{id}` | **部分**:`_normalize_dashboard_cron_updates` 只对已知键做归一化,**未知键原样透传**给 `update_job`;`context_from` / 执行字段另有校验 |
+| `MCPServersReplace` | `hermes_cli/web_models.py:404` | `servers: Dict[str, Dict[str, Any]]` | `PUT /api/mcp/servers`(整表替换) | **有**:`_replace_mcp_servers` 返回 `(ok, issues)`,不 ok 就 400 |
+| `SessionImport` | `hermes_cli/web_models.py:311` | `sessions: List[Dict[str, Any]]` | `POST /api/sessions/import` | 由 `sessions.py` 导入逻辑自行判形,Pydantic 层无约束 |
+| `MemoryProviderConfigUpdate` | `hermes_cli/web_models.py:45` | `values: Dict[str, Any]` | `PUT /api/memory/providers/{name}/config` | **有**:`surface=declared` 走 provider 声明的 schema;否则 `_write_memory_provider_config_values` 兜底,`ValueError → 400` |
+| `MemoryProviderSetupRequest` | `hermes_cli/web_models.py:49` | `values: Dict[str, Any]` | `POST /api/memory/providers/{name}/setup` | 同上,复用 `_write_memory_provider_config_values` |
+| `AutomationBlueprintInstantiate` | `hermes_cli/web_models.py:383` | `values: Dict[str, Any]` | `POST /api/automations/blueprints/instantiate` | 由 blueprint 的 slot 定义消费,Pydantic 层无约束 |
+| `MessagingPlatformUpdate` | `hermes_cli/web_models.py:65` | `env: Dict[str, str]` | `PUT /api/messaging/platforms/{name}` | 值是 `str`,**键名不受约束**(写 .env) |
+| `MCPServerCreate` | `hermes_cli/web_models.py:390` | `env: Dict[str, str]` | `POST /api/mcp/servers` | 同上,写进该 server 的 env |
+| `MCPCatalogInstall` | `hermes_cli/web_models.py:419` | `env: Dict[str, str]` | `POST /api/mcp/catalog/install` | 同上 |
+| `ToolsetEnvUpdate` | `hermes_cli/web_models.py:668` | `env: Dict[str, str]` | `PUT /api/tools/toolsets/{name}/env` | **有,而且是本表里最严的**:键名必须落在该 toolset 可见 provider 的 `env_vars` 并集里,否则 400(见 §7) |
+| `ProfileExport` | `hermes_cli/web_models.py:581` | `extra_files: Dict[str, str]` | `POST /api/profiles/{name}/export` | 文件名→内容,键名即写入的文件名,由导出逻辑兜底 |
+| `CronJobCreate` | `hermes_cli/web_models.py:361` | `context_from: Optional[Any]`(不是 dict,但同样"无类型") | `POST /api/cron/jobs` | **有**:`_cron_string_list` + `_validate_dashboard_cron_context_from` 逐个校验 job 存在 |
+| `MoaConfigPayload` | `hermes_cli/web_models.py:201` | `presets: dict[str, MoaPresetPayload]` | `PUT /api/moa/config` | **不算裸 dict**:值类型是具名模型,只有 preset 名字自由 |
 
 最典型的一条,原文如下(注意它连 `Dict[str, Any]` 都没写,直接 `dict`):
 

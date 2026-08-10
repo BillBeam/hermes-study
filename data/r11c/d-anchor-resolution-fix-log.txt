@@ -1,0 +1,129 @@
+  改    1  notes/r10-90-handover-rulings.md
+  改    1  notes/r10b-01-scope-and-criteria.md
+  改    1  notes/r10b-90-handover-rulings.md
+  改    1  notes/r11a-raw-install-release.md
+  改    2  notes/r11b-raw-backlog-light.md
+  改    4  notes/r2-01-turn-loop.md
+  改    5  notes/r2-02-intervention.md
+  改    2  notes/r2-03-streaming.md
+  改    3  notes/r2-05-tool-executor.md
+  改    1  notes/r2-06-turn-context-sidecar.md
+  改    3  notes/r2-13-turn-finalizer.md
+  改   21  notes/r2-20-adapters.md
+  改   28  notes/r2-21-auxiliary-metadata-pricing.md
+  改   18  notes/r2-22-credential-pool.md
+  改   25  notes/r2-23-classify-retry-fallback-cache.md
+  改    3  notes/r2-90-doc-conflict-rulings.md
+  改  181  notes/r3-10-approval-security.md
+  改   29  notes/r3-20-schema-output-toolsearch.md
+  改   13  notes/r3-30-execute-code-mcp-client.md
+  改   13  notes/r4-02-docker-local-terminal-process.md
+  改   59  notes/r4-20-remote-backends-serverless.md
+  改    5  notes/r4-30-browser-automation.md
+  改   65  notes/r4-40-computer-use.md
+  改    8  notes/r4-50-patch-parser-file-state.md
+  改    9  notes/r4-90-doc-conflict-rulings.md
+  改    4  notes/r5-01-state-schema-portability.md
+  改    2  notes/r5-10-fts5-session-search.md
+  改   19  notes/r5-20-context-compression.md
+  改  115  notes/r5-30-prompt-context-engineering.md
+  改    4  notes/r5-40-checkpoint-memory.md
+  改   29  notes/r5-60-r4-structure-cleanup.md
+  改   20  notes/r5-90-doc-conflict-rulings.md
+  改    6  notes/r6-01-loader-query-rewrite-optimize.md
+  改    6  notes/r6-10-honcho.md
+  改    3  notes/r6-30-hindsight-supermemory-retaindb.md
+  改   43  notes/r6-40-mem0-holographic.md
+  改    2  notes/r6-60-mcp-oauth-cleanup.md
+  改    5  notes/r6-90-doc-conflict-rulings.md
+  改    1  notes/r6-95-tests.md
+  改    1  notes/r7-01-scope-and-map.md
+  改    8  notes/r7-20-identity-state-lease.md
+  改    4  notes/r7-60-watchdogs.md
+  改    3  notes/r7-80-out-of-band-injection.md
+  改   24  notes/r7-90-doc-conflict-rulings.md
+  改   13  notes/r7-raw-gateway-config.md
+  改   75  notes/r7-raw-run-03-turnrunner.md
+  改   34  notes/r7-raw-run-04-gwr-init-routing.md
+  改   23  notes/r7-raw-run-05-gwr-queue-busy.md
+  改   47  notes/r7-raw-run-06-drain-restart-restore.md
+  改   32  notes/r7-raw-run-07-start-watchers.md
+  改   62  notes/r7-raw-run-08-stop-profiles-busycmd.md
+  改   45  notes/r7-raw-run-09-handle-message.md
+  改   10  notes/r7-raw-run-10-agent-turn.md
+  改    8  notes/r7-raw-run-11-voice-media-bg.md
+  改    3  notes/r7-raw-run-12-watch-lease-cache.md
+  改    4  notes/r7-raw-run-13-turn-exec-lifecycle.md
+  改    4  notes/r7-raw-session-py.md
+  改    5  notes/r7b-50-builtin-adapters.md
+  改    2  notes/r7c-01-scope-and-map.md
+  改    4  notes/r7c-90-doc-conflict-rulings.md
+  改   48  notes/r7c-raw-authz-pairing.md
+  改   15  notes/r7c-raw-cron-sched-b.md
+  改    4  notes/r7c-raw-delivery.md
+  改   34  notes/r7c-raw-restart-readiness.md
+  改   48  notes/r7c-raw-shutdown.md
+  改    1  notes/r7c-raw-slash-a.md
+  改   79  notes/r7c-raw-slash-c.md
+  改    3  notes/r7c-raw-status.md
+  改    5  notes/r7c-raw-webhook-signing-docgap.md
+  改    1  notes/r8a-01-scope-and-mainline.md
+  改    8  notes/r8a-90-doc-conflict-rulings.md
+  改    2  notes/r8a-raw-commands.md
+  改    1  notes/r8a-raw-config-a.md
+  改    1  notes/r8a-raw-defaults-a.md
+  改    6  notes/r8a-raw-defaults-b.md
+  改    4  notes/r8a-raw-mcp-moa-config.md
+  改  110  notes/r8a-raw-migrations-env-secrets.md
+  改    4  notes/r8a-raw-pairing-and-config-cmd.md
+  改    2  notes/r8a-raw-status.md
+  改    1  notes/r8a-raw-tools-config-a.md
+  改   32  notes/r8a-raw-tools-config-b.md
+  改    3  notes/r8a-raw-tools-config-c.md
+  改    5  notes/r8b-01-scope-and-trunk.md
+  改    1  notes/r8b-02-h1-h2-config-debt.md
+  改    1  notes/r8b-raw-cli-init-render.md
+  改    3  notes/r8b-raw-cli-voice-approval.md
+  改   37  notes/r8b-raw-mixins.md
+  改    3  notes/r8c-11-hr8fixa-guard-parse-check.md
+  改    2  notes/r8c-raw-auth-py.md
+  改   17  notes/r8c-raw-dashboard-auth.md
+  改   14  notes/r8c-raw-skills-plugins-start.md
+  改   15  notes/r8d-raw-credentials-security.md
+  改    2  notes/r8d-raw-extensions.md
+  改    1  notes/r8d-raw-provider-identity.md
+  改    3  notes/r8d-str-gateway-and-ops.md
+  改   13  notes/r8d-str-kanban-and-work.md
+  改    1  notes/r9a-raw-async-delegation.md
+  改   25  notes/r9a-raw-moa.md
+  改   17  notes/r9a-raw-skills-hub.md
+  改    1  notes/r9b-raw-voicein.md
+  改    1  notes/r9c-90-handover-rulings.md
+  改    4  notes/r9c-raw-billing-and-http-clients.md
+  改    3  notes/r9c-raw-codex-transport.md
+  改    1  notes/r9c-raw-transport-contract.md
+  改    2  notes/r9d-90-handover-credential-landing.md
+  改    8  notes/r9d-91-handover-rulings.md
+  改    2  notes/r9d-92-mainline-tests-and-crosschecks.md
+  改    1  notes/r9d-raw-kanban-todo-cron.md
+  改   15  notes/r9d-raw-lsp.md
+
+已改写 1781 处,涉及 109 份 notes/
+因位于围栏块 / 引用块内部而**故意跳过** 105 处(改了就是伪造摘录)
+
+改写最多的 15 个串:
+   370  run.py -> gateway/run.py
+    73  slash_commands.py -> gateway/slash_commands.py
+    66  config_defaults.py -> hermes_cli/config_defaults.py
+    52  approval.py -> tools/approval.py
+    37  conversation_loop.py -> agent/conversation_loop.py
+    37  tools_config.py -> hermes_cli/tools_config.py
+    36  config_migrations.py -> hermes_cli/config_migrations.py
+    30  url_safety.py -> tools/url_safety.py
+    29  prompt_builder.py -> agent/prompt_builder.py
+    29  authz_mixin.py -> gateway/authz_mixin.py
+    25  cua_backend.py -> tools/computer_use/cua_backend.py
+    25  tool.py -> tools/computer_use/tool.py
+    25  local.py -> tools/environments/local.py
+    25  env_loader.py -> hermes_cli/env_loader.py
+    24  system_prompt.py -> agent/system_prompt.py

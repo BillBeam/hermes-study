@@ -174,7 +174,7 @@ R8-fix 的推断是:"五个裸写点里四个各自在收口之外补了检查,�
 逐个看目标路径,写 `config.yaml` 的是 `hermes_cli/auth.py:7329`、`:7397`、
 `hermes_cli/config.py:3112`(收口自己)、`:3611`、`:4995`、`:5123`、
 `hermes_cli/credential_lifecycle.py:174` 七处,其余四处
-(`skin_cmd.py:79`、`agent_import.py:161`、`profile_distribution.py:283`、
+(`hermes_cli/skin_cmd.py:79`、`hermes_cli/agent_import.py:161`、`hermes_cli/profile_distribution.py:283`、
 `profiles.py:878`)写的是别的 YAML 文件,不在本条范围内。
 **本段没有独立复核 R8B 那份"五个裸写点、四个各自 fail-closed"的逐点判定**,
 只复核了它点名的 `auth.py:7329` 这一处。

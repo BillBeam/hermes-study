@@ -180,7 +180,7 @@ def _loopback_rewrite_host(camofox_cfg: Dict[str, Any]) -> str:
 ```
 
 第三段 `or "host.docker.internal"` 与默认值字面量**重复**,所以键丢了也读回同一个值。
-**同一个字面量在仓库里存在三份**(`config_defaults.py:409`、`cli.py:466`、这里),
+**同一个字面量在仓库里存在三份**(`hermes_cli/config_defaults.py:409`、`cli.py:466`、这里),
 丢一份看不出来。这正是隐患难被发现的原因,也是它危险的原因:
 **下一个没有硬编码兜底的键就会真的出事,而且现场看不出是合并语义丢的。**
 

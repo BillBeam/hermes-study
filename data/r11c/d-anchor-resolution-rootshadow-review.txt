@@ -1,0 +1,187 @@
+### notes/r4-20-remote-backends-serverless.md:408   README.md:29
+    笔记: | README:"Daytona and Modal … hibernates when idle"(`README.md:29`) | Modal direct 是 **cleanup 拍快照 + 销毁**,沙箱 `timeout=3600` 是最大存活非空闲计时(`tools/environments/modal.py:252,451-469`);Daytona `aut
+    根  README.md:29: <tr><td><b>Runs anywhere, not just your laptop</b></td><td>Seven terminal backends — local, Docker, SSH, Singularity, Modal, Daytona, and Vercel Sandb
+    候选 apps/desktop/src/debug/README.md:29: - **render `wasted`** — re-rendered with neither changed props nor changed hook
+
+### notes/r6-10-honcho.md:443   cli.py:912
+    笔记: 注释下方已无对应代码。结论:在本基线,`writeFrequency` 配置(setup 向导仍在问,`cli.py:912-923`)对 MemoryProvider 主路径**无效**——每轮固定"一线程一 flush",串行化靠 join 前一个 sync 线程(5s 上限)。async writer 懒启动本身有明确理由(急切启动曾抢在 mock 之前把测试消息写进真实
+    根  cli.py:912: return _get_tool_definitions(*args, **kwargs)
+    候选 plugins/memory/honcho/cli.py:912: # --- 5. Write frequency ---
+
+### notes/r6-10-honcho.md:672   cli.py:1870
+    笔记: 命令树(`register_cli`,`cli.py:1870-1967`;路由 `honcho_command`,`cli.py:1824-1867`;全局 `--target-profile` 免切换操作他 profile):
+    根  cli.py:1870: 
+    候选 plugins/memory/honcho/cli.py:1870: def register_cli(subparser) -> None:
+
+### notes/r6-10-honcho.md:672   cli.py:1824
+    笔记: 命令树(`register_cli`,`cli.py:1870-1967`;路由 `honcho_command`,`cli.py:1824-1867`;全局 `--target-profile` 免切换操作他 profile):
+    根  cli.py:1824: untracked).
+    候选 plugins/memory/honcho/cli.py:1824: def honcho_command(args) -> None:
+
+### notes/r6-10-honcho.md:674   cli.py:536
+    笔记: - **setup**(`cmd_setup`,`cli.py:536-1048`):完整向导。步骤:SDK 安装检查(经 lazy_deps 环境感知安装 `honcho-ai==2.2.0`,`cli.py:504-533`)→ cloud/local(local 路径含自托管 JWT 提示,存 host 块以触发 `_host_has_key` 显式本地鉴权,`cli.p
+    根  cli.py:536: "web_extract": {
+    候选 plugins/memory/honcho/cli.py:536: def cmd_setup(args) -> None:
+    候选 plugins/platforms/photon/cli.py:536: return getpass.getpass(prompt).strip()
+
+### notes/r6-10-honcho.md:674   cli.py:504
+    笔记: - **setup**(`cmd_setup`,`cli.py:536-1048`):完整向导。步骤:SDK 安装检查(经 lazy_deps 环境感知安装 `honcho-ai==2.2.0`,`cli.py:504-533`)→ cloud/local(local 路径含自托管 JWT 提示,存 host 块以触发 `_host_has_key` 显式本地鉴权,`cli.p
+    根  cli.py:504: "resume_max_user_chars": 300,
+    候选 plugins/memory/honcho/cli.py:504: def _ensure_sdk_installed() -> bool:
+    候选 plugins/platforms/photon/cli.py:504: # Gateway-setup entry point
+
+### notes/r6-10-honcho.md:674   cli.py:574
+    笔记: - **setup**(`cmd_setup`,`cli.py:536-1048`):完整向导。步骤:SDK 安装检查(经 lazy_deps 环境感知安装 `honcho-ai==2.2.0`,`cli.py:504-533`)→ cloud/local(local 路径含自托管 JWT 提示,存 host 块以触发 `_host_has_key` 显式本地鉴权,`cli.p
+    根  cli.py:574: if "model" in file_config:
+    候选 plugins/memory/honcho/cli.py:574: # --- Local: ask for base URL, optionally accept a JWT for auth ---
+
+### notes/r6-10-honcho.md:674   cli.py:626
+    笔记: - **setup**(`cmd_setup`,`cli.py:536-1048`):完整向导。步骤:SDK 安装检查(经 lazy_deps 环境感知安装 `honcho-ai==2.2.0`,`cli.py:504-533`)→ cloud/local(local 路径含自托管 JWT 提示,存 host 块以触发 `_host_has_key` 显式本地鉴权,`cli.p
+    根  cli.py:626: # hermes_cli.config._load_config_impl (which has its own managed merge), so
+    候选 plugins/memory/honcho/cli.py:626: use_oauth = False
+
+### notes/r6-10-honcho.md:674   cli.py:773
+    笔记: - **setup**(`cmd_setup`,`cli.py:536-1048`):完整向导。步骤:SDK 安装检查(经 lazy_deps 环境感知安装 `honcho-ai==2.2.0`,`cli.py:504-533`)→ cloud/local(local 路径含自托管 JWT 提示,存 host 块以触发 `_host_has_key` 显式本地鉴权,`cli.p
+    根  cli.py:773: security_config = defaults.get("security", {})
+    候选 plugins/memory/honcho/cli.py:773: # --- 3b. Gateway identity mapping ---
+
+### notes/r6-10-honcho.md:674   cli.py:323
+    笔记: - **setup**(`cmd_setup`,`cli.py:536-1048`):完整向导。步骤:SDK 安装检查(经 lazy_deps 环境感知安装 `honcho-ai==2.2.0`,`cli.py:504-533`)→ cloud/local(local 路径含自托管 JWT 提示,存 host 块以触发 `_host_has_key` 显式本地鉴权,`cli.p
+    根  cli.py:323: for part in content
+    候选 plugins/memory/honcho/cli.py:323: def _resolve_effective_identity_mapping(
+
+### notes/r6-10-honcho.md:674   cli.py:1830
+    笔记: - **setup**(`cmd_setup`,`cli.py:536-1048`):完整向导。步骤:SDK 安装检查(经 lazy_deps 环境感知安装 `honcho-ai==2.2.0`,`cli.py:504-533`)→ cloud/local(local 路径含自托管 JWT 提示,存 host 块以触发 `_host_has_key` 显式本地鉴权,`cli.p
+    根  cli.py:1830: 
+    候选 plugins/memory/honcho/cli.py:1830: if sub == "setup":
+
+### notes/r6-10-honcho.md:678   cli.py:1521
+    笔记: - **identity**(`cli.py:1521-1592`):`--show` 双 peer 画像;`<file>` 把 SOUL.md 等包 `<ai_identity_seed>` 标记后作为 assistant 消息喂给观察管线(`seed_ai_identity`,`session.py:1371-1414`)——身份不是配置,是"喂给表示引擎的素材"。
+    根  cli.py:1521: 
+    候选 plugins/memory/honcho/cli.py:1521: def cmd_identity(args) -> None:
+
+### notes/r6-10-honcho.md:680   cli.py:18
+    笔记: - **enable / disable / sync**:host 块开关;`sync` 为所有 profile 克隆 host 块(`clone_honcho_for_profile`,`cli.py:18-77`:继承默认块设置、workspace 共享、aiPeer 用裸 profile 名——因 Honcho peer ID 不许有点;并急切建 peer)。`sync
+    根  cli.py:18: import hermes_bootstrap  # noqa: F401
+    候选 plugins/memory/honcho/cli.py:18: def clone_honcho_for_profile(profile_name: str) -> bool:
+
+### notes/r6-10-honcho.md:680   cli.py:207
+    笔记: - **enable / disable / sync**:host 块开关;`sync` 为所有 profile 克隆 host 块(`clone_honcho_for_profile`,`cli.py:18-77`:继承默认块设置、workspace 共享、aiPeer 用裸 profile 名——因 Honcho peer ID 不许有点;并急切建 peer)。`sync
+    根  cli.py:207: 
+    候选 plugins/memory/honcho/cli.py:207: def sync_honcho_profiles_quiet() -> int:
+
+### notes/r6-10-honcho.md:686   cli.py:128
+    笔记: 而写路径的规范形式是下划线 `hermes_<profile>`(`profile_host_key`,`client.py:39-44`;读路径 `_host_block` 兼容旧点号,`client.py:47-54`,但反向不成立)。后果:新格式存储的 profile 块在 `status --all`/`peers` 表格里显示为空/继承值。同族小问题:`cmd_ena
+    根  cli.py:128: 
+    候选 plugins/memory/honcho/cli.py:128: ai_peer = host.split(".", 1)[1] if "." in host else host
+
+### notes/r6-10-honcho.md:732   cli.py:1830
+    笔记: | 17 | `hermes honcho setup` 仅在 Honcho 为活跃 provider 时注册(:33-35) | 注册机制在插件系统侧;`cmd_setup` 重定向 `hermes memory setup`(`cli.py:1830-1836`)与说法相容 | ✓(未在本簇内完全验证注册门) |
+    根  cli.py:1830: 
+    候选 plugins/memory/honcho/cli.py:1830: if sub == "setup":
+
+### notes/r6-20-openviking-byterover.md:289   README.md:86
+    笔记: | 5 | `README.md:86`:`viking_search` "fast/deep/auto modes" | 代码只有两种行为:`endpoint = "/api/v1/search/search" if mode == "deep" else "/api/v1/search/find"`(4888)——auto ≡ fast | ▲ "auto" 无独立行为,仅
+    根  README.md:86: [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    候选 plugins/memory/openviking/README.md:86: | `viking_search` | Semantic search with fast/deep/auto modes |
+
+### notes/r6-20-openviking-byterover.md:292   README.md:114
+    笔记: | 8 | `README.md:114-122`:forget 只收具体 .md 用户记忆 URI,`memories/` 直下文件亦可,拒目录/资源/生成摘要/query | `_validate_forget_memory_uri`(704-729):`user/<acct>/memories/profile.md` → parts 长度 4 ≥ idx(2)+2 通过;
+    根  README.md:114: hermes setup        # Run the full setup wizard (configures everything at once)
+    候选 plugins/memory/openviking/README.md:114: `viking_forget` is intentionally narrow. It only accepts concrete user memory
+
+### notes/r6-20-openviking-byterover.md:349   README.md:29
+    笔记: | 3 | `README.md:29-31`:配置表仅 `BRV_API_KEY`(可选) | 代码还有 `auto_extract`(config.yaml `memory.byterover.auto_extract`,默认 true,224-225;schema 249-254;另接受 legacy `memory.provider_config`,83-85) | ◇
+    根  README.md:29: <tr><td><b>Runs anywhere, not just your laptop</b></td><td>Seven terminal backends — local, Docker, SSH, Singularity, Modal, Daytona, and Vercel Sandb
+    候选 plugins/memory/byterover/README.md:29: | Env Var | Required | Description |
+    候选 plugins/memory/holographic/README.md:29: | `hrr_dim` | `1024` | HRR vector dimensions |
+
+### notes/r6-20-openviking-byterover.md:350   README.md:24
+    笔记: | 4 | `README.md:24`:`BRV_API_KEY` 写入 `~/.hermes/.env` 即生效 | 插件不读该变量,靠 `os.environ.copy()` 透传(137);生效前提是 env 已加载进进程 | ✓(机制是透传而非插件消费) |
+    根  README.md:24: <tr><td><b>A real terminal interface</b></td><td>Full TUI with multiline editing, slash-command autocomplete, conversation history, interrupt-and-redi
+    候选 plugins/memory/byterover/README.md:24: echo "BRV_API_KEY=your-key" >> ~/.hermes/.env
+    候选 plugins/memory/hindsight/README.md:24: 
+    候选 plugins/memory/honcho/README.md:24: completes once you approve there. The desktop app offers the browser flow as
+
+### notes/r6-20-openviking-byterover.md:351   README.md:33
+    笔记: | 5 | `README.md:33`:工作目录 `$HERMES_HOME/byterover/` | `_get_brv_cwd`(165-168)一致,`_run_brv` 每次 mkdir(135) | ✓ |
+    根  README.md:33: ---
+    候选 plugins/memory/byterover/README.md:33: Working directory: `$HERMES_HOME/byterover/` (profile-scoped).
+
+### notes/r6-30-hindsight-supermemory-retaindb.md:295   README.md:49
+    笔记: | 1 | `README.md:49`"Config file: `~/.hermes/hindsight/config.json`" | `__init__.py:364-367` 还有第 2 级 legacy 回退 `~/.hindsight/config.json` 与第 3 级 env,README 未提 | ▲ README 少讲两级 |
+    根  README.md:49: ```powershell
+    候选 plugins/memory/hindsight/README.md:49: Config file: `~/.hermes/hindsight/config.json`
+
+### notes/r6-30-hindsight-supermemory-retaindb.md:299   README.md:67
+    笔记: | 5 | `README.md:67-100` 配置表 | 缺 `timeout`/`idle_timeout`/`port_health_grace_timeout`/`observation_scopes`/`prefetch_waits_for_retain`/`prefetch_retain_drain_timeout`/`retain_every_n_turns`,
+    根  README.md:67: 
+    候选 plugins/memory/hindsight/README.md:67: ### Recall
+
+### notes/r6-30-hindsight-supermemory-retaindb.md:423   README.md:55
+    笔记: | 1 | `README.md:55` `capture_mode` 默认 `all`,"Skip tiny or trivial turns by default" | `_capture_mode` 被加载(`__init__.py:672`)但**全文件无任何使用点**;`_is_trivial_message`(276)与 `_MIN_CAPTURE_LENGTH =
+    根  README.md:55: If you already have Git installed, the installer detects it and uses that instead. Otherwise a ~45MB MinGit download is all you need — it won't touch 
+    候选 plugins/memory/supermemory/README.md:55: | `capture_mode` | `all` | Skip tiny or trivial turns by default |
+
+### notes/r6-30-hindsight-supermemory-retaindb.md:424   README.md:58
+    笔记: | 2 | `README.md:58` `api_timeout`"Timeout for SDK and ingest requests" | SDK 用原值(305),ingest 用 `timeout + 3`(417) | ▲ 细节不符(ingest 实为 +3s) |
+    根  README.md:58: >
+    候选 plugins/memory/supermemory/README.md:58: | `api_timeout` | `5.0` | Timeout for SDK and ingest requests |
+
+### notes/r6-30-hindsight-supermemory-retaindb.md:427   README.md:85
+    笔记: | 5 | `README.md:85-89` `x-sm-source: hermes` + `metadata.sm_source` 是功能性路由非遥测 | `default_headers`(307)、`_merge_metadata`(310-318)注释同文 | ✓ |
+    根  README.md:85: $ver = (& $uv --version).Split(' ')[1]
+    候选 plugins/memory/supermemory/README.md:85: All Supermemory API calls send `x-sm-source: hermes`, and document writes stamp
+
+### notes/r6-30-hindsight-supermemory-retaindb.md:428   README.md:129
+    笔记: | 6 | `README.md:129-132` 多容器:工具收 `container_tag`、必须在白名单、自动操作只用主容器 | `_resolve_tool_container_tag`(884-902)白名单校验;自动路径(prefetch/sync/ingest/on_memory_write)全部不传 tag→主容器 | ✓ |
+    根  README.md:129: - **Tool Gateway** — web search (Firecrawl), image generation (FAL), text-to-speech (OpenAI), cloud browser (Browser Use), all routed through your sub
+    候选 plugins/memory/supermemory/README.md:129: - `supermemory-search`, `supermemory-save`, `supermemory-forget`, and `supermemory-profile` accept an optional `container_tag` parameter
+
+### notes/r6-30-hindsight-supermemory-retaindb.md:558   README.md:24
+    笔记: | 1 | `README.md:24`"All config via environment variables in `.env`" | `_load_retaindb_config`(47-63)还读 config.yaml 的 `memory.retaindb` 块(Dashboard 写入),测试 `tests/plugins/memory/test_retaindb
+    根  README.md:24: <tr><td><b>A real terminal interface</b></td><td>Full TUI with multiline editing, slash-command autocomplete, conversation history, interrupt-and-redi
+    候选 plugins/memory/byterover/README.md:24: echo "BRV_API_KEY=your-key" >> ~/.hermes/.env
+    候选 plugins/memory/hindsight/README.md:24: 
+    候选 plugins/memory/honcho/README.md:24: completes once you approve there. The desktop app offers the browser flow as
+
+### notes/r6-30-hindsight-supermemory-retaindb.md:562   README.md:30
+    笔记: | 5 | `README.md:30` `RETAINDB_PROJECT` 默认"auto (profile-scoped)" | 529-535:显式值 > `hermes-<profile>`(hermes_home 目录名非 `.hermes` 时)> `"default"` | ✓(README 简化但方向对) |
+    根  README.md:30: <tr><td><b>Research-ready</b></td><td>Batch trajectory generation, trajectory compression for training the next generation of tool-calling models.</td
+    候选 plugins/memory/byterover/README.md:30: |---------|----------|-------------|
+    候选 plugins/memory/hindsight/README.md:30: 
+    候选 plugins/memory/holographic/README.md:30: 
+
+### notes/r6-40-mem0-holographic.md:384   README.md:30
+    笔记: | 2 | `README.md:30`:`user_id` 默认 `hermes-user` | `__init__.py:56-62、353-356`:该值是**哨兵**,被视为未配置,实际回落网关原生 id | ▲ 有误导:写着"默认值"的字符串在代码里等于"没配",按 README 填 hermes-user 会得到与预期不同(其实是更合理)的 per-gateway 
+    根  README.md:30: <tr><td><b>Research-ready</b></td><td>Batch trajectory generation, trajectory compression for training the next generation of tool-calling models.</td
+    候选 plugins/memory/mem0/README.md:30: | `user_id` | `hermes-user` | User identifier on Mem0 |
+
+### notes/r6-40-mem0-holographic.md:387   README.md:101
+    笔记: | 5 | `README.md:101` Flags 表:`--mode` 取值 "platform or oss" | `plugins/memory/mem0/_setup.py:980` 还接受 `selfhosted`/`self-hosted`(README 自己 49 行也用了) | ▲ 表格漏了第三个取值,README 内部自相矛盾 |
+    根  README.md:101: For more context, see the upstream Astral reports: [astral-sh/uv#13553](https://github.com/astral-sh/uv/issues/13553), [astral-sh/uv#15011](https://gi
+    候选 plugins/google_meet/README.md:101: On the node machine (e.g. user's Mac with a signed-in Chrome):
+    候选 plugins/memory/mem0/README.md:101: | `--mode` | `platform` or `oss` |
+    候选 plugins/memory/supermemory/README.md:101: The session is written once via the conversations endpoint, which drives Supermemory's entity extraction and profile building while keeping a clean, r
+
+### notes/r6-90-doc-conflict-rulings.md:52   README.md:55
+    笔记: `README.md:55` `capture_mode` "Skip tiny or trivial turns by default":`_capture_mode` 被加载
+    根  README.md:55: If you already have Git installed, the installer detects it and uses that instead. Otherwise a ~45MB MinGit download is all you need — it won't touch 
+    候选 plugins/memory/supermemory/README.md:55: | `capture_mode` | `all` | Skip tiny or trivial turns by default |
+
+### notes/r6-90-doc-conflict-rulings.md:67   README.md:30
+    笔记: - `README.md:30` `user_id` 默认 `hermes-user`:该值实为**哨兵**,等于"未配置"、回落网关原生 id
+    根  README.md:30: <tr><td><b>Research-ready</b></td><td>Batch trajectory generation, trajectory compression for training the next generation of tool-calling models.</td
+    候选 plugins/memory/mem0/README.md:30: | `user_id` | `hermes-user` | User identifier on Mem0 |
+
+### notes/r6-90-doc-conflict-rulings.md:69   README.md:101
+    笔记: - `README.md:101` `--mode` 取值表漏 `selfhosted`(README 自己 49 行用了,内部矛盾)。
+    根  README.md:101: For more context, see the upstream Astral reports: [astral-sh/uv#13553](https://github.com/astral-sh/uv/issues/13553), [astral-sh/uv#15011](https://gi
+    候选 plugins/google_meet/README.md:101: On the node machine (e.g. user's Mac with a signed-in Chrome):
+    候选 plugins/memory/mem0/README.md:101: | `--mode` | `platform` or `oss` |
+
+### notes/r8b-raw-mixins.md:166   cli.py:231
+    笔记: | `cli.py:231` | `load_hermes_dotenv(...)` —— 改写 `os.environ` |
+    根  cli.py:231: load_hermes_dotenv(hermes_home=_hermes_home, project_env=_project_env)
+    候选 plugins/memory/honcho/cli.py:231: if clone_honcho_for_profile(p.name):
+

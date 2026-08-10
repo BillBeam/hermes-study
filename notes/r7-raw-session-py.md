@@ -1365,7 +1365,7 @@ gateway/session.py:2573-2585 @ 863e313:
   ——"Never override an explicit ``suspended``"(2769-2772,/stop 或 stuck-loop 升级是硬信号),
   否则置 resume_pending + reason + 时间戳。调用点:run.py 关停 drain 前
   (gateway/run.py:12829)、drain 超时(12909)。
-- `clear_resume_pending`(2780-2798):成功 turn 后清(run.py:17658 经
+- `clear_resume_pending`(2780-2798):成功 turn 后清(gateway/run.py:17658 经
   `_should_clear_resume_pending_after_turn` 判定;resume 调度器成功后也清,10443)。
 
 ---
@@ -1536,11 +1536,11 @@ prompt cache——见 website/docs session-storage.md 对 api_content 列的描�
 
 - `_clear_dirty_transcript`(3326-3336):/retry、/undo、/compress 改写历史前清挂起队列,防旧
   消息重插。
-- `has_platform_message_id`(3338-3355):瞬态失败去重护栏(#47237)的 DB 探测(run.py:18012
+- `has_platform_message_id`(3338-3355):瞬态失败去重护栏(#47237)的 DB 探测(gateway/run.py:18012
   消费:重投的平台消息若已持久化则不再 append)。
 - `rewrite_transcript`(3357-3378):整本替换(`replace_messages`,hermes_state.py:6866);
   返回 bool——**/compress 这类"先改写、再指向新 id"的调用方必须检查**,否则写失败 + 继续
-  换 id = 静默丢会话(3363-3368;run.py:17151 正是这么用的)。
+  换 id = 静默丢会话(3363-3368;gateway/run.py:17151 正是这么用的)。
 - `load_transcript`(3380-3399):`get_messages_as_conversation(sid, repair_alternation=True)`
   (hermes_state.py:7265)。repair_alternation 的理由:持久化的 user;user 楔子会让每次请求都
   重触发 pre-request 修复,在恢复边界一次性治愈(3390-3395)。JSONL 回退已在 spec 002 删除
@@ -1690,4 +1690,4 @@ sessions.json 路由镜像),读代码时注意。
 workspace key 迁移)、#46934(resume_pending freshness)、#46994(坏条目中止加载)、
 #47237(瞬态失败去重)、#52804/FM9 与 #54878(僵尸路由)、#60609(ws_orphan_reap)、
 #61052(mode:none 尊重)、#61220/#61993(promote 防复活)、D-Q2.5(scope_id 迁移)、
-D13(suspend 保 RAM,run.py:7621)。
+D13(suspend 保 RAM,gateway/run.py:7621)。

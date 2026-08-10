@@ -2508,7 +2508,7 @@ vertexai         models=vertex       auth=FAIL
 正规路径不受影响——`parse_model_input` 会先过 `models.normalize_provider` 再落盘,
 所以进 config.yaml 的是 `nvidia` 而不是 `nim`。
 
-### ■-3 `provider_catalog.py:127` 跨命名空间查 overlay
+### ■-3 `hermes_cli/provider_catalog.py:127` 跨命名空间查 overlay
 
 见 §1.9。**锚点**:`hermes_cli/provider_catalog.py:127` 的 `overlay = HERMES_OVERLAYS.get(slug)`,
 `slug` 来自 `CANONICAL_PROVIDERS`。**现象**:43 个 slug 里 9 个查不到;当前被 registry/profile 兜住,

@@ -1,4 +1,4 @@
-# r8a-raw-tools-config-c · tools_config.py:3700-5452
+# r8a-raw-tools-config-c · hermes_cli/tools_config.py:3700-5452
 
 底稿。基线 `NousResearch/hermes-agent @ 863e31318553cda8ad61df681d08175364d4164b`(下称 `863e313`)。
 本段 = `hermes_cli/tools_config.py` 第 3700 行到文件末尾 5452 行。为把这一段讲清楚,少量引用了段外
@@ -1279,7 +1279,7 @@ def _print_tools_list(enabled_toolsets: set, mcp_servers: dict, platform: str = 
 
 | 键 | 默认 | 读/写点(@863e313) | 备注 |
 | --- | --- | --- | --- |
-| `image_gen.model` | 由 `catalog_fn()` 返回的 `DEFAULT_MODEL`;插件则 `provider.default_model()` | 写 `tools_config.py:3747`、`:3829`;读 `:3709`、`:3793` | fallback 链:`cur_cfg["model"]` → `default_model`;若当前值不在目录里回落 default |
+| `image_gen.model` | 由 `catalog_fn()` 返回的 `DEFAULT_MODEL`;插件则 `provider.default_model()` | 写 `hermes_cli/tools_config.py:3747`、`:3829`;读 `:3709`、`:3793` | fallback 链:`cur_cfg["model"]` → `default_model`;若当前值不在目录里回落 default |
 | `image_gen.provider` | 无(缺省即"legacy FAL 路径") | 写 `:3882`、`:4122`、`:4139`、`:4244`、`:4324`、`:4765`、`:4808`;读 `:3560`、`:3576`、`:3625` | `{None, "", "fal"}` 三值等价于 FAL |
 | `image_gen.use_gateway` | 无 | 写 `:3883`、`:4074`、`:4123`、`:4766`、`:4809` | `is_truthy_value(..., default=False)` 解析(`:3629`) |
 | `image_gen.xai.storage.enabled` | 无 | 写 `:3862`、`:3865`、`:3870` | 三选一 |
@@ -1325,7 +1325,7 @@ def cfg_get(cfg: Optional[Dict[str, Any]], *keys: str, default: Any = None) -> A
 
 | 变量 | 类型 | 读/写点 | 备注 |
 | --- | --- | --- | --- |
-| `OPENAI_API_KEY` | 写 | `tools_config.py:4390 @ 863e313` | vision 自定义端点分支**无论域名**都存这个名字 |
+| `OPENAI_API_KEY` | 写 | `hermes_cli/tools_config.py:4390 @ 863e313` | vision 自定义端点分支**无论域名**都存这个名字 |
 | provider 行的 `env_vars[].key`(动态,如 `VOICE_TOOLS_OPENAI_KEY`、`FAL_KEY`、`BROWSERBASE_API_KEY`…) | 读+写 | 读 `:4281`、`:4632`、`:4773`;写 `:4298`、`:4782` | 键名来自 `TOOL_CATEGORIES`(`:321` 起)与插件 `get_setup_schema()` |
 | `OPENROUTER_API_KEY` | 名义读+写 | `TOOLSET_ENV_REQUIREMENTS`(`:748`),消费点 `:4505`、`:4516`、`:4834`、`:4839` | **实际不可达**:vision 在两个函数开头都被特判 return(`:4495`、`:4818`),而这是表里唯一一条 |
 | `TELEGRAM_BOT_TOKEN` / `DISCORD_BOT_TOKEN` / `SLACK_BOT_TOKEN` / `WHATSAPP_ENABLED` / `QQ_APP_ID` | 读 | `_get_enabled_platforms`,`hermes_cli/tools_config.py:2074 @ 863e313` | `tools_command:4862` 调用;决定菜单列几个平台 |

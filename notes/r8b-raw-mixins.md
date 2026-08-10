@@ -229,7 +229,7 @@ class _Stub(CLICommandsMixin):
 (161 个),再和三个 mixin 里所有 `self.X` 读点做差集,只有一个属性完全不在 `__init__` 里:
 
 - `self._resume_display_history` —— `__init__` 从不设置;由
-  `cli_agent_setup_mixin.py:623` 和 `cli_commands_mixin.py:1071` 在运行时首次赋值。
+  `hermes_cli/cli_agent_setup_mixin.py:623` 和 `hermes_cli/cli_commands_mixin.py:1071` 在运行时首次赋值。
 
 它的三个读点里,两个是"先写后读"(同一函数内),一个用了 `getattr` 兜底:
 
@@ -242,7 +242,7 @@ class _Stub(CLICommandsMixin):
         if not display_history:
 ```
 
-而 `cli_commands_mixin.py:1113` 是裸读:
+而 `hermes_cli/cli_commands_mixin.py:1113` 是裸读:
 
 `hermes_cli/cli_commands_mixin.py:1112-1114 @ 863e313`
 
@@ -337,7 +337,7 @@ new_session                show_tools                undo_last
 ```
 
 **(3) 变更订阅档位(升档立即按比例扣款)。** `_subscription_apply` 的 `kind == "upgrade"` 分支调
-`post_subscription_upgrade`,并且为此专门维护幂等键(`cli_billing_mixin.py:589-596`)。
+`post_subscription_upgrade`,并且为此专门维护幂等键(`hermes_cli/cli_billing_mixin.py:589-596`)。
 
 **(4) 打开浏览器,给这台终端**永久**授予新的 OAuth scope,并改写进程内的 token 缓存。**
 
@@ -368,9 +368,9 @@ new_session                show_tools                undo_last
 ```
 
 **(5) 间接改变 agent 行为。** 计划档位决定了哪些模型可达 —— 这是 mixin 自己的文案说的:
-`cli_billing_mixin.py:66`(`'> Free · free models only. Run /subscription to reach paid models.'`)、
-`cli_billing_mixin.py:224`(`'> Paid models need a subscription. Start one to reach them.'`)、
-`cli_billing_mixin.py:227`(`Top up or upgrade before a mid-run cutoff.`)。余额耗尽会造成
+`hermes_cli/cli_billing_mixin.py:66`(`'> Free · free models only. Run /subscription to reach paid models.'`)、
+`hermes_cli/cli_billing_mixin.py:224`(`'> Paid models need a subscription. Start one to reach them.'`)、
+`hermes_cli/cli_billing_mixin.py:227`(`Top up or upgrade before a mid-run cutoff.`)。余额耗尽会造成
 **turn 中途被切断**。所以 "/topup 只是显示" 在功能上等价于说 "充值不影响能不能跑" —— 显然不成立。
 
 **唯一成立的一半**:billing mixin 对 `self` 是**完全只读**的 —— AST 扫描全文件 `self.X = ` 写点为
@@ -384,8 +384,8 @@ new_session                show_tools                undo_last
   按行号回读源文件逐行逐字比对(脚本见 §5.1)。
 - **共复核带代码块的锚点 73 个,累计发现 15 个错误,全部已修正:**
   - 9 个是"少抄了区间末尾的空行"导致的区间末号 +1;
-  - 5 个是整体行号偏移(`cli_commands_mixin.py:1261→1262`、`:541→542`、`:2197→2196`、
-    `cli_billing_mixin.py:111→109`、`cli.py:2784→2783`);
+  - 5 个是整体行号偏移(`hermes_cli/cli_commands_mixin.py:1261→1262`、`:541→542`、`:2197→2196`、
+    `hermes_cli/cli_billing_mixin.py:111→109`、`cli.py:2784→2783`);
   - 1 个是单行锚点偏 2 行(`cli.py:8880→8878`)。
 - **最终一轮:73 个全部逐字通过,不一致 0。**
 - 另抽查了 27 个**不带代码块的行内锚点**的实际内容,其中 6 个指向的是 `try:` 块首行而非我描述的
@@ -396,7 +396,7 @@ new_session                show_tools                undo_last
 ### 0.3 三处我自己推翻的初判(负面结果也是产出)
 
 1. **`BillingError` 同时看 `.error` 和 `.code` 不是笔误。** 我一度怀疑
-   `cli_billing_mixin.py:1241-1242` 的 `getattr(exc, "code", None)` 是把 `.error` 写错了。查
+   `hermes_cli/cli_billing_mixin.py:1241-1242` 的 `getattr(exc, "code", None)` 是把 `.error` 写错了。查
    `hermes_cli/nous_billing.py:61-79` 后确认 `BillingError.__init__` 同时接受并保存 `error=` 和
    `code=` 两个字段(注释写 "`code` (the new machine code dual-emitted alongside `error`)"),
    双查是**正确的向后兼容**。撤回。
@@ -567,7 +567,7 @@ from hermes_cli.browser_connect import (
 3. **顺序不变量是隐式的**(见 §0.1(a)):所有被引用的符号都必须定义在 `cli.py:54` 之后,
    且不能有任何模块级代码在那之前调用 mixin 方法。没有测试锁这个。
 
-**同一个仓库里另一种做法的对照**:`_print_diff_text`(`cli_commands_mixin.py:269-277`,已引于 §0.1)
+**同一个仓库里另一种做法的对照**:`_print_diff_text`(`hermes_cli/cli_commands_mixin.py:269-277`,已引于 §0.1)
 把 `from cli import` 包在 `try/except Exception` 里并给出降级路径 —— 只有 1 处这样写。其余 35 处是
 裸 import,一旦 `cli` 不可导入,handler 直接抛。
 
@@ -577,9 +577,9 @@ from hermes_cli.browser_connect import (
 
 **(1) 兜底方式在同一文件内自相矛盾。** 同一个属性 `_agent_running`:
 
-- `cli_commands_mixin.py:536` 用 `getattr(self, "_agent_running", False)`
-- `cli_commands_mixin.py:860` 用 `getattr(self, "_agent_running", False)`
-- 但 `cli_commands_mixin.py:2019` 和 `2093` 是**裸读**:
+- `hermes_cli/cli_commands_mixin.py:536` 用 `getattr(self, "_agent_running", False)`
+- `hermes_cli/cli_commands_mixin.py:860` 用 `getattr(self, "_agent_running", False)`
+- 但 `hermes_cli/cli_commands_mixin.py:2019` 和 `2093` 是**裸读**:
 
 `hermes_cli/cli_commands_mixin.py:2017-2022 @ 863e313`
 
@@ -656,7 +656,7 @@ from hermes_cli.browser_connect import (
 7. 恢复 cwd + YOLO    _restore_session_cwd / _restore_session_yolo(_transfer_session_yolo)
 ```
 
-`/resume` 和 `/branch` 各自把这 7 步**手抄了一遍**(`cli_commands_mixin.py:1033-1136` vs
+`/resume` 和 `/branch` 各自把这 7 步**手抄了一遍**(`hermes_cli/cli_commands_mixin.py:1033-1136` vs
 `1208-1327`),没有抽公共函数。这是本段最大的一处结构性重复:两处的 agent 同步块几乎逐行相同,
 只有 `session_start` 和 `reason` 不同。任何一处加字段(例如将来 agent 多一个 per-session 缓存)
 都要记得改两处。
@@ -695,7 +695,7 @@ from hermes_cli.browser_connect import (
 
 **(c) `/handoff` 是唯一一个返回值有语义的 handler**:返回 `False` 表示"退出 CLI"(和 `/quit` 同义),
 并且用 `state.db` 的 `handoff_state` 列做**跨进程握手**:写 `pending` → 阻塞轮询 0.5s/次 → 60s 超时
-→ `fail_handoff`。它显式拒绝 mid-turn(`cli_commands_mixin.py:860-862`),理由是在飞的 turn 会和
+→ `fail_handoff`。它显式拒绝 mid-turn(`hermes_cli/cli_commands_mixin.py:860-862`),理由是在飞的 turn 会和
 gateway 的 `switch_session` 抢。
 
 ### 2.4 `/background`:仓库里的第二条 agent 构造路径
@@ -1180,11 +1180,11 @@ docstring 明说理由:
 ```
 
 - `/goal` 的 gate 概念值得记:一个 gate 是**必须通过的 shell 命令**,失败输出直接成为下一轮的
-  continuation prompt(`cli_commands_mixin.py:2595-2597`)。这把 "done" 从 judge 模型的主观判断
+  continuation prompt(`hermes_cli/cli_commands_mixin.py:2595-2597`)。这把 "done" 从 judge 模型的主观判断
   变成了可执行的确定性检查。`/goal wait <pid>` 则是"停在一个后台进程上,直到它退出"——把
   "等 CI" 从 agent 的忙轮询变成 OS 级事件。
 - `/heartbeat` 明确是**进程内、会话作用域**,并把持久化需求转介给 `hermes cron`
-  (`cli_commands_mixin.py:2449-2454`),避免两套调度器语义重叠。
+  (`hermes_cli/cli_commands_mixin.py:2449-2454`),避免两套调度器语义重叠。
 
 ---
 
@@ -1271,7 +1271,7 @@ acp_command / acp_args / _credential_pool / _provider_source / api_key / base_ur
 `self.agent` 的时候。**"untouched" 的承诺与实现不符。**
 
 对 Azure Entra ID 用户是**必然**触发:`credentials_changed = api_key != self.api_key`
-(`cli_agent_setup_mixin.py:127`)对 callable 是对象身份比较,而
+(`hermes_cli/cli_agent_setup_mixin.py:127`)对 callable 是对象身份比较,而
 `hermes_cli/runtime_provider.py:1437` 每次都新建 provider:
 
 `hermes_cli/runtime_provider.py:1437 @ 863e313`
@@ -1729,7 +1729,7 @@ AuthError 等)+ 触发了任一 `_ensure_runtime_credentials` 调用点。
 
 **现象**:`/goal <text>` 打印 "⊙ Goal set (N-turn budget): ...",然后什么都不发生。
 
-**锚点**:见 §2.2 引用的 `cli_commands_mixin.py:2664-2669`(以及 `_handle_goal_draft` 的同款
+**锚点**:见 §2.2 引用的 `hermes_cli/cli_commands_mixin.py:2664-2669`(以及 `_handle_goal_draft` 的同款
 `2711-2714`)。
 
 **为什么可疑**:`except Exception: pass` 覆盖了 `AttributeError`(`_pending_input` 不存在)、
@@ -1849,7 +1849,7 @@ handler"。测试里已经出现了 `CLICommandsMixin.__new__(...)` 这种宿主
 
 ### 缺陷 14 —— `_resume_display_history` 不在 `__init__` 里,靠"写点支配读点"存活
 
-**现象**:见 §0.1 前提 2 层面一。`cli_commands_mixin.py:1113` 是裸读。
+**现象**:见 §0.1 前提 2 层面一。`hermes_cli/cli_commands_mixin.py:1113` 是裸读。
 
 **锚点**:`hermes_cli/cli_commands_mixin.py:1112-1114 @ 863e313`
 
@@ -1860,7 +1860,7 @@ handler"。测试里已经出现了 `CLICommandsMixin.__new__(...)` 这种宿主
 ```
 
 **为什么可疑**:161 个属性都在 `__init__` 里,唯独这一个不是,而且 `_display_resumed_history`
-自己用 `getattr(..., self.conversation_history)` 兜底(`cli_agent_setup_mixin.py:676`),
+自己用 `getattr(..., self.conversation_history)` 兜底(`hermes_cli/cli_agent_setup_mixin.py:676`),
 说明作者知道它可能缺席。裸读点只靠同函数上游第 1071 行的赋值支配。任何一次在 1071 之前 `return`
 的重构都会引入 `AttributeError`。
 
@@ -1874,18 +1874,18 @@ handler"。测试里已经出现了 `CLICommandsMixin.__new__(...)` 这种宿主
 
 | # | 文档/注释断言 | 锚点 | 代码事实 | 裁定 |
 |---|---|---|---|---|
-| ▲1 | "behavior-neutral" | `cli_commands_mixin.py:5`、`cli_agent_setup_mixin.py:8` | 同文件 `cli_agent_setup_mixin.py:520-528` 记录了拆分导致的线上缺陷 #49287 | **以代码为准**:拆分非行为中性 |
-| ▲2 | "cli.py-internal symbols … imported LAZILY inside **each** handler" | `cli_commands_mixin.py:9-12` | 59 个方法里只有 36 个含 `from cli import`;23 个完全不碰 `cli` | **以代码为准**:是"部分 handler",不是"每个" |
-| ▲3 | "All methods use only ``self`` state plus the imports above and per-method lazy ``from cli import ...``" | `cli_commands_mixin.py:46-48` | 还调用 35 个仍在 `cli.py` 的兄弟方法;并直接 import 了 `tools.*`、`hermes_cli.*`、`agent.*` 等数十个模块 | **以代码为准**:依赖面远大于描述 |
-| ▲4 | "All lines below go through _cprint … Keep one path." | `cli_billing_mixin.py:55-58` | 同函数第 51、83、85 行是裸 `print()`;全文件 31 个方法里 18 个混用 | **以代码为准**:规则未被遵守 |
-| ▲5 | "All-`_cprint` (blanks included) so the block orders deterministically even when piped." | `cli_billing_mixin.py:196-197` | 紧邻的 214、218、220 行就是裸 `print()` | **以代码为准**:注释描述的是它上面那一小段,不是整块;措辞误导 |
-| ▲6 | "Fallback: legacy text lines (**only when the model is unavailable**)." | `cli_billing_mixin.py:77` | model 可用但 `printed_any` 为假时也会进入(缺陷 5) | **以代码为准** |
-| ▲7 | "`Fail-open`: logged-out / portal hiccup degrades to a clear message, never a crash." | `cli_billing_mixin.py:109-111` | `cli_billing_mixin.py:158` 的 `format_renews` 导入在 try 之外(缺陷 6) | **以代码为准**:存在会 crash 的路径 |
+| ▲1 | "behavior-neutral" | `hermes_cli/cli_commands_mixin.py:5`、`hermes_cli/cli_agent_setup_mixin.py:8` | 同文件 `hermes_cli/cli_agent_setup_mixin.py:520-528` 记录了拆分导致的线上缺陷 #49287 | **以代码为准**:拆分非行为中性 |
+| ▲2 | "cli.py-internal symbols … imported LAZILY inside **each** handler" | `hermes_cli/cli_commands_mixin.py:9-12` | 59 个方法里只有 36 个含 `from cli import`;23 个完全不碰 `cli` | **以代码为准**:是"部分 handler",不是"每个" |
+| ▲3 | "All methods use only ``self`` state plus the imports above and per-method lazy ``from cli import ...``" | `hermes_cli/cli_commands_mixin.py:46-48` | 还调用 35 个仍在 `cli.py` 的兄弟方法;并直接 import 了 `tools.*`、`hermes_cli.*`、`agent.*` 等数十个模块 | **以代码为准**:依赖面远大于描述 |
+| ▲4 | "All lines below go through _cprint … Keep one path." | `hermes_cli/cli_billing_mixin.py:55-58` | 同函数第 51、83、85 行是裸 `print()`;全文件 31 个方法里 18 个混用 | **以代码为准**:规则未被遵守 |
+| ▲5 | "All-`_cprint` (blanks included) so the block orders deterministically even when piped." | `hermes_cli/cli_billing_mixin.py:196-197` | 紧邻的 214、218、220 行就是裸 `print()` | **以代码为准**:注释描述的是它上面那一小段,不是整块;措辞误导 |
+| ▲6 | "Fallback: legacy text lines (**only when the model is unavailable**)." | `hermes_cli/cli_billing_mixin.py:77` | model 可用但 `printed_any` 为假时也会进入(缺陷 5) | **以代码为准** |
+| ▲7 | "`Fail-open`: logged-out / portal hiccup degrades to a clear message, never a crash." | `hermes_cli/cli_billing_mixin.py:109-111` | `hermes_cli/cli_billing_mixin.py:158` 的 `format_renews` 导入在 try 之外(缺陷 6) | **以代码为准**:存在会 crash 的路径 |
 | ▲8 | "leaves the foreground turn running untouched: no interrupt, no steer." | `cli.py:9677-9679` | `/background` 里 `_ensure_runtime_credentials()` 改写 ~10 个 `self` 字段并可能置 `self.agent = None`(缺陷 2) | **以代码为准** |
 | ▲9 | "Type 1/2/3 or use ↑/↓ then Enter." | `cli.py:8878` | 降级到裸 stdin 时,数字由硬编码别名表解释,与实际 `choices` 不对应(缺陷 12) | **以代码为准**(仅降级路径) |
-| ◇1 | `_billing_render_charge_error` 同时看 `.error` 与 `.code` | `cli_billing_mixin.py:1241-1242` | `nous_billing.BillingError` 确实同时携带二者(dual-emitted) | **文档/代码一致**,我的初判错误,已撤回 |
-| ◇2 | `_usage_bar_lines` 的 `pb.total_usd > 0` 可能 `TypeError` | `cli_billing_mixin.py:936` | `UsageBar.total_usd: float` 非 Optional | **无问题**,已撤回 |
-| ◇3 | 顶层 import 与方法内 import 重复 | `cli_commands_mixin.py:30` vs `292`;`:18` vs `2843`;`:21` vs `913` | `display_hermes_home`、`os`、`time` 各被顶层与方法内重复导入 | **无害冗余**,但佐证"逐字搬迁 + 事后补顶层 import,没有去重" |
+| ◇1 | `_billing_render_charge_error` 同时看 `.error` 与 `.code` | `hermes_cli/cli_billing_mixin.py:1241-1242` | `nous_billing.BillingError` 确实同时携带二者(dual-emitted) | **文档/代码一致**,我的初判错误,已撤回 |
+| ◇2 | `_usage_bar_lines` 的 `pb.total_usd > 0` 可能 `TypeError` | `hermes_cli/cli_billing_mixin.py:936` | `UsageBar.total_usd: float` 非 Optional | **无问题**,已撤回 |
+| ◇3 | 顶层 import 与方法内 import 重复 | `hermes_cli/cli_commands_mixin.py:30` vs `292`;`:18` vs `2843`;`:21` vs `913` | `display_hermes_home`、`os`、`time` 各被顶层与方法内重复导入 | **无害冗余**,但佐证"逐字搬迁 + 事后补顶层 import,没有去重" |
 
 补充说明 ◇3 的证据:
 
@@ -1900,7 +1900,7 @@ handler"。测试里已经出现了 `CLICommandsMixin.__new__(...)` 这种宿主
 
 ```
 
-而 `display_hermes_home` 已在 `cli_commands_mixin.py:30` 顶层导入(见 §1.3 的顶层 import 引用)。
+而 `display_hermes_home` 已在 `hermes_cli/cli_commands_mixin.py:30` 顶层导入(见 §1.3 的顶层 import 引用)。
 同类:`_compose_in_editor` 第 2843 行 `import os`(顶层第 18 行已有);`_handle_handoff_command`
 第 913 行 `import time as _time`(顶层第 21 行已有 `import time`)。
 
@@ -1984,7 +1984,7 @@ EOF
 
 1. **"逐字搬迁 ≠ 行为中性"。** Python 里至少三类构造会随模块位置改变语义:`global`(绑定定义所在
    模块)、相对/延迟 import 的解析时机、模块级副作用的执行时机。#49287 是第一类的教科书案例
-   (`cli_agent_setup_mixin.py:520-528`)。做 god-file 拆分时,这三类必须逐个 grep,不能靠 diff 为空
+   (`hermes_cli/cli_agent_setup_mixin.py:520-528`)。做 god-file 拆分时,这三类必须逐个 grep,不能靠 diff 为空
    就宣布中性。
 2. **输出通道必须是进程级不变量。** `_usage_bar_lines` 把"用 `print` 还是 `_cprint`"下放成调用方
    自由度,直接导致 31 个方法里 18 个混用、且写规则的那个函数自己就违反规则。正确做法是一个

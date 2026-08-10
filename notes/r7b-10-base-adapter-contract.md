@@ -61,10 +61,10 @@
 
 | 成员 | 默认 | 语义 | 溯源 |
 |---|---|---|---|
-| `supports_draft_streaming(chat_type, metadata)` | `False` | 平台是否有原生"草稿"流式(Telegram Bot API 9.5 `sendMessageDraft`) | `base.py:2943-2960` |
-| `prefers_fresh_final_streaming(content, metadata)` | `False` | 终稿是否要**重发新消息 + 删预览**,而不是原地编辑 | `base.py:2962-2983` |
-| `streaming_overflow_limit()` | `None` | 终稿可累积的更大上限(Telegram Rich Message 32,768 vs 编辑上限 4,096) | `base.py:2985-3000` |
-| `send_draft(chat_id, draft_id, content, metadata)` | `raise NotImplementedError` | 草稿发送本体 | `base.py:3002-3042` |
+| `supports_draft_streaming(chat_type, metadata)` | `False` | 平台是否有原生"草稿"流式(Telegram Bot API 9.5 `sendMessageDraft`) | `gateway/platforms/base.py:2943-2960` |
+| `prefers_fresh_final_streaming(content, metadata)` | `False` | 终稿是否要**重发新消息 + 删预览**,而不是原地编辑 | `gateway/platforms/base.py:2962-2983` |
+| `streaming_overflow_limit()` | `None` | 终稿可累积的更大上限(Telegram Rich Message 32,768 vs 编辑上限 4,096) | `gateway/platforms/base.py:2985-3000` |
+| `send_draft(chat_id, draft_id, content, metadata)` | `raise NotImplementedError` | 草稿发送本体 | `gateway/platforms/base.py:3002-3042` |
 
 三者共同解决一个问题:**"流式预览"和"终稿"在很多平台上不是同一种消息**。
 `prefers_fresh_final_streaming` 的 docstring 把动机讲得很具体
@@ -173,13 +173,13 @@ def _prefix_within_utf16_limit(s: str, limit: int) -> str:
 
 | 安装器 | 装什么 | 溯源 |
 |---|---|---|
-| `set_message_handler` | 主消息处理器(→ `GatewayRunner._handle_message`) | `base.py:3302-3309` |
-| `set_topic_recovery_fn` | Telegram DM topic 的 `thread_id` 改写钩子 | `base.py:3311-3323` |
-| `set_busy_session_handler` | **忙时策略机**(返回 True 表示已处理) | `base.py:3345-3347` |
-| `set_reaction_handler` | 平台原生 emoji 反应事件 | `base.py:3349-3366` |
-| `set_authorization_check` | 授权判定回调 | `base.py:3368-3380` |
-| `set_session_store` | 会话存储(供历史媒体路径查询) | `base.py:3406-3414` |
-| `set_fatal_error_handler` | 致命错误上报 | `base.py:3154-3155` |
+| `set_message_handler` | 主消息处理器(→ `GatewayRunner._handle_message`) | `gateway/platforms/base.py:3302-3309` |
+| `set_topic_recovery_fn` | Telegram DM topic 的 `thread_id` 改写钩子 | `gateway/platforms/base.py:3311-3323` |
+| `set_busy_session_handler` | **忙时策略机**(返回 True 表示已处理) | `gateway/platforms/base.py:3345-3347` |
+| `set_reaction_handler` | 平台原生 emoji 反应事件 | `gateway/platforms/base.py:3349-3366` |
+| `set_authorization_check` | 授权判定回调 | `gateway/platforms/base.py:3368-3380` |
+| `set_session_store` | 会话存储(供历史媒体路径查询) | `gateway/platforms/base.py:3406-3414` |
+| `set_fatal_error_handler` | 致命错误上报 | `gateway/platforms/base.py:3154-3155` |
 
 **设计观察**:全部是**运行期注入**而非构造参数。理由在 `set_topic_recovery_fn` 的注释里
 (`gateway/platforms/base.py:3321-3323 @ 863e313`):
@@ -252,7 +252,7 @@ def _prefix_within_utf16_limit(s: str, limit: int) -> str:
 
 `has_fatal_error` / `fatal_error_message` / `fatal_error_code` / `fatal_error_retryable`
 (`base.py:3124-3137 @ 863e313`),由 `_set_fatal_error(code, message, retryable)`
-(`base.py:3170-3175`)置位,`_notify_fatal_error`(`base.py:3209-3215`)上报。
+(`base.py:3170-3175`)置位,`_notify_fatal_error`(`gateway/platforms/base.py:3209-3215`)上报。
 **`retryable` 是三元决策的关键**:网关据此决定"重连"还是"放弃这个平台"。
 
 ### 4.2 跨进程平台锁
@@ -277,8 +277,8 @@ def _prefix_within_utf16_limit(s: str, limit: int) -> str:
 `connect` / `disconnect` / `send` 等以 `@abstractmethod` 声明(`base.py:3471-3600 @ 863e313`)。
 但**交互式 UX 方法分成两类**,这是本轮一条重要定案的来源:
 
-- **有基类实现、可覆盖**:`send_slash_confirm`(`base.py:3745-3778`)、
-  `send_clarify`(`base.py:3780-3852`)—— 基类给纯文本兜底。
+- **有基类实现、可覆盖**:`send_slash_confirm`(`gateway/platforms/base.py:3745-3778`)、
+  `send_clarify`(`gateway/platforms/base.py:3780-3852`)—— 基类给纯文本兜底。
 - **基类完全不存在、靠调用点探测**:`send_exec_approval` / `send_model_picker` /
   `send_choice_picker`。全仓 `def send_model_picker` 只出现在 3 个插件 + 3 个测试桩,
   base.py 中**没有任何定义**。降级发生在调用点,而且探测的是**类**不是实例:
@@ -329,7 +329,7 @@ $ grep -n "\.set()" gateway/platforms/base.py
 **结论**:置中断位是**第二层(runner)的动作**,由 runner 反向调进适配器;第一层从不置位。
 文档把两层的动作合并叙述,读者会以为"消息进适配器就会打断当前回合" —— 恰恰相反,
 第一层默认**不打断**,只入槽(见 `r7b-20`)。中文镜像同错
-(`website/i18n/zh-Hans/.../gateway-internals.md:86 @ 863e313`:"将消息加入 `_pending_messages`
+(`website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/developer-guide/gateway-internals.md:86 @ 863e313`:"将消息加入 `_pending_messages`
 队列并设置中断事件")。
 
 **▲ B-2**:同文件 `gateway-internals.md:59-61 @ 863e313`:

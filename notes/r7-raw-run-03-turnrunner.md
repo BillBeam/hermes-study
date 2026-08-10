@@ -77,13 +77,13 @@ class TurnRunner:
 ```
 
 - 晚绑定字段按"原始绑定点"回填:`turn_ctx._progress_metadata/_progress_reply_to`
-  (run.py:24717-24718)、`turn_ctx.agent_holder/result_holder/tools_holder/
-  stream_consumer_holder/streaming_tts_consumer_holder`(run.py:24722-24735)、
-  `_loop_for_step/_hooks_ref`(run.py:24743-24744)、状态三件套(run.py:24787-24789);
-- 消费:`send_progress_messages` 作为后台任务启动(run.py:24843
+  (gateway/run.py:24717-24718)、`turn_ctx.agent_holder/result_holder/tools_holder/
+  stream_consumer_holder/streaming_tts_consumer_holder`(gateway/run.py:24722-24735)、
+  `_loop_for_step/_hooks_ref`(gateway/run.py:24743-24744)、状态三件套(gateway/run.py:24787-24789);
+- 消费:`send_progress_messages` 作为后台任务启动(gateway/run.py:24843
   `progress_task = asyncio.create_task(send_progress_messages())`),`run_sync` 进
-  executor 线程池(run.py:25151-25191,包一层 `_run_sync_with_timeout_lifecycle` 做
-  watchdog 收尾);回合结束 `progress_task.cancel()`(run.py:25782)。
+  executor 线程池(gateway/run.py:25151-25191,包一层 `_run_sync_with_timeout_lifecycle` 做
+  watchdog 收尾);回合结束 `progress_task.cancel()`(gateway/run.py:25782)。
 
 **为什么这么设计 / 取舍**:重构目标是"可评审性"——bodies 不变、只搬运,评审只需核对字段清单;
 代价是 `TurnContext` 成为一个 40+ 字段的"扁平大包"(无内聚分组),且保留了单元素 list 这种
@@ -101,7 +101,7 @@ class TurnRunner:
 
 **总述**:agent 在工具生命周期事件时调用的同步回调(在 agent 的 sync worker 线程上执行!),
 签名 `(event_type, tool_name=None, preview=None, args=None, **kwargs)`。它不直接发消息,而是
-把渲染好的文本放进线程安全的 `ctx.progress_queue`(`queue.Queue`,run.py:24463),由事件循环上
+把渲染好的文本放进线程安全的 `ctx.progress_queue`(`queue.Queue`,gateway/run.py:24463),由事件循环上
 的 `send_progress_messages` 后台任务消费。**生产者-消费者分离是整个进度气泡机制的骨架**:
 回调在工具线程上必须零阻塞、零事件循环依赖。
 
@@ -118,7 +118,7 @@ class TurnRunner:
 **解决什么问题**:Slack 默认关闭 tool_progress(永久消息刷屏),但 Slack Assistant API 有一条
 "ephemeral 状态行"(is thinking...),可以零成本展示当前工具短语。该机制独立于进度气泡:
 回调只把短语写到 adapter 上的 dict,真正渲染搭 `_keep_typing` 的顺风车(几秒内刷新),
-零额外平台 API 调用(外层注释 run.py:24418-24424 @ 863e313)。
+零额外平台 API 调用(外层注释 gateway/run.py:24418-24424 @ 863e313)。
 
 gateway/run.py:3696-3712 @ 863e313:
 
@@ -143,9 +143,9 @@ gateway/run.py:3696-3712 @ 863e313:
 ```
 
 - `build_status_phrase`:agent/display.py:687 @ 863e313;`set_status_text`:
-  gateway/platforms/base.py:2658 @ 863e313(能力探测在 run.py:24428-24430,
+  gateway/platforms/base.py:2658 @ 863e313(能力探测在 gateway/run.py:24428-24430,
   `supports_status_text` 为假则 adapter 置 None)。
-- `live_status` 模式解析:run.py:24425-24427(默认 `"full"`;`"full"` 才把 args 传给短语构造)。
+- `live_status` 模式解析:gateway/run.py:24425-24427(默认 `"full"`;`"full"` 才把 args 传给短语构造)。
 - 注释自述"Plain dict write — safe from the agent's sync worker thread"(3693-3695):
   这是它放在**所有其他 gate 之前**的原因——它不依赖 progress_queue 是否存在。
 - 工具结束时清空状态(置 None)= 回到"thinking"默认文案,语义上准确。
@@ -156,7 +156,7 @@ gateway/run.py:3696-3712 @ 863e313:
 
 **解决什么问题**:#3459/#3458——用户想要工具审计但不想在聊天里看到任何进度。
 `display.tool_progress: log` 把 tool.started 行写入 `~/.hermes/logs/tool_calls.log`
-而聊天保持安静(外层 run.py:24433-24436 @ 863e313 创建 `log_queue`)。
+而聊天保持安静(外层 gateway/run.py:24433-24436 @ 863e313 创建 `log_queue`)。
 
 gateway/run.py:3718-3726 @ 863e313:
 
@@ -172,12 +172,12 @@ gateway/run.py:3718-3726 @ 863e313:
             return
 ```
 
-- 消费者是外层的 `write_tool_log` 协程(run.py:24659-24712 @ 863e313):RotatingFileHandler
-  (5MB×3)+ `RedactingFormatter`(agent/redact.py)保证密钥不落盘;由 run.py:24848 启动。
+- 消费者是外层的 `write_tool_log` 协程(gateway/run.py:24659-24712 @ 863e313):RotatingFileHandler
+  (5MB×3)+ `RedactingFormatter`(agent/redact.py)保证密钥不落盘;由 gateway/run.py:24848 启动。
 - 注意双 gate 顺序:log 队列处理在 progress_queue guard **之前**,因为 log 模式下
   progress_queue 根本不存在(`needs_progress_queue` 为假);log+progress 并存时两边都走。
 - 3725 行的 `_run_still_current()`:陈旧 run(被 /stop、/new 顶替)不再入队。
-  `_run_still_current` 定义在外层(run.py:24310-24313 @ 863e313):
+  `_run_still_current` 定义在外层(gateway/run.py:24310-24313 @ 863e313):
   `run_generation` 与 `session_key` 比对 `_is_session_run_current`。
 
 ### 机制 3:长工具首触 onboarding 提示(3728-3755)
@@ -212,8 +212,8 @@ gateway/run.py:3734-3752 @ 863e313(节选 ≤25 行):
             return
 ```
 
-- 四重 gate:`tool.completed` + 每 run 一次锁(`long_tool_hint_fired[0]`,外层 run.py:24520)
-  + 时长 ≥30s(`_LONG_TOOL_THRESHOLD_S`,run.py:24521)+ `progress_mode == "all"`(已在流式
+- 四重 gate:`tool.completed` + 每 run 一次锁(`long_tool_hint_fired[0]`,外层 gateway/run.py:24520)
+  + 时长 ≥30s(`_LONG_TOOL_THRESHOLD_S`,gateway/run.py:24521)+ `progress_mode == "all"`(已在流式
   展示每个工具的用户才需要 /verbose)+ 平台 gate(`display.tool_progress_command` 必须开,
   否则 /verbose 根本不可用)+ 持久 seen 标记(写 config.yaml)。
 - 注释"the CLI has its own trigger"(3733):CLI 侧另有触发器,gateway 不越权。
@@ -256,7 +256,7 @@ gateway/run.py:3762-3769 @ 863e313:
 - 形状 A(子代理场景):`event_type="_thinking"`,`tool_name` 是文本本身 → 取 `tool_name`;
 - 形状 B(结构化事件):`tool_name="_thinking"`,`preview` 是文本 → 取 `preview`。
 - `_thinking_enabled` 来自外层 `_display_surface_mode("thinking_progress", default=False,
-  require_platform_override_for={Platform.MATTERMOST})`(run.py:24453-24458 @ 863e313):
+  require_platform_override_for={Platform.MATTERMOST})`(gateway/run.py:24453-24458 @ 863e313):
   Mattermost 必须逐平台显式 opt-in,防全局配置把 scratch 文本漏进公共 thread。
 - 机制 1 的 gate `tool_name != "_thinking"` 挡的是形状 B;形状 A 的 event_type 不是
   started/completed,自然穿过 live-status 分支不产生副作用。
@@ -266,9 +266,9 @@ gateway/run.py:3762-3769 @ 863e313:
 三连 gate,顺序即语义:
 
 1. `tool_progress_enabled` 关 → 只有 _thinking(上面已处理)能过,普通工具全压制
-   (run.py:3773-3774);该开关 = `progress_mode not in {"off","log"}` 且非 WEBHOOK
-   (run.py:24417 @ 863e313,webhook 不能编辑消息,逐条发会刷屏)。
-2. 只处理 `tool.started`(run.py:3777-3778,`event_type not in {"tool.started",}` return)
+   (gateway/run.py:3773-3774);该开关 = `progress_mode not in {"off","log"}` 且非 WEBHOOK
+   (gateway/run.py:24417 @ 863e313,webhook 不能编辑消息,逐条发会刷屏)。
+2. 只处理 `tool.started`(gateway/run.py:3777-3778,`event_type not in {"tool.started",}` return)
    ——`tool.completed`(hint 已处理)、`reasoning.available`、`tool.output_risk` 全部丢弃。
 3. clarify 工具永不渲染进度气泡(#52374):
 
@@ -366,11 +366,11 @@ gateway/run.py:3835-3861 @ 863e313(节选):
 设计细节(注释 3816-3828):
 - 不写语言标签(```` ```bash ````):Slack mrkdwn 会把标签渲染成字面第一行 "bash";裸围栏到处兼容;
 - 连续 terminal 调用去掉重复的 "💻 terminal" 头(`last_was_terminal_block[0]` 共享容器,
-  外层 run.py:24470),背靠背命令渲染成同一 header 下的相邻代码块;
+  外层 gateway/run.py:24470),背靠背命令渲染成同一 header 下的相邻代码块;
 - verbose 显示完整命令,"all"/"new" 截成单行 ≤`tool_preview_length`(默认 40)——注释点名
   与非 terminal 预览路径共用同一预算(#42634:长/多行命令曾渲染成巨型块)。
 
-**verbose 模式**(run.py:3864-3885):`{emoji} {tool}({arg键列表})\n{args JSON}`;
+**verbose 模式**(gateway/run.py:3864-3885):`{emoji} {tool}({arg键列表})\n{args JSON}`;
 `tool_preview_length` 为 0(默认)时**不截断**——"用户显式要了全量,平台长度上限兜底"
 (3874-3877 注释)。
 
@@ -441,7 +441,7 @@ gateway/run.py:3936-3945 @ 863e313:
 
 **总述**:事件循环上的异步消费者,把队列里的进度行聚合成**一条可编辑的气泡**(edit 而非刷屏),
 处理平台长度上限、编辑节流、编辑失败降级、溢出滚动、与内容气泡的顺序线性化、取消时的收尾排空。
-由 run.py:24843 `asyncio.create_task` 启动,run.py:25782 `progress_task.cancel()` 终止。
+由 gateway/run.py:24843 `asyncio.create_task` 启动,gateway/run.py:25782 `progress_task.cancel()` 终止。
 
 ### 机制 1:入口 gate —— 不能编辑消息的平台整体禁用(3956-3969)
 
@@ -465,7 +465,7 @@ gateway/run.py:3956-3969 @ 863e313:
 ```
 
 - 能力探测查**类**而非实例(`getattr(type(adapter), ...)`),且把"没定义"与"基类 no-op"等同
-  ——这是本文件反复出现的 duck-typing 探测模式(同 run.py:24506-24513 的 delete_message、
+  ——这是本文件反复出现的 duck-typing 探测模式(同 gateway/run.py:24506-24513 的 delete_message、
   5181 的 send_exec_approval:查类避免 MagicMock 自动属性的假阳性)。
 - 排空一次后直接 return:此后 progress_callback 仍会入队(它只看 `tool_progress_enabled`
   平台级开关,不看 adapter 能力),这些项无人消费,靠回合结束丢弃——有界但存在。
@@ -554,7 +554,7 @@ gateway/run.py:4096-4110 @ 863e313:
 非 retryable → `can_edit = False` 回落逐条发送路径。
 `_track_progress_result` / `_send_progress_text`(4050-4066):`cleanup_progress` 开启时
 记录 message_id 进 `ctx._cleanup_msg_ids`,供回合结束批量删除临时气泡
-(接线 run.py:24496-24517 @ 863e313,失败的 run 保留气泡当"面包屑")。
+(接线 gateway/run.py:24496-24517 @ 863e313,失败的 run 保留气泡当"面包屑")。
 
 ### 机制 3:主循环 —— 排空、静默、队列协议(4112-4169)
 
@@ -591,11 +591,11 @@ gateway/run.py:4141-4162 @ 863e313(节选):
 
 **`__reset__` 与 streaming draft 的关系**(本段核心协作点):生产者是 stream consumer——
 run_sync 里接线 `on_new_message=(lambda: ctx.progress_queue.put(("__reset__",)))`
-(run.py:4516-4520,见 run_sync 机制 3);GatewayStreamConsumer 每当在平台上**新开一条内容
+(gateway/run.py:4516-4520,见 run_sync 机制 3);GatewayStreamConsumer 每当在平台上**新开一条内容
 消息**(流式草稿气泡)就回调它(gateway/stream_consumer.py:526-533、2223 @ 863e313)。
 效果:内容气泡落地 → 进度气泡"翻页"(丢弃 id、清空行、重置 dedup),下一个工具行在内容
 **下方**开新气泡,聊天保持时间线性。反方向的镜像是内容侧的 `on_segment_break`
-(stream_consumer.py:493-495)。这是修复 PR #7885 之后"工具+内容乱序回归"的机制。
+(gateway/stream_consumer.py:493-495)。这是修复 PR #7885 之后"工具+内容乱序回归"的机制。
 
 溢出滚动优先(4164-4169):`_roll_progress_overflow_if_needed()` 为真 → 刷新节流钟、
 sleep 0.3、恢复 typing、continue。
@@ -665,7 +665,7 @@ gateway/run.py:4190-4212 @ 863e313(节选):
 
 ### 机制 5:CancelledError 收尾排空(4256-4300)
 
-回合结束外层 `progress_task.cancel()`(run.py:25782)触发。取消处理**不是丢弃**而是
+回合结束外层 `progress_task.cancel()`(gateway/run.py:25782)触发。取消处理**不是丢弃**而是
 把队列剩余(最后一轮迭代的迟到工具行)完整落盘:
 
 gateway/run.py:4258-4287 @ 863e313(节选):
@@ -749,7 +749,7 @@ gateway/run.py:4302-4321 @ 863e313:
 
 - 挂载点:`agent.tool_start_callback`(run_sync 4866-4868,仅 `_voice_ack_guild[0]` 非空时);
   agent 侧触发:agent/tool_executor.py:720-722 @ 863e313。
-- 布防在外层(run.py:24472-24491 @ 863e313):仅 Discord 平台,遍历 adapter 的
+- 布防在外层(gateway/run.py:24472-24491 @ 863e313):仅 Discord 平台,遍历 adapter 的
   `_voice_text_channels` 找到与 `source.chat_id` 绑定且 `voice_mixer_active(gid)` 的 guild;
   `_voice_ack_loop = asyncio.get_running_loop()`(24491)在事件循环线程上提前捕获。
 - `safe_schedule_threadsafe`(agent/async_utils.py:34 @ 863e313):sync 线程 → 指定 loop 的
@@ -800,7 +800,7 @@ gateway/run.py:4327-4349 @ 863e313(节选):
 - 关键兼容层:`prev_tools` 的形状从 `list[str]` 演化为 `list[dict]`(带 name/result),
   但用户 hooks 里写死了 `', '.join(tool_names)`——所以归一化出 `tool_names`(纯字符串)
   与 `tools`(原始结构)两个字段并存。**事件负载是对外 API,升级要加字段不改字段**。
-- 只在有 hooks 时挂载:run.py:4869 `agent.step_callback = ctx._step_callback_sync if
+- 只在有 hooks 时挂载:gateway/run.py:4869 `agent.step_callback = ctx._step_callback_sync if
   ctx._hooks_ref.loaded_hooks else None`(零 hooks 时零开销)。
 
 `_event_callback_sync`(4350-4358):通用生命周期事件直通 `hooks.emit(event_type, context)`,
@@ -853,15 +853,15 @@ gateway/run.py:4360-4382 @ 863e313(节选):
         )
 ```
 
-- `_prepare_gateway_status_message`(run.py:725 @ 863e313):按平台/事件类型过滤+改写
+- `_prepare_gateway_status_message`(gateway/run.py:725 @ 863e313):按平台/事件类型过滤+改写
   状态文案,返回 None = 压制(压制时日志里也要**先脱敏** `_redact_gateway_user_facing_secrets`
   再截 160 字符——连 debug 日志都不漏密钥);
-- `_send_or_update_status_coro`(run.py:770 @ 863e313):同 event_type 的状态消息做
+- `_send_or_update_status_coro`(gateway/run.py:770 @ 863e313):同 event_type 的状态消息做
   send-or-update(编辑复用同一条气泡);
 - 尾部(4385-4394):cleanup_progress 开启时通过 future 的 done_callback 把状态气泡
   message_id 记进 `_cleanup_msg_ids`——**跨线程记账用 add_done_callback,不阻塞工具线程**。
 - 状态接线(`_status_adapter/_status_chat_id/_status_thread_metadata`)在外层
-  run.py:24753-24789 @ 863e313 计算:Feishu 话题需要 `reply_to_message_id` 特例
+  gateway/run.py:24753-24789 @ 863e313 计算:Feishu 话题需要 `reply_to_message_id` 特例
   (Feishu 只在 reply API + reply_in_thread 时把消息留在话题内,24755-24763),
   relay Discord auto-thread 需要 prospective anchor(24776-24782)。
 
@@ -876,7 +876,7 @@ gateway/run.py:4360-4382 @ 863e313(节选):
 
 ### 机制:回合入口 —— session key 传播策略与模型/推理配置解析
 
-`run_sync` 是**在 executor 线程池上跑的同步方法**(run.py:25189-25191 经
+`run_sync` 是**在 executor 线程池上跑的同步方法**(gateway/run.py:25189-25191 经
 `_run_in_executor_with_context` 提交,contextvars 随之传播),是一回合的真正执行体。
 
 开场注释解释两个历史决策:
@@ -911,7 +911,7 @@ gateway/run.py:4407-4420 @ 863e313(节选):
 - 平台键映射:`Platform.LOCAL → "cli"`(4424);
 - ephemeral prompt 三层拼接(4429-4440):事件层 context_prompt + 事件 channel_prompt +
   配置层 `_get_system_prompt_for_channel`(runner 方法);
-- 运行时解析:`_resolve_session_agent_runtime`(run.py:6933 @ 863e313)失败即早退,
+- 运行时解析:`_resolve_session_agent_runtime`(gateway/run.py:6933 @ 863e313)失败即早退,
   返回 `⚠️ Provider authentication failed` 的最小 result dict(4454-4460)——
   **失败也走统一 result 形状**;
 - `_resolve_session_reasoning_config` / `_resolve_session_service_tier` 结果暂存到
@@ -971,10 +971,10 @@ gateway/run.py:4511-4532 @ 863e313(节选):
 
 - **`on_new_message` = 进度气泡翻页信号源**(`__reset__`,见 send_progress_messages 机制 3);
 - consumer 存进 `ctx.stream_consumer_holder[0]`:外层 `_start_stream_consumer` 任务轮询该
-  holder 最多 10s 后 `await consumer.run()`(run.py:24854-24858 @ 863e313)——consumer 在
+  holder 最多 10s 后 `await consumer.run()`(gateway/run.py:24854-24858 @ 863e313)——consumer 在
   executor 线程里建、run 任务在事件循环上跑,holder 是两个线程域的交接点;
 - delta 回调 tee 到流式 TTS consumer(#60671);TTS consumer 本体在**外层事件循环线程**创建
-  (run.py:24792-24828 @ 863e313,注释:若在 run_sync 里建,外层中断/收尾路径引用
+  (gateway/run.py:24792-24828 @ 863e313,注释:若在 run_sync 里建,外层中断/收尾路径引用
   `streaming_tts_consumer_holder[0]` 会 NameError——所以 holder 由外层填,run_sync 只读 4479);
 - 文本流式关但 TTS 开:装 TTS-only delta 回调(4539-4542);
 - agent 侧 delta 生产:agent/chat_completion_helpers.py:3281-3283 @ 863e313
@@ -1019,7 +1019,7 @@ adapter.send。`on_segment_break`/`on_commentary`:gateway/stream_consumer.py:493
 且 provider 的 prompt cache 命中要求系统 prompt/工具 schema 字节稳定 → 同一 session 的
 连续消息必须复用同一 agent 实例。但缓存会陈旧,需要精确的失效规则。
 
-**缓存键与签名**(4583-4592):`_agent_config_signature`(run.py:22608 @ 863e313)把
+**缓存键与签名**(4583-4592):`_agent_config_signature`(gateway/run.py:22608 @ 863e313)把
 model/runtime/toolsets/ephemeral prompt/cache-busting 配置/user 身份/skip_context_files
 折叠成签名 `_sig`;缓存表 `self._runner._agent_cache`,锁 `_agent_cache_lock`,
 条目形状 `(agent, _sig, message_count, session_id)`。
@@ -1088,7 +1088,7 @@ DB 查询放**锁外**(不让磁盘 IO 占缓存锁),但锁内**重验证** peek
                         reused_cached_agent = True
 ```
 
-`_init_cached_agent_for_turn`(run.py:23446 @ 863e313)重置 per-turn 状态;
+`_init_cached_agent_for_turn`(gateway/run.py:23446 @ 863e313)重置 per-turn 状态;
 `max_iterations` 从当前配置刷新(缓存时的配置可能已旧)。
 
 **锁外收尾两件事**(#52197 事故模式:锁内做慢事 → `_sweep_idle_cached_agents` 等锁 →
@@ -1114,7 +1114,7 @@ Discord 心跳阻塞):
                     pass
 ```
 
-"软"= `_release_evicted_agent_soft`(run.py:23539 @ 863e313)保留会话的终端沙箱/浏览器/
+"软"= `_release_evicted_agent_soft`(gateway/run.py:23539 @ 863e313)保留会话的终端沙箱/浏览器/
 后台进程,重建的 agent 继承(4738-4742 注释:同一会话马上重建,资源不该被硬拆)。
 
 **未命中重建**(4792-4843):`ctx.AIAgent(...)` 全参构造(model/toolsets/ephemeral/prefill/
@@ -1170,17 +1170,17 @@ gateway/run.py:4855-4872 @ 863e313(节选):
   `tool_progress_enabled`,导致 `thinking_progress:true + tool_progress:off` 的用户拿到
   None 回调——思考气泡的队列建了却没人生产。现在 gate = `needs_progress_queue`
   (tool OR thinking)OR log 模式 OR live status。外层的消费任务同理 gate 在
-  `needs_progress_queue`(run.py:24835-24843 注释:同一 bug 的消费侧半边——队列有人生产
+  `needs_progress_queue`(gateway/run.py:24835-24843 注释:同一 bug 的消费侧半边——队列有人生产
   没人排空,消息"静默永不出现")。
 - **credits notice 回调**(4873-4903):额度通知(用量档位/耗尽/恢复)。messaging 无持久
-  状态栏 → 每条通知渲染成单行 `render_notice_line(notice)`(run.py:755 @ 863e313)走
-  `_deliver_platform_notice`(run.py:13886)独立推送;`notice_clear_callback = None`
+  状态栏 → 每条通知渲染成单行 `render_notice_line(notice)`(gateway/run.py:755 @ 863e313)走
+  `_deliver_platform_notice`(gateway/run.py:13886)独立推送;`notice_clear_callback = None`
   (4903)——"已发出的平台消息无法干净撤回,档位也只 fire 一次"(4883-4884 注释;
   fired-once 锁存在缓存 agent 上跨回合持久,agent 侧机制见 agent/credits_tracker.py:202)。
 - `agent._gateway_turn_context_notes`(4908-4915):本回合必达注记(auto-reset 提示、
   首次接触介绍、语音频道变更)**走当前用户消息的 api_content sidecar,不进系统 prompt**
   (系统 prompt 变化会击穿 prompt cache);无条件赋值,缓存 agent 绝不重放旧注记
-  (`_consume_pending_turn_sidecar_notes`,run.py:23230 @ 863e313,consume-and-clear)。
+  (`_consume_pending_turn_sidecar_notes`,gateway/run.py:23230 @ 863e313,consume-and-clear)。
 
 ### 机制:background review 消息的"主响应之后"缓冲(4917-4967)
 
@@ -1209,7 +1209,7 @@ gateway/run.py:4944-4954 @ 863e313:
   cb, generation=run_generation)`(gateway/platforms/base.py:4819 @ 863e313)——
   base.py 投递主响应的 finally 块触发;旧 adapter 无该方法时直接写
   `_post_delivery_callbacks` dict 兜底(4964-4967);
-- 投递用 `_non_conversational_metadata(...)`(run.py:452 @ 863e313)标记非会话消息
+- 投递用 `_non_conversational_metadata(...)`(gateway/run.py:452 @ 863e313)标记非会话消息
   (4928),避免平台把它当对话回复处理;
 - agent 侧调用:agent/background_review.py:991 @ 863e313。
 
@@ -1271,7 +1271,7 @@ gateway/run.py:5013-5030 @ 863e313(节选):
             return response
 ```
 
-`wait_for_response`(clarify_gateway.py:107,1 秒切片轮询让 agent 心跳存活)、
+`wait_for_response`(tools/clarify_gateway.py:107,1 秒切片轮询让 agent 心跳存活)、
 `get_clarify_timeout`(:408,默认 3600s)。run_sync 的 finally(5441-5445)统一
 `clear_session` 兜底,阻塞线程绝不悬挂过 run 生命周期。
 挂载:`agent.clarify_callback = _clarify_callback_sync`(5070);agent 侧消费:
@@ -1297,10 +1297,10 @@ agent/tool_executor.py:1819、agent/agent_runtime_helpers.py:2967 @ 863e313。
   `agent._gateway_turn_process_task_id / _gateway_turn_process_baseline`(5081-5082)
   发布回合进程所有权:/stop、/new、断连、关机中断只清理**本回合基线之后**的进程,
   更老会话的进程不受波及(5078-5080 注释;外层 finally 在 worker 结束瞬间清空这两个标记,
-  run.py:25167-25170,#76115:已结束回合上迟到的 /stop 不得误杀回合故意留下的后台工作)。
+  gateway/run.py:25167-25170,#76115:已结束回合上迟到的 /stop 不得误杀回合故意留下的后台工作)。
 - `ctx.tools_holder[0] = agent.tools`(5084):完整工具定义供转录日志。
 
-**历史转换**(5086-5104):`_build_gateway_agent_history`(run.py:1316 @ 863e313)处理两种
+**历史转换**(5086-5104):`_build_gateway_agent_history`(gateway/run.py:1316 @ 863e313)处理两种
 形状(注释 5087-5093):正常路径的 `{role, content, timestamp}` 简单行(剥 timestamp);
 中断路径的完整 agent 消息(带 tool_calls/tool_call_id/reasoning,**必须原样透传**,
 丢 tool_calls 会让 API 见到断裂的 assistant→tool 序列直接 500)。同时结构化处理 Telegram
@@ -1337,11 +1337,11 @@ gateway/run.py:5113-5132 @ 863e313(节选):
 事故链(#50502):SQLite FTS 触发器腐坏 → 消息持久化**静默失败** → 从盘重载的转录比缓存
 agent 内存里的 `_session_messages` 短 → 若用盘上短版本覆盖,**同会话瞬间失忆**。
 守卫:仅当复用缓存 agent 且绑定同一 session_id 时,`_select_cached_agent_history`
-(run.py:1421 @ 863e313)择长保留内存版;但内存版绕过了清洗管线,需补
+(gateway/run.py:1421 @ 863e313)择长保留内存版;但内存版绕过了清洗管线,需补
 `strip_stale_dangerous_confirmations`(agent/replay_cleanup.py:255 @ 863e313,#59607:
 过期的危险命令确认不得从旁路溜进历史,幂等)。
 
-媒体路径收集(5134-5137):`_collect_history_media_paths`(run.py:1654)先于本回合执行
+媒体路径收集(5134-5137):`_collect_history_media_paths`(gateway/run.py:1654)先于本回合执行
 记录历史中已有的 MEDIA 路径,供收尾的 MEDIA 去重(压缩安全:列表缩短也知道哪些是旧的)。
 
 **重实现要点**:
@@ -1394,7 +1394,7 @@ gateway/run.py:5170-5175 @ 863e313:
             cmd = _redact_approval_command(cmd)
 ```
 
-(`_redact_approval_command`:run.py:596 @ 863e313。事故:安全扫描器 Tirith 的 findings
+(`_redact_approval_command`:gateway/run.py:596 @ 863e313。事故:安全扫描器 Tirith 的 findings
 已脱敏,但审批提示里的**原始命令串**仍把密钥泼上聊天平台。)
 
 关键片段三:按钮优先 + 文本兜底(5181-5239):
@@ -1404,7 +1404,7 @@ gateway/run.py:5170-5175 @ 863e313:
   RuntimeError)落文本路径;
 - 文本兜底用 adapter 的 `typed_command_prefix`(5216,Slack thread 里 "/" 被平台拦截、
   Matrix 客户端保留 "/",这些平台教用户打 `!approve`),
-  `_format_exec_approval_fallback`(run.py:612 @ 863e313)渲染,透传
+  `_format_exec_approval_fallback`(gateway/run.py:612 @ 863e313)渲染,透传
   `allow_permanent/allow_session/smart_denied` 三个策略位。
 
 会话键绑定(5384-5386):
@@ -1438,7 +1438,7 @@ worker 线程继承,审批提示路由到正确 thread(#24100 修法的另一半
 
 **新鲜度双信号**(#16802,5275-5311):
 - 信号 A:最后一条持久化转录行的年龄(`_last_transcript_timestamp(ctx.history)`,
-  run.py:1469;窗口 `_auto_continue_freshness_window()`,run.py:949)。读 `ctx.history`
+  gateway/run.py:1469;窗口 `_auto_continue_freshness_window()`,gateway/run.py:949)。读 `ctx.history`
   而非 `agent_history`,因为后者已把 timestamp 剥掉(5269-5274 注释);
 - 信号 B:重启看门狗盖的 `last_resume_marked_at` 时间戳:
 
@@ -1464,7 +1464,7 @@ gateway/run.py:5301-5311 @ 863e313:
 "the message came through blank" 的困惑噪音。
 
 **分支 1:resume_pending**(5318-5335):`build_resume_recovery_note(reason, message,
-interactive=...)`(run.py:1057 @ 863e313);adapter 感知(#57056):交互平台报告恢复并问
+interactive=...)`(gateway/run.py:1057 @ 863e313);adapter 感知(#57056):交互平台报告恢复并问
 下一步;非交互事件平台(webhook/API server)**继续中断的工作**——没人会回答,
 一句确认等于静默弃任务。
 
@@ -1534,11 +1534,11 @@ gateway/run.py:5435-5447 @ 863e313:
 ```
 
 try 块内(5387-5435):
-- 原生图片附件(5392-5417):`_consume_pending_native_image_paths`(run.py:16224,
+- 原生图片附件(5392-5417):`_consume_pending_native_image_paths`(gateway/run.py:16224,
   consume-and-clear 防陈旧重附)→ `build_native_content_parts`(agent/image_routing.py)
   把用户回合包成 OpenAI 多模态 content list;全部图片读失败回落纯文本;
 - 观察上下文包装(5419-5422):`_wrap_current_message_with_observed_context`
-  (run.py:1443)把 Telegram 观察组消息附在**API 消息**上;`persist_user_message`
+  (gateway/run.py:1443)把 Telegram 观察组消息附在**API 消息**上;`persist_user_message`
   仍存真实原话(5429-5430);
 - `_conversation_kwargs`:`conversation_history=agent_history`、`task_id=ctx.session_id`、
   条件性 `persist_user_message/persist_user_timestamp/moa_config`(5423-5434)。
@@ -1546,7 +1546,7 @@ try 块内(5387-5435):
 结果发布:`ctx.result_holder[0] = result`(5447,外层通过 holder 读);
 `_stream_consumer.finish()`(5450-5451,gateway/stream_consumer.py:602 哨兵入队);
 流式 TTS 的 finish **不在这里**(5453-5456 注释:由外层事件循环线程在 executor 返回后调,
-这样 run_sync 的早退路径也能被收尾;外层兜底 abort 在 run.py:25816-25824)。
+这样 run_sync 的早退路径也能被收尾;外层兜底 abort 在 gateway/run.py:25816-25824)。
 
 ---
 
@@ -1609,8 +1609,8 @@ reason="agent-run-compression")`(5558-5561)。
 
 ### 机制:空响应归一化返回
 
-5574-5609:`_normalize_empty_agent_response`(run.py:3445)+
-`_sanitize_gateway_final_response`(run.py:699)+ 错误兜底 `⚠️ {error}`,返回与成功路径
+5574-5609:`_normalize_empty_agent_response`(gateway/run.py:3445)+
+`_sanitize_gateway_final_response`(gateway/run.py:699)+ 错误兜底 `⚠️ {error}`,返回与成功路径
 同形状的 dict。注释点名 #64686(5586-5592):`failure_reason` 必须在空响应路径也透传——
 "downstream consumers (TUI billing surface, transient-failure persistence) lose the
 structured reason exactly when the run produced no text"。
@@ -1648,7 +1648,7 @@ gateway/run.py:5631-5647 @ 863e313:
   从 `len(agent_history)` 切,几回合前的陈旧 MEDIA 路径永不泄漏到纯文本回复上;
 - #160(旧防线保留):基于路径集合 `_history_media_paths` 的去重,是压缩把消息列表
   切短于原历史长度时 fallback 分支的**唯一**防线(压缩安全);
-- `_collect_auto_append_media_tags`:run.py:1573 @ 863e313。
+- `_collect_auto_append_media_tags`:gateway/run.py:1573 @ 863e313。
 
 ### 机制:自动会话标题(5649-5716)
 
@@ -1715,23 +1715,23 @@ gateway/run.py:5750-5754 @ 863e313:
 
 ## 文档-代码冲突候选汇总(6 条)
 
-1. **[确认] run.py:3797 @ 863e313 注释 "see line ~9607" 行号失效**:本基线该行位于
+1. **[确认] gateway/run.py:3797 @ 863e313 注释 "see line ~9607" 行号失效**:本基线该行位于
    `_cleanup_agent_resources_off_loop`(9596-9619)内部;agent_holder 的共享接线实际在
-   run.py:24722-24723。闭包提取导致行号漂移,注释未随迁。
-2. **[无法验证的出处声明] run.py:3674 "The bodies are byte-identical to the original
+   gateway/run.py:24722-24723。闭包提取导致行号漂移,注释未随迁。
+2. **[无法验证的出处声明] gateway/run.py:3674 "The bodies are byte-identical to the original
    closures"**:本基线树内已无原闭包,该声明只能对照 git 历史验证;作为设计意图记录,
    不构成行为冲突,但读者不应把它当作"现在仍与某处代码一致"的断言。
 3. **[前后不一致] turn_context.py:13-14 "All fields are written once by
    `_run_agent_inner`"** 与 `message` 字段实际被 `TurnRunner.run_sync` 多次重绑定
-   (run.py:5251、5333、5338、5355、5376)矛盾;同文件 68-79 行的"第二波"说明已自我修正
+   (gateway/run.py:5251、5333、5338、5355、5376)矛盾;同文件 68-79 行的"第二波"说明已自我修正
    (message 是唯一 ex-nonlocal 例外),但首段总述未更新,单看首段会得出错误结论。
-4. **[措辞残留] run.py:3997-3998 "instead of clamping to 500+"**:代码是
+4. **[措辞残留] gateway/run.py:3997-3998 "instead of clamping to 500+"**:代码是
    `max(1, raw - (64 if raw > 128 else 0))`,不存在 500 下限;疑指已删除的旧实现。
-5. **[待他轮验证] run.py:4881-4882 "The fired-once latch lives on the cached agent and
+5. **[待他轮验证] gateway/run.py:4881-4882 "The fired-once latch lives on the cached agent and
    persists across turns"**:通知档位只触发一次的锁存声明属于 agent 侧
    (agent/credits_tracker.py),本轮未验证其真伪,移交 credits 机制精读轮。
-6. **[待他轮验证] run.py:3692-3694 "Slack keeps tool_progress off by default"**:与
-   run.py:24418-24421 注释互证,但实际逐平台默认值在 gateway/display_config.py 的
+6. **[待他轮验证] gateway/run.py:3692-3694 "Slack keeps tool_progress off by default"**:与
+   gateway/run.py:24418-24421 注释互证,但实际逐平台默认值在 gateway/display_config.py 的
    `resolve_display_setting` 数据里,本轮未核对 Slack 默认表。
 
 另记两条**行为微妙点**(非冲突,重实现须知):
@@ -1748,8 +1748,8 @@ gateway/run.py:5750-5754 @ 863e313:
 **它被谁调**(全部经 ctx 字段间接或经 agent 属性):
 - 构造/接线:gateway/run.py:24523-24570、24717-24719、24722-24735、24743-24750、
   24787-24790、24833 @ 863e313(`_run_agent_inner`);
-- `send_progress_messages`:run.py:24843 create_task,run.py:25782 cancel;
-- `run_sync`:run.py:25151-25191(watchdog 包装后进 executor);
+- `send_progress_messages`:gateway/run.py:24843 create_task,gateway/run.py:25782 cancel;
+- `run_sync`:gateway/run.py:25151-25191(watchdog 包装后进 executor);
 - `progress_callback` ← agent/tool_executor.py:708、1509、1547;
   agent/conversation_loop.py:5785、5790;agent/codex_runtime.py:439-441;
 - `voice_ack_callback` ← agent/tool_executor.py:720;
@@ -1758,7 +1758,7 @@ gateway/run.py:5750-5754 @ 863e313:
 - `_status_callback_sync` ← agent/conversation_compression.py:110、1841。
 
 **它调谁**(方向:TurnRunner →):
-- runner 方法:`_adapter_for_source`、`_resolve_session_agent_runtime`(run.py:6933)、
+- runner 方法:`_adapter_for_source`、`_resolve_session_agent_runtime`(gateway/run.py:6933)、
   `_resolve_turn_agent_config`(:7101)、`_agent_config_signature`(:22608)、
   `_init_cached_agent_for_turn`(:23446)、`_release_evicted_agent_soft`(:23539)、
   `_build_stream_consumer_config`(:23758)、`_consume_pending_turn_sidecar_notes`(:23230)、

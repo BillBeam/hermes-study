@@ -23,7 +23,7 @@ compression, post-turn hooks, background memory/skill review nudges).
 ```
 
 设计要点:拆出后为保住既有测试/生产代码对 `run_agent` 符号的 monkeypatch,所有被 patch 的符号
-(`handle_function_call`、`_set_interrupt`、`OpenAI`…)经 `_ra()` 间接解析(`conversation_loop.py:324-331`)。
+(`handle_function_call`、`_set_interrupt`、`OpenAI`…)经 `_ra()` 间接解析(`agent/conversation_loop.py:324-331`)。
 **取舍**:模块拆了,耦合仍在(参数是整个 agent 对象);换来的是可测试性与文件尺寸,不是真正的解耦。
 
 ## 1. 回合的五段结构
@@ -70,10 +70,10 @@ run_conversation(agent, user_message, ...)
   构造默认 **90**(`agent/agent_init.py:470`,`run_agent.py:446`),CLI 配置默认 500 在 `cli.py:475`。
 - **grace-call 是死代码**(R2 定案,详 r2-90 条目 1):`_budget_grace_call` 仅在
   `agent/agent_init.py:892` 初始化为 False;全仓唯一的其他写点是消费点
-  `conversation_loop.py:1444-1445`(置回 False)。While 条件里的 `or agent._budget_grace_call`
+  `agent/conversation_loop.py:1444-1445`(置回 False)。While 条件里的 `or agent._budget_grace_call`
   永不为真。真实兜底在 finalizer(见 r2-13):`budget_fallback_eligible` → `_handle_max_iterations`
   注入 user 消息 + 发一次**剥离 tools** 的 summary 调用(`agent/turn_finalizer.py:141`)。
-- **refund 点**:execute_code-only 的迭代退款(`conversation_loop.py:6412-6414` 注释起);
+- **refund 点**:execute_code-only 的迭代退款(`agent/conversation_loop.py:6412-6414` 注释起);
   redirect 重建也退款(r2-02)。设计动机:程序化工具调用与用户纠偏不该吃预算。
 
 消费点证据(`agent/conversation_loop.py:1444-1449 @ 863e313`):
@@ -158,7 +158,7 @@ run_conversation(agent, user_message, ...)
 ## 8. 阶段感知错误分诊(7215-7308)
 
 外层大 try 罩住"API 请求 + 本地后处理"两个阶段;异常时遍历 traceback 的模块名集合:
-- 命中 `_LOCAL_PROCESSING_MODULES`(`conversation_loop.py:111-116`)且未命中
+- 命中 `_LOCAL_PROCESSING_MODULES`(`agent/conversation_loop.py:111-116`)且未命中
   `_API_CALL_MODULES`(117-121)→ **本地确定性 bug**:不重试(重试只会烧预算,#66267),
   立即以道歉文本终局(`local_processing_error`)。
 - 否则按 API 错误处理:只在接近 max_iterations 时才终局(`error_near_max_iterations`),

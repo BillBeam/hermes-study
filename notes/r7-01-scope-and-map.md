@@ -45,7 +45,7 @@ gateway/__init__.py               35   包导出
   与"核心如何复用"正交,可后轮独立读(本轮涉及处以接口断言 + 行号引用交代)。
 - 运维面(R7C)是该核心的**外骨骼**:shutdown/restart 细节、delivery 重投、slash 命令面、
   鉴权配对,依赖本轮概念但机制独立。
-- mixin 归属说明:GatewayRunner 组合三个 mixin(run.py:5759
+- mixin 归属说明:GatewayRunner 组合三个 mixin(gateway/run.py:5759
   `class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, GatewaySlashCommandsMixin)`),
   mixin 文件 authz_mixin.py / kanban_watchers.py / slash_commands.py 均划入 R7C——它们是
   挂在核心类上的**表面**(鉴权面/看板面/命令面),不是复用引擎本体;本轮只交代缝的存在与调用点。

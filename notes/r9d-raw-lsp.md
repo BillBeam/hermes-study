@@ -477,8 +477,8 @@ stderr **必须**被抽干,否则管道缓冲区满了服务器就挂死:
             return
 ```
 
-只有 typescript 打开了这个开关(`servers.py:290` 的 `seed_diagnostics_on_first_push=True`
-与 `servers.py:984` 的 `seed_first_push=True`),因为 tsserver 会在 didOpen 之后立刻推一波
+只有 typescript 打开了这个开关(`agent/lsp/servers.py:290` 的 `seed_diagnostics_on_first_push=True`
+与 `agent/lsp/servers.py:984` 的 `seed_first_push=True`),因为 tsserver 会在 didOpen 之后立刻推一波
 「项目级」诊断,那一波不该满足任何等待者。
 
 **pull 侧用「发出请求时的版本」而不是「收到响应时的版本」打 tag**,这是对的:
@@ -842,7 +842,7 @@ lsp[pyright] spawn/initialize failed for /tmp/p10-8bjct1lk: TimeoutError:
             self._last_used.pop(key, None)
 ```
 
-`_clients[key] = client` 只在 `client.start()` 成功之后才发生(`manager.py:608-610`),
+`_clients[key] = client` 只在 `client.start()` 成功之后才发生(`agent/lsp/manager.py:608-610`),
 被取消的那次永远走不到。再叠上 §3.2 的 `start_new_session=True`——它连父进程组都不在了。
 判定 **■**(高:一个冷启动慢的 rust-analyzer 会既关掉诊断、又留下一个几百 MB 的孤儿进程)。
 
@@ -1177,7 +1177,7 @@ MAX_TOTAL_CHARS = 4000
         body += f"\n... and {extra} more"
 ```
 
-**取舍**:只留 severity=1(ERROR),warning/info/hint 全丢。理由写在 `reporter.py:14-15`
+**取舍**:只留 severity=1(ERROR),warning/info/hint 全丢。理由写在 `agent/lsp/reporter.py:14-15`
 的注释里:会淹掉 agent。代价是 pyright 的 `reportUnusedImport` 之类(默认 warning)模型看不到。
 截断时留一句 `... and N more`,让模型知道自己看到的不全——这比静默截断重要得多。
 
@@ -1307,7 +1307,7 @@ def find_server_for_file(file_path: str) -> Optional[ServerDef]:
   Dockerfile.dev   server=None                     languageId=plaintext
 ```
 
-**◇:两处 `languageId` 缺口。** bash 服务器声明了 `.ksh`(`servers.py:1031`),
+**◇:两处 `languageId` 缺口。** bash 服务器声明了 `.ksh`(`agent/lsp/servers.py:1031`),
 但 `LANGUAGE_BY_EXT` 里没有 `.ksh`;`Dockerfile` 基名也不在表里(表里只有 `.dockerfile`)。
 两者都退化成 `"plaintext"`。而模块自己的注释说这会出事:
 
@@ -1413,7 +1413,7 @@ def _detect_python(root: str) -> Optional[str]:
 这是很好的设计意识:**「看起来在工作但永远不报错」比「明确坏掉」更糟**,所以专门造了一条告警,
 还在 `hermes lsp status` 里加了一整个 "Backend warnings" 段落(`cli.py:277-299`)去暴露它。
 
-**intelephense 关遥测**(`servers.py:412`),**terraform-ls 开 `validateOnSave`**(`servers.py:456-461`)。
+**intelephense 关遥测**(`agent/lsp/servers.py:412`),**terraform-ls 开 `validateOnSave`**(`agent/lsp/servers.py:456-461`)。
 
 **PowerShellEditorServices** 是唯一不是「一个二进制」的:它是一个 pwsh 模块包,要靠 bootstrap 脚本拉起。
 
@@ -1436,7 +1436,7 @@ def _detect_python(root: str) -> Optional[str]:
 可信度取决于「谁能写配置/环境变量」——在本项目的威胁模型下配置是可信的,所以定级低,
 但重实现时应该用参数数组而不是拼脚本字符串。
 
-`_find_pses_bundle` 的四级查找顺序(`servers.py:703-730`)是一个很好的「手工安装件」定位样板:
+`_find_pses_bundle` 的四级查找顺序(`agent/lsp/servers.py:703-730`)是一个很好的「手工安装件」定位样板:
 配置 → initializationOptions → 环境变量 → 约定的 staging 目录,并且**同时接受包根与内层模块目录**。
 
 ---
@@ -1533,7 +1533,7 @@ def hermes_lsp_bin_dir() -> Path:
 ```
 
 `manual` 与 `off` 走同一条路(只探测)。结果按包名缓存,**成功与失败都缓存**
-(`_install_results[pkg] = result`,`install.py:199-201`),所以一次失败在本进程内不会重试——
+(`_install_results[pkg] = result`,`agent/lsp/install.py:199-201`),所以一次失败在本进程内不会重试——
 和 broken-set 同一个哲学。
 
 ### 8.4 ◇ `_install_pip` 是死代码
@@ -1548,7 +1548,7 @@ def hermes_lsp_bin_dir() -> Path:
 ```
 
 **但没有任何配方用 `"strategy": "pip"`。** 搜索面:`INSTALL_RECIPES` 是配方的唯一定义处
-(`install.py:52-112`),`grep -n '"strategy"' agent/lsp/install.py` 的 15 条命中里
+(`agent/lsp/install.py:52-112`),`grep -n '"strategy"' agent/lsp/install.py` 的 15 条命中里
 只有 `npm`(9)、`go`(1)、`manual`(4)与两处读取。因此 `_install_pip`(46 行)在出厂配置下不可达。
 
 ---
@@ -1821,7 +1821,7 @@ workspace 解析、eventlog 去重、PSES 定位、后端(shellcheck)闸门、sh
 | # | 锚点 | 文档说 | 代码是 | 强度 |
 |---|---|---|---|---|
 | ▲1 | `hermes_cli/config_defaults.py:2813`:`# current file's diagnostics; ``"full"`` additionally requests` | `"full"` 会额外请求 workspace 级诊断 | 全仓 `grep -rn "workspace/diagnostic"` 仅 1 处命中,是 `client.py:223` 的 **refresh 处理器**;客户端从不发 workspace 诊断请求。`full` 只把默认预算 5s 换成 10s。`client.py:867` 的 docstring 同一说法 | 实跑 grep + 静态 |
-| ▲2 | `website/docs/user-guide/features/lsp.md:163`:`#   auto    — install via npm/pip/go install into <HERMES_HOME>/lsp/bin` | auto 会经 npm / **pip** / go 安装 | `INSTALL_RECIPES`(配方唯一定义处,`install.py:52-112`)里 `strategy` 只有 npm/go/manual,**没有一条 pip**;`_install_pip` 出厂不可达。`config_defaults.py:2820` 同一说法 | 静态 + grep |
+| ▲2 | `website/docs/user-guide/features/lsp.md:163`:`#   auto    — install via npm/pip/go install into <HERMES_HOME>/lsp/bin` | auto 会经 npm / **pip** / go 安装 | `INSTALL_RECIPES`(配方唯一定义处,`agent/lsp/install.py:52-112`)里 `strategy` 只有 npm/go/manual,**没有一条 pip**;`_install_pip` 出厂不可达。`hermes_cli/config_defaults.py:2820` 同一说法 | 静态 + grep |
 | ▲3 | `website/docs/user-guide/features/lsp.md:294`:`the rest of the session. Run `hermes lsp restart` to clear the set;` | 用 `hermes lsp restart` 清 broken-set | 跨进程不可能;同进程无调用通路(§9.2 搜索面) | 静态对读 |
 | ▲4 | `website/docs/user-guide/features/lsp.md:300`:`yet initialized, run `git init` to enable LSP diagnostics. Otherwise the` | `git init` 后 LSP 就能用 | 负缓存把 `(None, False)` 钉到进程结束(■7) | 实跑复现(P2) |
 
@@ -1856,13 +1856,13 @@ workspace 解析、eventlog 去重、PSES 定位、后端(shellcheck)闸门、sh
 ## 13. 未取证 / 推定
 
 1. **§8.1 的「首次自动安装必然导致 broken」是推定,未实跑。** 依据是三段代码的组合
-   (`install.py:268` 的同步 `subprocess.run(timeout=300)` + `servers.py:238` 在 `build_spawn` 里同步调用它
-   + `manager.py:313` 的 8s 外层预算),但我没有网络也没有 npm/go 去实跑。
+   (`agent/lsp/install.py:268` 的同步 `subprocess.run(timeout=300)` + `agent/lsp/servers.py:238` 在 `build_spawn` 里同步调用它
+   + `agent/lsp/manager.py:313` 的 8s 外层预算),但我没有网络也没有 npm/go 去实跑。
    锚点:`agent/lsp/servers.py:237-240` 的 `bin_path = try_install("pyright", ctx.install_strategy)`。
    **下一轮可用一个假的 npm(sleep 20 后 exit 0)复现。**
 2. **■3 泄漏的进程最终会不会被回收,未查到底。** 实测 2s 后仍存活;理论上 `_proc` 被 GC 时
    asyncio 的 transport 会关掉 stdin,行为良好的服务器会因 EOF 退出。我没有等到 GC / 没有跑长时观察。
-3. **`website/docs/.../lsp.md:284` 说日志里找 `[agent.lsp.client]` 条目** —— 客户端 logger 名确实是
+3. **`website/docs/user-guide/features/lsp.md:284` 说日志里找 `[agent.lsp.client]` 条目** —— 客户端 logger 名确实是
    `"agent.lsp.client"`(`client.py:75`),但**日志格式化器是否把 logger 名打成方括号形式,我没有查**
    (那在 logging 配置里,不在本片)。所以这条既没证实也没证伪。
 4. **`lsp.md:207-209` 说「Nothing is ever installed to /usr/local/, ~/.local/, or any other shared

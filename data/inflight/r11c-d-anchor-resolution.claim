@@ -1,5 +1,5 @@
 agent: 片 D · 锚点解析面的真实缺口
 dispatched: R11C 派发批次四
-signal: OPEN
+signal: RELEASED 片 D 完成信号(任务完成通知,含底稿 + 23 个探针 + 114 份 notes 锚点补全);主线已对 114 份跑引用关卡(仅剩 R11B 已说明的 3 条第三方 MISSING-FILE)、独立复核「README.md:55 解析成功却指错文件」那例、并复核 chapters 与片 C 的 31 份零回改
 path: notes/r11c-raw-anchor-resolution.md
 path: data/r11c/d-anchor-resolution-*

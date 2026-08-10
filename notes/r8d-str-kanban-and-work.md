@@ -338,7 +338,7 @@ def _assert_not_delegated_child_mutation() -> None:
 ```
 
 这是"把不变量下沉到最后一道门"的教科书写法:上层的两处快速失败只为了报错好看,
-真正的强制点在 `write_txn` 里(`kanban_db.py:2812`)。
+真正的强制点在 `write_txn` 里(`hermes_cli/kanban_db.py:2812`)。
 
 ---
 
@@ -878,13 +878,13 @@ cd /home/user/hermes-agent && grep -rn "sqlite_util" --include='*.py' --exclude-
 ```
 
 搜索面:全仓 `.py`,排除 `tests/` 与 `__pycache__`(该目录只含编译产物)。三条命中:
-`projects_db.py:36`(两个原语都用)、`observability/shared_metrics.py:15`(只用 `write_txn`)、
-`kanban_db.py:92`(**只用 `add_column_if_missing`**)。
+`hermes_cli/projects_db.py:36`(两个原语都用)、`hermes_cli/observability/shared_metrics.py:15`(只用 `write_txn`)、
+`hermes_cli/kanban_db.py:92`(**只用 `add_column_if_missing`**)。
 
 **▲ 文档-代码冲突(模块 docstring 侧):**
-`sqlite_util.py:3-5` 声称 "The projects and kanban stores … the same two primitives …
+`hermes_cli/sqlite_util.py:3-5` 声称 "The projects and kanban stores … the same two primitives …
 One definition here keeps the two stores from drifting"。实际上 **kanban 恰恰已经漂移了**:
-它没有 import 这里的 `write_txn`,而是在 `kanban_db.py:2801` 自建了一个超集版本,
+它没有 import 这里的 `write_txn`,而是在 `hermes_cli/kanban_db.py:2801` 自建了一个超集版本,
 额外做三件事——delegate 子上下文断言、`BEGIN`/`COMMIT` 的 busy 重试、提交后的文件长度不变量检查:
 
 `hermes_cli/kanban_db.py:2801-2812`
@@ -909,7 +909,7 @@ def write_txn(conn: sqlite3.Connection):
 kanban 的事务行为**——那是本簇最容易踩的一处误导。
 
 **该在什么时候翻它:** 只有一种场景——要给系统加第 N 个小 SQLite 库时,照抄这两个原语。
-读 kanban 的事务语义请直接去 `kanban_db.py:2782-2840`。
+读 kanban 的事务语义请直接去 `hermes_cli/kanban_db.py:2782-2840`。
 
 ---
 
@@ -955,15 +955,15 @@ kanban 的事务行为**——那是本簇最容易踩的一处误导。
 
 ## 7. 本轮记号汇总
 
-- **▲ 1 条** —— `sqlite_util.py:3-5` 的模块 docstring 称 projects 与 kanban 共用这里的两个原语、
+- **▲ 1 条** —— `hermes_cli/sqlite_util.py:3-5` 的模块 docstring 称 projects 与 kanban 共用这里的两个原语、
   "One definition here keeps the two stores from drifting";实际 kanban 只 import 了
-  `add_column_if_missing`,`write_txn` 在 `kanban_db.py:2801` 另起了一个超集实现(已漂移),
+  `add_column_if_missing`,`write_txn` 在 `hermes_cli/kanban_db.py:2801` 另起了一个超集实现(已漂移),
   且第三个消费者 `observability/shared_metrics.py` 未被 docstring 提及。
 - **◇ 3 条**(代码有、文档无):
   1. `kanban_diagnostics.py` **零项目 import**、靠 `_task_field` 鸭子类型同时吃
      `sqlite3.Row` / `Task` dataclass / `dict` —— 这是它能被 CLI 与 dashboard 插件复用的全部原因,
      模块 docstring 只说"stateless and read-only",没提这一层。
-  2. `session_export_html.py:666` 独有的"跳过 `role == 'session_meta'`"规则,
+  2. `hermes_cli/session_export_html.py:666` 独有的"跳过 `role == 'session_meta'`"规则,
      md / jsonl 两条路径都不做,三条导出路径因此在消息集合上不完全等价。
   3. `tenant` 列是本簇唯一"用 WHERE 做隔离"的维度,与 board(文件级隔离)、
      project(per-profile)正交;模块 docstring 详述了 board 与 profile,未提 tenant。
@@ -996,17 +996,17 @@ kanban 的事务行为**——那是本簇最容易踩的一处误导。
 
 ## 8. 留给后续轮的锚点
 
-- **`kanban_db.py:1382-2840`(Connection helpers,1,459 行)值得一次 L1 精读。**
+- **`hermes_cli/kanban_db.py:1382-2840`(Connection helpers,1,459 行)值得一次 L1 精读。**
   现象:里面有 `_looks_like_tls_record_at`(检测 DB 文件里被误写进 TLS 记录)、
   `_backup_corrupt_db`(内容寻址的损坏文件隔离 + 数量轮转)、`_attempt_index_reindex_repair`
   (只坏索引时局部 REINDEX 而不是整库重建)、`_check_file_length_invariant`
   (提交后核对 header page_count 与实际文件页数,防"撕裂扩展")。
   这是一整套"单机 SQLite 当协调数据库"的加固经验,与 R2 学的 harness 主循环完全正交。
-- **`kanban_db.py:6757-9180`(dispatcher,2,422 行)值得一次 L1 精读。**
+- **`hermes_cli/kanban_db.py:6757-9180`(dispatcher,2,422 行)值得一次 L1 精读。**
   现象:`detect_crashed_workers` / `enforce_max_runtime` / `check_respawn_guard` /
   `reap_worker_zombies` / `_classify_worker_exit` 构成一个完整的进程监管器,
   且 `_error_fingerprint` + `_protocol_violation_streak` 会对"同一种错误反复出现"做指纹去重。
-- **`kanban.py:216-956` 的 argparse 树与 `docs/hermes-kanban-v1-spec.pdf` 的对照未做。**
+- **`hermes_cli/kanban.py:216-956` 的 argparse 树与 `docs/hermes-kanban-v1-spec.pdf` 的对照未做。**
   现象:模块 docstring 声称自己覆盖了设计规范里的全部命令面,本轮未打开该 PDF,
   无法判定 "full" 是否成立;若后续轮要处理 ▲,这是一个已知的未验证断言。
 

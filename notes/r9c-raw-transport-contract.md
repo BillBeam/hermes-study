@@ -3142,7 +3142,7 @@ class TestNvidiaParity:
 | 11 | ◇ | `agent/transports/bedrock.py:63-64` | `build_kwargs` 在返回的 kwargs 里塞 `__bedrock_converse__` / `__bedrock_region__` 两个哨兵键做带内路由,与 ABC "返回可直接传给 SDK 的 dict" 的契约冲突 |
 | 12 | ◇ | `agent/conversation_loop.py:2225` | 调用点调 `preflight_kwargs`,该方法只存在于 codex 传输、不在 ABC 里,靠 `if api_mode == "codex_responses"` 守住 |
 | 13 | ◇ | `agent/transports/chat_completions.py:260-267` | 清洗器的"探测键集"与"剥除键集"是两份手写副本,只带新键的消息若漏进探测集就会走快路原样上线 |
-| 14 | ◇ | `agent/agent_init.py:628` | `codex_app_server` 是合法 api_mode 但没有注册传输;靠 `conversation_loop.py:1406` 提前掉头才不炸 |
+| 14 | ◇ | `agent/agent_init.py:628` | `codex_app_server` 是合法 api_mode 但没有注册传输;靠 `agent/conversation_loop.py:1406` 提前掉头才不炸 |
 | 15 | ◇ | `tests/providers/test_transport_parity.py:1` | 名为 parity 的文件 10 个用例全部走 profile 路,legacy flag 路(`is_kimi`/`is_tokenhub`/`is_lmstudio` 等分支)现无测试覆盖 |
 | 16 | ◇ | `agent/transports/chat_completions.py:524-537` | Pareto 路由块的三份副本(传输 legacy 路 / openrouter profile / 摘要路径),三份的触发条件已不一致 |
 | 17 | ◎ | `agent/transports/chat_completions.py:3-4` | 模块 docstring 说"~16 个 OpenAI 兼容 provider",实测 38 个 profile 里 29 个走这条路;且举例把 xAI 列了进去,而 xAI 走 `codex_responses` |

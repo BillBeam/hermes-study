@@ -292,11 +292,11 @@ _DEFAULT_TIMEOUT = 120  # seconds — cloud API can take 30-40s per request
 
 | # | README 断言 | 代码事实 | 判定 |
 |---|---|---|---|
-| 1 | `README.md:49`"Config file: `~/.hermes/hindsight/config.json`" | `__init__.py:364-367` 还有第 2 级 legacy 回退 `~/.hindsight/config.json` 与第 3 级 env,README 未提 | ▲ README 少讲两级 |
+| 1 | `plugins/memory/hindsight/README.md:49`"Config file: `~/.hermes/hindsight/config.json`" | `__init__.py:364-367` 还有第 2 级 legacy 回退 `~/.hindsight/config.json` 与第 3 级 env,README 未提 | ▲ README 少讲两级 |
 | 2 | `README.md:133-143` 环境变量表只列 7 个 | 模块 docstring `__init__.py:12-25` 另有 `HINDSIGHT_TIMEOUT` / `HINDSIGHT_IDLE_TIMEOUT` / `HINDSIGHT_EMBED_PORT_HEALTH_GRACE_TIMEOUT` / 4 个 `HINDSIGHT_RETAIN_*`,均真实生效(如 `__init__.py:390-396`) | ▲ README 环境变量表不全 |
-| 3 | `README.md:31`"stops after 5 minutes of inactivity" | `__init__.py:61` `_DEFAULT_IDLE_TIMEOUT = 300` | ✓ |
-| 4 | `README.md:147`"auto-upgrades on session start" | `__init__.py:1466-1487` initialize 里检版本、`install_specs` 升级 | ✓ |
-| 5 | `README.md:67-100` 配置表 | 缺 `timeout`/`idle_timeout`/`port_health_grace_timeout`/`observation_scopes`/`prefetch_waits_for_retain`/`prefetch_retain_drain_timeout`/`retain_every_n_turns`,这些都在 `get_config_schema`(`__init__.py:1079-1098`) | ▲ README 配置表不全 |
+| 3 | `plugins/memory/hindsight/README.md:31`"stops after 5 minutes of inactivity" | `__init__.py:61` `_DEFAULT_IDLE_TIMEOUT = 300` | ✓ |
+| 4 | `plugins/memory/hindsight/README.md:147`"auto-upgrades on session start" | `__init__.py:1466-1487` initialize 里检版本、`install_specs` 升级 | ✓ |
+| 5 | `plugins/memory/hindsight/README.md:67-100` 配置表 | 缺 `timeout`/`idle_timeout`/`port_health_grace_timeout`/`observation_scopes`/`prefetch_waits_for_retain`/`prefetch_retain_drain_timeout`/`retain_every_n_turns`,这些都在 `get_config_schema`(`__init__.py:1079-1098`) | ▲ README 配置表不全 |
 | 6 | `README.md:78-87` recall_types 默认 observation-only、工具与自动召回共用同一设置 | `__init__.py:793`、`1771-1772`(prefetch)与 `2005-2006`(工具)同读 `self._recall_types`;RECALL_SCHEMA(326-339)确无 per-call types 参数 | ✓ 完全一致 |
 | 7 | `plugin.yaml:7-8` 声明 `hooks: - on_session_end` | `HindsightMemoryProvider` **没有**实现 `on_session_end`(grep 全类无此方法);且全仓无代码消费 plugin.yaml 的 `hooks` 键(消费 `pip_dependencies` 的是 `hermes_cli/memory_setup.py:123-134`) | ▲ 惰性元数据,与实现不符 |
 | 8 | `config_schema.py:22-33` 桌面面板 mode 只有 cloud/local_external | `get_config_schema`(`__init__.py:1059`)与 README 有三 mode | ◇ 两个配置面之间的口径差,桌面有意不提供 local_embedded |
@@ -306,8 +306,8 @@ _DEFAULT_TIMEOUT = 120  # seconds — cloud API can take 30-40s per request
 文件:`tests/plugins/memory/test_hindsight_provider.py`(1375 行)、`test_hindsight_env_perms.py`(80)、`test_hindsight_config_schema.py`(51);harness 侧 `tests/agent/test_memory_async_sync.py`(文件头逐字复述 298s 事故与修法)。
 
 精选规格两条:
-- **`test_prefetch_waits_for_pending_retain_before_recall`**(`test_hindsight_provider.py:505-538`):慢 retain 卡住时,queue_prefetch 起的线程必须停在栅栏前(0.2s 后 `order == []`),放行后顺序必须是 `["retain", ..., "recall"]`——这是"读后写栅栏"的可执行定义。
-- **`test_timed_out_ops_are_dropped_not_repolled`**(`test_hindsight_provider.py:652-682`):永远 pending 的 op 在第一次预取烧完 0.3s 预算后必须被清空(`p._pending_retain_ops == set()`),第二次预取必须 <0.25s——这是"drop 换 liveness"的可执行定义。
+- **`test_prefetch_waits_for_pending_retain_before_recall`**(`tests/plugins/memory/test_hindsight_provider.py:505-538`):慢 retain 卡住时,queue_prefetch 起的线程必须停在栅栏前(0.2s 后 `order == []`),放行后顺序必须是 `["retain", ..., "recall"]`——这是"读后写栅栏"的可执行定义。
+- **`test_timed_out_ops_are_dropped_not_repolled`**(`tests/plugins/memory/test_hindsight_provider.py:652-682`):永远 pending 的 op 在第一次预取烧完 0.3s 预算后必须被清空(`p._pending_retain_ops == set()`),第二次预取必须 <0.25s——这是"drop 换 liveness"的可执行定义。
 
 ### 1.12 重实现要点(hindsight 簇)
 
@@ -420,13 +420,13 @@ def test_sync_turn_buffers_short_messages(provider):
 
 | # | README 断言 | 代码事实 | 判定 |
 |---|---|---|---|
-| 1 | `README.md:55` `capture_mode` 默认 `all`,"Skip tiny or trivial turns by default" | `_capture_mode` 被加载(`__init__.py:672`)但**全文件无任何使用点**;`_is_trivial_message`(276)与 `_MIN_CAPTURE_LENGTH = 10`(33)同为死代码;sync_turn(740-750)缓冲一切非空轮 | ▲ 死配置,README 描述的行为不存在 |
-| 2 | `README.md:58` `api_timeout`"Timeout for SDK and ingest requests" | SDK 用原值(305),ingest 用 `timeout + 3`(417) | ▲ 细节不符(ingest 实为 +3s) |
+| 1 | `plugins/memory/supermemory/README.md:55` `capture_mode` 默认 `all`,"Skip tiny or trivial turns by default" | `_capture_mode` 被加载(`__init__.py:672`)但**全文件无任何使用点**;`_is_trivial_message`(276)与 `_MIN_CAPTURE_LENGTH = 10`(33)同为死代码;sync_turn(740-750)缓冲一切非空轮 | ▲ 死配置,README 描述的行为不存在 |
+| 2 | `plugins/memory/supermemory/README.md:58` `api_timeout`"Timeout for SDK and ingest requests" | SDK 用原值(305),ingest 用 `timeout + 3`(417) | ▲ 细节不符(ingest 实为 +3s) |
 | 3 | `README.md:49` base_url 优先级 config > env > 默认 | `_resolve_base_url`(82-91)完全一致 | ✓ |
-| 4 | `README.md:74`"Kebab-case names are registered for the agent; snake_case aliases remain supported" | `with_kebab_aliases`(905-920)把两套名字**都**作为完整 schema 注册(kebab 是追加的 copy),`handle_tool_call` 把 kebab 归一回 snake(1034-1040) | ◇ 方向说反了(snake 是本体、kebab 是别名 copy),行为等价 |
-| 5 | `README.md:85-89` `x-sm-source: hermes` + `metadata.sm_source` 是功能性路由非遥测 | `default_headers`(307)、`_merge_metadata`(310-318)注释同文 | ✓ |
-| 6 | `README.md:129-132` 多容器:工具收 `container_tag`、必须在白名单、自动操作只用主容器 | `_resolve_tool_container_tag`(884-902)白名单校验;自动路径(prefetch/sync/ingest/on_memory_write)全部不传 tag→主容器 | ✓ |
-| 7 | `README.md:96`"(or on /reset, branch, compression, or shutdown)" | on_session_switch(785)+ shutdown(852)均 flush;shutdown 注释自称 "Emergency fallback (crashes only)"(853) | ✓(README 把兜底路径也列为常规,轻微口径差) |
+| 4 | `plugins/memory/supermemory/README.md:74`"Kebab-case names are registered for the agent; snake_case aliases remain supported" | `with_kebab_aliases`(905-920)把两套名字**都**作为完整 schema 注册(kebab 是追加的 copy),`handle_tool_call` 把 kebab 归一回 snake(1034-1040) | ◇ 方向说反了(snake 是本体、kebab 是别名 copy),行为等价 |
+| 5 | `plugins/memory/supermemory/README.md:85-89` `x-sm-source: hermes` + `metadata.sm_source` 是功能性路由非遥测 | `default_headers`(307)、`_merge_metadata`(310-318)注释同文 | ✓ |
+| 6 | `plugins/memory/supermemory/README.md:129-132` 多容器:工具收 `container_tag`、必须在白名单、自动操作只用主容器 | `_resolve_tool_container_tag`(884-902)白名单校验;自动路径(prefetch/sync/ingest/on_memory_write)全部不传 tag→主容器 | ✓ |
+| 7 | `plugins/memory/supermemory/README.md:96`"(or on /reset, branch, compression, or shutdown)" | on_session_switch(785)+ shutdown(852)均 flush;shutdown 注释自称 "Emergency fallback (crashes only)"(853) | ✓(README 把兜底路径也列为常规,轻微口径差) |
 
 ### 2.8 配套测试(行为规格)
 
@@ -555,11 +555,11 @@ enqueue 先 INSERT 提交再入内存队列(`plugins/memory/retaindb/__init__.py
 
 | # | README 断言 | 代码事实 | 判定 |
 |---|---|---|---|
-| 1 | `README.md:24`"All config via environment variables in `.env`" | `_load_retaindb_config`(47-63)还读 config.yaml 的 `memory.retaindb` 块(Dashboard 写入),测试 `test_retaindb_provider.py:111-125` 点名 #68209 | ▲ README 落后于代码 |
+| 1 | `plugins/memory/retaindb/README.md:24`"All config via environment variables in `.env`" | `_load_retaindb_config`(47-63)还读 config.yaml 的 `memory.retaindb` 块(Dashboard 写入),测试 `tests/plugins/memory/test_retaindb_provider.py:111-125` 点名 #68209 | ▲ README 落后于代码 |
 | 2 | `README.md:33-40` 工具表 5 个 | `get_tool_schemas`(677-683)注册 **10 个**(另有 upload/list/read/ingest/delete 文件工具,schema 136-198) | ▲ README 漏掉整个文件工具族 |
-| 3 | `README.md:3`"7 memory types" | REMEMBER_SCHEMA enum 只有 6 个:`["factual", "preference", "goal", "instruction", "event", "opinion"]`(113-117) | ▲ 数字对不上(7 vs 6) |
-| 4 | `README.md:3`"hybrid search (Vector + BM25 + Reranking)" | 纯服务端断言,插件只 POST `/v1/memory/search`(255-263),仓内不可验证 | ◇ 存疑不证伪 |
-| 5 | `README.md:30` `RETAINDB_PROJECT` 默认"auto (profile-scoped)" | 529-535:显式值 > `hermes-<profile>`(hermes_home 目录名非 `.hermes` 时)> `"default"` | ✓(README 简化但方向对) |
+| 3 | `plugins/memory/retaindb/README.md:3`"7 memory types" | REMEMBER_SCHEMA enum 只有 6 个:`["factual", "preference", "goal", "instruction", "event", "opinion"]`(113-117) | ▲ 数字对不上(7 vs 6) |
+| 4 | `plugins/memory/retaindb/README.md:3`"hybrid search (Vector + BM25 + Reranking)" | 纯服务端断言,插件只 POST `/v1/memory/search`(255-263),仓内不可验证 | ◇ 存疑不证伪 |
+| 5 | `plugins/memory/retaindb/README.md:30` `RETAINDB_PROJECT` 默认"auto (profile-scoped)" | 529-535:显式值 > `hermes-<profile>`(hermes_home 目录名非 `.hermes` 时)> `"default"` | ✓(README 简化但方向对) |
 | 6 | 模块 docstring(1-19)列 durable SQLite queue、dialectic、SOUL.md 种子、文件库 | README 一概未提 | ▲ README 极薄,docstring 才是真地图 |
 
 ### 3.8 配套测试(行为规格)

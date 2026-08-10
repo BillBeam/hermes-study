@@ -211,7 +211,7 @@ C. Every distinct still-excluded token, with resolvability
 
 **但 `sh` / `js` / `rs` 同时是国家域名后缀**(圣赫勒拿 / 泽西 / 塞尔维亚),
 所以对这三种额外要求一点「像路径」的证据:有 `/`、有 `_`、或能解析。
-实测波及**恰好 1 处**真锚点:`notes/r10-raw-native-vendor.md` 里的裸 `build.sh:4-6`。
+实测波及**恰好 1 处**真锚点:`notes/r10-raw-native-vendor.md` 里的裸 `native/fts5_cjk/build.sh:4-6`。
 **处置是把它补成 `native/fts5_cjk/build.sh:4-6`,而不是让守卫把它藏起来**——
 藏起来就等于在治好这个病的同时,又在别处种下同一个病。
 

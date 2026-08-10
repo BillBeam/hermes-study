@@ -184,7 +184,7 @@ $ grep -n "signal\|telegram\|whatsapp" gateway/channel_directory.py
 
 ### 3.3 ▲ C-3 —— 同一清单 §9 也是同一种腐烂(旁证)
 
-`ADDING_A_PLATFORM.md:271-275 @ 863e313` 让读者去 `tools/send_message_tool.py` 的
+`gateway/platforms/ADDING_A_PLATFORM.md:271-275 @ 863e313` 让读者去 `tools/send_message_tool.py` 的
 `send_message_tool()` 里改 `platform_map`。同样零命中:
 
 ```
@@ -333,7 +333,7 @@ grep -r "telegram\|discord\|whatsapp\|slack" gateway/ tools/ agent/ cron/ hermes
 ```
 
 同时更正第二处小失准:该 grep **不在 §16**。§16 是 "Tests"
-(`ADDING_A_PLATFORM.md:372 @ 863e313`),自检 grep 在其后的独立小节
+(`gateway/platforms/ADDING_A_PLATFORM.md:372 @ 863e313`),自检 grep 在其后的独立小节
 "## Quick Verification"(`:392 @ 863e313`)。
 
 **结论不变,理由要点明**:六个路径里**依然没有 `plugins/`**,而 R7B ▲B-3 的三处失效

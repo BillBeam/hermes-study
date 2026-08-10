@@ -1,0 +1,623 @@
+file	line	anchor	reason
+notes/r10-90-handover-rulings.md	398	cron.py:143	3/3 个候选够长
+notes/r11b-raw-backlog-light.md	270	debug.py:9	2/2 个候选够长
+notes/r11b-raw-backlog-light.md	270	logs.py:9	2/2 个候选够长
+notes/r11b-raw-rulings-census.md	775	tools.md:88	2/2 个候选够长
+notes/r2-03-streaming.md	29	agent-loop.md:108	2/2 个候选够长
+notes/r2-05-tool-executor.md	25	agent-loop.md:133	2/2 个候选够长
+notes/r2-06-turn-context-sidecar.md	12	turn_context.py:337	长度可定 -> agent/turn_context.py,但内容判据不过
+notes/r2-06-turn-context-sidecar.md	45	turn_context.py:53	2/2 个候选够长
+notes/r2-06-turn-context-sidecar.md	65	turn_context.py:173	长度可定 -> agent/turn_context.py,但内容判据不过
+notes/r2-20-adapters.md	309	provider-runtime.md:139	2/2 个候选够长
+notes/r2-20-adapters.md	425	provider-runtime.md:132	2/2 个候选够长
+notes/r2-21-auxiliary-metadata-pricing.md	322	insights.py:66	长度可定 -> agent/insights.py,但内容判据不过
+notes/r2-21-auxiliary-metadata-pricing.md	344	provider-runtime.md:196	2/2 个候选够长
+notes/r2-21-auxiliary-metadata-pricing.md	350	fallback-providers.md:14	2/2 个候选够长
+notes/r2-21-auxiliary-metadata-pricing.md	350	provider-runtime.md:148	2/2 个候选够长
+notes/r2-21-auxiliary-metadata-pricing.md	355	session-storage.md:154	2/2 个候选够长
+notes/r2-21-auxiliary-metadata-pricing.md	356	cli-commands.md:174	2/2 个候选够长
+notes/r2-21-auxiliary-metadata-pricing.md	378	provider-runtime.md:196	2/2 个候选够长
+notes/r2-21-auxiliary-metadata-pricing.md	378	fallback-providers.md:14	2/2 个候选够长
+notes/r2-21-auxiliary-metadata-pricing.md	379	provider-runtime.md:148	2/2 个候选够长
+notes/r2-22-credential-pool.md	681	credential-pools.md:143	2/2 个候选够长
+notes/r2-22-credential-pool.md	683	credential-pools.md:12	2/2 个候选够长
+notes/r2-22-credential-pool.md	685	credential-pools.md:213	2/2 个候选够长
+notes/r2-22-credential-pool.md	687	credential-pools.md:195	2/2 个候选够长
+notes/r2-22-credential-pool.md	693	nous-portal.md:57	2/2 个候选够长
+notes/r2-22-credential-pool.md	695	slash-commands.md:127	2/3 个候选够长
+notes/r2-23-classify-retry-fallback-cache.md	288	provider-runtime.md:180	2/2 个候选够长
+notes/r2-23-classify-retry-fallback-cache.md	295	context-compression-and-caching.md:396	长度可定 -> website/docs/developer-guide/context-compression-and-caching.md,但内容判据不过
+notes/r2-23-classify-retry-fallback-cache.md	298	agent-loop.md:108	2/2 个候选够长
+notes/r2-23-classify-retry-fallback-cache.md	306	provider-runtime.md:173	2/2 个候选够长
+notes/r2-90-doc-conflict-rulings.md	12	agent-loop.md:124	2/2 个候选够长
+notes/r2-90-doc-conflict-rulings.md	13	agent-loop.md:108	2/2 个候选够长
+notes/r2-90-doc-conflict-rulings.md	14	agent-loop.md:133	2/2 个候选够长
+notes/r2-90-doc-conflict-rulings.md	16	provider-runtime.md:180	2/2 个候选够长
+notes/r2-90-doc-conflict-rulings.md	17	provider-runtime.md:196	2/2 个候选够长
+notes/r2-90-doc-conflict-rulings.md	58	agent-loop.md:124	2/2 个候选够长
+notes/r3-01-registry-dispatch.md	7	registry.py:30	5/5 个候选够长
+notes/r3-01-registry-dispatch.md	29	registry.py:192	3/5 个候选够长
+notes/r3-01-registry-dispatch.md	56	registry.py:472	长度可定 -> tools/registry.py,但内容判据不过
+notes/r3-01-registry-dispatch.md	79	registry.py:676	长度可定 -> tools/registry.py,但内容判据不过
+notes/r3-10-approval-security.md	519	security.md:101	2/2 个候选够长
+notes/r3-10-approval-security.md	531	security.md:87	2/2 个候选够长
+notes/r3-10-approval-security.md	540	security.md:665	长度可定 -> website/docs/user-guide/security.md,但内容判据不过
+notes/r3-10-approval-security.md	564	security.md:654	2/2 个候选够长
+notes/r3-20-schema-output-toolsearch.md	556	configuration.md:679	2/4 个候选够长
+notes/r3-20-schema-output-toolsearch.md	556	reference/tools-reference.md:89	2/2 个候选够长
+notes/r3-20-schema-output-toolsearch.md	557	developer-guide/plugins/index.md:643	2/2 个候选够长
+notes/r3-30-execute-code-mcp-client.md	639	security.md:507	2/2 个候选够长
+notes/r3-30-execute-code-mcp-client.md	651	mcp.md:565	2/2 个候选够长
+notes/r3-30-execute-code-mcp-client.md	652	security.md:696	长度可定 -> website/docs/user-guide/security.md,但内容判据不过
+notes/r3-30-execute-code-mcp-client.md	652	contributing.md:213	2/2 个候选够长
+notes/r3-30-execute-code-mcp-client.md	653	cli-commands.md:504	2/2 个候选够长
+notes/r3-30-execute-code-mcp-client.md	657	mcp.md:593	长度可定 -> website/docs/user-guide/features/mcp.md,但内容判据不过
+notes/r4-01-environment-abstraction.md	29	base.py:527	4/9 个候选够长
+notes/r4-01-environment-abstraction.md	30	base.py:576	4/9 个候选够长
+notes/r4-01-environment-abstraction.md	31	base.py:592	4/9 个候选够长
+notes/r4-01-environment-abstraction.md	33	base.py:356	4/9 个候选够长
+notes/r4-01-environment-abstraction.md	35	base.py:374	4/9 个候选够长
+notes/r4-01-environment-abstraction.md	65	base.py:634	4/9 个候选够长
+notes/r4-01-environment-abstraction.md	77	base.py:666	4/9 个候选够长
+notes/r4-01-environment-abstraction.md	80	base.py:697	4/9 个候选够长
+notes/r4-01-environment-abstraction.md	82	base.py:717	4/9 个候选够长
+notes/r4-01-environment-abstraction.md	84	base.py:781	4/9 个候选够长
+notes/r4-01-environment-abstraction.md	103	base.py:448	4/9 个候选够长
+notes/r4-01-environment-abstraction.md	103	base.py:1238	2/9 个候选够长
+notes/r4-01-environment-abstraction.md	106	base.py:891	2/9 个候选够长
+notes/r4-01-environment-abstraction.md	113	base.py:950	2/9 个候选够长
+notes/r4-01-environment-abstraction.md	115	base.py:967	2/9 个候选够长
+notes/r4-01-environment-abstraction.md	118	base.py:898	2/9 个候选够长
+notes/r4-01-environment-abstraction.md	119	base.py:906	2/9 个候选够长
+notes/r4-01-environment-abstraction.md	122	base.py:910	2/9 个候选够长
+notes/r4-01-environment-abstraction.md	124	base.py:535	4/9 个候选够长
+notes/r4-01-environment-abstraction.md	127	base.py:882	2/9 个候选够长
+notes/r4-02-docker-local-terminal-process.md	37	tools.md:88	2/2 个候选够长
+notes/r4-20-remote-backends-serverless.md	35	base.py:576	4/9 个候选够长
+notes/r4-20-remote-backends-serverless.md	36	base.py:634	4/9 个候选够长
+notes/r4-20-remote-backends-serverless.md	37	base.py:1238	2/9 个候选够长
+notes/r4-20-remote-backends-serverless.md	56	base.py:1002	2/9 个候选够长
+notes/r4-20-remote-backends-serverless.md	102	base.py:1012	2/9 个候选够长
+notes/r4-20-remote-backends-serverless.md	103	base.py:428	4/9 个候选够长
+notes/r4-20-remote-backends-serverless.md	103	base.py:438	4/9 个候选够长
+notes/r4-20-remote-backends-serverless.md	104	base.py:431	4/9 个候选够长
+notes/r4-20-remote-backends-serverless.md	190	base.py:891	2/9 个候选够长
+notes/r4-20-remote-backends-serverless.md	298	features/tools.md:68	2/2 个候选够长
+notes/r4-20-remote-backends-serverless.md	316	base.py:1276	2/9 个候选够长
+notes/r4-20-remote-backends-serverless.md	409	features/tools.md:148	2/2 个候选够长
+notes/r4-20-remote-backends-serverless.md	418	features/tools.md:68	2/2 个候选够长
+notes/r4-20-remote-backends-serverless.md	494	base.py:634	4/9 个候选够长
+notes/r4-30-browser-automation.md	668	browser.md:574	2/2 个候选够长
+notes/r4-30-browser-automation.md	669	browser-supervisor.md:32	2/2 个候选够长
+notes/r4-30-browser-automation.md	669	browser.md:584	2/2 个候选够长
+notes/r4-30-browser-automation.md	670	browser.md:523	2/2 个候选够长
+notes/r4-30-browser-automation.md	671	browser.md:123	2/2 个候选够长
+notes/r4-30-browser-automation.md	672	browser.md:12	2/2 个候选够长
+notes/r4-30-browser-automation.md	685	browser-supervisor.md:30	2/2 个候选够长
+notes/r4-30-browser-automation.md	685	browser.md:582	2/2 个候选够长
+notes/r4-40-computer-use.md	373	permissions.py:7	2/2 个候选够长
+notes/r4-40-computer-use.md	375	permissions.py:121	2/2 个候选够长
+notes/r4-40-computer-use.md	375	permissions.py:164	2/2 个候选够长
+notes/r4-40-computer-use.md	438	permissions.py:46	2/2 个候选够长
+notes/r4-40-computer-use.md	438	doctor.py:72	2/3 个候选够长
+notes/r4-40-computer-use.md	530	doctor.py:797	2/3 个候选够长
+notes/r4-40-computer-use.md	530	doctor.py:825	2/3 个候选够长
+notes/r4-40-computer-use.md	532	doctor.py:687	2/3 个候选够长
+notes/r4-40-computer-use.md	544	doctor.py:356	2/3 个候选够长
+notes/r4-40-computer-use.md	544	doctor.py:453	2/3 个候选够长
+notes/r4-40-computer-use.md	588	computer-use.md:8	2/2 个候选够长
+notes/r4-40-computer-use.md	588	permissions.py:35	2/2 个候选够长
+notes/r4-40-computer-use.md	589	computer-use.md:26	2/2 个候选够长
+notes/r4-40-computer-use.md	590	computer-use.md:83	2/2 个候选够长
+notes/r4-40-computer-use.md	591	computer-use.md:203	长度可定 -> website/docs/user-guide/features/computer-use.md,但内容判据不过
+notes/r4-40-computer-use.md	592	computer-use.md:106	2/2 个候选够长
+notes/r4-40-computer-use.md	602	permissions.py:35	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	7	tools.md:88	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	77	tools.md:88	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	88	tools.md:88	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	105	tools.md:68	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	112	tools.md:148	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	114	tools.md:148	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	126	browser-supervisor.md:120	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	141	plugin-llm-access.md:409	长度可定 -> website/docs/developer-guide/plugin-llm-access.md,但内容判据不过
+notes/r4-90-doc-conflict-rulings.md	143	fallback-providers.md:194	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	144	tools-reference.md:190	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	146	tools-reference.md:30	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	149	tools-reference.md:106	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	163	tools-reference.md:106	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	207	base.py:697	4/9 个候选够长
+notes/r4-90-doc-conflict-rulings.md	241	tools.md:88	2/2 个候选够长
+notes/r4-90-doc-conflict-rulings.md	243	tools.md:148	2/2 个候选够长
+notes/r5-02-hermes-state-sessiondb.md	762	session-storage.md:144	2/2 个候选够长
+notes/r5-02-hermes-state-sessiondb.md	763	session-storage.md:178	2/2 个候选够长
+notes/r5-02-hermes-state-sessiondb.md	764	session-storage.md:13	2/2 个候选够长
+notes/r5-02-hermes-state-sessiondb.md	765	session-storage.md:135	2/2 个候选够长
+notes/r5-02-hermes-state-sessiondb.md	766	session-storage.md:369	2/2 个候选够长
+notes/r5-02-hermes-state-sessiondb.md	767	session-storage.md:399	长度可定 -> website/docs/developer-guide/session-storage.md,但内容判据不过
+notes/r5-10-fts5-session-search.md	638	session-storage.md:135	2/2 个候选够长
+notes/r5-10-fts5-session-search.md	639	memory.md:205	2/2 个候选够长
+notes/r5-10-fts5-session-search.md	639	sessions.md:573	2/2 个候选够长
+notes/r5-10-fts5-session-search.md	640	session-storage.md:17	2/2 个候选够长
+notes/r5-30-prompt-context-engineering.md	474	prompt-assembly.md:88	2/2 个候选够长
+notes/r5-30-prompt-context-engineering.md	496	prompt-assembly.md:260	2/2 个候选够长
+notes/r5-30-prompt-context-engineering.md	498	context-engine-plugin.md:100	2/2 个候选够长
+notes/r5-40-checkpoint-memory.md	615	checkpoints-and-rollback.md:99	2/2 个候选够长
+notes/r5-40-checkpoint-memory.md	616	checkpoints-and-rollback.md:32	2/2 个候选够长
+notes/r5-40-checkpoint-memory.md	616	memory.md:57	2/2 个候选够长
+notes/r5-40-checkpoint-memory.md	616	memory-providers.md:9	2/2 个候选够长
+notes/r5-40-checkpoint-memory.md	616	memory_manager.py:6	2/2 个候选够长
+notes/r5-40-checkpoint-memory.md	616	memory.md:250	长度可定 -> website/docs/user-guide/features/memory.md,但内容判据不过
+notes/r5-60-r4-structure-cleanup.md	64	base.py:1223	2/9 个候选够长
+notes/r5-60-r4-structure-cleanup.md	200	base.py:646	4/9 个候选够长
+notes/r5-60-r4-structure-cleanup.md	222	base.py:651	4/9 个候选够长
+notes/r5-60-r4-structure-cleanup.md	226	base.py:567	4/9 个候选够长
+notes/r5-60-r4-structure-cleanup.md	536	hooks.md:1103	2/2 个候选够长
+notes/r5-60-r4-structure-cleanup.md	575	base.py:645	4/9 个候选够长
+notes/r5-90-doc-conflict-rulings.md	13	session-storage.md:146	2/2 个候选够长
+notes/r5-90-doc-conflict-rulings.md	17	session-storage.md:144	2/2 个候选够长
+notes/r5-90-doc-conflict-rulings.md	23	session-storage.md:178	2/2 个候选够长
+notes/r5-90-doc-conflict-rulings.md	31	session-storage.md:13	2/2 个候选够长
+notes/r5-90-doc-conflict-rulings.md	57	sessions.md:553	2/2 个候选够长
+notes/r5-90-doc-conflict-rulings.md	57	memory.md:198	2/2 个候选够长
+notes/r5-90-doc-conflict-rulings.md	58	tools-reference.md:158	2/2 个候选够长
+notes/r5-90-doc-conflict-rulings.md	79	configuration.md:2303	长度可定 -> website/docs/user-guide/configuration.md,但内容判据不过
+notes/r5-90-doc-conflict-rulings.md	82	prompt-assembly.md:260	2/2 个候选够长
+notes/r5-90-doc-conflict-rulings.md	108	base.py:645	4/9 个候选够长
+notes/r5-90-doc-conflict-rulings.md	176	memory_manager.py:580	长度可定 -> agent/memory_manager.py,但内容判据不过
+notes/r5-90-doc-conflict-rulings.md	181	memory_manager.py:354	长度可定 -> agent/memory_manager.py,但内容判据不过
+notes/r5-90-doc-conflict-rulings.md	194	checkpoints-and-rollback.md:34	2/2 个候选够长
+notes/r5-90-doc-conflict-rulings.md	198	memory.md:190	2/2 个候选够长
+notes/r5-90-doc-conflict-rulings.md	229	tools.md:88	2/2 个候选够长
+notes/r6-01-loader-query-rewrite-optimize.md	14	__init__.py:90	48/171 个候选够长
+notes/r6-01-loader-query-rewrite-optimize.md	16	__init__.py:74	54/171 个候选够长
+notes/r6-01-loader-query-rewrite-optimize.md	17	__init__.py:37	67/171 个候选够长
+notes/r6-01-loader-query-rewrite-optimize.md	20	__init__.py:239	29/171 个候选够长
+notes/r6-01-loader-query-rewrite-optimize.md	22	__init__.py:306	25/171 个候选够长
+notes/r6-01-loader-query-rewrite-optimize.md	24	__init__.py:365	22/171 个候选够长
+notes/r6-01-loader-query-rewrite-optimize.md	26	__init__.py:146	33/171 个候选够长
+notes/r6-01-loader-query-rewrite-optimize.md	30	__init__.py:243	29/171 个候选够长
+notes/r6-01-loader-query-rewrite-optimize.md	74	config_schema.py:1	3/3 个候选够长
+notes/r6-01-loader-query-rewrite-optimize.md	76	config_schema.py:11	3/3 个候选够长
+notes/r6-01-loader-query-rewrite-optimize.md	78	config_schema.py:60	3/3 个候选够长
+notes/r6-01-loader-query-rewrite-optimize.md	79	config_schema.py:117	2/3 个候选够长
+notes/r6-01-loader-query-rewrite-optimize.md	81	config_schema.py:137	2/3 个候选够长
+notes/r6-10-honcho.md	61	session.py:391	3/3 个候选够长
+notes/r6-10-honcho.md	67	__init__.py:339	23/171 个候选够长
+notes/r6-10-honcho.md	68	__init__.py:626	14/171 个候选够长
+notes/r6-10-honcho.md	69	__init__.py:669	12/171 个候选够长
+notes/r6-10-honcho.md	70	__init__.py:1317	3/171 个候选够长
+notes/r6-10-honcho.md	71	__init__.py:1402	3/171 个候选够长
+notes/r6-10-honcho.md	72	__init__.py:1413	3/171 个候选够长
+notes/r6-10-honcho.md	73	__init__.py:1353	3/171 个候选够长
+notes/r6-10-honcho.md	74	__init__.py:1386	3/171 个候选够长
+notes/r6-10-honcho.md	75	__init__.py:240	29/171 个候选够长
+notes/r6-10-honcho.md	259	session.py:720	2/3 个候选够长
+notes/r6-10-honcho.md	259	__init__.py:597	15/171 个候选够长
+notes/r6-10-honcho.md	259	session.py:760	2/3 个候选够长
+notes/r6-10-honcho.md	262	__init__.py:842	9/171 个候选够长
+notes/r6-10-honcho.md	299	__init__.py:729	11/171 个候选够长
+notes/r6-10-honcho.md	299	__init__.py:761	10/171 个候选够长
+notes/r6-10-honcho.md	299	__init__.py:787	10/171 个候选够长
+notes/r6-10-honcho.md	303	__init__.py:513	16/171 个候选够长
+notes/r6-10-honcho.md	303	__init__.py:1544	3/171 个候选够长
+notes/r6-10-honcho.md	303	__init__.py:509	16/171 个候选够长
+notes/r6-10-honcho.md	331	__init__.py:1150	3/171 个候选够长
+notes/r6-10-honcho.md	331	__init__.py:1119	4/171 个候选够长
+notes/r6-10-honcho.md	331	__init__.py:967	6/171 个候选够长
+notes/r6-10-honcho.md	331	__init__.py:1042	5/171 个候选够长
+notes/r6-10-honcho.md	346	__init__.py:985	6/171 个候选够长
+notes/r6-10-honcho.md	346	__init__.py:1000	6/171 个候选够长
+notes/r6-10-honcho.md	346	__init__.py:848	9/171 个候选够长
+notes/r6-10-honcho.md	346	__init__.py:935	6/171 个候选够长
+notes/r6-10-honcho.md	346	__init__.py:1023	6/171 个候选够长
+notes/r6-10-honcho.md	350	__init__.py:682	11/171 个候选够长
+notes/r6-10-honcho.md	350	__init__.py:392	22/171 个候选够长
+notes/r6-10-honcho.md	350	__init__.py:1402	3/171 个候选够长
+notes/r6-10-honcho.md	364	__init__.py:1215	3/171 个候选够长
+notes/r6-10-honcho.md	434	session.py:460	3/3 个候选够长
+notes/r6-10-honcho.md	464	session.py:1219	2/3 个候选够长
+notes/r6-10-honcho.md	464	__init__.py:1498	3/171 个候选够长
+notes/r6-10-honcho.md	464	__init__.py:195	32/171 个候选够长
+notes/r6-10-honcho.md	497	session.py:524	3/3 个候选够长
+notes/r6-10-honcho.md	497	__init__.py:1528	3/171 个候选够长
+notes/r6-10-honcho.md	511	session.py:577	3/3 个候选够长
+notes/r6-10-honcho.md	515	__init__.py:346	23/171 个候选够长
+notes/r6-10-honcho.md	515	__init__.py:485	18/171 个候选够长
+notes/r6-10-honcho.md	515	__init__.py:582	15/171 个候选够长
+notes/r6-10-honcho.md	519	__init__.py:494	17/171 个候选够长
+notes/r6-10-honcho.md	519	session.py:848	2/3 个候选够长
+notes/r6-10-honcho.md	519	__init__.py:492	17/171 个候选够长
+notes/r6-10-honcho.md	519	session.py:776	2/3 个候选够长
+notes/r6-10-honcho.md	573	oauth.py:27	2/2 个候选够长
+notes/r6-10-honcho.md	573	oauth.py:152	2/2 个候选够长
+notes/r6-10-honcho.md	594	oauth.py:248	2/2 个候选够长
+notes/r6-10-honcho.md	594	oauth.py:92	2/2 个候选够长
+notes/r6-10-honcho.md	598	session.py:154	3/3 个候选够长
+notes/r6-10-honcho.md	627	client.py:100	4/4 个候选够长
+notes/r6-10-honcho.md	627	client.py:487	2/4 个候选够长
+notes/r6-10-honcho.md	627	client.py:713	2/4 个候选够长
+notes/r6-10-honcho.md	627	client.py:552	2/4 个候选够长
+notes/r6-10-honcho.md	627	client.py:461	2/4 个候选够长
+notes/r6-10-honcho.md	642	client.py:858	2/4 个候选够长
+notes/r6-10-honcho.md	642	client.py:977	2/4 个候选够长
+notes/r6-10-honcho.md	642	client.py:913	2/4 个候选够长
+notes/r6-10-honcho.md	646	client.py:249	3/4 个候选够长
+notes/r6-10-honcho.md	652	__init__.py:421	21/171 个候选够长
+notes/r6-10-honcho.md	655	session.py:685	2/3 个候选够长
+notes/r6-10-honcho.md	656	session.py:479	3/3 个候选够长
+notes/r6-10-honcho.md	657	__init__.py:1416	3/171 个候选够长
+notes/r6-10-honcho.md	674	__init__.py:333	24/171 个候选够长
+notes/r6-10-honcho.md	678	session.py:1371	2/3 个候选够长
+notes/r6-10-honcho.md	686	client.py:39	4/4 个候选够长
+notes/r6-10-honcho.md	686	client.py:47	4/4 个候选够长
+notes/r6-10-honcho.md	698	config_schema.py:27	3/3 个候选够长
+notes/r6-10-honcho.md	698	client.py:537	2/4 个候选够长
+notes/r6-10-honcho.md	716	__init__.py:626	14/171 个候选够长
+notes/r6-10-honcho.md	717	__init__.py:669	12/171 个候选够长
+notes/r6-10-honcho.md	718	__init__.py:509	16/171 个候选够长
+notes/r6-10-honcho.md	719	__init__.py:1087	4/171 个候选够长
+notes/r6-10-honcho.md	720	__init__.py:1119	4/171 个候选够长
+notes/r6-10-honcho.md	721	__init__.py:967	6/171 个候选够长
+notes/r6-10-honcho.md	722	__init__.py:982	6/171 个候选够长
+notes/r6-10-honcho.md	722	client.py:415	3/4 个候选够长
+notes/r6-10-honcho.md	723	__init__.py:1332	3/171 个候选够长
+notes/r6-10-honcho.md	724	__init__.py:1402	3/171 个候选够长
+notes/r6-10-honcho.md	725	client.py:100	4/4 个候选够长
+notes/r6-10-honcho.md	725	client.py:3	4/4 个候选够长
+notes/r6-10-honcho.md	725	__init__.py:10	106/171 个候选够长
+notes/r6-10-honcho.md	726	client.py:806	2/4 个候选够长
+notes/r6-10-honcho.md	727	session.py:956	2/3 个候选够长
+notes/r6-10-honcho.md	727	__init__.py:1445	3/171 个候选够长
+notes/r6-10-honcho.md	728	session.py:330	3/3 个候选够长
+notes/r6-10-honcho.md	729	client.py:599	2/4 个候选够长
+notes/r6-10-honcho.md	729	client.py:179	3/4 个候选够长
+notes/r6-10-honcho.md	733	client.py:713	2/4 个候选够长
+notes/r6-10-honcho.md	734	client.py:404	3/4 个候选够长
+notes/r6-10-honcho.md	734	config_schema.py:221	长度可定 -> plugins/memory/honcho/config_schema.py,但内容判据不过
+notes/r6-10-honcho.md	735	session.py:499	3/3 个候选够长
+notes/r6-20-openviking-byterover.md	32	__init__.py:499	16/171 个候选够长
+notes/r6-20-openviking-byterover.md	32	__init__.py:278	27/171 个候选够长
+notes/r6-20-openviking-byterover.md	285	__init__.py:1482	3/171 个候选够长
+notes/r6-20-openviking-byterover.md	293	__init__.py:19	84/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	61	__init__.py:1512	3/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	66	__init__.py:305	25/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	103	__init__.py:217	29/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	103	__init__.py:1896	2/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	103	__init__.py:1957	2/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	137	__init__.py:389	22/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	156	__init__.py:612	15/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	194	__init__.py:1173	3/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	194	__init__.py:1382	3/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	202	__init__.py:1145	3/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	202	__init__.py:1154	3/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	223	__init__.py:1158	3/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	225	__init__.py:1782	2/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	225	__init__.py:208	31/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	225	__init__.py:1990	2/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	242	__init__.py:1862	2/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	253	__init__.py:1691	2/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	254	__init__.py:1519	3/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	255	__init__.py:2183	2/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	256	__init__.py:61	57/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	256	__init__.py:103	43/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	287	__init__.py:2040	2/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	287	__init__.py:2136	2/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	289	__init__.py:2169	2/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	289	__init__.py:1873	2/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	289	__init__.py:2217	2/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	295	__init__.py:364	22/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	296	__init__.py:12	104/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	296	__init__.py:390	22/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	297	__init__.py:61	57/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	298	__init__.py:1466	3/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	299	__init__.py:1079	4/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	300	__init__.py:793	10/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	301	plugin.yaml:7	59/97 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	302	config_schema.py:22	3/3 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	302	__init__.py:1059	4/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	344	__init__.py:407	22/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	344	__init__.py:417	22/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	348	__init__.py:663	12/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	348	__init__.py:47	61/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	348	__init__.py:357	22/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	348	__init__.py:262	27/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	348	__init__.py:41	66/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	404	__init__.py:736	11/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	404	__init__.py:777	10/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	404	__init__.py:699	11/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	404	__init__.py:957	6/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	423	__init__.py:672	11/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	475	__init__.py:527	15/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	475	__init__.py:262	27/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	475	__init__.py:265	27/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	477	__init__.py:548	15/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	506	__init__.py:622	15/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	538	__init__.py:393	22/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	538	__init__.py:373	22/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	546	__init__.py:600	15/171 个候选够长
+notes/r6-30-hindsight-supermemory-retaindb.md	548	__init__.py:739	11/171 个候选够长
+notes/r6-40-mem0-holographic.md	97	__init__.py:89	50/171 个候选够长
+notes/r6-40-mem0-holographic.md	97	__init__.py:105	41/171 个候选够长
+notes/r6-40-mem0-holographic.md	183	__init__.py:552	15/171 个候选够长
+notes/r6-40-mem0-holographic.md	204	__init__.py:430	21/171 个候选够长
+notes/r6-40-mem0-holographic.md	204	__init__.py:446	21/171 个候选够长
+notes/r6-40-mem0-holographic.md	234	__init__.py:539	15/171 个候选够长
+notes/r6-40-mem0-holographic.md	234	__init__.py:540	15/171 个候选够长
+notes/r6-40-mem0-holographic.md	236	__init__.py:274	27/171 个候选够长
+notes/r6-40-mem0-holographic.md	238	__init__.py:368	22/171 个候选够长
+notes/r6-40-mem0-holographic.md	238	__init__.py:619	15/171 个候选够长
+notes/r6-40-mem0-holographic.md	313	__init__.py:263	27/171 个候选够长
+notes/r6-40-mem0-holographic.md	355	__init__.py:223	29/171 个候选够长
+notes/r6-40-mem0-holographic.md	371	__init__.py:476	18/171 个候选够长
+notes/r6-40-mem0-holographic.md	372	__init__.py:501	16/171 个候选够长
+notes/r6-40-mem0-holographic.md	373	__init__.py:517	16/171 个候选够长
+notes/r6-40-mem0-holographic.md	374	__init__.py:527	15/171 个候选够长
+notes/r6-40-mem0-holographic.md	375	__init__.py:304	25/171 个候选够长
+notes/r6-40-mem0-holographic.md	383	__init__.py:88	51/171 个候选够长
+notes/r6-40-mem0-holographic.md	384	__init__.py:56	57/171 个候选够长
+notes/r6-40-mem0-holographic.md	388	__init__.py:274	27/171 个候选够长
+notes/r6-40-mem0-holographic.md	389	__init__.py:396	22/171 个候选够长
+notes/r6-40-mem0-holographic.md	390	__init__.py:566	15/171 个候选够长
+notes/r6-40-mem0-holographic.md	391	__init__.py:51	60/171 个候选够长
+notes/r6-40-mem0-holographic.md	392	__init__.py:497	16/171 个候选够长
+notes/r6-40-mem0-holographic.md	480	store.py:16	3/3 个候选够长
+notes/r6-40-mem0-holographic.md	501	store.py:132	3/3 个候选够长
+notes/r6-40-mem0-holographic.md	501	store.py:142	3/3 个候选够长
+notes/r6-40-mem0-holographic.md	501	store.py:619	长度可定 -> plugins/memory/holographic/store.py,但内容判据不过
+notes/r6-40-mem0-holographic.md	501	store.py:170	3/3 个候选够长
+notes/r6-40-mem0-holographic.md	503	store.py:188	3/3 个候选够长
+notes/r6-40-mem0-holographic.md	503	store.py:85	3/3 个候选够长
+notes/r6-40-mem0-holographic.md	503	store.py:482	2/3 个候选够长
+notes/r6-40-mem0-holographic.md	503	store.py:547	长度可定 -> plugins/memory/holographic/store.py,但内容判据不过
+notes/r6-40-mem0-holographic.md	505	store.py:79	3/3 个候选够长
+notes/r6-40-mem0-holographic.md	507	store.py:250	2/3 个候选够长
+notes/r6-40-mem0-holographic.md	555	__init__.py:321	24/171 个候选够长
+notes/r6-40-mem0-holographic.md	566	__init__.py:39	66/171 个候选够长
+notes/r6-40-mem0-holographic.md	582	__init__.py:380	22/171 个候选够长
+notes/r6-40-mem0-holographic.md	617	__init__.py:126	35/171 个候选够长
+notes/r6-40-mem0-holographic.md	618	__init__.py:120	36/171 个候选够长
+notes/r6-40-mem0-holographic.md	619	__init__.py:58	57/171 个候选够长
+notes/r6-40-mem0-holographic.md	621	store.py:402	2/3 个候选够长
+notes/r6-40-mem0-holographic.md	643	__init__.py:406	22/171 个候选够长
+notes/r6-40-mem0-holographic.md	645	store.py:3	3/3 个候选够长
+notes/r6-60-mcp-oauth-cleanup.md	461	user-guide/features/mcp.md:218	2/2 个候选够长
+notes/r6-60-mcp-oauth-cleanup.md	461	oauth-over-ssh.md:74	2/2 个候选够长
+notes/r6-60-mcp-oauth-cleanup.md	461	oauth-over-ssh.md:51	2/2 个候选够长
+notes/r6-90-doc-conflict-rulings.md	24	client.py:793	2/4 个候选够长
+notes/r6-90-doc-conflict-rulings.md	35	__init__.py:4888	长度可定 -> plugins/memory/openviking/__init__.py,但内容判据不过
+notes/r6-90-doc-conflict-rulings.md	53	__init__.py:672	11/171 个候选够长
+notes/r6-90-doc-conflict-rulings.md	60	__init__.py:113	37/171 个候选够长
+notes/r6-90-doc-conflict-rulings.md	68	__init__.py:56	57/171 个候选够长
+notes/r6-90-doc-conflict-rulings.md	104	mcp-config-reference.md:314	长度可定 -> website/docs/reference/mcp-config-reference.md,但内容判据不过
+notes/r7-90-doc-conflict-rulings.md	26	session.py:1038	2/3 个候选够长
+notes/r7-90-doc-conflict-rulings.md	28	session.py:1113	2/3 个候选够长
+notes/r7-90-doc-conflict-rulings.md	31	session.py:1058	2/3 个候选够长
+notes/r7-90-doc-conflict-rulings.md	35	gateway-internals.md:88	2/2 个候选够长
+notes/r7-90-doc-conflict-rulings.md	52	gateway-internals.md:9	2/2 个候选够长
+notes/r7-90-doc-conflict-rulings.md	56	config.py:305	2/4 个候选够长
+notes/r7-90-doc-conflict-rulings.md	66	gateway-internals.md:104	2/2 个候选够长
+notes/r7-90-doc-conflict-rulings.md	70	config.py:941	2/4 个候选够长
+notes/r7-90-doc-conflict-rulings.md	89	cron-internals.md:132	2/2 个候选够长
+notes/r7-90-doc-conflict-rulings.md	218	gateway-internals.md:22	2/2 个候选够长
+notes/r7-90-doc-conflict-rulings.md	219	status.py:1	3/3 个候选够长
+notes/r7-90-doc-conflict-rulings.md	239	session.py:1479	长度可定 -> gateway/session.py,但内容判据不过
+notes/r7-90-doc-conflict-rulings.md	241	session.py:1865	长度可定 -> gateway/session.py,但内容判据不过
+notes/r7-raw-gateway-config.md	693	session.py:1251	2/3 个候选够长
+notes/r7-raw-gateway-config.md	1242	messaging/index.md:258	2/2 个候选够长
+notes/r7-raw-run-03-turnrunner.md	59	turn_context.py:68	2/2 个候选够长
+notes/r7-raw-run-03-turnrunner.md	1724	turn_context.py:13	2/2 个候选够长
+notes/r7-raw-run-04-gwr-init-routing.md	940	session.py:1206	2/3 个候选够长
+notes/r7-raw-run-04-gwr-init-routing.md	961	cron-internals.md:132	2/2 个候选够长
+notes/r7-raw-run-04-gwr-init-routing.md	963	telegram.md:838	2/2 个候选够长
+notes/r7-raw-run-04-gwr-init-routing.md	963	telegram.md:857	2/2 个候选够长
+notes/r7-raw-run-04-gwr-init-routing.md	963	session.py:1103	2/3 个候选够长
+notes/r7-raw-run-04-gwr-init-routing.md	963	telegram.md:830	2/2 个候选够长
+notes/r7-raw-run-05-gwr-queue-busy.md	37	base.py:5655	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7-raw-run-05-gwr-queue-busy.md	895	base.py:5726	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7-raw-run-05-gwr-queue-busy.md	1065	base.py:3345	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7-raw-run-05-gwr-queue-busy.md	1075	base.py:5711	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7-raw-run-05-gwr-queue-busy.md	1076	base.py:5721	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7-raw-run-05-gwr-queue-busy.md	1080	gateway-internals.md:88	2/2 个候选够长
+notes/r7-raw-run-05-gwr-queue-busy.md	1088	gateway-internals.md:88	2/2 个候选够长
+notes/r7-raw-run-05-gwr-queue-busy.md	1094	gateway-internals.md:59	2/2 个候选够长
+notes/r7-raw-run-08-stop-profiles-busycmd.md	102	session.py:2769	长度可定 -> gateway/session.py,但内容判据不过
+notes/r7-raw-run-08-stop-profiles-busycmd.md	482	session.py:2993	长度可定 -> gateway/session.py,但内容判据不过
+notes/r7-raw-run-08-stop-profiles-busycmd.md	501	base.py:5595	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7-raw-run-08-stop-profiles-busycmd.md	592	base.py:5604	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7-raw-run-09-handle-message.md	337	pairing.py:51	2/3 个候选够长
+notes/r7-raw-run-09-handle-message.md	375	session.py:1096	2/3 个候选够长
+notes/r7-raw-run-09-handle-message.md	1186	gateway-internals.md:102	2/2 个候选够长
+notes/r7-raw-run-09-handle-message.md	1215	gateway-internals.md:62	2/2 个候选够长
+notes/r7-raw-run-09-handle-message.md	1223	gateway-internals.md:88	2/2 个候选够长
+notes/r7-raw-run-09-handle-message.md	1228	gateway-internals.md:70	2/2 个候选够长
+notes/r7-raw-run-09-handle-message.md	1229	session.py:1058	2/3 个候选够长
+notes/r7-raw-run-09-handle-message.md	1233	session.py:1103	2/3 个候选够长
+notes/r7-raw-run-10-agent-turn.md	157	session.py:3034	长度可定 -> gateway/session.py,但内容判据不过
+notes/r7-raw-run-10-agent-turn.md	794	session.py:2638	长度可定 -> gateway/session.py,但内容判据不过
+notes/r7-raw-run-13-turn-exec-lifecycle.md	332	turn_context.py:13	2/2 个候选够长
+notes/r7-raw-session-py.md	1658	gateway-internals.md:62	2/2 个候选够长
+notes/r7-raw-session-py.md	1668	user-guide/sessions.md:673	长度可定 -> website/docs/user-guide/sessions.md,但内容判据不过
+notes/r7-raw-session-py.md	1669	user-guide/features/mcp.md:854	长度可定 -> website/docs/user-guide/features/mcp.md,但内容判据不过
+notes/r7b-10-base-adapter-contract.md	95	base.py:2851	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7b-10-base-adapter-contract.md	127	base.py:224	7/9 个候选够长
+notes/r7b-10-base-adapter-contract.md	254	base.py:3124	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7b-10-base-adapter-contract.md	255	base.py:3170	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7b-10-base-adapter-contract.md	260	base.py:3217	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7b-10-base-adapter-contract.md	277	base.py:3471	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7b-10-base-adapter-contract.md	335	gateway-internals.md:59	2/2 个候选够长
+notes/r7c-90-doc-conflict-rulings.md	162	gateway-internals.md:22	2/2 个候选够长
+notes/r7c-90-doc-conflict-rulings.md	190	webhooks.md:377	2/3 个候选够长
+notes/r7c-90-doc-conflict-rulings.md	191	webhook.py:621	长度可定 -> gateway/platforms/webhook.py,但内容判据不过
+notes/r7c-90-doc-conflict-rulings.md	300	cron-internals.md:73	2/2 个候选够长
+notes/r7c-90-doc-conflict-rulings.md	304	cron-internals.md:85	2/2 个候选够长
+notes/r7c-90-doc-conflict-rulings.md	307	cron-internals.md:38	2/2 个候选够长
+notes/r7c-90-doc-conflict-rulings.md	309	cron-internals.md:89	2/2 个候选够长
+notes/r7c-90-doc-conflict-rulings.md	311	cron-internals.md:270	长度可定 -> website/docs/developer-guide/cron-internals.md,但内容判据不过
+notes/r7c-90-doc-conflict-rulings.md	322	cron-internals.md:216	2/2 个候选够长
+notes/r7c-90-doc-conflict-rulings.md	323	cron-internals.md:250	长度可定 -> website/docs/developer-guide/cron-internals.md,但内容判据不过
+notes/r7c-90-doc-conflict-rulings.md	326	cron-internals.md:200	2/2 个候选够长
+notes/r7c-90-doc-conflict-rulings.md	328	cron-internals.md:126	2/2 个候选够长
+notes/r7c-90-doc-conflict-rulings.md	358	gateway-internals.md:117	2/2 个候选够长
+notes/r7c-90-doc-conflict-rulings.md	425	messaging/index.md:452	2/2 个候选够长
+notes/r7c-90-doc-conflict-rulings.md	431	kanban.md:836	长度可定 -> website/docs/user-guide/features/kanban.md,但内容判据不过
+notes/r7c-raw-authz-pairing.md	908	pairing.py:191	长度可定 -> gateway/pairing.py,但内容判据不过
+notes/r7c-raw-authz-pairing.md	1016	pairing.py:439	长度可定 -> gateway/pairing.py,但内容判据不过
+notes/r7c-raw-authz-pairing.md	1802	adapter.py:418	24/24 个候选够长
+notes/r7c-raw-authz-pairing.md	1882	pairing.py:47	2/3 个候选够长
+notes/r7c-raw-authz-pairing.md	1883	pairing.py:48	2/3 个候选够长
+notes/r7c-raw-authz-pairing.md	1885	pairing.py:583	长度可定 -> gateway/pairing.py,但内容判据不过
+notes/r7c-raw-authz-pairing.md	1888	pairing.py:51	2/3 个候选够长
+notes/r7c-raw-authz-pairing.md	1889	pairing.py:52	2/3 个候选够长
+notes/r7c-raw-authz-pairing.md	1890	pairing.py:56	2/3 个候选够长
+notes/r7c-raw-authz-pairing.md	1891	pairing.py:57	2/3 个候选够长
+notes/r7c-raw-authz-pairing.md	1892	pairing.py:53	2/3 个候选够长
+notes/r7c-raw-authz-pairing.md	1893	pairing.py:598	长度可定 -> gateway/pairing.py,但内容判据不过
+notes/r7c-raw-authz-pairing.md	1894	pairing.py:394	长度可定 -> gateway/pairing.py,但内容判据不过
+notes/r7c-raw-authz-pairing.md	1895	pairing.py:386	长度可定 -> gateway/pairing.py,但内容判据不过
+notes/r7c-raw-authz-pairing.md	1898	pairing.py:187	长度可定 -> gateway/pairing.py,但内容判据不过
+notes/r7c-raw-authz-pairing.md	1899	pairing.py:311	长度可定 -> gateway/pairing.py,但内容判据不过
+notes/r7c-raw-authz-pairing.md	1900	pairing.py:494	长度可定 -> gateway/pairing.py,但内容判据不过
+notes/r7c-raw-authz-pairing.md	1901	pairing.py:450	长度可定 -> gateway/pairing.py,但内容判据不过
+notes/r7c-raw-authz-pairing.md	1905	pairing.py:748	长度可定 -> gateway/pairing.py,但内容判据不过
+notes/r7c-raw-authz-pairing.md	1908	pairing.py:723	长度可定 -> gateway/pairing.py,但内容判据不过
+notes/r7c-raw-authz-pairing.md	1911	pairing.py:704	长度可定 -> gateway/pairing.py,但内容判据不过
+notes/r7c-raw-cron-sched-a.md	659	cron.md:373	2/2 个候选够长
+notes/r7c-raw-cron-sched-a.md	664	cron.md:804	长度可定 -> website/docs/user-guide/features/cron.md,但内容判据不过
+notes/r7c-raw-cron-sched-a.md	680	cron.md:440	2/2 个候选够长
+notes/r7c-raw-cron-sched-a.md	690	cron.md:440	2/2 个候选够长
+notes/r7c-raw-cron-sched-b.md	1138	cron-internals.md:132	2/2 个候选够长
+notes/r7c-raw-cron-sched-b.md	1422	cron-internals.md:85	2/2 个候选够长
+notes/r7c-raw-cron-sched-b.md	1436	cron-internals.md:126	2/2 个候选够长
+notes/r7c-raw-cron-sched-b.md	1457	cron-internals.md:270	长度可定 -> website/docs/developer-guide/cron-internals.md,但内容判据不过
+notes/r7c-raw-cron-sched-b.md	1475	cron-internals.md:200	2/2 个候选够长
+notes/r7c-raw-delivery.md	1668	configuration.md:1773	长度可定 -> website/docs/user-guide/configuration.md,但内容判据不过
+notes/r7c-raw-restart-readiness.md	1822	adapter.py:875	20/24 个候选够长
+notes/r7c-raw-restart-readiness.md	1975	cli-commands.md:577	2/2 个候选够长
+notes/r7c-raw-slash-a.md	192	base.py:2132	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7c-raw-slash-a.md	207	base.py:2142	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7c-raw-slash-a.md	216	base.py:2156	长度可定 -> gateway/platforms/base.py,但内容判据不过
+notes/r7c-raw-slash-b.md	2050	slash-commands.md:77	3/3 个候选够长
+notes/r7c-raw-slash-c.md	1299	slash-commands.md:60	3/3 个候选够长
+notes/r7c-raw-slash-c.md	1299	slash-commands.md:9	3/3 个候选够长
+notes/r7c-raw-slash-c.md	1300	slash-commands.md:14	3/3 个候选够长
+notes/r7c-raw-slash-c.md	1303	slash-commands.md:128	2/3 个候选够长
+notes/r7c-raw-slash-c.md	1323	slash-commands.md:246	2/3 个候选够长
+notes/r7c-raw-slash-c.md	1325	slash-commands.md:9	3/3 个候选够长
+notes/r7c-raw-slash-c.md	1326	slash-commands.md:214	2/3 个候选够长
+notes/r7c-raw-slash-c.md	1327	telegram.md:1109	2/2 个候选够长
+notes/r7c-raw-slash-c.md	1333	telegram.md:1105	2/2 个候选够长
+notes/r7c-raw-slash-c.md	1338	slash-commands.md:267	2/3 个候选够长
+notes/r7c-raw-slash-c.md	1518	slash-commands.md:9	3/3 个候选够长
+notes/r7c-raw-slash-c.md	1521	slash-commands.md:214	2/3 个候选够长
+notes/r7c-raw-slash-c.md	1522	telegram.md:1109	2/2 个候选够长
+notes/r7c-raw-slash-c.md	1523	slash-commands.md:267	2/3 个候选够长
+notes/r7c-raw-status.md	1114	gateway-internals.md:22	2/2 个候选够长
+notes/r7c-raw-status.md	1117	status.py:1	3/3 个候选够长
+notes/r7c-raw-status.md	1120	architecture.md:118	3/4 个候选够长
+notes/r7c-raw-webhook-signing-docgap.md	554	webhooks.md:468	2/3 个候选够长
+notes/r7c-raw-webhook-signing-docgap.md	669	webhooks.md:82	3/3 个候选够长
+notes/r7c-raw-webhook-signing-docgap.md	670	webhooks.md:269	2/3 个候选够长
+notes/r7c-raw-webhook-signing-docgap.md	671	webhooks.md:457	2/3 个候选够长
+notes/r7c-raw-webhook-signing-docgap.md	672	webhooks.md:459	2/3 个候选够长
+notes/r7c-raw-webhook-signing-docgap.md	673	webhooks.md:383	2/3 个候选够长
+notes/r7c-raw-webhook-signing-docgap.md	674	webhooks.md:486	2/3 个候选够长
+notes/r7c-raw-webhook-signing-docgap.md	675	webhooks.md:382	2/3 个候选够长
+notes/r7c-raw-webhook-signing-docgap.md	676	webhooks.md:466	2/3 个候选够长
+notes/r7c-raw-webhook-signing-docgap.md	703	webhooks.md:395	2/3 个候选够长
+notes/r7c-raw-webhook-signing-docgap.md	916	webhook.py:1182	长度可定 -> gateway/platforms/webhook.py,但内容判据不过
+notes/r7c-raw-webhook-signing-docgap.md	1053	webhooks.md:395	2/3 个候选够长
+notes/r7c-raw-webhook-signing-docgap.md	1117	webhook.py:200	2/3 个候选够长
+notes/r7c-raw-webhook-signing-docgap.md	1125	webhook.py:1086	长度可定 -> gateway/platforms/webhook.py,但内容判据不过
+notes/r7c-raw-webhook-signing-docgap.md	1161	webhook.py:158	2/3 个候选够长
+notes/r8a-90-doc-conflict-rulings.md	622	config.py:1328	2/4 个候选够长
+notes/r8a-90-doc-conflict-rulings.md	1024	status.py:508	2/3 个候选够长
+notes/r8a-90-doc-conflict-rulings.md	2044	config.py:4837	长度可定 -> hermes_cli/config.py,但内容判据不过
+notes/r8a-90-doc-conflict-rulings.md	2046	config.py:4095	长度可定 -> hermes_cli/config.py,但内容判据不过
+notes/r8a-90-doc-conflict-rulings.md	2050	doctor.py:258	2/3 个候选够长
+notes/r8a-90-doc-conflict-rulings.md	2050	status.py:483	2/3 个候选够长
+notes/r8a-90-doc-conflict-rulings.md	2113	config.py:3396	长度可定 -> hermes_cli/config.py,但内容判据不过
+notes/r8a-raw-config-a.md	1	config.py:1	4/4 个候选够长
+notes/r8a-raw-config-b.md	1	config.py:1400	2/4 个候选够长
+notes/r8a-raw-config-c.md	1	config.py:2800	长度可定 -> hermes_cli/config.py,但内容判据不过
+notes/r8a-raw-config-d.md	1	config.py:4200	长度可定 -> hermes_cli/config.py,但内容判据不过
+notes/r8a-raw-defaults-b.md	1562	config.py:2325	2/4 个候选够长
+notes/r8a-raw-defaults-b.md	1564	config.py:2337	2/4 个候选够长
+notes/r8a-raw-defaults-b.md	1567	config.py:2308	2/4 个候选够长
+notes/r8a-raw-defaults-b.md	1568	config.py:5270	长度可定 -> hermes_cli/config.py,但内容判据不过
+notes/r8a-raw-defaults-b.md	2407	config.py:2356	2/4 个候选够长
+notes/r8a-raw-migrations-env-secrets.md	2776	config.py:1490	2/4 个候选够长
+notes/r8a-raw-migrations-env-secrets.md	2832	config.py:3183	长度可定 -> hermes_cli/config.py,但内容判据不过
+notes/r8a-raw-migrations-env-secrets.md	2861	config.py:301	2/4 个候选够长
+notes/r8a-raw-migrations-env-secrets.md	2862	config.py:298	2/4 个候选够长
+notes/r8a-raw-pairing-and-config-cmd.md	1316	config.py:3530	长度可定 -> hermes_cli/config.py,但内容判据不过
+notes/r8a-raw-status-qqbot.md	1457	status.py:449	2/3 个候选够长
+notes/r8a-raw-status-qqbot.md	1459	status.py:532	2/3 个候选够长
+notes/r8a-raw-status.md	407	status.py:508	2/3 个候选够长
+notes/r8a-raw-status.md	1497	status.py:344	2/3 个候选够长
+notes/r8a-raw-status.md	1529	test_status.py:6	2/2 个候选够长
+notes/r8b-raw-cli-voice-approval.md	46	security.md:57	2/2 个候选够长
+notes/r8b-raw-cli-voice-approval.md	46	security.md:55	2/2 个候选够长
+notes/r8b-raw-subcommands.md	2616	profiles.md:276	长度可定 -> website/docs/user-guide/profiles.md,但内容判据不过
+notes/r8c-11-hr8fixa-guard-parse-check.md	148	auth.py:7293	长度可定 -> hermes_cli/auth.py,但内容判据不过
+notes/r8c-11-hr8fixa-guard-parse-check.md	149	auth.py:7329	长度可定 -> hermes_cli/auth.py,但内容判据不过
+notes/r8c-11-hr8fixa-guard-parse-check.md	178	profiles.py:878	长度可定 -> hermes_cli/profiles.py,但内容判据不过
+notes/r8c-11-hr8fixa-guard-parse-check.md	180	auth.py:7329	长度可定 -> hermes_cli/auth.py,但内容判据不过
+notes/r8c-raw-auth-py.md	697	config.py:4856	长度可定 -> hermes_cli/config.py,但内容判据不过
+notes/r8c-raw-dashboard-auth.md	2172	middleware.py:49	2/2 个候选够长
+notes/r8c-raw-dashboard-auth.md	2220	middleware.py:44	2/2 个候选够长
+notes/r8c-raw-dashboard-auth.md	2408	middleware.py:470	长度可定 -> hermes_cli/dashboard_auth/middleware.py,但内容判据不过
+notes/r8c-raw-dashboard-auth.md	2563	web-dashboard.md:908	长度可定 -> website/docs/user-guide/features/web-dashboard.md,但内容判据不过
+notes/r8c-raw-dashboard-auth.md	2615	base.py:229	7/9 个候选够长
+notes/r8d-raw-credentials-security.md	2193	registry.py:22	5/5 个候选够长
+notes/r8d-raw-credentials-security.md	2193	registry.py:180	3/5 个候选够长
+notes/r8d-raw-credentials-security.md	2194	config.py:3395	长度可定 -> hermes_cli/config.py,但内容判据不过
+notes/r8d-raw-credentials-security.md	2194	doctor.py:689	2/3 个候选够长
+notes/r8d-raw-credentials-security.md	2211	auth.py:1575	长度可定 -> hermes_cli/auth.py,但内容判据不过
+notes/r8d-raw-credentials-security.md	2217	auth.py:1301	长度可定 -> hermes_cli/auth.py,但内容判据不过
+notes/r8d-raw-credentials-security.md	2239	models.py:4612	长度可定 -> hermes_cli/models.py,但内容判据不过
+notes/r8d-raw-extensions.md	382	plugins.py:1310	长度可定 -> hermes_cli/plugins.py,但内容判据不过
+notes/r8d-raw-extensions.md	430	plugins.py:1434	长度可定 -> hermes_cli/plugins.py,但内容判据不过
+notes/r8d-raw-extensions.md	726	plugins.py:436	长度可定 -> hermes_cli/plugins.py,但内容判据不过
+notes/r8d-raw-extensions.md	893	plugins.py:96	2/2 个候选够长
+notes/r8d-raw-extensions.md	2392	skills_hub.py:630	2/2 个候选够长
+notes/r8d-raw-root-and-boundary.md	1603	mcp.md:860	长度可定 -> website/docs/user-guide/features/mcp.md,但内容判据不过
+notes/r8d-raw-root-and-boundary.md	1852	mcp.md:848	长度可定 -> website/docs/user-guide/features/mcp.md,但内容判据不过
+notes/r8d-raw-root-and-boundary.md	1989	mcp.md:814	长度可定 -> website/docs/user-guide/features/mcp.md,但内容判据不过
+notes/r8d-str-gateway-and-ops.md	886	cli-commands.md:257	2/2 个候选够长
+notes/r9a-raw-async-delegation.md	2140	delegation.md:314	长度可定 -> website/docs/user-guide/features/delegation.md,但内容判据不过
+notes/r9a-raw-async-delegation.md	2151	delegation.md:280	2/2 个候选够长
+notes/r9a-raw-async-delegation.md	2152	delegation.md:312	长度可定 -> website/docs/user-guide/features/delegation.md,但内容判据不过
+notes/r9a-raw-skills-hub.md	1695	skills_hub.py:228	2/2 个候选够长
+notes/r9a-raw-skills-hub.md	1696	skills_hub.py:3803	长度可定 -> tools/skills_hub.py,但内容判据不过
+notes/r9a-raw-skills-hub.md	1697	skills_hub.py:3772	长度可定 -> tools/skills_hub.py,但内容判据不过
+notes/r9a-raw-skills-hub.md	1698	skills_hub.py:302	2/2 个候选够长
+notes/r9a-raw-skills-hub.md	1793	skills_hub.py:3810	长度可定 -> tools/skills_hub.py,但内容判据不过
+notes/r9a-raw-skills-hub.md	1904	skills_hub.py:1411	2/2 个候选够长
+notes/r9a-raw-skills-hub.md	1947	skills_hub.py:3111	长度可定 -> tools/skills_hub.py,但内容判据不过
+notes/r9a-raw-skills-hub.md	1952	skills_hub.py:2867	长度可定 -> tools/skills_hub.py,但内容判据不过
+notes/r9a-raw-skills-hub.md	1953	skills_hub.py:4022	长度可定 -> tools/skills_hub.py,但内容判据不过
+notes/r9a-raw-skills-hub.md	2151	features/skills.md:130	2/2 个候选够长
+notes/r9a-raw-skills-hub.md	2152	features/skills.md:721	2/2 个候选够长
+notes/r9a-raw-skills-hub.md	2196	skills_hub.py:97	2/2 个候选够长
+notes/r9b-raw-tts.md	1078	tts.md:48	2/2 个候选够长
+notes/r9b-raw-tts.md	1079	nous-portal.md:225	2/2 个候选够长
+notes/r9b-raw-tts.md	1082	tts.md:259	2/2 个候选够长
+notes/r9b-raw-tts.md	1083	tts.md:177	2/2 个候选够长
+notes/r9c-90-handover-rulings.md	207	adapter.py:471	24/24 个候选够长
+notes/r9c-raw-billing-and-http-clients.md	1861	doctor.py:2162	长度可定 -> hermes_cli/doctor.py,但内容判据不过
+notes/r9d-90-handover-process-and-verification.md	609	hooks.md:670	2/2 个候选够长
+notes/r9d-91-handover-rulings.md	282	hooks.md:668	2/2 个候选够长
+notes/r9d-91-handover-rulings.md	295	hooks.md:670	2/2 个候选够长
+notes/r9d-91-handover-rulings.md	295	security.md:47	2/2 个候选够长
+notes/r9d-91-handover-rulings.md	302	security.md:47	2/2 个候选够长
+notes/r9d-91-handover-rulings.md	304	hooks.md:670	2/2 个候选够长
+notes/r9d-91-handover-rulings.md	711	auth.py:2339	长度可定 -> hermes_cli/auth.py,但内容判据不过
+notes/r9d-91-handover-rulings.md	720	auth.py:2341	长度可定 -> hermes_cli/auth.py,但内容判据不过
+notes/r9d-92-mainline-tests-and-crosschecks.md	367	security.md:281	2/2 个候选够长
+notes/r9d-92-mainline-tests-and-crosschecks.md	533	security.md:47	2/2 个候选够长
+notes/r9d-raw-lsp.md	580	client.py:604	2/4 个候选够长
+notes/r9d-raw-lsp.md	1814	client.py:421	3/4 个候选够长
+notes/r9d-raw-lsp.md	1823	client.py:223	3/4 个候选够长
+notes/r9d-raw-lsp.md	1823	client.py:867	2/4 个候选够长
+notes/r9d-raw-lsp.md	1866	client.py:75	4/4 个候选够长
+notes/r9d-raw-lsp.md	1868	lsp.md:207	2/2 个候选够长

@@ -936,7 +936,7 @@ append 到 `~/.hermes/gateway-starts.log`,窗口内启动次数超阈值就返�
 怎么修 → 身份文件一律走 `_get_process_hermes_home()`,只认 `os.environ["HERMES_HOME"]`
 和平台默认值,**绕过 contextvar**。
 
-**对比**:`status_phrases.py:166` 用的是普通 `get_hermes_home()`(读 contextvar)——
+**对比**:`gateway/status_phrases.py:166` 用的是普通 `get_hermes_home()`(读 contextvar)——
 这是对的,短语目录**应该**跟随 profile。**同一个仓库里两个"取家目录"的语义,分界线是
 "这是身份还是配置"。** 这条区分值得进成品章。
 
@@ -1226,7 +1226,7 @@ OVERRIDEABLE_KEYS = frozenset(_GLOBAL_DEFAULTS.keys())
 `still on it`:`gateway/assets/status_phrases.yaml:2`、
 `gateway/status_phrases.py:48`(`_FALLBACK_PHRASES["status"][0]`)、
 `gateway/run.py:24413`(短语选择异常时的字面量)。
-`one sec`:`yaml:34`、`status_phrases.py:49`、`run.py:24413`。
+`one sec`:`yaml:34`、`gateway/status_phrases.py:49`、`gateway/run.py:24413`。
 
 其中 `_FALLBACK_PHRASES` **在正常路径上完全被覆盖**:内置 yaml 用 `inherited_mode="replace"`
 加载(`gateway/status_phrases.py:132-136 @ 863e313`):

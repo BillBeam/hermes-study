@@ -12,7 +12,7 @@
 | 3 | 中断不注入部分响应(agent-loop.md:124,R1 §2.16-3) | **证实(redirect 会注入)** | 见 §B.3 |
 | 4 | 请求包在 _interruptible_api_call(agent-loop.md:108,R1 §2.16-4) | **证实(默认流式)** | r2-23 定案 c / r2-03 |
 | 5 | 多工具并发 via ThreadPoolExecutor(agent-loop.md:133,R1 §2.16-5) | **证实(实为分段调度)** | r2-05 §1 |
-| 6 | "system_and_3" 缓存布局(compression-caching.md:396,R1 §2.16-6) | **证实(默认是静态前缀切分)** | r2-23 定案 b |
+| 6 | "system_and_3" 缓存布局(website/docs/developer-guide/context-compression-and-caching.md:396,R1 §2.16-6) | **证实(默认是静态前缀切分)** | r2-23 定案 b |
 | 7 | fallback "returns False if already activated"(provider-runtime.md:180,R1 §2.16-7) | **证实(靠 _fallback_index 推进)** | r2-23 定案 a |
 | 8 | 辅助任务"独立自动探测链"(provider-runtime.md:196,R1 §2.16-8) | **证伪→修正(默认 main-first)** | r2-21 定案 4a |
 | 9 | FailoverReason 驱动恢复未见于文档(R1 ◇) | **证实** | r2-23 定案 d |
@@ -30,7 +30,7 @@ R2 范围内:▲/◇ 条目 **15 条定案(14 证实 + 1 证伪修正)+ 1 条新
 
 ### B.1 grace-call 死代码 — 证实
 
-`_budget_grace_call` 在 while 条件里作为兜底(`conversation_loop.py:1415` `... or agent._budget_grace_call`),
+`_budget_grace_call` 在 while 条件里作为兜底(`agent/conversation_loop.py:1415` `... or agent._budget_grace_call`),
 但全仓仅有两处**写**,都是 `= False`:
 
 ```
@@ -56,13 +56,13 @@ agent/agent_init.py:470:    max_iterations: int = 90,  # Default tool-calling it
 ### B.3 中断不注入部分响应 — 证实(redirect 会注入)
 
 agent-loop.md:124 称中断时 "No partial response is injected into conversation history"。
-实际 **redirect 路径显式注入**:`_apply_active_turn_redirect`(`conversation_loop.py:122-201`)把已流出的
+实际 **redirect 路径显式注入**:`_apply_active_turn_redirect`(`agent/conversation_loop.py:122-201`)把已流出的
 可见文本剥 `<think>` 后作为降级 checkpoint 注入 messages,脚手架文本写入 api_content 侧车供 provider 回放
 (见 r2-02 §4)。文档描述的是纯 interrupt 语义,漏了 redirect 这条新增路径。
 
 ### B.4 [R2 新增] 流式 stale / 读超时注释漂移
 
-`conversation_loop.py:2330-2331` 注释写 "90s stale-stream detection, 60s read timeout",与代码不符:
+`agent/conversation_loop.py:2330-2331` 注释写 "90s stale-stream detection, 60s read timeout",与代码不符:
 
 - 流式 stale 默认 **180s**:`agent/chat_completion_helpers.py:4063` `env_float("HERMES_STREAM_STALE_TIMEOUT", 180.0)`
 - 流式读超时默认 **120s**:`agent/chat_completion_helpers.py:3028` `env_float("HERMES_STREAM_READ_TIMEOUT", 120.0)`

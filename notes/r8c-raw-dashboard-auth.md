@@ -1389,7 +1389,7 @@ WS 还叠了一层 Host/Origin + 客户端地址检查,与凭证检查是**两�
 被**丢弃**(上面 14741 行),所以 WS 连接只证明"此人 30 秒内持有过某个会话",
 既不区分是哪个用户,也不限制能连 `/api/pty` 还是 `/api/ws`。
 单用户 dashboard 场景无碍,但如果将来 dashboard 要支持多用户,这是必须先补的一环。
-`ws_tickets.py:129-138` 的 docstring 自己也承认 "the current ``_ws_auth_ok`` caller
+`hermes_cli/dashboard_auth/ws_tickets.py:129-138` 的 docstring 自己也承认 "the current ``_ws_auth_ok`` caller
 validates for the boolean outcome only and discards the dict"。
 
 ◇ **票据表无条数上限**,只有 mint 时的过期 GC(`_gc_expired_locked`)。已认证用户可在 30 秒内
@@ -1987,12 +1987,12 @@ drain 插件登记 `/api/gateway/drain`:
 
 ### 7.4 两处需要向主线交代的接缝性质(◇)
 
-**◇-a:`_require_token` 不认 `token_authenticated`。** 上面 `web_server.py:449-458` 的分支
+**◇-a:`_require_token` 不认 `token_authenticated`。** 上面 `hermes_cli/web_server.py:449-458` 的分支
 只看 `request.state.session`。方案 B 认证过的调用方**只有** `token_principal`、没有 `session`。
 所以**如果**将来把某个 `_require_token` 守卫的 handler 也登记成 token 路由,
 服务调用方会被 handler 层 401 掉——尽管中间件已经放行。
 今天不成立:唯一的 token 路由 `/api/gateway/drain` 的 handler 里没有 `_require_token`
-(核对 `web_server.py:4012` 起的 `gateway_drain` 函数体,只读 `request.state.token_principal` 做归因)。
+(核对 `hermes_cli/web_server.py:4012` 起的 `gateway_drain` 函数体,只读 `request.state.token_principal` 做归因)。
 这是接缝的**已知不对齐**,写进移交项。
 
 **◇-b:方案 B 与方案 C 抢同一个 `Authorization: Bearer` 头,B 在外层且独占。**
@@ -2056,14 +2056,14 @@ def _resolve_log_path() -> Path:
 
 | reason | 位置 | 触发 |
 |---|---|---|
-| `provider_unreachable` | routes.py:207-212 / 467-473 / 709-715 | IDP 挂了 |
-| `missing_pkce_cookie` | routes.py:389-393 | 回调时没有 PKCE cookie |
-| `idp_error` | routes.py:428-434 | IDP 回了 error= |
-| `state_mismatch` | routes.py:441-446 | CSRF 检查失败 |
-| `invalid_code` | routes.py:459-465 | code 无效 |
-| `rate_limited` | routes.py:669-674 | 密码登录超限 |
-| `unknown_password_provider` | routes.py:684-689 | provider 不存在或不支持密码 |
-| `invalid_credentials` | routes.py:696-702 | 密码错 |
+| `provider_unreachable` | hermes_cli/dashboard_auth/routes.py:207-212 / 467-473 / 709-715 | IDP 挂了 |
+| `missing_pkce_cookie` | hermes_cli/dashboard_auth/routes.py:389-393 | 回调时没有 PKCE cookie |
+| `idp_error` | hermes_cli/dashboard_auth/routes.py:428-434 | IDP 回了 error= |
+| `state_mismatch` | hermes_cli/dashboard_auth/routes.py:441-446 | CSRF 检查失败 |
+| `invalid_code` | hermes_cli/dashboard_auth/routes.py:459-465 | code 无效 |
+| `rate_limited` | hermes_cli/dashboard_auth/routes.py:669-674 | 密码登录超限 |
+| `unknown_password_provider` | hermes_cli/dashboard_auth/routes.py:684-689 | provider 不存在或不支持密码 |
+| `invalid_credentials` | hermes_cli/dashboard_auth/routes.py:696-702 | 密码错 |
 
 `hermes_cli/dashboard_auth/routes.py:696-702 @ 863e313`
 
@@ -2081,7 +2081,7 @@ def _resolve_log_path() -> Path:
 `WS_TICKET_REJECTED`、`TOKEN_AUTH_FAILURE` 各自成条。
 
 **注意一个不对称(◇):`TOKEN_AUTH_SUCCESS` 这个枚举值定义了但从未被使用。**
-搜索面 `grep -rn "TOKEN_AUTH_SUCCESS" --include=*.py .` —— 只在 `audit.py:50` 的定义处命中。
+搜索面 `grep -rn "TOKEN_AUTH_SUCCESS" --include=*.py .` —— 只在 `hermes_cli/dashboard_auth/audit.py:50` 的定义处命中。
 即 token 鉴权**只记失败不记成功**,而 cookie 路径记 `LOGIN_SUCCESS`。
 后果:审计日志无法回答"drain 密钥被谁在什么时候成功用过"。
 
@@ -2212,7 +2212,7 @@ _REDACTED_FIELDS: frozenset = frozenset({
 ```
 
    即 `/api/*` 分支返回 404 JSON,非 `/api/*` 返回 index.html;
-5. **因此今天没有数据泄露**——闸门模式的 index.html 不含任何 token(§6.4 的 `web_server.py:16097-16104`)。
+5. **因此今天没有数据泄露**——闸门模式的 index.html 不含任何 token(§6.4 的 `hermes_cli/web_server.py:16097-16104`)。
 
 **为什么仍算缺陷**:它把"这条路由是否公开"的决定权,从名单**转移**给了"路由名字碰巧怎么起"。
 任何人日后新增 `/api/auth/providers/{name}/config`、`/auth/logout-all`、`/login-audit`
@@ -2312,7 +2312,7 @@ Mission Control 自己的 404;密码表单 POST 同理;品牌字体全部 404(�
 
 ### ■-3 `normalise_prefix` 放行的部分字符会让 `set_cookie` 抛 `CookieError` → 未认证 500
 
-**锚点**:`_REJECT_CHARS` 只有 7 个字符(见 §5.2 的 `prefix.py:32-37`),而归一化后的值
+**锚点**:`_REJECT_CHARS` 只有 7 个字符(见 §5.2 的 `hermes_cli/dashboard_auth/prefix.py:32-37`),而归一化后的值
 被原样塞进 cookie 的 `path` 属性:
 
 `hermes_cli/dashboard_auth/cookies.py:138-142 @ 863e313`
@@ -2439,7 +2439,7 @@ SSO_ATTEMPT_COOKIE = "hermes_sso_attempt"
 ```
 
 **(3) HTTPS 下 cookie 的真实名字带前缀。** `__Host-hermes_session_at` 或
-`__Secure-hermes_session_at`(§3.3 实测已验证,代码见 §3.4 的 `cookies.py:107-119`)。
+`__Secure-hermes_session_at`(§3.3 实测已验证,代码见 §3.4 的 `hermes_cli/dashboard_auth/cookies.py:107-119`)。
 这一条对排障影响最大:按文档去浏览器里找 `hermes_session_at` 会**找不到**。
 
 ### ▲-3 文档说登录页列出"所有已注册 provider",代码只列 `supports_session` 的
@@ -2519,7 +2519,7 @@ token-only 的 provider(如 `drain-secret`,`supports_session = False`)因此**�
             return None, "ticket"
 ```
 
-票据表也没有容量上限(对比 `native_flow.py:85` 的 `_MAX_ENTRIES = 256`):
+票据表也没有容量上限(对比 `hermes_cli/dashboard_auth/native_flow.py:85` 的 `_MAX_ENTRIES = 256`):
 
 `hermes_cli/dashboard_auth/ws_tickets.py:45 @ 863e313`
 
@@ -2617,7 +2617,7 @@ sequenceDiagram
 
 3. **`_ws_client_is_allowed` / `_ws_host_origin_is_allowed` 的具体规则未取证。**
    锚点:`hermes_cli/web_server.py:14644`(`def _ws_host_origin_is_allowed`)。
-   现象:本轮只确认了它与 `_ws_auth_ok` 是**两道独立门**(`web_server.py:4635-4640`),
+   现象:本轮只确认了它与 `_ws_auth_ok` 是**两道独立门**(`hermes_cli/web_server.py:4635-4640`),
    没有展开 Origin/Host 白名单的判定逻辑与 DNS rebinding 覆盖面。
 
 4. **SPA 侧(`web/src/lib/api.ts`)如何消费 401 信封与 ws-ticket 未读。**

@@ -175,7 +175,7 @@ tools/terminal_tool.py(_HERMES_GATEWAY=1 时)
 ```
 
 **⑤ 并发上限。** `HERMES_CRON_MAX_PARALLEL` > `config.yaml cron.max_parallel_jobs` > 无上限
-(`scheduler.py:4228-4244`)。
+(`cron/scheduler.py:4228-4244`)。
 
 **⑥ 分池。** 带 `workdir` 的作业进单线程顺序池,其余进并行池:
 
@@ -191,7 +191,7 @@ tools/terminal_tool.py(_HERMES_GATEWAY=1 时)
         parallel_jobs = [j for j in due_jobs if not (j.get("workdir") or "").strip()]
 ```
 这是**双层互斥**:顺序池管 workdir 作业之间,`_terminal_cwd_lock`(读写锁,
-`scheduler.py:440`,在 `run_job:3128-3132` 取)管 workdir 作业 vs. 无 workdir 作业。
+`cron/scheduler.py:440`,在 `run_job:3128-3132` 取)管 workdir 作业 vs. 无 workdir 作业。
 
 **⑦ 派发守卫 `_submit_with_guard`(4272-4332)。** 三道:
 
@@ -217,7 +217,7 @@ tools/terminal_tool.py(_HERMES_GATEWAY=1 时)
 
 **⑧ 同步 vs 异步。** `sync=True`(测试/手工 tick)会 `as_completed` 等全部结束
 (`4380-4387`),**此时文件锁仍握着**;`sync=False`(网关 ticker,见
-`scheduler_provider.py:231-237`)立即返回,靠最后一个 future 的 done-callback 扫 MCP 孤儿
+`cron/scheduler_provider.py:231-237`)立即返回,靠最后一个 future 的 done-callback 扫 MCP 孤儿
 (`4392-4407`)。
 
 ### 2.2 `run_one_job`:执行→存盘→投递→记账(3930-4130)
@@ -377,7 +377,7 @@ tools/terminal_tool.py(_HERMES_GATEWAY=1 时)
 ```
 四条语义分别落在 2850-2867(失败告警)、2871-2882(wakeAgent=false 静默)、
 2884-2893(空输出静默)、2895-2903(正常投递)。静默是靠返回
-`SILENT_MARKER`(`scheduler.py:297 = "[SILENT]"`)实现的,由 `run_one_job:4053` 拦截。
+`SILENT_MARKER`(`cron/scheduler.py:297 = "[SILENT]"`)实现的,由 `run_one_job:4053` 拦截。
 
 `no_agent` 是**唯一把 `workdir` 传给脚本 cwd 的路径**(2830-2841)。
 
@@ -1126,7 +1126,7 @@ a changed signature on start() or a new abstractmethod.
 ```
 两个心跳标记(liveness vs. success)是为了区分"线程还活着但每 tick 都炸"和"真在开火"。
 
-注意 `can_dispatch` 在这里和 `tick` 内部**各判一次**(225-230 与 `scheduler.py:4193`),
+注意 `can_dispatch` 在这里和 `tick` 内部**各判一次**(225-230 与 `cron/scheduler.py:4193`),
 外层这次能省掉整个文件锁 + `get_due_jobs` 的 IO。
 
 **多 profile 复用(263-357,#69377)。** 每个 profile 用
@@ -1437,7 +1437,7 @@ gateway 侧的 cron 关机协作(在 scheduler.py,不在 guard):
   `"What "firing" *means* (job execution + delivery) is unchanged and shared by all
   providers … A provider only controls the trigger, never execution."`
 - 代码:内置路径把网关的 live adapters 和 event loop 一路传下去
-  (`gateway/run.py:26878` → `scheduler_provider.py:231-237` → `scheduler.py:4258`
+  (`gateway/run.py:26878` → `cron/scheduler_provider.py:231-237` → `cron/scheduler.py:4258`
   → `run_one_job(..., adapters=adapters, loop=loop)`);
   而 Chronos 的入站开火路径**硬传 `adapters=None`**:
   `gateway/platforms/api_server.py:5710-5712 @ 863e313`
@@ -1448,7 +1448,7 @@ gateway 侧的 cron 关机协作(在 scheduler.py,不在 guard):
   ```
   `hermes_cli/web_server.py:11966` 更彻底:`provider.fire_due(job_id, adapters=None, loop=None)`。
 - 后果(对照 `_deliver_result`):`runtime_adapter` 为 None → `live_adapter_ready` 为 False
-  (`scheduler.py:1622-1626`)→ 走 standalone HTTP 发送。于是 **E2EE 房间(Matrix)、
+  (`cron/scheduler.py:1622-1626`)→ 走 standalone HTTP 发送。于是 **E2EE 房间(Matrix)、
   可续聊 thread 开启(`:1720-1737`)、in_channel 扁平续聊种子(`:1992-1998`)在 Chronos 下全部不生效**。
   文档 `:1471-1474`(`_deliver_result` docstring)自己就说 live adapter 路径是给 E2EE 用的。
 
@@ -1466,7 +1466,7 @@ gateway 侧的 cron 关机协作(在 scheduler.py,不在 guard):
         2. Global ``cron.mirror_delivery`` (bool) in config.yaml.
         3. False.
   ```
-  实际调用点 `scheduler.py:1999-2003` / `:2102-2106`(`_maybe_mirror_cron_delivery`)。
+  实际调用点 `cron/scheduler.py:1999-2003` / `:2102-2106`(`_maybe_mirror_cron_delivery`)。
 - 定性:文档把"默认行为"写成了"绝对保证",且完全没提 `attach_to_session` /
   `cron.mirror_delivery` 两个开关。
 
@@ -1486,7 +1486,7 @@ gateway 侧的 cron 关机协作(在 scheduler.py,不在 guard):
 
 ### ▲-6 `deliver: local` 的描述会让人以为只有 local 才存盘
 
-- 文档:`cron-internals.md:238` `| Local file | ``local`` | Save to ``~/.hermes/cron/output/`` |`
+- 文档:`website/docs/developer-guide/cron-internals.md:238` `| Local file | ``local`` | Save to ``~/.hermes/cron/output/`` |`
 - 代码:`save_job_output` 对**每一个**作业无条件调用,与 `deliver` 无关:
   `cron/scheduler.py:4020` `output_file = save_job_output(job["id"], output)`。
   `local` 的真实含义是"解析不出投递目标,不投递"(`:1146-1147`、`:1300-1301`)。
@@ -1497,7 +1497,7 @@ gateway 侧的 cron 关机协作(在 scheduler.py,不在 guard):
 `scheduler_provider.py`(357 行)、`executions.py`、`suggestions.py`、`blueprint_catalog.py`、
 `suggestion_catalog.py` 全部缺席;正文也没有任何"cron 不能重启网关"的说明。
 代码侧:`cron/jobs.py:1365-1366` 是强制拦截点,被拦的用户会拿到
-`GatewayLifecycleBlocked`(`lifecycle_guard.py:559-565`)却在文档里找不到解释。
+`GatewayLifecycleBlocked`(`cron/lifecycle_guard.py:559-565`)却在文档里找不到解释。
 
 ### ◇-2 `check_gateway_lifecycle` 只在 create 生效,update 完全绕过(已实证)
 
@@ -1578,7 +1578,7 @@ UPDATE via cronjob tool: True -> 'hermes gateway restart'
 
 `cron-internals.md` 全文搜不到 `no_agent`、`wakeAgent`、`context_from`、`provider_snapshot`、
 `attach_to_session`、`enabled_toolsets`、`max_parallel_jobs`。这些都是本切片里成体量的机制:
-`scheduler.py:2819`(no_agent)、`:2432`(wake gate)、`:2509`(context_from)、
+`cron/scheduler.py:2819`(no_agent)、`:2432`(wake gate)、`:2509`(context_from)、
 `:3440`(#44585 漂移守卫)、`:2663`(组装期注入扫描)、`:4228-4244`(并发上限)。
 
 ### ◇-7 模型解析注释与实现的次序有出入(代码内部)
@@ -1598,7 +1598,7 @@ UPDATE via cronjob tool: True -> 'hermes gateway restart'
 
 ## 7. issue 溯源(切片内出现的编号 + 因果)
 
-### scheduler.py:2200-4428
+### cron/scheduler.py:2200-4428
 
 | issue | 行 | 因果经过 |
 |---|---|---|
@@ -1694,8 +1694,8 @@ tests/cron/test_scheduler_shutdown_guard.py      7 passed
 
 1. **把"何时触发"和"触发意味着什么"切成两个轴。** 触发器可换(进程内轮询 / 外部托管 webhook),
    执行+投递必须是**唯一一份共享代码**。hermes 的做法是把整个
-   "execute → save → deliver → mark"抽成 `run_one_job`(`scheduler.py:3930`),
-   provider 的 `fire_due` 默认实现直接调它(`scheduler_provider.py:113`)。
+   "execute → save → deliver → mark"抽成 `run_one_job`(`cron/scheduler.py:3930`),
+   provider 的 `fire_due` 默认实现直接调它(`cron/scheduler_provider.py:113`)。
    否则每加一个 provider 就复制一遍正确性。
 
 2. **回退必须落在核心里,不能落在插件里。** `InProcessCronScheduler` 定义在
@@ -1753,5 +1753,5 @@ tests/cron/test_scheduler_shutdown_guard.py      7 passed
     normalize 之后),而不是挂在某一个入口函数上。
 
 15. **给自动化留一条"从进程外能看见"的健康信号。** ticker 心跳(liveness)+ 成功标记 + 失败原因
-    三件套(`scheduler_provider.py:248-260`)让另一个进程里的 `hermes cron status`
+    三件套(`cron/scheduler_provider.py:248-260`)让另一个进程里的 `hermes cron status`
     能区分"线程死了""每 tick 都炸""真在开火"——#68483 那 14 小时的教训。

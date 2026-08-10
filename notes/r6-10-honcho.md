@@ -440,7 +440,7 @@ def sanitize_context(text: str) -> str:
         # per-message AIAgent instances.
 ```
 
-注释下方已无对应代码。结论:在本基线,`writeFrequency` 配置(setup 向导仍在问,`cli.py:912-923`)对 MemoryProvider 主路径**无效**——每轮固定"一线程一 flush",串行化靠 join 前一个 sync 线程(5s 上限)。async writer 懒启动本身有明确理由(急切启动曾抢在 mock 之前把测试消息写进真实本地 Honcho),`plugins/memory/honcho/session.py:143-152 @ 863e313`:
+注释下方已无对应代码。结论:在本基线,`writeFrequency` 配置(setup 向导仍在问,`plugins/memory/honcho/cli.py:912-923`)对 MemoryProvider 主路径**无效**——每轮固定"一线程一 flush",串行化靠 join 前一个 sync 线程(5s 上限)。async writer 懒启动本身有明确理由(急切启动曾抢在 mock 之前把测试消息写进真实本地 Honcho),`plugins/memory/honcho/session.py:143-152 @ 863e313`:
 ```python
         # Async write queue — the writer thread starts lazily on first enqueue
         # (see _ensure_async_writer). Constructing a manager must not spawn
@@ -535,7 +535,7 @@ cron/flush 上下文整插件熔断(`agent_context in {"cron","flush"} or platfo
     if returned_state != state:
         raise ValueError("OAuth state mismatch — possible CSRF, aborting")
 ```
-换码在 `complete_authorization`(`grant_type=authorization_code` + `code_verifier`,`oauth_flow.py:209-219`),持久化后 `reset_honcho_client()` 让单例下次以新 token 重建(`oauth_flow.py:232-235`)。
+换码在 `complete_authorization`(`grant_type=authorization_code` + `code_verifier`,`plugins/memory/honcho/oauth_flow.py:209-219`),持久化后 `reset_honcho_client()` 让单例下次以新 token 重建(`plugins/memory/honcho/oauth_flow.py:232-235`)。
 
 **设备码流**(SSH/无头):能力探测走 RFC 8414 元数据(`/.well-known/oauth-authorization-server` 里是否宣告 device grant,fail-closed,`plugins/memory/honcho/oauth_flow.py:427-439`);轮询严格按 RFC 8628 处理 `authorization_pending`/`slow_down`(+5s、封顶 60s)/`access_denied`/`expired_token`,网络抖动 continue 不杀 10 分钟等待,`plugins/memory/honcho/oauth_flow.py:514-571 @ 863e313`(节选):
 ```python
@@ -551,7 +551,7 @@ cron/flush 上下文整插件熔断(`agent_context in {"cron","flush"} or platfo
             continue
 ```
 
-端点解析零配置(cloud/local 按 environment 或 loopback base_url 判定,自托管 token 端点骑在 API host 上),env 变量可逐项覆盖;单一 client_id `hermes-agent`,界面差异走 `source` 查询参数而非多 client(避免"clientId 与 refresh token 失配→整个 grant 被撤销",`oauth_flow.py:74-77` 注释)。桌面"Connect"按钮走后台线程 + 状态轮询(pending 幂等,防双击开两个浏览器/双绑端口,`oauth_flow.py:624-656`);consent 页展示的配置路径做了脱敏(collapse 到 `~/`,绝对路径不出机器,`oauth_flow.py:41-54`)。
+端点解析零配置(cloud/local 按 environment 或 loopback base_url 判定,自托管 token 端点骑在 API host 上),env 变量可逐项覆盖;单一 client_id `hermes-agent`,界面差异走 `source` 查询参数而非多 client(避免"clientId 与 refresh token 失配→整个 grant 被撤销",`plugins/memory/honcho/oauth_flow.py:74-77` 注释)。桌面"Connect"按钮走后台线程 + 状态轮询(pending 幂等,防双击开两个浏览器/双绑端口,`plugins/memory/honcho/oauth_flow.py:624-656`);consent 页展示的配置路径做了脱敏(collapse 到 `~/`,绝对路径不出机器,`plugins/memory/honcho/oauth_flow.py:41-54`)。
 
 ### 5.2 token 存哪:access token 冒充 apiKey
 
@@ -643,7 +643,7 @@ _DEFAULT_HTTP_TIMEOUT = 30.0
 
 ### 6.3 本地/自托管适配
 
-loopback + RFC1918 + link-local + CGNAT(Tailscale 100.64/10)都算"本地"(`_is_local_base_url`,`client.py:249-284`);本地实例通常无鉴权但 SDK 要求非空 api_key → 填占位符 `"local"`,除非 host 块显式配了本地 JWT(存了云 key 的根配置不会误伤本地无鉴权服务器,`client.py:1060-1077`);用户把 `/v3` 写进 base_url 会与 SDK 自带版本前缀拼成 `/v3/v3/...` 全 404 → 无条件剥掉尾部版本段(`client.py:1079-1089`)。单例用 `SingletonSlot` 双检锁(工厂至多跑一次,失败不缓存下次重试,`plugins/plugin_utils.py:84-124 @ 863e313`)。
+loopback + RFC1918 + link-local + CGNAT(Tailscale 100.64/10)都算"本地"(`_is_local_base_url`,`client.py:249-284`);本地实例通常无鉴权但 SDK 要求非空 api_key → 填占位符 `"local"`,除非 host 块显式配了本地 JWT(存了云 key 的根配置不会误伤本地无鉴权服务器,`plugins/memory/honcho/client.py:1060-1077`);用户把 `/v3` 写进 base_url 会与 SDK 自带版本前缀拼成 `/v3/v3/...` 全 404 → 无条件剥掉尾部版本段(`plugins/memory/honcho/client.py:1079-1089`)。单例用 `SingletonSlot` 双检锁(工厂至多跑一次,失败不缓存下次重试,`plugins/plugin_utils.py:84-124 @ 863e313`)。
 
 ### 6.4 离线/宕机时对 harness 的表现(fail 方向汇总)
 
@@ -669,21 +669,21 @@ loopback + RFC1918 + link-local + CGNAT(Tailscale 100.64/10)都算"本地"(`_is_
 
 ## 7. cli.py 运维面
 
-命令树(`register_cli`,`cli.py:1870-1967`;路由 `honcho_command`,`cli.py:1824-1867`;全局 `--target-profile` 免切换操作他 profile):
+命令树(`register_cli`,`plugins/memory/honcho/cli.py:1870-1967`;路由 `honcho_command`,`plugins/memory/honcho/cli.py:1824-1867`;全局 `--target-profile` 免切换操作他 profile):
 
-- **setup**(`cmd_setup`,`cli.py:536-1048`):完整向导。步骤:SDK 安装检查(经 lazy_deps 环境感知安装 `honcho-ai==2.2.0`,`cli.py:504-533`)→ cloud/local(local 路径含自托管 JWT 提示,存 host 块以触发 `_host_has_key` 显式本地鉴权,`cli.py:574-625`)→ 云端三选一 oauth/device/apikey(无头环境自动推荐 device;两种 OAuth 都 `apply_config=False`——设置权归向导,grant 只存 token,`cli.py:626-755`)→ 身份(peerName/aiPeer/workspace)→ **网关身份映射树**(检测到网关平台才进入;"just me"/"pooled"/"multi"/raw 四形态,每分支先 `_scrub_identity_mapping` 清残留;un-pin 检测到会警告孤儿记忆并引导 pooled,`cli.py:773-899`)→ observation → writeFrequency → recallMode → contextTokens → dialecticCadence(默认写 2)→ reasoningLevel → sessionStrategy → 落盘(原子写 0600)→ 自动把 config.yaml `memory.provider` 设为 honcho → 建 client 测连。检测函数 `_resolve_effective_identity_mapping`(`cli.py:323-366`)刻意**镜像 from_global_config 的优先级**,注释点名不镜像的后果:"letting setup mis-classify the current shape and silently change effective routing on the next save"。注意 `hermes honcho setup` 子命令本身重定向到统一的 `hermes memory setup`(`cli.py:1830-1836`);provider 的 `post_setup` 又反向调 `cmd_setup`(`__init__.py:333-337`)。
+- **setup**(`cmd_setup`,`plugins/memory/honcho/cli.py:536-1048`):完整向导。步骤:SDK 安装检查(经 lazy_deps 环境感知安装 `honcho-ai==2.2.0`,`plugins/memory/honcho/cli.py:504-533`)→ cloud/local(local 路径含自托管 JWT 提示,存 host 块以触发 `_host_has_key` 显式本地鉴权,`plugins/memory/honcho/cli.py:574-625`)→ 云端三选一 oauth/device/apikey(无头环境自动推荐 device;两种 OAuth 都 `apply_config=False`——设置权归向导,grant 只存 token,`plugins/memory/honcho/cli.py:626-755`)→ 身份(peerName/aiPeer/workspace)→ **网关身份映射树**(检测到网关平台才进入;"just me"/"pooled"/"multi"/raw 四形态,每分支先 `_scrub_identity_mapping` 清残留;un-pin 检测到会警告孤儿记忆并引导 pooled,`plugins/memory/honcho/cli.py:773-899`)→ observation → writeFrequency → recallMode → contextTokens → dialecticCadence(默认写 2)→ reasoningLevel → sessionStrategy → 落盘(原子写 0600)→ 自动把 config.yaml `memory.provider` 设为 honcho → 建 client 测连。检测函数 `_resolve_effective_identity_mapping`(`plugins/memory/honcho/cli.py:323-366`)刻意**镜像 from_global_config 的优先级**,注释点名不镜像的后果:"letting setup mis-classify the current shape and silently change effective routing on the next save"。注意 `hermes honcho setup` 子命令本身重定向到统一的 `hermes memory setup`(`plugins/memory/honcho/cli.py:1830-1836`);provider 的 `post_setup` 又反向调 `cmd_setup`(`__init__.py:333-337`)。
 - **status [--all]**(`cli.py:1119-1288`):单 profile 展示解析后全配置(Auth 行区分 OAuth grant 与静态 key 并显示 token 剩余寿命)+ 实连测试 + 拉 peer card/AI representation;`--all` 出全 profile 表格。
 - **peers / sessions / map**:身份总览;目录→会话名映射的查看与写入(写入前 sanitize)。
 - **peer / mode / strategy / tokens**:四个"无参显示、有参写 host 块"的旋钮命令(peer 名、recallMode、sessionStrategy、contextTokens/dialecticMaxChars)。
-- **identity**(`cli.py:1521-1592`):`--show` 双 peer 画像;`<file>` 把 SOUL.md 等包 `<ai_identity_seed>` 标记后作为 assistant 消息喂给观察管线(`seed_ai_identity`,`session.py:1371-1414`)——身份不是配置,是"喂给表示引擎的素材"。
+- **identity**(`plugins/memory/honcho/cli.py:1521-1592`):`--show` 双 peer 画像;`<file>` 把 SOUL.md 等包 `<ai_identity_seed>` 标记后作为 assistant 消息喂给观察管线(`seed_ai_identity`,`session.py:1371-1414`)——身份不是配置,是"喂给表示引擎的素材"。
 - **migrate**(`cli.py:1595-1821`):六步交互式迁移指南(OpenClaw 文件记忆 → Honcho),自动探测 USER/MEMORY/SOUL/IDENTITY/AGENTS/TOOLS/BOOTSTRAP.md 并分别上传到 user/ai peer。
-- **enable / disable / sync**:host 块开关;`sync` 为所有 profile 克隆 host 块(`clone_honcho_for_profile`,`cli.py:18-77`:继承默认块设置、workspace 共享、aiPeer 用裸 profile 名——因 Honcho peer ID 不许有点;并急切建 peer)。`sync_honcho_profiles_quiet` 供 `hermes update` 静默调用(`cli.py:207-233`)。
+- **enable / disable / sync**:host 块开关;`sync` 为所有 profile 克隆 host 块(`clone_honcho_for_profile`,`plugins/memory/honcho/cli.py:18-77`:继承默认块设置、workspace 共享、aiPeer 用裸 profile 名——因 Honcho peer ID 不许有点;并急切建 peer)。`sync_honcho_profiles_quiet` 供 `hermes update` 静默调用(`plugins/memory/honcho/cli.py:207-233`)。
 
 **发现的代码内不一致**:`_all_profile_host_configs`(status --all / peers 用)仍以**旧点号形式**拼 host 键,`plugins/memory/honcho/cli.py:1113 @ 863e313`:
 ```python
         h = f"{HOST}.{p.name}"
 ```
-而写路径的规范形式是下划线 `hermes_<profile>`(`profile_host_key`,`client.py:39-44`;读路径 `_host_block` 兼容旧点号,`client.py:47-54`,但反向不成立)。后果:新格式存储的 profile 块在 `status --all`/`peers` 表格里显示为空/继承值。同族小问题:`cmd_enable` 里 `ai_peer = host.split(".", 1)[1] if "." in host else host`(`cli.py:128`)对下划线 host 键取不出裸 profile 名。记为待上游修复项(不改代码,只记录)。
+而写路径的规范形式是下划线 `hermes_<profile>`(`profile_host_key`,`client.py:39-44`;读路径 `_host_block` 兼容旧点号,`client.py:47-54`,但反向不成立)。后果:新格式存储的 profile 块在 `status --all`/`peers` 表格里显示为空/继承值。同族小问题:`cmd_enable` 里 `ai_peer = host.split(".", 1)[1] if "." in host else host`(`plugins/memory/honcho/cli.py:128`)对下划线 host 键取不出裸 profile 名。记为待上游修复项(不改代码,只记录)。
 
 **重实现要点(§7)**
 - 向导的"当前状态检测"必须复用运行时解析器的同一优先级逻辑,否则写回即改语义。
@@ -727,9 +727,9 @@ loopback + RFC1918 + link-local + CGNAT(Tailscale 100.64/10)都算"本地"(`_is_
 | 12 | 硬编码限制表 "Peer card fetch tokens 200"(:334-339) | `_fetch_peer_card`(`session.py:956-972`)及全插件**无任何 200-token 卡片预算**;搜索工具 2000/800 上限属实(`__init__.py:1445`) | ▲ **冲突**,疑为已删旧实现的化石 |
 | 13 | resolver ladder 七级(:179-189) | `session.py:330-360` 一致(含 alt-ID、sha256 升级) | ✓ |
 | 14 | `pinUserPeer` 赢过 `pinPeerName`、host 级整表替换根级(:174-177, :193) | `client.py:599-611`(注释明示优先序)、`_parse_string_map` host 整表覆盖(`client.py:179-191`) | ✓ |
-| 15 | 环境变量表含 OAuth 六变量(:341-355) | `oauth_flow.resolve_endpoints` `oauth_flow.py:110-120` 全部对应 | ✓ |
+| 15 | 环境变量表含 OAuth 六变量(:341-355) | `oauth_flow.resolve_endpoints` `plugins/memory/honcho/oauth_flow.py:110-120` 全部对应 | ✓ |
 | 16 | CLI 命令表(:356-371) | `cli.py:1870-1967` 全部存在,另有 README 未列的 `peers`/`strategy`/`identity`/`migrate` | ✓(README 少列) |
-| 17 | `hermes honcho setup` 仅在 Honcho 为活跃 provider 时注册(:33-35) | 注册机制在插件系统侧;`cmd_setup` 重定向 `hermes memory setup`(`cli.py:1830-1836`)与说法相容 | ✓(未在本簇内完全验证注册门) |
+| 17 | `hermes honcho setup` 仅在 Honcho 为活跃 provider 时注册(:33-35) | 注册机制在插件系统侧;`cmd_setup` 重定向 `hermes memory setup`(`plugins/memory/honcho/cli.py:1830-1836`)与说法相容 | ✓(未在本簇内完全验证注册门) |
 | 18 | observationMode 默认 directional(:210-211, :330-333) | 新装 directional、**老配置守卫回 unified**(`client.py:713-722`)——README 未提迁移守卫 | ▲ 半准确(默认值有历史分叉) |
 | 19 | dialecticMaxChars 默认 600(:289) | `client.py:404` 默认 600 ✓;`config_schema.py:221` placeholder 写 "1200" | ▲ 面板占位符漂移(小) |
 | 20 | writeFrequency 四态语义(:215-218) | manager `save()` 实现四态(`session.py:499-522`)但 provider 主路径绕过(§3.3) | ▲ **宣称的机制存在但主路径未接线** |

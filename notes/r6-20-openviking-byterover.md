@@ -29,7 +29,7 @@ _DEFAULT_ENDPOINT = "http://127.0.0.1:1933"
 _OPENVIKING_SERVICE_ENDPOINT = "https://api.vikingdb.cn-beijing.volces.com/openviking"
 ```
 
-数据模型是**文件系统层级 + 三级摘要**:一切内容是 `viking://` URI 下的"文件/目录",每个节点有 L0 abstract(约 100 token)、L1 overview(约 2k token)、L2 全文三个读取档位(`README_SCHEMA` 描述,`__init__.py:499-509`)。embedding 模型是**服务端的事**,配置在服务端自己的 `ov.conf` 里,插件从不接触(`README.md:60-62 @ 863e313`:"`ov.conf` configures OpenViking storage, embedding/VLM models, auth, and server behavior")。插件唯一 pip 依赖是 httpx(`plugins/memory/openviking/plugin.yaml @ 863e313`:`pip_dependencies: [httpx]`),且是惰性导入(`__init__.py:278-284` `_get_httpx()`)。
+数据模型是**文件系统层级 + 三级摘要**:一切内容是 `viking://` URI 下的"文件/目录",每个节点有 L0 abstract(约 100 token)、L1 overview(约 2k token)、L2 全文三个读取档位(`README_SCHEMA` 描述,`__init__.py:499-509`)。embedding 模型是**服务端的事**,配置在服务端自己的 `ov.conf` 里,插件从不接触(`plugins/memory/openviking/README.md:60-62 @ 863e313`:"`ov.conf` configures OpenViking storage, embedding/VLM models, auth, and server behavior")。插件唯一 pip 依赖是 httpx(`plugins/memory/openviking/plugin.yaml @ 863e313`:`pip_dependencies: [httpx]`),且是惰性导入(`__init__.py:278-284` `_get_httpx()`)。
 
 Hermes 本地磁盘上属于这个插件的东西只有四类,全是**控制面文件而非数据**:
 1. 连接配置:profile 的 `.env`(OPENVIKING_* 五个变量)或 `~/.openviking/ovcli.conf`(与 OpenViking CLI 共享);
@@ -282,14 +282,14 @@ provider 自己维护 **7 把锁 + 4 类线程**(`__init__`,2175-2232):
 
 | # | README 断言 | 代码事实 | 定案 |
 |---|---|---|---|
-| 1 | `README.md:10-11`:"OpenViking server running and reachable from Hermes"(前置要求) | 本地端点不可达时运行期自动 `Popen` 拉起 server 并后台等待 attach(`__init__.py:1482-1521, 2593-2657`) | ◇ README 偏保守:本地场景无需手动先跑 server |
+| 1 | `plugins/memory/openviking/README.md:10-11`:"OpenViking server running and reachable from Hermes"(前置要求) | 本地端点不可达时运行期自动 `Popen` 拉起 server 并后台等待 attach(`__init__.py:1482-1521, 2593-2657`) | ◇ README 偏保守:本地场景无需手动先跑 server |
 | 2 | `README.md:12-16`:0.2.10+ 推荐;legacy 仅在匿名 OpenAPI 也验明时接受 | `_probe_openviking_identity`(947-964)与 `_LEGACY_OPENVIKING_IDENTITY_DETAIL`(155-159)完全一致 | ✓ |
-| 3 | `README.md:34-36`:setup 可"link 现有 ovcli.conf、**copy 其连接值进 Hermes**、或新建" | 现有 profile 只有 link 路径(`_run_existing_profile_setup` 2003-2064 只调 `_link_ovcli_profile`);"copy into Hermes"仅存在于**新建**流程的 "Keep in Hermes only"(2115-2152);新建的 ovcli 是 `ovcli.conf.<name>` 存档而非激活的 `ovcli.conf` | ▲ "copy 现有 profile 值"路径在 863e313 不存在 |
+| 3 | `plugins/memory/openviking/README.md:34-36`:setup 可"link 现有 ovcli.conf、**copy 其连接值进 Hermes**、或新建" | 现有 profile 只有 link 路径(`_run_existing_profile_setup` 2003-2064 只调 `_link_ovcli_profile`);"copy into Hermes"仅存在于**新建**流程的 "Keep in Hermes only"(2115-2152);新建的 ovcli 是 `ovcli.conf.<name>` 存档而非激活的 `ovcli.conf` | ▲ "copy 现有 profile 值"路径在 863e313 不存在 |
 | 4 | `README.md:70-80`:5 个 env 变量表 + API-key 模式省略租户头 | `_headers`(305-320)+ `_resolve_connection_settings`(1089-1127)一致 | ✓;但表**不含** `get_config_schema` 另暴露的 8 个 `OPENVIKING_RECALL_*`/`OPENVIKING_PROFILE_TOKEN_BUDGET`(2293-2371) → ◇ README 配置表不完整 |
-| 5 | `README.md:86`:`viking_search` "fast/deep/auto modes" | 代码只有两种行为:`endpoint = "/api/v1/search/search" if mode == "deep" else "/api/v1/search/find"`(4888)——auto ≡ fast | ▲ "auto" 无独立行为,仅是 schema 枚举默认值 |
-| 6 | `README.md:95-100`:remember 用 `content/write mode=create`,peer 域 URI,API-key 模式可能返回 user-scoped 规范形 | `_tool_remember`(5102-5106)、`_build_memory_uri`(4723-4726)一致;forget 校验兼容规范形(697-700) | ✓ |
-| 7 | `README.md:105-112`:仅 `add` 镜像;replace/remove 不镜像(无稳定 URI) | `on_memory_write`:`if action != "add" or not content ...: return`(4736) | ✓ |
-| 8 | `README.md:114-122`:forget 只收具体 .md 用户记忆 URI,`memories/` 直下文件亦可,拒目录/资源/生成摘要/query | `_validate_forget_memory_uri`(704-729):`user/<acct>/memories/profile.md` → parts 长度 4 ≥ idx(2)+2 通过;`.abstract.md/.overview.md` 拒绝 | ✓ |
+| 5 | `plugins/memory/openviking/README.md:86`:`viking_search` "fast/deep/auto modes" | 代码只有两种行为:`endpoint = "/api/v1/search/search" if mode == "deep" else "/api/v1/search/find"`(4888)——auto ≡ fast | ▲ "auto" 无独立行为,仅是 schema 枚举默认值 |
+| 6 | `plugins/memory/openviking/README.md:95-100`:remember 用 `content/write mode=create`,peer 域 URI,API-key 模式可能返回 user-scoped 规范形 | `_tool_remember`(5102-5106)、`_build_memory_uri`(4723-4726)一致;forget 校验兼容规范形(697-700) | ✓ |
+| 7 | `plugins/memory/openviking/README.md:105-112`:仅 `add` 镜像;replace/remove 不镜像(无稳定 URI) | `on_memory_write`:`if action != "add" or not content ...: return`(4736) | ✓ |
+| 8 | `plugins/memory/openviking/README.md:114-122`:forget 只收具体 .md 用户记忆 URI,`memories/` 直下文件亦可,拒目录/资源/生成摘要/query | `_validate_forget_memory_uri`(704-729):`user/<acct>/memories/profile.md` → parts 长度 4 ≥ idx(2)+2 通过;`.abstract.md/.overview.md` 拒绝 | ✓ |
 | 9 | 模块 docstring `__init__.py:19-20`:"Automatic memory extraction on session commit (6 categories)" | commit 调用(3439-3443)+ `on_session_end` docstring(4600-4604)列 profile/preferences/entities/events/cases/patterns;抽取本体在服务端,插件侧不可验证类别数 | ◇ 服务端承诺,插件仅触发 |
 
 ---
@@ -344,11 +344,11 @@ Working directory: $HERMES_HOME/byterover/ (profile-scoped context tree)
 
 | # | README 断言 | 代码事实 | 定案 |
 |---|---|---|---|
-| 1 | `README.md:3`:"hierarchical knowledge tree with tiered retrieval (fuzzy text → LLM-driven search)" | 插件仅调 `brv query/curate/status`,树与分级检索是 brv 内部实现,本仓不可验证 | ◇ 外部承诺,插件侧无对应代码 |
+| 1 | `plugins/memory/byterover/README.md:3`:"hierarchical knowledge tree with tiered retrieval (fuzzy text → LLM-driven search)" | 插件仅调 `brv query/curate/status`,树与分级检索是 brv 内部实现,本仓不可验证 | ◇ 外部承诺,插件侧无对应代码 |
 | 2 | `README.md:7-12`:两种安装方式 | 与 `plugin.yaml` `external_dependencies`(install/check 命令)及模块 docstring(9-10)一致;`hermes memory setup` 会跑 `brv --version` check 失败时提示安装命令(`hermes_cli/memory_setup.py:189-202`) | ✓ |
-| 3 | `README.md:29-31`:配置表仅 `BRV_API_KEY`(可选) | 代码还有 `auto_extract`(config.yaml `memory.byterover.auto_extract`,默认 true,224-225;schema 249-254;另接受 legacy `memory.provider_config`,83-85) | ◇ README 配置表缺 `auto_extract`;模块 docstring(15-18)有 |
-| 4 | `README.md:24`:`BRV_API_KEY` 写入 `~/.hermes/.env` 即生效 | 插件不读该变量,靠 `os.environ.copy()` 透传(137);生效前提是 env 已加载进进程 | ✓(机制是透传而非插件消费) |
-| 5 | `README.md:33`:工作目录 `$HERMES_HOME/byterover/` | `_get_brv_cwd`(165-168)一致,`_run_brv` 每次 mkdir(135) | ✓ |
+| 3 | `plugins/memory/byterover/README.md:29-31`:配置表仅 `BRV_API_KEY`(可选) | 代码还有 `auto_extract`(config.yaml `memory.byterover.auto_extract`,默认 true,224-225;schema 249-254;另接受 legacy `memory.provider_config`,83-85) | ◇ README 配置表缺 `auto_extract`;模块 docstring(15-18)有 |
+| 4 | `plugins/memory/byterover/README.md:24`:`BRV_API_KEY` 写入 `~/.hermes/.env` 即生效 | 插件不读该变量,靠 `os.environ.copy()` 透传(137);生效前提是 env 已加载进进程 | ✓(机制是透传而非插件消费) |
+| 5 | `plugins/memory/byterover/README.md:33`:工作目录 `$HERMES_HOME/byterover/` | `_get_brv_cwd`(165-168)一致,`_run_brv` 每次 mkdir(135) | ✓ |
 | 6 | `README.md:37-41`:三工具表 | `get_tool_schemas`(380-381)一致 | ✓ |
 | 7 | `plugin.yaml` `hooks: [on_pre_compress]` | 代码实际还实现 `on_memory_write`;该字段本就不参与分发(加载器只读 description) | ◇ 元数据不完整且无害 |
 

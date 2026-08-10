@@ -1,4 +1,4 @@
-# r8a-raw-tools-config-b · tools_config.py:1900-3700
+# r8a-raw-tools-config-b · hermes_cli/tools_config.py:1900-3700
 
 底稿。求全求证,不求好读。基线 `863e313`,文件全长 5452 行,本稿覆盖 **1900-3700**。
 所有 `路径:行号` 均相对 `/home/user/hermes-agent`。
@@ -1646,7 +1646,7 @@ xAI Imagine 的存储三选一(唯一一个写三层嵌套 config 的地方):
 
 | 键 | 默认 | 读/写行 | 语义与 fallback |
 |---|---|---|---|
-| `platform_toolsets.<platform>` | 无 → `[<平台默认复合>]` | 读 `tools_config.py:2232-2247`;写 `:2566` | 非 list 即回落平台默认;元素强制 `str()` |
+| `platform_toolsets.<platform>` | 无 → `[<平台默认复合>]` | 读 `hermes_cli/tools_config.py:2232-2247`;写 `:2566` | 非 list 即回落平台默认;元素强制 `str()` |
 | `known_builtin_toolsets.<platform>` | 无 → 空集 | 读 `:2200`;写 `:2584` | checklist 展示过的**全目录**,用于区分"取消勾选"与"当时不存在" |
 | `known_plugin_toolsets.<platform>` | 无 → 空集 | 读 `:2421`;写 `:2575` | 同上,插件版;写前做 `isinstance(...,dict)` 归一(null 键陷阱) |
 | `mcp_servers.<name>.enabled` | `True` | 读 `:2137` | 经 `_parse_enabled_flag`;非 dict 的条目静默丢弃;无法识别的字符串 → True |
@@ -1671,7 +1671,7 @@ xAI Imagine 的存储三选一(唯一一个写三层嵌套 config 的地方):
 
 | 变量 | 读取点 | 读它的函数 | 说明 |
 |---|---|---|---|
-| `TELEGRAM_BOT_TOKEN` | `tools_config.py:2077` | `_get_enabled_platforms` | 仅存在性 |
+| `TELEGRAM_BOT_TOKEN` | `hermes_cli/tools_config.py:2077` | `_get_enabled_platforms` | 仅存在性 |
 | `DISCORD_BOT_TOKEN` | `:2079` | 同上 | |
 | `SLACK_BOT_TOKEN` | `:2081` | 同上 | |
 | `WHATSAPP_ENABLED` | `:2083` | 同上 | **只判存在,不解析真假** |
@@ -1681,12 +1681,12 @@ xAI Imagine 的存储三选一(唯一一个写三层嵌套 config 的地方):
 | `OPENROUTER_API_KEY` | `:748` 表项,由 `_toolset_has_keys:2666` 读 | 实际不可达(vision 在 `:2628` 先返回) | 纯"可配置性标记" |
 | `HERMES_CUA_DRIVER_CMD` | `:757` | `_cua_driver_cmd`,经 `_resolved_cua_driver_cmd` 被 `_POST_SETUP_INSTALLED`/`_POST_SETUP_READY` 用 | 空串 → `"cua-driver"` |
 | 任意 provider `env_vars[].key` | `:2658`、`:3317`、`:3510`、`:3646` | `_toolset_has_keys` / `provider_readiness_status` / `_configure_tool_category` / `_detect_active_provider_index` | 全部经 `get_env_value`(scope → environ → `.env`) |
-| `CAMOFOX_URL` | 作为 provider env_var(`tools_config.py:652`) | 同上 | 带 `default: http://localhost:9377` |
+| `CAMOFOX_URL` | 作为 provider env_var(`hermes_cli/tools_config.py:652`) | 同上 | 带 `default: http://localhost:9377` |
 | `BROWSERBASE_API_KEY` / `BROWSERBASE_PROJECT_ID` | `plugins/browser/browserbase/provider.py:288`/`:293` | 同上 | |
-| `BROWSER_USE_API_KEY` | `plugins/browser/browser_use/provider.py:316`;另作 `override_env_vars`(`tools_config.py:639`) | 同上 | |
-| `FIRECRAWL_API_KEY` | `plugins/browser/firecrawl/provider.py:166`;`override_env_vars`(`tools_config.py:507`) | 同上 | |
-| `FAL_KEY` | `override_env_vars`(`tools_config.py:541`、`:561`) | 托管行覆盖 | |
-| `VOICE_TOOLS_OPENAI_KEY` / `OPENAI_API_KEY` | `override_env_vars`(`tools_config.py:341`、`:434`) | 托管 TTS/STT 行覆盖 | |
+| `BROWSER_USE_API_KEY` | `plugins/browser/browser_use/provider.py:316`;另作 `override_env_vars`(`hermes_cli/tools_config.py:639`) | 同上 | |
+| `FIRECRAWL_API_KEY` | `plugins/browser/firecrawl/provider.py:166`;`override_env_vars`(`hermes_cli/tools_config.py:507`) | 同上 | |
+| `FAL_KEY` | `override_env_vars`(`hermes_cli/tools_config.py:541`、`:561`) | 托管行覆盖 | |
+| `VOICE_TOOLS_OPENAI_KEY` / `OPENAI_API_KEY` | `override_env_vars`(`hermes_cli/tools_config.py:341`、`:434`) | 托管 TTS/STT 行覆盖 | |
 | `HERMES_HOME` | 本段不直接读;`_cua_install_home` 等使用 | — | 测试通过它做隔离 |
 
 ---
@@ -1737,9 +1737,9 @@ even to logged-out / unentitled users":`hermes_cli/tools_config.py:3093 @ 863e31
 This applies **after** per-platform tool config (`platform_toolsets` written by
 ```
 
-对**读**路径成立(`tools_config.py:2491`),但对**写**路径不成立:跑一次
+对**读**路径成立(`hermes_cli/tools_config.py:2491`),但对**写**路径不成立:跑一次
 `hermes tools` 并保留某 toolset 勾选,就会把它从 `agent.disabled_toolsets` 里删掉
-(`tools_config.py:2607-2612`)。文档没有提到这条自动裁剪。
+(`hermes_cli/tools_config.py:2607-2612`)。文档没有提到这条自动裁剪。
 
 **C5 —— `_hidden_nous_gateway_message` 的 docstring 是准确的("always returns an
 empty string"),但四处调用点的分支代码没有随之删除**,构成注释诚实、代码残留的组合。
@@ -1759,16 +1759,16 @@ readiness 谓词的回归测试被删过而说明文字留了下来。
 ## 16. 可疑缺陷(只记录不修)
 
 **D1 —— `valid_post_setup_keys` 漏掉 TTS 插件的 post_setup。**
-builder 元组只有四个(`tools_config.py:2026-2031`),不含 `_plugin_tts_providers`,
-但后者会透传 `post_setup`(`tools_config.py:3078`)。
+builder 元组只有四个(`hermes_cli/tools_config.py:2026-2031`),不含 `_plugin_tts_providers`,
+但后者会透传 `post_setup`(`hermes_cli/tools_config.py:3078`)。
 **怎么踩到**:装一个声明了 `post_setup` 的 TTS 插件 → GUI 点"Run setup" →
 `hermes tools post-setup <key>` 报 "Unknown post-setup key" 退出码 2;
 `_run_post_setup` 里若无对应分支则本就 no-op,但 CLI 的报错会把用户引向"key 非法"
 而非"钩子未实现"。
 
 **D2 —— `_get_enabled_platforms` 与 `PLATFORMS` 注册表是两套真相。**
-前者硬编码 5 个平台的 token 环境变量(`tools_config.py:2076-2087`),后者来自
-`hermes_cli.platforms` 注册表(`tools_config.py:310`)。
+前者硬编码 5 个平台的 token 环境变量(`hermes_cli/tools_config.py:2076-2087`),后者来自
+`hermes_cli.platforms` 注册表(`hermes_cli/tools_config.py:310`)。
 **怎么踩到**:新增一个 gateway 平台并注册进 `platforms`,`hermes tools` 的
 "配置所有平台"流程仍不会列出它,因为汇总走的是 `_get_enabled_platforms`。
 
@@ -1777,19 +1777,19 @@ builder 元组只有四个(`tools_config.py:2026-2031`),不含 `_plugin_tts_prov
 `platform_toolsets.<p> = ["github"]`(只想要某个 MCP 服务器、不要原生工具)是
 第 6.5 节明确支持的用法。
 **怎么踩到**:此配置每进程记一条 `logger.warning("... tools will be unavailable ...")`
-(`tools_config.py:2510`),而实际上 MCP 工具是正常可用的 —— 用户按提示跑
+(`hermes_cli/tools_config.py:2510`),而实际上 MCP 工具是正常可用的 —— 用户按提示跑
 `hermes tools` 重配,反而会因 §7.2 的 `no_mcp` 清除/复合排除逻辑改变其配置。
 
 **D4 —— `newly_enabled` 的减法几乎是恒等,语义靠调用方兜着。**
-`tools_config.py:2605`:`enabled_toolset_keys` 来自 checklist(全是可配置 key),
+`hermes_cli/tools_config.py:2605`:`enabled_toolset_keys` 来自 checklist(全是可配置 key),
 `preserved_entries` 全是非可配置项,两者交集通常为空。
 **怎么踩到**:任何直接调用 `_save_platform_tools` 并传入"当前完整启用集"的调用方
 (而非"用户新勾的"),都会把 `agent.disabled_toolsets` 里所有与之同名的条目清空 ——
 全局压制表被一次平台级保存清掉。
 
 **D5 —— `_prompt_toolset_checklist` 在渲染前可能发起多次绕过缓存的门户 HTTP 调用。**
-`force_fresh` 默认 `True`(`tools_config.py:2730`),标签循环对每个 toolset 调
-`_toolset_has_keys(ts_key, force_fresh=force_fresh)`(`tools_config.py:2752`),
+`force_fresh` 默认 `True`(`hermes_cli/tools_config.py:2730`),标签循环对每个 toolset 调
+`_toolset_has_keys(ts_key, force_fresh=force_fresh)`(`hermes_cli/tools_config.py:2752`),
 其中 6 个网关能力 key 会进入 `get_nous_subscription_features(force_fresh=True)`
 → `get_nous_portal_account_info(force_fresh=True)` → 绕过缓存打 `/api/oauth/account`
 (`hermes_cli/nous_account.py:361`)。且未传 `config`,每次还 `load_config()` 一遍。
@@ -1802,52 +1802,52 @@ builder 元组只有四个(`tools_config.py:2026-2031`),不含 `_plugin_tts_prov
 `hermes_cli/plugins.py:936` 提供了 `register_transcription_provider` 钩子,
 `agent/transcription_registry.py:102` 有 `list_providers()`,但 `_visible_providers`
 的注入分支只覆盖 Image Generation / Video Generation / Web Search & Extract /
-Browser Automation / Text-to-Speech(`tools_config.py:3137-3165`),**没有
+Browser Automation / Text-to-Speech(`hermes_cli/tools_config.py:3137-3165`),**没有
 Speech-to-Text**。
 **怎么踩到**:写一个 STT 插件,`hermes tools` → Speech-to-Text 里看不到它;
 只能手改 `stt.provider`。
 
 **D7 —— 有 env_vars 的 provider 即使安装钩子没跑,GUI 也报 "ready"。**
-`provider_readiness_status` 在 `tools_config.py:3316-3319` 就 return 了,永远到不了
-`tools_config.py:3351` 的 `_POST_SETUP_READY` 查表。而 Camofox 行同时有
-`CAMOFOX_URL`(`tools_config.py:652`)和 `post_setup: "camofox"`(`tools_config.py:656`),
+`provider_readiness_status` 在 `hermes_cli/tools_config.py:3316-3319` 就 return 了,永远到不了
+`hermes_cli/tools_config.py:3351` 的 `_POST_SETUP_READY` 查表。而 Camofox 行同时有
+`CAMOFOX_URL`(`hermes_cli/tools_config.py:652`)和 `post_setup: "camofox"`(`hermes_cli/tools_config.py:656`),
 Browserbase / Browser Use / Firecrawl 三个云行同样是"有 key + post_setup: browserbase"
 (`plugins/browser/browserbase/provider.py:299` 等)。
 **结果**:`_POST_SETUP_READY["camofox"]` **完全不可达**;
 `_POST_SETUP_READY["browserbase"]` 只对唯一的零 key 行(Nous Subscription 浏览器行,
-`tools_config.py:635`)可达。
+`hermes_cli/tools_config.py:635`)可达。
 **怎么踩到**:填好 Browserbase 的两个 key 但从未装 agent-browser CLI → 药丸显示
 Ready → 点运行 → 运行时才失败。
 
 **D8 —— `requires_python` 分支无数据可触发。**
-`tools_config.py:3455` 读 `cat.get("requires_python")`,而全文件搜索显示只有
+`hermes_cli/tools_config.py:3455` 读 `cat.get("requires_python")`,而全文件搜索显示只有
 3455/3456 两处出现该字符串,`TOOL_CATEGORIES` 里没有任何条目声明它。死分支。
 
 **D9 —— `_is_provider_active` 的 image/video 插件分支不对称。**
-video 分支带 `and not provider.get("managed_nous_feature")` 守卫(`tools_config.py:3563`),
-image 分支没有(`tools_config.py:3557-3560`)。
+video 分支带 `and not provider.get("managed_nous_feature")` 守卫(`hermes_cli/tools_config.py:3563`),
+image 分支没有(`hermes_cli/tools_config.py:3557-3560`)。
 **怎么踩到**:若将来某个托管 Nous image 行同时带 `image_gen_plugin_name`,
 它会走进插件分支比对 `image_gen.provider`,绕过 3573 行那套
 `use_gateway` / provider 三值的托管判定,菜单默认高亮与 `[active]` 标记都会错。
 
 **D10 —— `_detect_active_provider_index` 的 env-var 兜底会抢在真正激活的 provider 之前。**
-`tools_config.py:3641-3648` 在**同一次遍历**里既判 active 又判 env-var 兜底。
+`hermes_cli/tools_config.py:3641-3648` 在**同一次遍历**里既判 active 又判 env-var 兜底。
 **怎么踩到**:用户配过 provider A 的 key 但当前激活的是排在后面的 provider B,
 打开 `hermes tools` 重配该分类时,菜单默认高亮落在 A;闭眼回车就把 provider 从 B 换成 A。
 
 **D11 —— 模型选择器在 `default_model` 不在目录里时会 KeyError。**
-`tools_config.py:3709-3711` 把 `current_model` 回落到 `default_model` 但不再校验,
-随后 `tools_config.py:3817` 直接 `catalog[mid]`。
+`hermes_cli/tools_config.py:3709-3711` 把 `current_model` 回落到 `default_model` 但不再校验,
+随后 `hermes_cli/tools_config.py:3817` 直接 `catalog[mid]`。
 **怎么踩到**:一个插件的 `default_model()` 返回了不在 `list_models()` 里的 id
 (或返回 None),选择器抛 KeyError 打断整个 `hermes tools` 流程。
 
 **D12 —— 非可配置 toolset 回收的结果依赖 `TOOLSETS` 定义顺序。**
-`tools_config.py:2409-2411` 的 `claimed` 集合边遍历边扩张。
+`hermes_cli/tools_config.py:2409-2411` 的 `claimed` 集合边遍历边扩张。
 **怎么踩到**:两个部分重叠的非可配置 toolset,调整 `toolsets.py` 里的定义顺序
 就会改变哪个被回收 —— 一次纯排版的改动可能静默改变某平台的工具集。
 
 **D13 —— `hermes tools` 保存会静默抹掉手工设置的 `no_mcp`。**
-`tools_config.py:2563` 无条件 `preserved_entries.discard("no_mcp")`。
+`hermes_cli/tools_config.py:2563` 无条件 `preserved_entries.discard("no_mcp")`。
 **怎么踩到**:用户手写 `no_mcp` 关掉某平台的全部 MCP 服务器,之后为了别的原因
 跑一次 `hermes tools` 保存,MCP 服务器全部悄悄恢复。这是"UI 可达性"与
 "手工配置不被破坏"的一次明确取舍,选了前者,但没有任何提示。

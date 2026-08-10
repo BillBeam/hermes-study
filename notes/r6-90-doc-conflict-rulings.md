@@ -6,10 +6,10 @@
 
 ## 定案 1 ◇ R1 条目「记忆检索查询改写(query_rewrite)」——证实(主线亲读)
 
-R1 ◇9(query_rewrite.py:41)。查实:aux 任务 `memory_query_rewrite`;输入 JSON 化注明
+R1 ◇9(plugins/memory/query_rewrite.py:41)。查实:aux 任务 `memory_query_rewrite`;输入 JSON 化注明
 "data only" + 系统提示明令不执行消息内指令;**输出过五道确定性闸**(≤320 字符、疑问词开头、
 含记忆接地词、不含指令词汇 `_INSTRUCTION_LEAK_RE`、无内部多句),任一不过返回 `""` 退回原话
-检索(query_rewrite.py:84-106, 109-139)。防注入是"输入嘱咐 + 输出形状闸"双层,比 R1 标记
+检索(plugins/memory/query_rewrite.py:84-106, 109-139)。防注入是"输入嘱咐 + 输出形状闸"双层,比 R1 标记
 描述更硬。
 
 ## 定案 2 ◇ 根 README:26「Honcho dialectic user modeling」——证实(主体在服务端)
@@ -23,7 +23,7 @@ Hermes 侧有完整 dialectic 调用编排(多 pass `peer.chat`、冷/暖提示�
 `README.md:230-242` 表:manual map(1)→ /title(2)→ gateway key(3)→ per-session(4)…
 代码(client.py:793-806 docstring 与实现一致):**gateway key 绝对第一**,其次 per-session
 (权威,防生成标题重映射活会话),再 manual map,再 title。行为差异实在:配了手工映射的网关
-会话,代码用网关键。以代码为准。同类:`README.md:334-339` "Peer card fetch tokens 200" 的
+会话,代码用网关键。以代码为准。同类:`plugins/memory/honcho/README.md:334-339` "Peer card fetch tokens 200" 的
 预算**全插件不存在**(疑为已删旧实现化石);`writeFrequency` 四态在 manager `save()` 里实现
 但 **provider 主路径绕过**(sync_turn 直接 flush;gateway 只剩孤儿注释 gateway/run.py:6107-6109)
 ——宣称的机制存在但未接线。另有代码内不一致:cli.py:1113 仍拼旧点号 host 键
@@ -31,9 +31,9 @@ Hermes 侧有完整 dialectic 调用编排(多 pass `peer.chat`、冷/暖提示�
 
 ## 定案 4 ▲ openviking:两处 README 证伪 + 一处保守
 
-- `README.md:86` "viking_search fast/deep/auto modes":代码只有二态
+- `plugins/memory/openviking/README.md:86` "viking_search fast/deep/auto modes":代码只有二态
   (`endpoint = ".../search" if mode == "deep" else ".../find"`,__init__.py:4888),auto ≡ fast。
-- `README.md:34-36` "copy 现有 profile 连接值进 Hermes":该路径在基线不存在(现有 profile 只有
+- `plugins/memory/openviking/README.md:34-36` "copy 现有 profile 连接值进 Hermes":该路径在基线不存在(现有 profile 只有
   link;copy 只在新建流程)。
 - `README.md:10-11` 要求先跑 server:实际本地端点不可达时运行期**自动拉起**(保守而非错)。
 - 配置表缺 8 个 `OPENVIKING_RECALL_*` 等召回参数。
@@ -49,25 +49,25 @@ timeout/idle_timeout/prefetch_waits_for_retain 等 7 键。**plugin.yaml 声明 
 
 ## 定案 6 ▲ supermemory:死配置
 
-`README.md:55` `capture_mode` "Skip tiny or trivial turns by default":`_capture_mode` 被加载
+`plugins/memory/supermemory/README.md:55` `capture_mode` "Skip tiny or trivial turns by default":`_capture_mode` 被加载
 (__init__.py:672)但**全文件无使用点**,`_is_trivial_message` 同为死代码——sync_turn 缓冲一切
 非空轮,过滤已在演化中移除(测试注释留有痕迹)。README 描述的行为不存在。另 `api_timeout`
 对 ingest 实为 +3s;kebab/snake 别名方向说反(行为等价)。
 
 ## 定案 7 ▲ retaindb:三处 README 证伪
 
-- `README.md:3` "7 memory types":schema enum 只有 6 个(factual/preference/goal/instruction/
+- `plugins/memory/retaindb/README.md:3` "7 memory types":schema enum 只有 6 个(factual/preference/goal/instruction/
   event/opinion,__init__.py:113-117)。
 - `README.md:33-40` 工具表 5 个:实注册 **10 个**(漏整个文件工具族 upload/list/read/ingest/delete)。
-- `README.md:24` "All config via env":还读 config.yaml 的 `memory.retaindb` 块(#68209)。
+- `plugins/memory/retaindb/README.md:24` "All config via env":还读 config.yaml 的 `memory.retaindb` 块(#68209)。
   唯一 crash-safe 写路径(SQLite write-behind)README 只字未提,docstring 才是真地图。
 
 ## 定案 8 ▲ mem0:README 误导 + 代码内漂移
 
-- `README.md:30` `user_id` 默认 `hermes-user`:该值实为**哨兵**,等于"未配置"、回落网关原生 id
+- `plugins/memory/mem0/README.md:30` `user_id` 默认 `hermes-user`:该值实为**哨兵**,等于"未配置"、回落网关原生 id
   (__init__.py:56-62)——按 README 填会得到与预期不同的行为。
-- `README.md:101` `--mode` 取值表漏 `selfhosted`(README 自己 49 行用了,内部矛盾)。
-- 代码内:`_setup.py:954` 最低版本检查 (2,0,7) 落后 plugin.yaml 的 `mem0ai>=2.0.10`。
+- `plugins/memory/mem0/README.md:101` `--mode` 取值表漏 `selfhosted`(README 自己 49 行用了,内部矛盾)。
+- 代码内:`plugins/memory/mem0/_setup.py:954` 最低版本检查 (2,0,7) 落后 plugin.yaml 的 `mem0ai>=2.0.10`。
 - 三形态路由(oss > host > platform)与熔断(5 败/120s,客户端错误豁免)证实且测试钉死。
 
 ## 定案 9 ▲ holographic:配置文档两处各缺一半 + 命名暗坑
@@ -98,11 +98,11 @@ loopback 回调"预留即持有"端口 + 粘贴回退、manager 单例 + 盘监�
 双向生成器桥是一次真实事故的修复(`async for` 转发丢弃 asend 值,每个 OAuth server 首响应即炸)。
 
 两条文档证伪(主线逐字复核):
-- **▲ `oauth-over-ssh.md:152`**:"the latest `Waiting for callback on ...` line (Hermes may
+- **▲ `website/docs/guides/oauth-over-ssh.md:152`**:"the latest `Waiting for callback on ...` line (Hermes may
   auto-bump if the preferred port is busy)"——该提示串全仓零命中,且端口被占**不 auto-bump**、
-  直接抛可行动错误(mcp_oauth.py:889-893);auto-bump 恰是"缓存端口一致性"设计要避免的。
+  直接抛可行动错误(tools/mcp_oauth.py:889-893);auto-bump 恰是"缓存端口一致性"设计要避免的。
 - **▲ `mcp-config-reference.md:314`**:"Only applies to HTTP/StreamableHTTP transport"——代码
-  显式支持 SSE OAuth(mcp_tool.py:2822-2826,注释自记"Previously built but never forwarded —
+  显式支持 SSE OAuth(tools/mcp_tool.py:2822-2826,注释自记"Previously built but never forwarded —
   SSE OAuth would silently fail"),文档滞后于该修复。
 
 ## 小结

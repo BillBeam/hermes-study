@@ -50,11 +50,11 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
 
 **为什么用 mixin 而不是独立服务**:方法体大量依赖 `self.adapters` / `self._profile_adapters` /
 `self.pairing_store` / `self.config` / `self._warned_telegram_group_users_legacy` 这些 runner 实例
-状态(`authz_mixin.py:118, 120, 174, 380, 384, 272, 721`),抽成服务要么把这堆状态全部作为参数传进去,
+状态(`gateway/authz_mixin.py:118, 120, 174, 380, 384, 272, 721`),抽成服务要么把这堆状态全部作为参数传进去,
 要么反向持有 runner 引用。mixin 是**零风险的机械切分**——`self.*` 走 MRO 解析,行为逐字不变;
 拆分目的是缩小 `run.py`(2.6 万行)的体积,不是引入抽象层。代价:`authz_mixin` 无法脱离 runner
 单测,测试里普遍用 `object.__new__(GatewayRunner)` 造裸壳(代码里多处为此加 `getattr` 兜底,
-见 `authz_mixin.py:150-151, 238-240`)。
+见 `gateway/authz_mixin.py:150-151, 238-240`)。
 
 ### 1.2 判定的输入与配置来源
 
@@ -112,10 +112,10 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
 **配置来源有四条路**,由两个 helper 收口:
 
 1. `_auth_env(name)` —— profile secret scope 优先,**miss 时回落 `os.environ`**
-   (`authz_mixin.py:31-43`);
+   (`gateway/authz_mixin.py:31-43`);
 2. `_platform_gate_env(name)` —— multiplex 下 scope **权威**,miss 直接返回 default,
-   **不回落 `os.environ`**(`authz_mixin.py:46-72`);
-3. `config.platforms[platform].extra`(YAML,`authz_mixin.py:272-281` 等);
+   **不回落 `os.environ`**(`gateway/authz_mixin.py:46-72`);
+3. `config.platforms[platform].extra`(YAML,`gateway/authz_mixin.py:272-281` 等);
 4. 活体 adapter 的已解析属性(`adapter._dm_policy` / `_group_policy` / `_groups` /
    `_allow_from` / `config.extra`)。
 
@@ -142,23 +142,23 @@ def _platform_gate_env(name: str, default: str = "") -> str:
 
 | # | 层名 | 判定位置 | 命中结果 | 输入依据 | env 读法 |
 |---|------|----------|----------|----------|----------|
-| 0 | 系统平台豁免(HomeAssistant / Webhook) | `authz_mixin.py:403-404` | `True` | `source.platform` | — |
-| 1 | 上游已授权(relay / `authorization_is_upstream`) | `authz_mixin.py:435-439` | `True` | `delivered_via_upstream_relay` **或** adapter flag | — |
-| 2 | 群/论坛/频道**按 chat_id** 授权(env) | `authz_mixin.py:453-467` | `True` | `chat_type ∈ {group,forum,channel}` + `chat_id` | `_platform_gate_env` |
-| 3 | 群 chat_id 授权(config.yaml `extra.group_allowed_chats`) | `authz_mixin.py:475-485` | `True` | 活体 adapter 的 `config.extra` | — |
-| 4 | 机器人放行(`{PLATFORM}_ALLOW_BOTS ∈ {mentions,all}`) | `authz_mixin.py:493-502` | `True` | `source.is_bot` | `_platform_gate_env` |
-| 5 | **无 user_id → 拒绝** | `authz_mixin.py:504-505` | `False` | `user_id` 为空 | — |
-| 6 | 单平台放行一切(`{PLATFORM}_ALLOW_ALL_USERS`) | `authz_mixin.py:569-571` | `True` | — | `_auth_env` |
-| 7 | 适配器已校验的角色授权(Discord role) | `authz_mixin.py:578-579` | `True` | `source.role_authorized is True` | — |
-| 8 | **配对批准表**(PairingStore) | `authz_mixin.py:595-598` | `True` | platform + user_id | 文件 |
-| 9a | 无任何 env 名单 → 适配器自有策略(仅 `allowlist`) | `authz_mixin.py:609-674` | `True/False` | `dm_policy`/`group_policy`/每群 `allow_from` | — |
-| 9b | 无任何 env 名单 → `extra.allow_from` / `group_allow_from` | `authz_mixin.py:679-689` | `True` | 活体 adapter `config.extra` | — |
-| 9c | 无任何 env 名单 → `GATEWAY_ALLOW_ALL_USERS` | `authz_mixin.py:691` | bool | — | `_auth_env` |
-| 10 | 群 chat_id 名单(env,`{group,forum}`) | `authz_mixin.py:696-701` | `True` | `chat_type ∈ {group,forum}` | `_auth_env`(见 601-607) |
-| 11 | Telegram 旧格式兼容(`-` 开头当 chat_id) | `authz_mixin.py:709-731` | `True` | 值以 `-` 开头 | `_auth_env` |
-| 12 | 用户名单并集(平台名单 ∪ 群用户名单 ∪ 全局名单),含 `*` 通配 | `authz_mixin.py:737-748` | `True` | user_id | `_auth_env` |
-| 13 | 别名扩展后再比一次(WhatsApp / SimpleX / `@` 前缀) | `authz_mixin.py:750-783` | bool | user_id 别名集 | — |
-| 14 | **兜底:拒绝** | `authz_mixin.py:783`(交集为空) | `False` | — | — |
+| 0 | 系统平台豁免(HomeAssistant / Webhook) | `gateway/authz_mixin.py:403-404` | `True` | `source.platform` | — |
+| 1 | 上游已授权(relay / `authorization_is_upstream`) | `gateway/authz_mixin.py:435-439` | `True` | `delivered_via_upstream_relay` **或** adapter flag | — |
+| 2 | 群/论坛/频道**按 chat_id** 授权(env) | `gateway/authz_mixin.py:453-467` | `True` | `chat_type ∈ {group,forum,channel}` + `chat_id` | `_platform_gate_env` |
+| 3 | 群 chat_id 授权(config.yaml `extra.group_allowed_chats`) | `gateway/authz_mixin.py:475-485` | `True` | 活体 adapter 的 `config.extra` | — |
+| 4 | 机器人放行(`{PLATFORM}_ALLOW_BOTS ∈ {mentions,all}`) | `gateway/authz_mixin.py:493-502` | `True` | `source.is_bot` | `_platform_gate_env` |
+| 5 | **无 user_id → 拒绝** | `gateway/authz_mixin.py:504-505` | `False` | `user_id` 为空 | — |
+| 6 | 单平台放行一切(`{PLATFORM}_ALLOW_ALL_USERS`) | `gateway/authz_mixin.py:569-571` | `True` | — | `_auth_env` |
+| 7 | 适配器已校验的角色授权(Discord role) | `gateway/authz_mixin.py:578-579` | `True` | `source.role_authorized is True` | — |
+| 8 | **配对批准表**(PairingStore) | `gateway/authz_mixin.py:595-598` | `True` | platform + user_id | 文件 |
+| 9a | 无任何 env 名单 → 适配器自有策略(仅 `allowlist`) | `gateway/authz_mixin.py:609-674` | `True/False` | `dm_policy`/`group_policy`/每群 `allow_from` | — |
+| 9b | 无任何 env 名单 → `extra.allow_from` / `group_allow_from` | `gateway/authz_mixin.py:679-689` | `True` | 活体 adapter `config.extra` | — |
+| 9c | 无任何 env 名单 → `GATEWAY_ALLOW_ALL_USERS` | `gateway/authz_mixin.py:691` | bool | — | `_auth_env` |
+| 10 | 群 chat_id 名单(env,`{group,forum}`) | `gateway/authz_mixin.py:696-701` | `True` | `chat_type ∈ {group,forum}` | `_auth_env`(见 601-607) |
+| 11 | Telegram 旧格式兼容(`-` 开头当 chat_id) | `gateway/authz_mixin.py:709-731` | `True` | 值以 `-` 开头 | `_auth_env` |
+| 12 | 用户名单并集(平台名单 ∪ 群用户名单 ∪ 全局名单),含 `*` 通配 | `gateway/authz_mixin.py:737-748` | `True` | user_id | `_auth_env` |
+| 13 | 别名扩展后再比一次(WhatsApp / SimpleX / `@` 前缀) | `gateway/authz_mixin.py:750-783` | bool | user_id 别名集 | — |
+| 14 | **兜底:拒绝** | `gateway/authz_mixin.py:783`(交集为空) | `False` | — | — |
 
 > **注意层 5 的位置**:2/3/4 三层被**故意提到 `if not user_id` 之前**,因为 Telegram 匿名管理员帖、
 > 频道广播、Slack Workflow Builder 的 `subtype=bot_message` 都没有 `user_id`,但运营者显式列了 chat
@@ -202,7 +202,7 @@ def _platform_gate_env(name: str, default: str = "") -> str:
 
 ### 1.5 组合逻辑:全是"或",没有"且",也没有拒绝列表
 
-`authz_mixin.py:737-748` 把三份名单 `update` 进同一个 `allowed_ids` 集合,再与 `check_ids` 求交:
+`gateway/authz_mixin.py:737-748` 把三份名单 `update` 进同一个 `allowed_ids` 集合,再与 `check_ids` 求交:
 
 `gateway/authz_mixin.py:737-748 @ 863e313`
 ```python
@@ -386,7 +386,7 @@ def _own_policy_open_startup_violation(config) -> Optional[str]:
             or (_getenv(dm_env, "pairing") if dm_env else "pairing")
         ).strip().lower()
 ```
-命中后 `run.py:10902-10913` 打 error 并 `_request_clean_exit(reason)`。
+命中后 `gateway/run.py:10902-10913` 打 error 并 `_request_clean_exit(reason)`。
 
 ### 1.7 多 profile 隔离:适配器解析链(fail-closed)
 
@@ -610,7 +610,7 @@ PAIRING_DIR = get_hermes_dir("platforms/pairing", "pairing")
         return hashlib.sha256(salt + code.encode("utf-8")).hexdigest()
 ```
 
-- **文件里的键不是码**,而是独立的 `secrets.token_hex(8)` 请求 id(`pairing.py:648`);
+- **文件里的键不是码**,而是独立的 `secrets.token_hex(8)` 请求 id(`gateway/pairing.py:648`);
 - **比较是常数时间**,用 `secrets.compare_digest`:
 
 `gateway/pairing.py:711-715 @ 863e313`
@@ -634,12 +634,12 @@ PAIRING_DIR = get_hermes_dir("platforms/pairing", "pairing")
 
 | 机制 | 实现 | 行号 | 粒度 |
 |------|------|------|------|
-| 有效期 1h | `_cleanup_expired` 在 generate/approve/list 入口各调一次 | `pairing.py:871-895`;调用点 `624, 681, 754, 782` | 每平台 |
-| 一次性 | `_finish_approval` 先 `del pending[matched_key]` 再落盘 | `pairing.py:589-590` | 每条 |
-| 单用户限速 10min | `_is_rate_limited` 按 `{platform}:{alias}` 查时间戳 | `pairing.py:816-824` | 每用户(含别名) |
-| 待批上限 3 | `len(pending) >= MAX_PENDING_PER_PLATFORM` | `pairing.py:637-638` | **每平台(全局)** |
-| 爆破锁定 5 次/1h | `_record_failed_attempt` | `pairing.py:842-854` | **每平台(全局)** |
-| 成功即清零 | `_reset_failed_attempts` | `pairing.py:856-867`,调用点 `598` | 每平台 |
+| 有效期 1h | `_cleanup_expired` 在 generate/approve/list 入口各调一次 | `gateway/pairing.py:871-895`;调用点 `624, 681, 754, 782` | 每平台 |
+| 一次性 | `_finish_approval` 先 `del pending[matched_key]` 再落盘 | `gateway/pairing.py:589-590` | 每条 |
+| 单用户限速 10min | `_is_rate_limited` 按 `{platform}:{alias}` 查时间戳 | `gateway/pairing.py:816-824` | 每用户(含别名) |
+| 待批上限 3 | `len(pending) >= MAX_PENDING_PER_PLATFORM` | `gateway/pairing.py:637-638` | **每平台(全局)** |
+| 爆破锁定 5 次/1h | `_record_failed_attempt` | `gateway/pairing.py:842-854` | **每平台(全局)** |
+| 成功即清零 | `_reset_failed_attempts` | `gateway/pairing.py:856-867`,调用点 `598` | 每平台 |
 
 **一次性**是"删了才批"的顺序,不是标志位:
 
@@ -918,7 +918,7 @@ def _sync_live_adapter_allowlist_remove(platform: str, user_id: str) -> None:
         self._lock = threading.RLock()
         self._profile = profile  # for diagnostics / log lines
 ```
-网关只建**一个**全局 store(`run.py:6221`)+ 每 profile 一个(`run.py:13255-13261`),
+网关只建**一个**全局 store(`gateway/run.py:6221`)+ 每 profile 一个(`gateway/run.py:13255-13261`),
 同一 profile 的所有平台线程共享同一把锁 ⇒ **两个陌生人同时请求配对是安全的**:
 两次 `generate_code` 串行化,各拿一个 `secrets.token_hex(8)` 键,不会互相覆盖;
 `MAX_PENDING_PER_PLATFORM` 的检查与写入也在同一临界区内,不会超发。
@@ -1012,7 +1012,7 @@ def _merge_pairing_dir(active_dir: Path, alternate_dir: Path) -> None:
     location; otherwise already-paired Feishu users get asked for a fresh code.
     """
 ```
-合并规则是"活动侧优先、非活动侧补齐"(`pairing.py:360-363`:`merged.update(current)`)。
+合并规则是"活动侧优先、非活动侧补齐"(`gateway/pairing.py:360-363`:`merged.update(current)`)。
 每次 `PairingStore.__init__` 都会跑一遍(`pairing.py:439-447`)。
 
 **事故 C(#10270,Docker 权限)**:`docker exec` 默认 root,写出的 0600 root:root 文件,
@@ -1071,7 +1071,7 @@ gateway(gosu 降权为 `hermes`)读不到。原来的 `except OSError` 会静默
                 if "salt" not in entry or "hash" not in entry:
                     continue
 ```
-`_cleanup_expired` 把"没有数值 `created_at`"的条目一律当过期删掉(`pairing.py:882-889`)。
+`_cleanup_expired` 把"没有数值 `created_at`"的条目一律当过期删掉(`gateway/pairing.py:882-889`)。
 
 ### 2.9 profile 作用域
 
@@ -1105,8 +1105,8 @@ def _apply_profile_override() -> None:
 ...
         os.environ["HERMES_HOME"] = hermes_home
 ```
-(`_apply_profile_override()` 在 `main.py:690` 模块级直接调用。)
-所以 `run.py:14486-14492` 给用户看的 `hermes -p <profile> pairing approve ...` 是**能工作的**。
+(`_apply_profile_override()` 在 `hermes_cli/main.py:690` 模块级直接调用。)
+所以 `gateway/run.py:14486-14492` 给用户看的 `hermes -p <profile> pairing approve ...` 是**能工作的**。
 
 ---
 
@@ -1360,7 +1360,7 @@ def to_whatsapp_jid(value: str) -> str:
 | 函数 | 生产调用点 |
 |------|-----------|
 | `normalize_whatsapp_identifier` | `gateway/authz_mixin.py:27,764`、`gateway/pairing.py:34,125`、`gateway/run.py:2412`、`gateway/platforms/whatsapp_common.py:237,246`、`gateway/session.py:95`(再导出) |
-| `expand_whatsapp_aliases` | `gateway/authz_mixin.py:26,759,763`、`gateway/pairing.py:33,137`、`gateway/run.py:2411`、`whatsapp_common.py:236,240,250` |
+| `expand_whatsapp_aliases` | `gateway/authz_mixin.py:26,759,763`、`gateway/pairing.py:33,137`、`gateway/run.py:2411`、`gateway/platforms/whatsapp_common.py:236,240,250` |
 | `canonical_whatsapp_identifier` | `gateway/session.py:94,1106,1125,1142`、`gateway/run.py:2410`(`# noqa: F401` 再导出) |
 | `to_whatsapp_jid` | `plugins/platforms/whatsapp/adapter.py:288,937,1004,1039,1090,1174,1283,1301,1713` |
 
@@ -1405,7 +1405,7 @@ action="list" and for resolving human-friendly channel names to numeric IDs.
 `1234567890123456789`。目录就是这张翻译表,外加一份"我现在能发到哪些地方"的清单。
 
 数据形状:`{"updated_at": ISO8601, "platforms": {"<platform>": [ {id, name, type, guild?, thread_id?} ]}}`
-(`channel_directory.py:203-206`;条目字段见 `_normalize_adapter_channels:282-291`)。
+(`gateway/channel_directory.py:203-206`;条目字段见 `_normalize_adapter_channels:282-291`)。
 
 ### 5.2 何时写入(三个触发点)
 
@@ -1441,14 +1441,14 @@ housekeeping 跑在**后台线程**,而 `build_channel_directory` 是 async(要�
 ### 5.3 何时失效:**全量重建,没有增量失效**
 
 `build_channel_directory` 每次从零构造 `platforms` dict 再整体覆盖写
-(`channel_directory.py:150, 203-209`)。**没有 TTL、没有单条 invalidate**——
+(`gateway/channel_directory.py:150, 203-209`)。**没有 TTL、没有单条 invalidate**——
 "失效"就等于"下一次 5 分钟重建"。持久化在:
 
 `gateway/channel_directory.py:21 @ 863e313`
 ```python
 DIRECTORY_PATH = get_hermes_home() / "channel_directory.json"
 ```
-用 `atomic_json_write`(`channel_directory.py:209`),写失败只 warn、**保留上一版缓存**
+用 `atomic_json_write`(`gateway/channel_directory.py:209`),写失败只 warn、**保留上一版缓存**
 (测试 `test_failed_write_preserves_previous_cache` 钉住)。
 
 **注意 `DIRECTORY_PATH` 是模块级常量**,import 时求值 ⇒ 目录**没有任何 profile 隔离**:
@@ -1526,7 +1526,7 @@ CHANNEL_ALIASES_PATH = get_hermes_home() / "channel_aliases.json"
                     "thread_id": None,
                 })
 ```
-`load_directory` 里也重放一次(`channel_directory.py:514-516`),这样**新加别名立刻生效**、
+`load_directory` 里也重放一次(`gateway/channel_directory.py:514-516`),这样**新加别名立刻生效**、
 不必等下一次 5 分钟重建。
 
 ### 5.5 名字解析的四级降级
@@ -1583,9 +1583,9 @@ _SLACK_DIRECTORY_WARNING_INTERVAL_SECONDS = 3600
 _slack_directory_warning_last: Dict[tuple[str, str], float] = {}
 ```
 `missing_scope` 更进一步——**直接降到 DEBUG**,因为那是配置选择而非故障
-(`channel_directory.py:324-329, 347-352`)。
+(`gateway/channel_directory.py:324-329, 347-352`)。
 
-**分页安全帽**:`for _page in range(20)`(`channel_directory.py:315`),
+**分页安全帽**:`for _page in range(20)`(`gateway/channel_directory.py:315`),
 20×200 = 4000 频道封顶,防止恶意/异常游标把刷新卡死。
 
 ### 5.7 消费者(已接线)
@@ -1615,7 +1615,7 @@ _slack_directory_warning_last: Dict[tuple[str, str], float] = {}
 - **代码**:全仓无 `/pair`;`approve_code`/`approve_request` 只有 CLI
   (`hermes_cli/pairing.py:72,74`)与 dashboard(`hermes_cli/web_server.py:12337,12339`)两个调用点;
   入站方向见 `gateway/run.py:14455-14500`
-- **裁决**:▲ 证实。**本轮新增决定性证据**:调用点全仓穷举 + `authz_mixin.py:584-585` 的自陈。
+- **裁决**:▲ 证实。**本轮新增决定性证据**:调用点全仓穷举 + `gateway/authz_mixin.py:584-585` 的自陈。
 
 ### ▲2 授权检查顺序两处文档各错一处
 
@@ -1628,7 +1628,7 @@ _slack_directory_warning_last: Dict[tuple[str, str], float] = {}
 4. **Global allow-all** (`GATEWAY_ALLOW_ALL_USERS`) — if set, all users across all platforms are authorized
 5. **Default: deny** — unauthorized users are rejected
   ```
-  代码里配对表(`authz_mixin.py:597`)在平台名单(`601`)**之前**,顺序反了;而且漏掉了
+  代码里配对表(`gateway/authz_mixin.py:597`)在平台名单(`601`)**之前**,顺序反了;而且漏掉了
   HA/Webhook 豁免、relay 上游、群 chat 名单、ALLOW_BOTS、role_authorized、适配器自有策略
   六层(见 §1.3 表)。
 - **文档 B**:`website/docs/user-guide/security.md:325-332` 顺序对(pairing 在名单前),
@@ -1681,7 +1681,7 @@ _slack_directory_warning_last: Dict[tuple[str, str], float] = {}
     无 allow_from 时默认 `"open"`。
 - **裁决**:▲ 证实。注释把**唯一例外**当成了通例。**机制本身是对的**(代码只信 `allowlist`),
   但注释里"默认 open 所以不能信"的因果讲反了实际风险面——真实默认是 `pairing`,
-  它同样不被信任(`authz_mixin.py:626-628` 有单独交代),结论不变。
+  它同样不被信任(`gateway/authz_mixin.py:626-628` 有单独交代),结论不变。
 
 ### ▲6 命名漂移两处
 
@@ -1802,15 +1802,15 @@ def _auth_env(name: str, default: str = "") -> str:
 | **#72348** | `gateway/authz_mixin.py:56`(+`plugins/platforms/discord/adapter.py:373-380`) | 输入:multiplex 网关同时跑 profile A、B,两边 config.yaml 各有 `allowed_users`。现象:B 的用户被 A 的名单裁决(或反之)。原因:适配器的 YAML→env 桥是**先写者胜**,`os.environ` 是进程全局,`os.getenv` 读到的是先启动那个 profile 的值。修法:新增 `_platform_gate_env`,multiplex+有 scope 时以 scope 为准,**key 缺失返回 default 而不是回落 env**;适配器侧同步用 `_scoped_gate_env`,且 secondary profile 的 `_apply_yaml_config` 不再往进程 env 写(`adapter.py:418-433`)。 |
 | **#4466** | `gateway/authz_mixin.py:487` | 输入:Slack Workflow Builder 发的 `subtype=bot_message`(`user=None`)。现象:自动化消息被当陌生人拒。原因:bot 流量没有 user_id,过不了人类名单。修法:`{PLATFORM}_ALLOW_BOTS ∈ {mentions, all}` 放行,且**必须放在 `if not user_id` 之前**(493-502 在 504 之前)。 |
 | **#23778** | `gateway/authz_mixin.py:589`;`gateway/pairing.py:66` | 输入:运营者配了 `TELEGRAM_ALLOWED_USERS`,又通过配对批准了一个人。现象:该人存在于 `approved.json` 却不在名单里,运营者看名单以为"只有这些人",实际多一个,且删名单删不掉他。原因:两份真值源漂移。修法(option i):批准时**若已有名单**就把人一并写进名单(`_sync_allowlist_add:175-201`),撤销时按别名删(`_sync_allowlist_remove:292-327`);**开放网关不写**,免得首次配对把开放网关静默变封闭。注释还澄清 #23778 的原始 bug 是**入站消息/批准按钮那道闸**,不是这道并集闸。 |
-| **#34515** | `gateway/authz_mixin.py:631, 661` | (a) 输入:WeCom/WhatsApp 等自有策略适配器 `dm_policy: open`,网关无 env 名单。现象:任何人都能用 bot。原因:网关把"消息到达了网关"当作"适配器已授权",而 `open` 是转发一切。修法:**只在 effective policy == `allowlist` 时才信任**。(b) 输入:`hermes pairing revoke` 删掉 WhatsApp 名单里唯一一项。现象:被撤销的人还能继续用,直到重启。原因:适配器构造时快照了 `_allow_from`。修法:trust 前回调活体适配器的 `_is_dm_allowed(user_id)` 复核(662-673)+ `_sync_live_adapter_allowlist_remove` 清快照(`pairing.py:261-289`)。 |
+| **#34515** | `gateway/authz_mixin.py:631, 661` | (a) 输入:WeCom/WhatsApp 等自有策略适配器 `dm_policy: open`,网关无 env 名单。现象:任何人都能用 bot。原因:网关把"消息到达了网关"当作"适配器已授权",而 `open` 是转发一切。修法:**只在 effective policy == `allowlist` 时才信任**。(b) 输入:`hermes pairing revoke` 删掉 WhatsApp 名单里唯一一项。现象:被撤销的人还能继续用,直到重启。原因:适配器构造时快照了 `_allow_from`。修法:trust 前回调活体适配器的 `_is_dm_allowed(user_id)` 复核(662-673)+ `_sync_live_adapter_allowlist_remove` 清快照(`gateway/pairing.py:261-289`)。 |
 | **#15027 / PR #17686** | `gateway/authz_mixin.py:703` | 输入:老用户把 Telegram **chat id**(负数,如 `-1001234`)填进了 `TELEGRAM_GROUP_ALLOWED_USERS`。现象:PR #17686 把该变量改成"发送者 user id"语义后,这些人整群失效。原因:变量语义变更没有兼容层。修法:值以 `-` 开头的当 chat id 处理,并**一次性 warn** 引导迁移到 `TELEGRAM_GROUP_ALLOWED_CHATS`(709-731,`_warned_telegram_group_users_legacy` 保证只 warn 一次)。 |
 | **#9337** | `gateway/authz_mixin.py:806` | 输入:运营者配了 `TELEGRAM_ALLOWED_USERS`,陌生人 DM 进来。现象:bot 回了配对码 —— 既暴露"这里有个 Hermes",又给陌生人刷屏。原因:`unauthorized_dm_behavior` 默认 `pair`,没有考虑"配了名单说明想收紧"。修法:任一名单存在即降级为 `ignore`(879-886)。**回归**:首版漏了 QQBOT,`tests/gateway/test_unauthorized_dm_behavior.py:381-388` 立了守卫(见 ◇6:Yuanbao 至今仍漏)。 |
 | **#10270** | `gateway/pairing.py:477` | 输入:`docker exec <container> hermes pairing approve telegram ABC12DEF`(默认 root)。现象:CLI 打印"Approved!",用户下条消息仍被拒。原因:approved.json 被写成 `0600 root:root`,网关 gosu 降权为 `hermes` 后读不到;`except OSError` 把 `PermissionError` 一起吞了,返回 `{}`。修法:单独捕 `PermissionError`,warn 出 owner_uid/mode/euid 和 `-u hermes` 的修复指引。文档同步:`website/docs/user-guide/security.md:419-435`。 |
 | **#10195** | `gateway/pairing.py:671` | 输入:运营者连打错 5 次码后再输正确码。现象:一直"code not found",无从判断为何。原因:`approve_code` 对无效码和锁定**返回同一个 None**。修法:调用方用 `_is_locked_out(platform)` 消歧,CLI 打印剩余分钟数与手工清除方法(`hermes_cli/pairing.py:81-98`),dashboard 返回 429(`hermes_cli/web_server.py:12345-12350`)。 |
 | **#27602** | `hermes_constants.py:263`(经 `gateway/pairing.py:59`) | 输入:安装脚手架/手动 mkdir 留下空的 `~/.hermes/pairing/`,真数据在 `platforms/pairing/`。现象:所有已批准用户失效。原因:`get_hermes_dir` 原来只判"旧目录存在"。修法:改判"旧目录**有内容**"(`_legacy_path_has_content`)。 |
-| **#31041**(salvage) | `scripts/release.py:146` 记载 | 内容:"pairing: merge split legacy/new pairing store dirs at PairingStore init so approved users aren't re-prompted to pair" —— 即 `_merge_pairing_dir` / `_migrate_split_pairing_dirs`(`gateway/pairing.py:340-376`)的来源。现象是已配对 Feishu 用户被重新要码(`pairing.py:345-346`)。 |
+| **#31041**(salvage) | `scripts/release.py:146` 记载 | 内容:"pairing: merge split legacy/new pairing store dirs at PairingStore init so approved users aren't re-prompted to pair" —— 即 `_merge_pairing_dir` / `_migrate_split_pairing_dirs`(`gateway/pairing.py:340-376`)的来源。现象是已配对 Feishu 用户被重新要码(`gateway/pairing.py:345-346`)。 |
 | **#9006** | `gateway/channel_directory.py:408` | 会话来源从 `sessions.json` 迁到 `state.db` 的 gateway session 行(`origin_json`);`_build_from_sessions` 保留 json 兜底供未迁移库使用。 |
-| **#16743** | `utils.py:99`(经 `pairing.py:392` `atomic_replace`) | 输入:托管部署把 `~/.hermes/*.json` symlink 到 git 仓库/dotfiles。现象:一次写入后软链变成实体文件,与仓库脱钩。原因:`os.replace(tmp, target)` 会替换软链本身。修法:先 `os.path.realpath` 解引用再 replace。 |
+| **#16743** | `utils.py:99`(经 `gateway/pairing.py:392` `atomic_replace`) | 输入:托管部署把 `~/.hermes/*.json` symlink 到 git 仓库/dotfiles。现象:一次写入后软链变成实体文件,与仓库脱钩。原因:`os.replace(tmp, target)` 会替换软链本身。修法:先 `os.path.realpath` 解引用再 replace。 |
 | **GHSA-ppp5-vxwm-4cf7** | `hermes_cli/web_server.py:463-466` | dashboard 的 Host 头校验(DNS rebinding 防护),间接保护 `/api/pairing/*`。 |
 
 ---
@@ -1881,10 +1881,10 @@ def _auth_env(name: str, default: str = "") -> str:
 |------|-----|------|------|
 | 字母表 | 32 字符,去 0/O/1/I | `pairing.py:47` | 可抄写性 > 熵(2^40 已够,防线是锁定) |
 | 码长 | 8 | `pairing.py:48` | — |
-| 随机源 | `secrets.choice` | `pairing.py:641` | **必须 CSPRNG**,不能 `random` |
+| 随机源 | `secrets.choice` | `gateway/pairing.py:641` | **必须 CSPRNG**,不能 `random` |
 | 存储 | 每条独立 16B 盐 + SHA-256 | `pairing.py:583, 644-645` | 无 KDF 拉伸;定长高熵+1h TTL 下可接受 |
-| 文件键 | `secrets.token_hex(8)`,**不是码** | `pairing.py:648` | 使 GUI 能引用条目而不泄露码 |
-| 比较 | `secrets.compare_digest` | `pairing.py:712, 765` | 常数时间,两条批准路径都用 |
+| 文件键 | `secrets.token_hex(8)`,**不是码** | `gateway/pairing.py:648` | 使 GUI 能引用条目而不泄露码 |
+| 比较 | `secrets.compare_digest` | `gateway/pairing.py:712, 765` | 常数时间,两条批准路径都用 |
 | TTL | 3600s | `pairing.py:51` | 清理发生在 generate/approve/list 三入口 |
 | 单用户限速 | 600s,**按别名集** | `pairing.py:52, 819-823` | 防别名绕过 |
 | 平台待批上限 | 3 | `pairing.py:56` | **全局配额 ⇒ 有 DoS 面**,换来爆破面小 |
@@ -1894,7 +1894,7 @@ def _auth_env(name: str, default: str = "") -> str:
 | 文件权限 | `chmod 0600` | `pairing.py:394` | Windows 上静默跳过 |
 | 落盘 | mkstemp+fsync+atomic_replace | `pairing.py:386-392` | 解 symlink(#16743) |
 | 码入日志 | **从不** | 全文件唯一 `print` 在 `:852-853`,不含码 | — |
-| 批准入口 | **仅 CLI + 已认证 dashboard** | `hermes_cli/pairing.py:72,74`;`web_server.py:12337,12339` | 入站通道只能领码不能兑码 |
+| 批准入口 | **仅 CLI + 已认证 dashboard** | `hermes_cli/pairing.py:72,74`;`hermes_cli/web_server.py:12337,12339` | 入站通道只能领码不能兑码 |
 | 名单镜像 | **仅在已有名单时写** | `pairing.py:187-189` | 不把开放网关静默变封闭 |
 | 撤销匹配 | 按别名 + 保留 `*` | `pairing.py:311-315` | 精确串删会漏 |
 | 读文件失败 | 返回 `{}`(= 无人被批准) | `pairing.py:494, 496` | **fail closed** |
@@ -1914,10 +1914,10 @@ def _auth_env(name: str, default: str = "") -> str:
 
 - **凡是平台可能给同一个人两个 id 的,必须有单一真值模块**,并让 authz 与 session-key
   **共用同一个函数**(`gateway/whatsapp_identity.py:9-12` 的自陈)。两条路径各写一份必然漂移。
-- **别名集合必须包含输入本身**(`whatsapp_identity.py:155` + 127-130 的契约声明),
+- **别名集合必须包含输入本身**(`gateway/whatsapp_identity.py:155` + 127-130 的契约声明),
   调用方才能无脑 `in`。
-- **别名比较要双向展开**(名单项和待检 id 都展开,`authz_mixin.py:756-763`)。
-- **标识符若会拼进文件名,先过字符白名单**(`whatsapp_identity.py:43, 152`),
+- **别名比较要双向展开**(名单项和待检 id 都展开,`gateway/authz_mixin.py:756-763`)。
+- **标识符若会拼进文件名,先过字符白名单**(`gateway/whatsapp_identity.py:43, 152`),
   即使已有前缀常量兜底——"不依赖文件系统布局不变量"是对的。
 - **出站与入站的规范化是两个函数,方向相反**(`to_whatsapp_jid` vs
   `normalize_whatsapp_identifier`)。混用会让 Baileys 崩。
@@ -1925,15 +1925,15 @@ def _auth_env(name: str, default: str = "") -> str:
 ### 9.4 频道目录
 
 - **它是缓存,不是真值**:全量重建、无 TTL、无单条失效。重建失败保留旧版
-  (`channel_directory.py:210-211`)。
-- **只暴露"本进程连着的平台"**(`channel_directory.py:168-182`)——历史会话不能复活
+  (`gateway/channel_directory.py:210-211`)。
+- **只暴露"本进程连着的平台"**(`gateway/channel_directory.py:168-182`)——历史会话不能复活
   成发送目标,否则消息会路由到发不出去的平台。
-- **名字解析歧义时返回 None**(`channel_directory.py:573-577`),不猜。发错群不可撤销。
+- **名字解析歧义时返回 None**(`gateway/channel_directory.py:573-577`),不猜。发错群不可撤销。
 - **给人工覆盖留一层**(`channel_aliases.json`),并且**在 build 与 load 都重放**,
-  这样人工改动既能穿越重建、又能立即生效(`channel_directory.py:201, 516`)。
-- **周期性刷新的错误日志必须节流**(`channel_directory.py:22-28, 117-135`),
+  这样人工改动既能穿越重建、又能立即生效(`gateway/channel_directory.py:201, 516`)。
+- **周期性刷新的错误日志必须节流**(`gateway/channel_directory.py:22-28, 117-135`),
   配置性错误(`missing_scope`)直接降 DEBUG。
-- **分页要有安全帽**(`channel_directory.py:315` 的 `range(20)`)。
+- **分页要有安全帽**(`gateway/channel_directory.py:315` 的 `range(20)`)。
 - **缺口(重实现要补)**:无 profile 隔离(◇3);`DIRECTORY_PATH` 模块级求值,
   HERMES_HOME 后变不生效。
 

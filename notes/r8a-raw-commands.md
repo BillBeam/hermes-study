@@ -1208,8 +1208,8 @@ from __future__ import annotations
 
 | 键 | 默认值 | 读取点(commands.py) | 读取函数 | 备注 |
 |---|---|---|---|---|
-| `display.tool_progress_command` | `False`(`config_defaults.py:1200`) | 声明 `:218`,遍历 `:517`,判真 `:523` | `_resolve_config_gates()` | `/verbose` 的网关可见性门;handler 侧二次判定在 `gateway/slash_commands.py:3816` / `gateway/run.py:3746` |
-| `skills.write_approval` | `False`(`config_defaults.py:1829`) | 声明 `:258`,遍历 `:517`,判真 `:523` | `_resolve_config_gates()` | `/skills` 的网关可见性门;本职是技能写入审批开关,被借用 |
+| `display.tool_progress_command` | `False`(`hermes_cli/config_defaults.py:1200`) | 声明 `:218`,遍历 `:517`,判真 `:523` | `_resolve_config_gates()` | `/verbose` 的网关可见性门;handler 侧二次判定在 `gateway/slash_commands.py:3816` / `gateway/run.py:3746` |
+| `skills.write_approval` | `False`(`hermes_cli/config_defaults.py:1829`) | 声明 `:258`,遍历 `:517`,判真 `:523` | `_resolve_config_gates()` | `/skills` 的网关可见性门;本职是技能写入审批开关,被借用 |
 | `platforms.telegram.extra.command_menu.max_commands` | `60`(`_DEFAULT_TELEGRAM_MENU_MAX_COMMANDS`,`:638`) | `:705` | `_telegram_command_menu_config()` | 非 int 回落 60;钳制到 `1..100`(`:710`) |
 | `platforms.telegram.extra.command_menu.priority_mode` | `"prepend"` | `:712` | 同上 | 合法值 `{prepend, append, replace}`(`:640`);非法回落 prepend |
 | `platforms.telegram.extra.command_menu.priority` | `[]` | `:716` | 同上 | 非 list 回落 `[]`;元素经 `_sanitize_telegram_name` 去重 |

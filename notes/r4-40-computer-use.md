@@ -79,14 +79,14 @@ _RUNTIME_PLATFORMS = frozenset({"darwin", "win32", "linux"})
 ```
 
 同一份三平台判断在 3 处重复出现,是 gating 的唯一真相:
-- `tool.py:1330 @ 863e313`(`check_computer_use_requirements`,注册表 check_fn):`if sys.platform not in ("darwin", "win32", "linux"): return False`
-- `cua_backend.py:2050-2053 @ 863e313`(`CuaDriverBackend.is_available`):同样三元组。
+- `tools/computer_use/tool.py:1330 @ 863e313`(`check_computer_use_requirements`,注册表 check_fn):`if sys.platform not in ("darwin", "win32", "linux"): return False`
+- `tools/computer_use/cua_backend.py:2050-2053 @ 863e313`(`CuaDriverBackend.is_available`):同样三元组。
 
-每平台底层栈不同,但对 Hermes 是透明的(全部藏在 cua-driver 里)。docstring 记录了各平台实现:`cua_backend.py:29-33 @ 863e313`——macOS 用私有 SkyLight SPI(`SLEventPostToPid` 等,可能随系统升级失效);Windows 用稳定 Win32 API(`SendInput` + UI Automation);Linux 是最新加入的 runtime(X11 今天可用,Wayland 经 XWayland)。
+每平台底层栈不同,但对 Hermes 是透明的(全部藏在 cua-driver 里)。docstring 记录了各平台实现:`tools/computer_use/cua_backend.py:29-33 @ 863e313`——macOS 用私有 SkyLight SPI(`SLEventPostToPid` 等,可能随系统升级失效);Windows 用稳定 Win32 API(`SendInput` + UI Automation);Linux 是最新加入的 runtime(X11 今天可用,Wayland 经 XWayland)。
 
 ### 1.3 动作集
 
-单工具 + `action` 判别式设计,枚举见 `schema.py:34-58 @ 863e313`。分两族:
+单工具 + `action` 判别式设计,枚举见 `tools/computer_use/schema.py:34-58 @ 863e313`。分两族:
 
 **原生桌面动作**(14 个):`capture` / `click` / `double_click` / `right_click` / `middle_click` / `drag` / `scroll` / `type` / `key` / `set_value` / `wait` / `list_apps` / `list_windows` / `focus_app`。
 
@@ -100,7 +100,7 @@ _RUNTIME_PLATFORMS = frozenset({"darwin", "win32", "linux"})
 COMPUTER_USE_SCHEMA: Dict[str, Any] = {
 ```
 
-截图有三种 `mode`(`schema.py:68-79 @ 863e313`):`som`(默认,截图 + 每个可交互元素画编号叠加 + AX 树)、`vision`(纯截图)、`ax`(纯无障碍树,无图,给纯文本模型用)。
+截图有三种 `mode`(`tools/computer_use/schema.py:68-79 @ 863e313`):`som`(默认,截图 + 每个可交互元素画编号叠加 + AX 树)、`vision`(纯截图)、`ax`(纯无障碍树,无图,给纯文本模型用)。
 
 > **术语锚定 · SOM**(Set-of-Marks):在截图上给每个可点元素画一个数字编号,模型看到编号后可 `click(element=N)`,比让模型报像素坐标可靠得多。`schema.py:132-138 @ 863e313` 称 element index "Strongly preferred over raw coordinates"。
 > **术语锚定 · AX 树**(Accessibility tree):操作系统无障碍框架暴露的 UI 结构树(按钮、文本框、其 role 和 label),原本给读屏软件用,这里当作"可编程的 UI 地图"。
@@ -122,7 +122,7 @@ module owns the stateful adapter between its namespaced ``cua_browser_*``
 actions and cua-driver's raw ``get_browser_state`` / ``browser_*`` tools.
 ```
 
-**何时转交**:模型显式选 `action="cua_browser_*"` 时才走 browser_route(见 `tool.py:626-720` 的 dispatch 分支);普通 `click`/`type` 永远走原生桌面栈。也就是说——转交是模型的显式选择,不是 harness 自动降级。两条路共用同一个 `_CuaDriverSession`(同一个 cua-driver 子进程),但 ref/tab 状态各自独立。详见 §2.5。
+**何时转交**:模型显式选 `action="cua_browser_*"` 时才走 browser_route(见 `tools/computer_use/tool.py:626-720` 的 dispatch 分支);普通 `click`/`type` 永远走原生桌面栈。也就是说——转交是模型的显式选择,不是 harness 自动降级。两条路共用同一个 `_CuaDriverSession`(同一个 cua-driver 子进程),但 ref/tab 状态各自独立。详见 §2.5。
 
 ---
 
@@ -148,9 +148,9 @@ class ComputerUseBackend(ABC):
 
 三个数据类是后端与工具层的契约:
 
-- `UIElement`(`backend.py:16-38`):一个可交互元素。字段含 `index`(1-based SOM 编号)、`role`(AX role 如 AXButton)、`label`、`bounds`(x,y,w,h 逻辑像素)、`pid`、`window_id`,以及 `element_token`(见下文 stale 检测)。
-- `CaptureResult`(`backend.py:41-70`):截图结果。`mode` 决定填哪些字段——`vision` 只有 `png_b64`,`ax` 只有 `elements`,`som` 两者都有(PNG 已由后端画好编号叠加)。
-- `ActionResult`(`backend.py:71-110`):动作结果。关键设计——`ok` **只是传输层成功**,不是语义裁决:
+- `UIElement`(`tools/computer_use/backend.py:16-38`):一个可交互元素。字段含 `index`(1-based SOM 编号)、`role`(AX role 如 AXButton)、`label`、`bounds`(x,y,w,h 逻辑像素)、`pid`、`window_id`,以及 `element_token`(见下文 stale 检测)。
+- `CaptureResult`(`tools/computer_use/backend.py:41-70`):截图结果。`mode` 决定填哪些字段——`vision` 只有 `png_b64`,`ax` 只有 `elements`,`som` 两者都有(PNG 已由后端画好编号叠加)。
+- `ActionResult`(`tools/computer_use/backend.py:71-110`):动作结果。关键设计——`ok` **只是传输层成功**,不是语义裁决:
 
 `tools/computer_use/backend.py:72-79 @ 863e313`:
 
@@ -165,15 +165,15 @@ class ComputerUseBackend(ABC):
     fields are optional and additive: an older driver that omits
 ```
 
-`ActionResult` 携带的语义裁决字段(`backend.py:90-110`):`verified`(驱动是否回读确认效果)、`effect`("confirmed" | "unverifiable" | "suspected_noop")、`escalation`(下一档建议)、`path`(实际跑的投递档,如 "ax"/"x11_pixel"/"cgevent_fg")、`degraded`、`delivery_mode`、`code`(结构化拒绝码)。
+`ActionResult` 携带的语义裁决字段(`tools/computer_use/backend.py:90-110`):`verified`(驱动是否回读确认效果)、`effect`("confirmed" | "unverifiable" | "suspected_noop")、`escalation`(下一档建议)、`path`(实际跑的投递档,如 "ax"/"x11_pixel"/"cgevent_fg")、`degraded`、`delivery_mode`、`code`(结构化拒绝码)。
 
 #### 机制 B:唯一具体后端 `CuaDriverBackend`
 
-选谁由环境变量决定(`tool.py:227-243`):`HERMES_COMPUTER_USE_BACKEND` 默认 `"cua"`→`CuaDriverBackend`;`"noop"`→测试用空后端;其它→报错。所以生产上只有一个后端。
+选谁由环境变量决定(`tools/computer_use/tool.py:227-243`):`HERMES_COMPUTER_USE_BACKEND` 默认 `"cua"`→`CuaDriverBackend`;`"noop"`→测试用空后端;其它→报错。所以生产上只有一个后端。
 
-**MCP 是同步/异步阻抗失配,用后台事件循环桥接。** Python 的 `mcp` SDK 是 async,但 Hermes 工具调用是同步的。解法是 `_AsyncBridge`(`cua_backend.py:1017-1069`):启动一个后台线程跑独立 asyncio loop,`run(coro)` 用 `run_coroutine_threadsafe` 把协程扔进去并同步等结果。
+**MCP 是同步/异步阻抗失配,用后台事件循环桥接。** Python 的 `mcp` SDK 是 async,但 Hermes 工具调用是同步的。解法是 `_AsyncBridge`(`tools/computer_use/cua_backend.py:1017-1069`):启动一个后台线程跑独立 asyncio loop,`run(coro)` 用 `run_coroutine_threadsafe` 把协程扔进去并同步等结果。
 
-**MCP 会话生命周期靠"单协程持有上下文"避免 anyio 陷阱。** `_CuaDriverSession._lifecycle_coro`(`cua_backend.py:1124-1216`)是一条长命协程:它在**同一个 asyncio task 里**打开 `stdio_client` + `ClientSession`,`initialize()`,拉能力,置 `_ready_event`,然后阻塞在 `_shutdown_event.wait()`,收到关闭信号才在同一 task 里关上下文。
+**MCP 会话生命周期靠"单协程持有上下文"避免 anyio 陷阱。** `_CuaDriverSession._lifecycle_coro`(`tools/computer_use/cua_backend.py:1124-1216`)是一条长命协程:它在**同一个 asyncio task 里**打开 `stdio_client` + `ClientSession`,`initialize()`,拉能力,置 `_ready_event`,然后阻塞在 `_shutdown_event.wait()`,收到关闭信号才在同一 task 里关上下文。
 
 `tools/computer_use/cua_backend.py:1071-1083 @ 863e313` 解释为何必须如此:
 
@@ -193,7 +193,7 @@ class _CuaDriverSession:
 
 > 重实现要点:anyio 的 cancel scope 要求"进入和退出在同一 task"。若你把 `__aenter__`/`__aexit__` 拆到两次 `bridge.run()`(两个不同 task),就会炸。用一条守护协程持有上下文、其余工具调用只碰 `self._session` 对象,是干净解法。
 
-**能力发现(capability discovery)** :`_populate_capabilities`(`cua_backend.py:1218-1262`)在 session init 时调 `tools/list`,缓存每工具的 capability 集合与 inputSchema。这让 wrapper 能对不同版本 cua-driver 做特性探测——比如"这个 driver 的 `click` 支不支持 `delivery_mode` 参数"、"支不支持 element_token"。这是整簇"对多版本驱动优雅降级"的基础设施。
+**能力发现(capability discovery)** :`_populate_capabilities`(`tools/computer_use/cua_backend.py:1218-1262`)在 session init 时调 `tools/list`,缓存每工具的 capability 集合与 inputSchema。这让 wrapper 能对不同版本 cua-driver 做特性探测——比如"这个 driver 的 `click` 支不支持 `delivery_mode` 参数"、"支不支持 element_token"。这是整簇"对多版本驱动优雅降级"的基础设施。
 
 **session 身份(start_session/end_session)** :每个 `CuaDriverBackend` 实例 mint 一个稳定 id:
 
@@ -203,9 +203,9 @@ class _CuaDriverSession:
         self._session_id: str = f"hermes-{uuid.uuid4().hex[:12]}"
 ```
 
-`start()` 时声明(`cua_backend.py:2008`),`stop()` 时拆除(`cua_backend.py:2041`)。作用:cua-driver 按 session 给每个 Hermes run 分配一个**独立颜色的 agent 光标叠加层**(可视化点击落点,但不动真实 OS 光标),并隔离并发 run 的 config/录制归属。失败非致命——老 driver 不认这个 id 就退化到匿名路径。
+`start()` 时声明(`tools/computer_use/cua_backend.py:2008`),`stop()` 时拆除(`tools/computer_use/cua_backend.py:2041`)。作用:cua-driver 按 session 给每个 Hermes run 分配一个**独立颜色的 agent 光标叠加层**(可视化点击落点,但不动真实 OS 光标),并隔离并发 run 的 config/录制归属。失败非致命——老 driver 不认这个 id 就退化到匿名路径。
 
-**动作翻译:`click` 怎么落到 cua-driver。** `CuaDriverBackend.click`(`cua_backend.py:2648-2701`)把抽象参数映射成 cua-driver `click` 工具的参数字典。element 优先于坐标:
+**动作翻译:`click` 怎么落到 cua-driver。** `CuaDriverBackend.click`(`tools/computer_use/cua_backend.py:2648-2701`)把抽象参数映射成 cua-driver `click` 工具的参数字典。element 优先于坐标:
 
 `tools/computer_use/cua_backend.py:2679-2694 @ 863e313`:
 
@@ -221,13 +221,13 @@ class _CuaDriverSession:
             ...
 ```
 
-注意 `pid`/`window_id` 来自 **sticky context**——上一次 `capture()` 记下的 `_active_pid`/`_active_window_id`(`cua_backend.py:1920-1921` 声明,`capture` 内 `2344-2345` 赋值)。所以模型必须先 capture 再 click;没 capture 过就 `No active window`(`cua_backend.py:2661-2662`)。
+注意 `pid`/`window_id` 来自 **sticky context**——上一次 `capture()` 记下的 `_active_pid`/`_active_window_id`(`tools/computer_use/cua_backend.py:1920-1921` 声明,`capture` 内 `2344-2345` 赋值)。所以模型必须先 capture 再 click;没 capture 过就 `No active window`(`tools/computer_use/cua_backend.py:2661-2662`)。
 
-**低层 `_action` 是所有动作的公共出口**(`cua_backend.py:3256-3295`):它 (1) 视需要附上 element_token(stale 检测,见下),(2) `setdefault("session", self._session_id)` 注入本 run 身份,(3) call_tool,(4) 用 `_action_result_from` 把 cua-driver 的 structuredContent 裁决抬升成 `ActionResult`。
+**低层 `_action` 是所有动作的公共出口**(`tools/computer_use/cua_backend.py:3256-3295`):它 (1) 视需要附上 element_token(stale 检测,见下),(2) `setdefault("session", self._session_id)` 注入本 run 身份,(3) call_tool,(4) 用 `_action_result_from` 把 cua-driver 的 structuredContent 裁决抬升成 `ActionResult`。
 
-**stale 元素检测(element_token)** :SOM 编号在下一次 capture 后就失效。`_maybe_attach_element_token`(`cua_backend.py:3230-3255`)在调 token-capable 工具时,把上次快照的 `element_token` 附到 `element_index` 旁,让 cua-driver 显式检测"快照已过期"并回错,而不是静默重解析到另一个元素。gating 在 per-tool capability 上,避免给老 driver 塞它不认的字段(会因 `additionalProperties:false` 被拒)。
+**stale 元素检测(element_token)** :SOM 编号在下一次 capture 后就失效。`_maybe_attach_element_token`(`tools/computer_use/cua_backend.py:3230-3255`)在调 token-capable 工具时,把上次快照的 `element_token` 附到 `element_index` 旁,让 cua-driver 显式检测"快照已过期"并回错,而不是静默重解析到另一个元素。gating 在 per-tool capability 上,避免给老 driver 塞它不认的字段(会因 `additionalProperties:false` 被拒)。
 
-**verify→escalate 投递阶梯(delivery ladder)** :后台投递可能"跑了但没确认生效"。`_apply_delivery`(`cua_backend.py:2556-2593`)+ `_run_input_action`(`cua_backend.py:2594-2647`)实现:默认 background 不加标志;foreground 只在**活动 schema 真的接受**该参数时才发,否则回结构化 `foreground_unsupported` 拒绝——**绝不静默降级**(降级会把输入投到模型没料到的地方)。
+**verify→escalate 投递阶梯(delivery ladder)** :后台投递可能"跑了但没确认生效"。`_apply_delivery`(`tools/computer_use/cua_backend.py:2556-2593`)+ `_run_input_action`(`tools/computer_use/cua_backend.py:2594-2647`)实现:默认 background 不加标志;foreground 只在**活动 schema 真的接受**该参数时才发,否则回结构化 `foreground_unsupported` 拒绝——**绝不静默降级**(降级会把输入投到模型没料到的地方)。
 
 `tools/computer_use/cua_backend.py:2579-2590 @ 863e313`:
 
@@ -246,7 +246,7 @@ class _CuaDriverSession:
             )
 ```
 
-**弹性(resilience):MCP 挂了怎么办。** `call_tool`(`cua_backend.py:1657-1706`)三层自愈:(1) 若 `_started` 已被死亡的 lifecycle 协程复位为 False,先重启;(2) 瞬时守护错误(EAGAIN 类)→ 退到 CLI 传输 `_call_tool_via_cli`;(3) 会话关闭错误 → 重连一次重试。还有"已结束 session"逻辑复活(`_revive_declared_session_once`,#71166)。
+**弹性(resilience):MCP 挂了怎么办。** `call_tool`(`tools/computer_use/cua_backend.py:1657-1706`)三层自愈:(1) 若 `_started` 已被死亡的 lifecycle 协程复位为 False,先重启;(2) 瞬时守护错误(EAGAIN 类)→ 退到 CLI 传输 `_call_tool_via_cli`;(3) 会话关闭错误 → 重连一次重试。还有"已结束 session"逻辑复活(`_revive_declared_session_once`,#71166)。
 
 #### 取舍
 - **单后端 + 外包给 Rust 二进制**:Hermes 不碰任何平台 API,跨平台复杂度全在 cua-driver;代价是硬依赖一个外部二进制的安装与版本(靠 doctor/update-check 兜)。
@@ -256,7 +256,7 @@ class _CuaDriverSession:
 #### 重实现要点
 1. 定义三数据类契约(元素/截图/动作结果),把"传输成功"和"语义生效"拆成两个字段。
 2. 一条守护协程持有 MCP 上下文,同步门面用后台 loop 桥接。
-3. sticky target:capture 记 pid/window,后续动作复用;失败即 disarm(`_clear_active_target`,`cua_backend.py:2062`)以免误路由。
+3. sticky target:capture 记 pid/window,后续动作复用;失败即 disarm(`_clear_active_target`,`tools/computer_use/cua_backend.py:2062`)以免误路由。
 4. capability 发现 + per-feature 探测,保证对多版本驱动前后兼容。
 
 ---
@@ -324,14 +324,14 @@ one extra LLM call and yields a usable description.
 
 #### 触发点与执行:在 tool.py 里
 
-决策的**触发**在 `_should_route_through_aux_vision`(`tool.py:1096-1132`):读当前主 provider/model + config,问决策函数,结果按 `(provider, model)` 进程级缓存(`_AUX_VISION_ROUTE_CACHE`)。注意这里的顶层 try 是 **fail open**(`tool.py:1101-1103`)——决策**导入/读取**失败就返回 False 保留 multimodal,让破 config 永不无声丢掉图。(与决策函数内部的 fail-closed 是两个不同层次:外层"决策系统能不能跑" fail open;内层"该不该路由" fail closed。)
+决策的**触发**在 `_should_route_through_aux_vision`(`tools/computer_use/tool.py:1096-1132`):读当前主 provider/model + config,问决策函数,结果按 `(provider, model)` 进程级缓存(`_AUX_VISION_ROUTE_CACHE`)。注意这里的顶层 try 是 **fail open**(`tools/computer_use/tool.py:1101-1103`)——决策**导入/读取**失败就返回 False 保留 multimodal,让破 config 永不无声丢掉图。(与决策函数内部的 fail-closed 是两个不同层次:外层"决策系统能不能跑" fail open;内层"该不该路由" fail closed。)
 
-**执行**在 `_route_capture_through_aux_vision`(`tool.py:1148-1252`):把 base64 PNG 落盘到 `$HERMES_HOME/cache/vision/`,`_shrink_capture_for_vision` 先降采样到最长边 1456px(`_MAX_VISION_DIM`,`tool.py:1071`),喂给 `vision_analyze_tool` 配一段通用描述 prompt,把结果文字并进 AX/SOM summary,返回纯文本 payload。
+**执行**在 `_route_capture_through_aux_vision`(`tools/computer_use/tool.py:1148-1252`):把 base64 PNG 落盘到 `$HERMES_HOME/cache/vision/`,`_shrink_capture_for_vision` 先降采样到最长边 1456px(`_MAX_VISION_DIM`,`tools/computer_use/tool.py:1071`),喂给 `vision_analyze_tool` 配一段通用描述 prompt,把结果文字并进 AX/SOM summary,返回纯文本 payload。
 
-**降级链**在 `_capture_response`(`tool.py:983-1016`):若决策要走辅助但辅助**失败**(视觉节点挂了/空分析),**不 fallthrough 回 multimodal**(那会撞 provider 错),而是退到 AX/SOM 文字 payload 并标 `vision_unavailable=True`——element 编号仍可用。
+**降级链**在 `_capture_response`(`tools/computer_use/tool.py:983-1016`):若决策要走辅助但辅助**失败**(视觉节点挂了/空分析),**不 fallthrough 回 multimodal**(那会撞 provider 错),而是退到 AX/SOM 文字 payload 并标 `vision_unavailable=True`——element 编号仍可用。
 
 #### 取舍
-- 决策与"用户附带图片"路径复用同一批 helper(`vision_routing.py:59-61` 明示 mirror `agent.image_routing`),保证 capture 路径和 attach-image 路径口径一致。
+- 决策与"用户附带图片"路径复用同一批 helper(`tools/computer_use/vision_routing.py:59-61` 明示 mirror `agent.image_routing`),保证 capture 路径和 attach-image 路径口径一致。
 - fail-closed:宁可多花一次 LLM 调用,不撞硬失败。代价:非视觉主模型每次 capture 多一跳延迟。
 - 1456px 降采样:SOM 徽标仍清晰,但小本地模型上下文不被塞爆。
 
@@ -378,12 +378,12 @@ something different on each:
 
 ##### 问题:模型要 `type "rm -rf /"`,或点了"清空废纸篓"快捷键
 
-动作分两类,`tool.py:81-93`:`_SAFE_ACTIONS`(capture/wait/list_apps/list_windows/cua_browser_state,只读,永远放行)vs `_DESTRUCTIVE_ACTIONS`(所有会改变用户可见状态的,过审批)。
+动作分两类,`tools/computer_use/tool.py:81-93`:`_SAFE_ACTIONS`(capture/wait/list_apps/list_windows/cua_browser_state,只读,永远放行)vs `_DESTRUCTIVE_ACTIONS`(所有会改变用户可见状态的,过审批)。
 
-**三道硬闸在审批之前**(`handle_computer_use`,`tool.py:453-478`):
-1. **危险 type 文本**:`_is_blocked_type`(`tool.py:138-145`)正则拦 `curl|bash`、`sudo rm -rf`、fork bomb 等。
-2. **危险按键组合**:`_BLOCKED_KEY_COMBOS`(`tool.py:96-116`)——清空废纸篓、强制删除、锁屏、注销等,**无视审批级别硬拦**(注销会杀掉 Hermes 自己所在的会话)。规范化用 `_canon_key_combo`(`tool.py:117-135`)同时按 `+` 和 `-` 切分,否则 `ctrl-alt-delete` 连字符写法能绕过闸。
-3. `bring_to_front` 必须配 `delivery_mode='foreground'`(`tool.py:473-477`)。
+**三道硬闸在审批之前**(`handle_computer_use`,`tools/computer_use/tool.py:453-478`):
+1. **危险 type 文本**:`_is_blocked_type`(`tools/computer_use/tool.py:138-145`)正则拦 `curl|bash`、`sudo rm -rf`、fork bomb 等。
+2. **危险按键组合**:`_BLOCKED_KEY_COMBOS`(`tools/computer_use/tool.py:96-116`)——清空废纸篓、强制删除、锁屏、注销等,**无视审批级别硬拦**(注销会杀掉 Hermes 自己所在的会话)。规范化用 `_canon_key_combo`(`tools/computer_use/tool.py:117-135`)同时按 `+` 和 `-` 切分,否则 `ctrl-alt-delete` 连字符写法能绕过闸。
+3. `bring_to_front` 必须配 `delivery_mode='foreground'`(`tools/computer_use/tool.py:473-477`)。
 
 `tools/computer_use/tool.py:96-105 @ 863e313`:
 
@@ -396,7 +396,7 @@ _BLOCKED_KEY_COMBOS = {
     frozenset({"cmd", "option", "shift", "q"}),  # force log out
 ```
 
-**审批本身**(`_request_approval`,`tool.py:514-563`):按 `(action, delivery_mode)` **且** `session_id` 双重 scope。foreground 是可见的焦点变更,**背景审批不覆盖 foreground**(#67052);状态按 session_id 隔离,并发 run 不互相泄露"总是批准"。回调返回 4 种裁决:approve_once / approve_session / always_approve / deny。特殊:`timeout` 返回"沉默不是同意,别重试"(`tool.py:555-562`)。
+**审批本身**(`_request_approval`,`tools/computer_use/tool.py:514-563`):按 `(action, delivery_mode)` **且** `session_id` 双重 scope。foreground 是可见的焦点变更,**背景审批不覆盖 foreground**(#67052);状态按 session_id 隔离,并发 run 不互相泄露"总是批准"。回调返回 4 种裁决:approve_once / approve_session / always_approve / deny。特殊:`timeout` 返回"沉默不是同意,别重试"(`tools/computer_use/tool.py:555-562`)。
 
 #### 层三:cua-driver 不可变权限模式(tool.py + cua_backend.py)
 
@@ -404,9 +404,9 @@ _BLOCKED_KEY_COMBOS = {
 
 cua-driver 的 daemon 权限模式**启动后不可变**。若复用机器级 daemon,一个 Hermes 会话的 YOLO 选择会影响另一个。解法:私有嵌入式 daemon。
 
-`_cua_permission_mode`(`tool.py:171-199`)把 Hermes 的审批绕过映射到 cua 的不可变模式:审批 bypass 激活 → `"unrestricted"`,否则 `"standard"`。它查**两个身份命名空间**(DB session_id + gateway session_key),因为 gateway `/yolo` 走 session_key,只查 session_id 会让消息平台上的 /yolo 无形失效(`tool.py:181-190`)。fail closed。
+`_cua_permission_mode`(`tools/computer_use/tool.py:171-199`)把 Hermes 的审批绕过映射到 cua 的不可变模式:审批 bypass 激活 → `"unrestricted"`,否则 `"standard"`。它查**两个身份命名空间**(DB session_id + gateway session_key),因为 gateway `/yolo` 走 session_key,只查 session_id 会让消息平台上的 /yolo 无形失效(`tools/computer_use/tool.py:181-190`)。fail closed。
 
-`unrestricted` 时创建 `_EmbeddedCuaDaemon`(`cua_backend.py:383-537`)——私有 socket、私有进程、启动时一次性风险确认:
+`unrestricted` 时创建 `_EmbeddedCuaDaemon`(`tools/computer_use/cua_backend.py:383-537`)——私有 socket、私有进程、启动时一次性风险确认:
 
 `tools/computer_use/cua_backend.py:412-416 @ 863e313`:
 
@@ -431,11 +431,11 @@ class _EmbeddedCuaDaemon:
     """
 ```
 
-`_get_backend`(`tool.py:201-266`)据此实现"模式变更即换后端":每 session 缓存一个后端;若 `_cua_permission_mode` 与缓存模式不符(比如 /yolo 切换),弹出旧后端在锁外 stop、循环重建——因为 cua 模式启动后不可变(`tool.py:216-224`)。
+`_get_backend`(`tools/computer_use/tool.py:201-266`)据此实现"模式变更即换后端":每 session 缓存一个后端;若 `_cua_permission_mode` 与缓存模式不符(比如 /yolo 切换),弹出旧后端在锁外 stop、循环重建——因为 cua 模式启动后不可变(`tools/computer_use/tool.py:216-224`)。
 
 #### 一个横切安全策略:cua-driver 子进程绝不继承 provider API key
 
-cua-driver 是第三方二进制,**每个 spawn 点**都 sanitize 环境(#53503/#55709/#58889 血统)。`cua_driver_child_env`(`cua_backend.py:256-269`)只管注入 telemetry 开关,真正剥密钥的是各调用点包一层 `_sanitize_subprocess_env`。见 `permissions.py:46-64`、`cua_backend.py:563-575`(manifest 探测)、`doctor.py:72-87`。
+cua-driver 是第三方二进制,**每个 spawn 点**都 sanitize 环境(#53503/#55709/#58889 血统)。`cua_driver_child_env`(`tools/computer_use/cua_backend.py:256-269`)只管注入 telemetry 开关,真正剥密钥的是各调用点包一层 `_sanitize_subprocess_env`。见 `permissions.py:46-64`、`tools/computer_use/cua_backend.py:563-575`(manifest 探测)、`doctor.py:72-87`。
 
 #### 取舍
 - 三层权限各管一段:OS 授权(能不能动)/ Hermes 审批(该不该动)/ cua 模式(动到什么程度)。清晰但要读三处才拼得全。
@@ -470,15 +470,15 @@ The adapter is deliberately stricter than the transport:
 
 #### 机制:exact-bind → snapshot → mutate 状态机
 
-`BrowserRouteState`(`browser_route.py:149-177`)持有一次绑定的能力:pid/window_id、`target_id`(不透明目标句柄)、`tab_ids`、`refs`(ref→允许的动作集)、`continuation`、`verification_required`。
+`BrowserRouteState`(`tools/computer_use/browser_route.py:149-177`)持有一次绑定的能力:pid/window_id、`target_id`(不透明目标句柄)、`tab_ids`、`refs`(ref→允许的动作集)、`continuation`、`verification_required`。
 
 > **术语锚定 · semantic ref**:网页快照里每个可操作节点的不透明句柄,附带"它允许哪些动作"(click/type/scroll…)。模型只能用**本 session 最新快照**里的 ref,过期即拒。
 > **术语锚定 · trusted vs dom_event**:trusted = 浏览器层面的可信输入事件(像真人);dom_event = JS 合成事件(可被网页脚本区分,信任级低)。降级到 dom_event 必须显式。
 
 三阶段:
-1. **observe/绑定**(`browser_route.py:210-337`):传 pid+window_id 做 exact bind,拿 `target_id`。绑定不是快照——置 `verification_required=True`,mutate 前必须先读一次 tab。若 `binding_quality != "exact"` 或 `mutation_allowed` 不为真,标 `native_fallback_required`(退回原生 AX/像素栈)。
-2. **snapshot**:同 `observe` 但已绑定,读语义快照,填 `refs`。新快照**在传输调用前**先 `clear_refs`,保证失败不留可用旧 ref(`browser_route.py:319-322`)。
-3. **mutate**(`browser_route.py:462-573`):调 `browser_click`/`browser_type` 等。`_require_mutation`(`browser_route.py:406-441`)校验:binding exact + mutation_allowed + tab 属于本次绑定 + 若 `verification_required` 未读快照则拒。`_require_ref`(`browser_route.py:443-460`)校验 ref 来自最新快照且声明了所需动作。每次成功 mutate 后置 `verification_required=True` + `next_step=fresh_browser_state`——**绝不从记忆状态链式 mutate**。
+1. **observe/绑定**(`tools/computer_use/browser_route.py:210-337`):传 pid+window_id 做 exact bind,拿 `target_id`。绑定不是快照——置 `verification_required=True`,mutate 前必须先读一次 tab。若 `binding_quality != "exact"` 或 `mutation_allowed` 不为真,标 `native_fallback_required`(退回原生 AX/像素栈)。
+2. **snapshot**:同 `observe` 但已绑定,读语义快照,填 `refs`。新快照**在传输调用前**先 `clear_refs`,保证失败不留可用旧 ref(`tools/computer_use/browser_route.py:319-322`)。
+3. **mutate**(`tools/computer_use/browser_route.py:462-573`):调 `browser_click`/`browser_type` 等。`_require_mutation`(`tools/computer_use/browser_route.py:406-441`)校验:binding exact + mutation_allowed + tab 属于本次绑定 + 若 `verification_required` 未读快照则拒。`_require_ref`(`tools/computer_use/browser_route.py:443-460`)校验 ref 来自最新快照且声明了所需动作。每次成功 mutate 后置 `verification_required=True` + `next_step=fresh_browser_state`——**绝不从记忆状态链式 mutate**。
 
 `tools/computer_use/browser_route.py:194-205 @ 863e313`(session id 由适配器注入,永不接受模型给的):
 
@@ -493,7 +493,7 @@ The adapter is deliberately stricter than the transport:
 
 #### 转交时机(在 tool.py 的 dispatch)
 
-`_dispatch`(`tool.py:590-793`)按 action 前缀分流:`cua_browser_state`→`typed_browser_state`(`tool.py:611-624`),`cua_browser_prepare`→`typed_browser_prepare`,其余 `cua_browser_*` 映射到 driver 的 `browser_*` 工具并做**参数白名单**(`tool.py:648-720`,只放行每工具声明的字段)。**转交 100% 由模型选 action 触发,不是 harness 自动**。原生 backend 若无 typed-browser 能力,`ComputerUseBackend._typed_browser_unavailable`(`backend.py:217-225`)fail closed 返回 `native_fallback_required`。
+`_dispatch`(`tools/computer_use/tool.py:590-793`)按 action 前缀分流:`cua_browser_state`→`typed_browser_state`(`tools/computer_use/tool.py:611-624`),`cua_browser_prepare`→`typed_browser_prepare`,其余 `cua_browser_*` 映射到 driver 的 `browser_*` 工具并做**参数白名单**(`tools/computer_use/tool.py:648-720`,只放行每工具声明的字段)。**转交 100% 由模型选 action 触发,不是 harness 自动**。原生 backend 若无 typed-browser 能力,`ComputerUseBackend._typed_browser_unavailable`(`tools/computer_use/backend.py:217-225`)fail closed 返回 `native_fallback_required`。
 
 #### 取舍
 - 门面比传输更严:多层校验(exact/tab/ref/verification)换"模型无法用陈旧或跨会话能力乱操作"。代价是模型必须严格走 bind→snapshot→act,任何一步过期都要重来。
@@ -557,7 +557,7 @@ report via working probes (check_permissions, list_apps, CLI --version).
 
 ### 2.6 注册壳与桌面桥(computer_use_tool.py / desktop_ui.py)
 
-**`computer_use_tool.py`(42 行)** 纯注册壳,存在只因 `tools.registry` 自动导入 `tools/*.py`,需要一个顶层模块触发注册(`computer_use_tool.py:1-6`)。它把 schema + 四个入口函数注册进 registry:
+**`computer_use_tool.py`(42 行)** 纯注册壳,存在只因 `tools.registry` 自动导入 `tools/*.py`,需要一个顶层模块触发注册(`tools/computer_use_tool.py:1-6`)。它把 schema + 四个入口函数注册进 registry:
 
 `tools/computer_use_tool.py:20-33 @ 863e313`:
 
@@ -586,22 +586,22 @@ registry.register(
 
 **桌面控制部分——docs 充分且与代码一致。** `website/docs/user-guide/features/computer-use.md`(496 行)有专章。逐点核对:
 - 三平台 + 后台不抢焦点:`computer-use.md:8-12` 与代码 `_RUNTIME_PLATFORMS`(`permissions.py:35`)一致。
-- 各平台底层栈表(`computer-use.md:26-30`:macOS SkyLight / Windows UIA+SendInput / Linux AT-SPI+XTest)与 `cua_backend.py:29-33` docstring 一致。
+- 各平台底层栈表(`computer-use.md:26-30`:macOS SkyLight / Windows UIA+SendInput / Linux AT-SPI+XTest)与 `tools/computer_use/cua_backend.py:29-33` docstring 一致。
 - 权限模式表(`computer-use.md:83-86`:standard vs 私有 unrestricted daemon)与 `_EmbeddedCuaDaemon` + `_cua_permission_mode` 实现一致。
 - SOM 工作流示例(`computer-use.md:203-215`)与 schema/dispatch 一致。
 - doctor 输出样例(`computer-use.md:106-140`)与 `doctor.py` 渲染一致。
-- MIME 来源(`computer-use.md:229-232`:来自 cua-driver 显式 `mimeType`,不做魔数嗅探)与 `tool.py:1024-1030`(优先 `cap.image_mime_type`,回退才嗅 `/9j/`)一致。
+- MIME 来源(`website/docs/user-guide/features/computer-use.md:229-232`:来自 cua-driver 显式 `mimeType`,不做魔数嗅探)与 `tools/computer_use/tool.py:1024-1030`(优先 `cap.image_mime_type`,回退才嗅 `/9j/`)一致。
 
-**截图视觉路由部分——docs 基本不讲(▲ 地图缺口)。** 文档"Provider compatibility"表(`computer-use.md:219-226`)只说纯文本模型用 `mode="ax"` 降级,**完全没提** `auxiliary.vision` 自动路由这条机制(#24015 的整套 `vision_routing.py` + `_route_capture_through_aux_vision`)。即用户读文档不会知道:配了辅助视觉模型后,非视觉主模型的截图会被自动转成文字描述。**建议记为文档-代码出入 ▲:一个有 issue、有专门模块(204 行)、有 9 个单测的机制在用户文档里零覆盖。** 代码为准。
+**截图视觉路由部分——docs 基本不讲(▲ 地图缺口)。** 文档"Provider compatibility"表(`website/docs/user-guide/features/computer-use.md:219-226`)只说纯文本模型用 `mode="ax"` 降级,**完全没提** `auxiliary.vision` 自动路由这条机制(#24015 的整套 `vision_routing.py` + `_route_capture_through_aux_vision`)。即用户读文档不会知道:配了辅助视觉模型后,非视觉主模型的截图会被自动转成文字描述。**建议记为文档-代码出入 ▲:一个有 issue、有专门模块(204 行)、有 9 个单测的机制在用户文档里零覆盖。** 代码为准。
 
-**"截图按模型能力路由"这一命名名副其实**:`vision_routing.py` 确实按 (provider, model) 的视觉能力 + provider 是否接受 tool-result 图片来决定路由,四层优先级 fail-closed(`vision_routing.py:164-199`),名实相符。
+**"截图按模型能力路由"这一命名名副其实**:`vision_routing.py` 确实按 (provider, model) 的视觉能力 + provider 是否接受 tool-result 图片来决定路由,四层优先级 fail-closed(`tools/computer_use/vision_routing.py:164-199`),名实相符。
 
 ### 核对 R1 报告"经 cua-driver MCP 驱动三平台桌面"
 
 **结论:准确。** 逐字拆:
-- **几个平台?——恰好 3 个**:`darwin`、`win32`、`linux`,以 `frozenset` 硬编码(`permissions.py:35`),并在 `check_computer_use_requirements`(`tool.py:1330`)、`CuaDriverBackend.is_available`(`cua_backend.py:2050-2053`)重复 gating。
-- **什么驱动?——cua-driver(trycua/cua 的 Rust 二进制),经 MCP over stdio**:`cua_backend.py:1-4` docstring + `_CUA_DRIVER_ARGS = ["mcp"]`(`cua_backend.py:149`,stdio MCP transport)。
-- **注意精度**:Linux 是"最新加入、X11 今天可用、Wayland 经 XWayland"(`cua_backend.py:13-14`),不是三平台完全等价成熟。R1 若表述为"三平台等同成熟"需修正为"三平台均支持,Linux 最新"。三平台数目与"cua-driver MCP 驱动"两点完全准确。
+- **几个平台?——恰好 3 个**:`darwin`、`win32`、`linux`,以 `frozenset` 硬编码(`permissions.py:35`),并在 `check_computer_use_requirements`(`tools/computer_use/tool.py:1330`)、`CuaDriverBackend.is_available`(`tools/computer_use/cua_backend.py:2050-2053`)重复 gating。
+- **什么驱动?——cua-driver(trycua/cua 的 Rust 二进制),经 MCP over stdio**:`tools/computer_use/cua_backend.py:1-4` docstring + `_CUA_DRIVER_ARGS = ["mcp"]`(`tools/computer_use/cua_backend.py:149`,stdio MCP transport)。
+- **注意精度**:Linux 是"最新加入、X11 今天可用、Wayland 经 XWayland"(`tools/computer_use/cua_backend.py:13-14`),不是三平台完全等价成熟。R1 若表述为"三平台等同成熟"需修正为"三平台均支持,Linux 最新"。三平台数目与"cua-driver MCP 驱动"两点完全准确。
 
 ---
 

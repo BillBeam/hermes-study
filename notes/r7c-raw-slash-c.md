@@ -1192,67 +1192,67 @@ flowchart TD
 
 | 命令 | 别名 | 权限 | busy 策略 (handler) | handler 定义 |
 |---|---|---|---|---|
-| start | – | gated | dispatch (`start`) | run.py:14172 (`_busy_start_command`) / 冷路径 run.py:15083 直接 return "" |
-| new | reset | gated | interrupt_then_dispatch (`new`) | slash_commands.py:119 |
-| topic | – | gated | reject | slash_commands.py:4332 |
-| retry | – | gated | reject | slash_commands.py:2562 |
-| undo | – | gated | reject | slash_commands.py:2942 |
-| title | – | gated | reject | slash_commands.py:4421 |
-| branch | fork | gated | reject | slash_commands.py:4732 |
-| compress | compact | gated | reject | slash_commands.py:3948 |
-| rollback | – | gated | reject | slash_commands.py:3143 |
-| stop | – | gated | interrupt_then_dispatch (`stop`) | slash_commands.py:1348 |
-| approve | – | gated | dispatch | slash_commands.py:5377 |
-| deny | – | gated | dispatch | slash_commands.py:5435 |
-| background | bg, btw | gated | dispatch | slash_commands.py:3301 |
-| agents | tasks | gated | dispatch | slash_commands.py:1197 |
-| queue | q | gated | dispatch (`queue`) | 冷路径 run.py:15328 改写 event.text |
-| steer | – | gated | dispatch (`steer`) | 冷路径 run.py:15337 改写 event.text |
-| goal | – | gated | dispatch (`goal`) | slash_commands.py:2603 |
-| heartbeat | hb | gated | dispatch | slash_commands.py:2775 |
-| refine | – | gated | reject | slash_commands.py:2847 |
-| moa | – | gated | reject (`moa` 专属文案) | 冷路径 run.py:15360 改写 event.text |
-| subgoal | – | gated | dispatch | slash_commands.py:2891 |
-| status | – | **pre-gate(busy)** / gated(冷) | dispatch | slash_commands.py:540 |
-| egress | – | gated | dispatch (`egress`) | run.py:14179 (`_busy_egress_command`) / 冷路径 run.py:15099 |
-| context | ctx | **pre-gate(busy)** / gated(冷) | dispatch | slash_commands.py:722 |
-| whoami | – | **floor** | reject | slash_commands.py:381 |
-| profile | – | gated | dispatch | slash_commands.py:328 |
-| sethome | set-home | gated | reject | slash_commands.py:2991 |
-| resume | – | gated | reject | slash_commands.py:4493 |
-| sessions | – | gated | reject | slash_commands.py:4661 |
-| model | – | gated | reject(专属文案) | slash_commands.py:1671 |
-| codex-runtime | codex_runtime | gated | reject(专属文案) | slash_commands.py:2447 |
-| personality | – | gated | reject | slash_commands.py:2492 |
-| diff | – | gated | reject | slash_commands.py:3191 |
-| verbose | – | gated(config-gated 才出现) | dispatch | slash_commands.py:3798 |
-| footer | – | gated | dispatch | slash_commands.py:3862 |
-| yolo | – | gated | dispatch | slash_commands.py:3781 |
-| approvals | – | gated **+admin** | reject | slash_commands.py:3764 |
-| reasoning | – | gated | reject | slash_commands.py:3484 |
-| fast | – | gated | reject | slash_commands.py:3679 |
-| voice | – | gated | reject | slash_commands.py:3062 |
-| memory | – | gated | reject | slash_commands.py:3577 |
-| bundles | – | gated | reject | slash_commands.py:5341 |
-| learn | – | gated | reject | 冷路径 run.py:15128 改写 event.text |
-| init | – | gated | reject | 冷路径 run.py:15156 改写 event.text |
-| suggestions | suggest | gated | reject | run.py:18617 |
-| blueprint | bp | gated | reject | run.py:18647 |
+| start | – | gated | dispatch (`start`) | gateway/run.py:14172 (`_busy_start_command`) / 冷路径 gateway/run.py:15083 直接 return "" |
+| new | reset | gated | interrupt_then_dispatch (`new`) | gateway/slash_commands.py:119 |
+| topic | – | gated | reject | gateway/slash_commands.py:4332 |
+| retry | – | gated | reject | gateway/slash_commands.py:2562 |
+| undo | – | gated | reject | gateway/slash_commands.py:2942 |
+| title | – | gated | reject | gateway/slash_commands.py:4421 |
+| branch | fork | gated | reject | gateway/slash_commands.py:4732 |
+| compress | compact | gated | reject | gateway/slash_commands.py:3948 |
+| rollback | – | gated | reject | gateway/slash_commands.py:3143 |
+| stop | – | gated | interrupt_then_dispatch (`stop`) | gateway/slash_commands.py:1348 |
+| approve | – | gated | dispatch | gateway/slash_commands.py:5377 |
+| deny | – | gated | dispatch | gateway/slash_commands.py:5435 |
+| background | bg, btw | gated | dispatch | gateway/slash_commands.py:3301 |
+| agents | tasks | gated | dispatch | gateway/slash_commands.py:1197 |
+| queue | q | gated | dispatch (`queue`) | 冷路径 gateway/run.py:15328 改写 event.text |
+| steer | – | gated | dispatch (`steer`) | 冷路径 gateway/run.py:15337 改写 event.text |
+| goal | – | gated | dispatch (`goal`) | gateway/slash_commands.py:2603 |
+| heartbeat | hb | gated | dispatch | gateway/slash_commands.py:2775 |
+| refine | – | gated | reject | gateway/slash_commands.py:2847 |
+| moa | – | gated | reject (`moa` 专属文案) | 冷路径 gateway/run.py:15360 改写 event.text |
+| subgoal | – | gated | dispatch | gateway/slash_commands.py:2891 |
+| status | – | **pre-gate(busy)** / gated(冷) | dispatch | gateway/slash_commands.py:540 |
+| egress | – | gated | dispatch (`egress`) | gateway/run.py:14179 (`_busy_egress_command`) / 冷路径 gateway/run.py:15099 |
+| context | ctx | **pre-gate(busy)** / gated(冷) | dispatch | gateway/slash_commands.py:722 |
+| whoami | – | **floor** | reject | gateway/slash_commands.py:381 |
+| profile | – | gated | dispatch | gateway/slash_commands.py:328 |
+| sethome | set-home | gated | reject | gateway/slash_commands.py:2991 |
+| resume | – | gated | reject | gateway/slash_commands.py:4493 |
+| sessions | – | gated | reject | gateway/slash_commands.py:4661 |
+| model | – | gated | reject(专属文案) | gateway/slash_commands.py:1671 |
+| codex-runtime | codex_runtime | gated | reject(专属文案) | gateway/slash_commands.py:2447 |
+| personality | – | gated | reject | gateway/slash_commands.py:2492 |
+| diff | – | gated | reject | gateway/slash_commands.py:3191 |
+| verbose | – | gated(config-gated 才出现) | dispatch | gateway/slash_commands.py:3798 |
+| footer | – | gated | dispatch | gateway/slash_commands.py:3862 |
+| yolo | – | gated | dispatch | gateway/slash_commands.py:3781 |
+| approvals | – | gated **+admin** | reject | gateway/slash_commands.py:3764 |
+| reasoning | – | gated | reject | gateway/slash_commands.py:3484 |
+| fast | – | gated | reject | gateway/slash_commands.py:3679 |
+| voice | – | gated | reject | gateway/slash_commands.py:3062 |
+| memory | – | gated | reject | gateway/slash_commands.py:3577 |
+| bundles | – | gated | reject | gateway/slash_commands.py:5341 |
+| learn | – | gated | reject | 冷路径 gateway/run.py:15128 改写 event.text |
+| init | – | gated | reject | 冷路径 gateway/run.py:15156 改写 event.text |
+| suggestions | suggest | gated | reject | gateway/run.py:18617 |
+| blueprint | bp | gated | reject | gateway/run.py:18647 |
 | **curator** | – | gated | reject | **无 gateway handler(见 ◇-15)** |
-| kanban | – | gated | dispatch | slash_commands.py:432 |
-| reload-mcp | reload_mcp | gated | reject | slash_commands.py:5178 |
-| reload-skills | reload_skills | gated | reject | slash_commands.py:5241 |
-| skills | – | gated(config-gated 才出现) | reject | slash_commands.py:3618 |
-| commands | – | gated | dispatch | slash_commands.py:1651 |
-| help | – | **floor** | dispatch | slash_commands.py:1640 |
-| restart | – | gated | dispatch | slash_commands.py:1524 |
-| usage | – | gated | reject | slash_commands.py:4955 |
-| topup | – | gated | reject | slash_commands.py:4843 |
-| insights | – | gated | reject | slash_commands.py:5129 |
-| platform | – | gated | reject | slash_commands.py:1431 |
-| update | – | gated | dispatch | slash_commands.py:5541 |
-| version | v | gated | dispatch | slash_commands.py:1634 |
-| debug | – | gated | reject | slash_commands.py:5497 |
+| kanban | – | gated | dispatch | gateway/slash_commands.py:432 |
+| reload-mcp | reload_mcp | gated | reject | gateway/slash_commands.py:5178 |
+| reload-skills | reload_skills | gated | reject | gateway/slash_commands.py:5241 |
+| skills | – | gated(config-gated 才出现) | reject | gateway/slash_commands.py:3618 |
+| commands | – | gated | dispatch | gateway/slash_commands.py:1651 |
+| help | – | **floor** | dispatch | gateway/slash_commands.py:1640 |
+| restart | – | gated | dispatch | gateway/slash_commands.py:1524 |
+| usage | – | gated | reject | gateway/slash_commands.py:4955 |
+| topup | – | gated | reject | gateway/slash_commands.py:4843 |
+| insights | – | gated | reject | gateway/slash_commands.py:5129 |
+| platform | – | gated | reject | gateway/slash_commands.py:1431 |
+| update | – | gated | dispatch | gateway/slash_commands.py:5541 |
+| version | v | gated | dispatch | gateway/slash_commands.py:1634 |
+| debug | – | gated | reject | gateway/slash_commands.py:5497 |
 
 `gateway_only=True` 的 8 条:start(104)、topic(109)、approve(142)、deny(144)、
 sethome(184)、commands(308)、restart(313)、platform(324)。
@@ -1321,7 +1321,7 @@ quit/exit(340)。
 | # | 主题 | 文档证据 | 代码证据 | 裁定 |
 |---|---|---|---|---|
 | ▲-3 | `/voice` 子命令集 | messaging 表 `slash-commands.md:246`:`` `/voice [on\|off\|tts\|join\|channel\|leave\|status]` ``(CLI 表 `:87` 则只写 `[on\|off\|tts\|status]`) | handler 确实支持:`gateway/slash_commands.py:3090-3093` `elif args in {"channel", "join"}: ... elif args == "leave":`。**但注册表 `args_hint` 只有 `[on\|off\|tts\|status]`**(`hermes_cli/commands.py:243`) | **文档对、注册表错**。后果:messaging `/help`(由 `gateway_help_lines` 从 `args_hint` 生成)不会显示 join/channel/leave,Telegram/Discord 菜单同样不显示。记 ▲(文档 vs 注册表冲突,**以代码 handler 为准**) |
-| ▲-4 | `/debug` 参数 | messaging 表 `slash-commands.md:282` 只写 `/debug`(正确);但注册表 `args_hint="[nous\|local]"`(`hermes_cli/commands.py:337`)会让 messaging `/help` 打出 `` `/debug [nous\|local]` `` | gateway handler `gateway/slash_commands.py:5497-5539` **从不读 args**,恒定 `upload_to_pastebin` | 见 ◇-11。**运行时帮助文本(自动生成)与实际行为冲突**,且方向危险(用户以为 local 不上传)。记 ▲ |
+| ▲-4 | `/debug` 参数 | messaging 表 `website/docs/reference/slash-commands.md:282` 只写 `/debug`(正确);但注册表 `args_hint="[nous\|local]"`(`hermes_cli/commands.py:337`)会让 messaging `/help` 打出 `` `/debug [nous\|local]` `` | gateway handler `gateway/slash_commands.py:5497-5539` **从不读 args**,恒定 `upload_to_pastebin` | 见 ◇-11。**运行时帮助文本(自动生成)与实际行为冲突**,且方向危险(用户以为 local 不上传)。记 ▲ |
 | ▲-5 | "唯一真源" | `slash-commands.md:9`:"both driven by a central `COMMAND_REGISTRY` in `hermes_cli/commands.py`" | TUI 有独立 TS 注册表(`ui-tui/src/app/slash/commands/*.ts`);`/curator` 在 Python 注册表但 gateway 无 handler | 记 ▲(同 ▲-1) |
 | ▲-6 | 前缀匹配 | `slash-commands.md:214`:"Commands support prefix matching: typing `/h` resolves to `/help`, `/mod` resolves to `/model`." | `resolve_command`(`hermes_cli/commands.py:362-367`)是**纯 dict 查表,无前缀逻辑**:`return _COMMAND_LOOKUP.get(name.lower().lstrip("/"))`。gateway 冷路径/忙路径都只用它 | **在 gateway 上前缀匹配不成立**:`/h` 会走到 `gateway/run.py:15615` 的 unknown-command 分支。文档这段在 "Interactive CLI slash commands" 章节下,对 CLI 可能成立,但表述为通用规则且紧邻 "Custom model aliases"(两 surface 通用)一节,易误导。记 ▲(需限定 surface) |
 | ▲-7 | 非 admin 能跑什么 | `telegram.md:1109`:"A user in `allow_from` but **not** in `allow_admin_from` can only run commands listed in `user_allowed_commands`, plus the always-allowed floor" | 闸门条件 `is_gateway_known_command(canonical)`(`gateway/run.py:15001`)不覆盖技能命令;skill/bundle 分发在 `gateway/run.py:15489/15531` 无检查 | **"can only run" 是错的**:非 admin 仍可 `/<skill-name>` 与 `/<bundle-slug>`。记 ▲(同 ▲-C) |
@@ -1516,18 +1516,18 @@ Discord slash picker。加一条命令只改一处。派生结构全部在 impor
 
 **▲(文档-代码冲突)**
 - ▲-1 / ▲-5:`slash-commands.md:9` 的 "central COMMAND_REGISTRY 唯一真源" 不成立(TUI 另有 TS 注册表 `ui-tui/src/app/slash/commands/session.ts:162`;`/curator` 有注册无实现)
-- ▲-3:`/voice` 的 join/channel/leave 在 handler 里存在(`slash_commands.py:3090-3093`),注册表 `args_hint`(`commands.py:243`)没列 ⇒ 自动帮助与菜单不显示
-- ▲-4:`/debug [nous|local]` 在 messaging `/help` 里被打出,gateway handler 完全忽略参数并恒定上传公网(`slash_commands.py:5497-5539`)
-- ▲-6:`slash-commands.md:214` 的前缀匹配在 gateway 上不成立(`resolve_command` 是纯查表,`commands.py:362-367`)
+- ▲-3:`/voice` 的 join/channel/leave 在 handler 里存在(`gateway/slash_commands.py:3090-3093`),注册表 `args_hint`(`hermes_cli/commands.py:243`)没列 ⇒ 自动帮助与菜单不显示
+- ▲-4:`/debug [nous|local]` 在 messaging `/help` 里被打出,gateway handler 完全忽略参数并恒定上传公网(`gateway/slash_commands.py:5497-5539`)
+- ▲-6:`slash-commands.md:214` 的前缀匹配在 gateway 上不成立(`resolve_command` 是纯查表,`hermes_cli/commands.py:362-367`)
 - ▲-7:`telegram.md:1109` "can only run commands listed in user_allowed_commands" 不成立(技能/bundle 命令绕过闸门)
 - ▲-8:`slash-commands.md:267` 把 `/curator` 列进 messaging 表,gateway 无 handler、无分支,实际被当普通消息喂给 LLM
-- ▲-A(同文件内注释-代码冲突):`slash_access.py:44-49` 的注释说 floor 含 `/status`、说 operator 可收窄 floor,两条都与 50-53 + 86-88 的代码不符
-- ▲-B:`/status` `/context` 忙时绕过闸门(`run.py:14768-14772`)、闲时受闸门 —— 可达性依赖 agent 状态
-- ▲-C:`_check_slash_access` 只有 3 个调用点,skill(`run.py:15531`)/bundle(`run.py:15489`)分发无检查
-- ▲-D:`/yolo`(关掉全部危险命令审批)无二次 admin 判定,`/approvals`(改同一件事)有(`slash_commands.py:3773-3775`)
+- ▲-A(同文件内注释-代码冲突):`gateway/slash_access.py:44-49` 的注释说 floor 含 `/status`、说 operator 可收窄 floor,两条都与 50-53 + 86-88 的代码不符
+- ▲-B:`/status` `/context` 忙时绕过闸门(`gateway/run.py:14768-14772`)、闲时受闸门 —— 可达性依赖 agent 状态
+- ▲-C:`_check_slash_access` 只有 3 个调用点,skill(`gateway/run.py:15531`)/bundle(`gateway/run.py:15489`)分发无检查
+- ▲-D:`/yolo`(关掉全部危险命令审批)无二次 admin 判定,`/approvals`(改同一件事)有(`gateway/slash_commands.py:3773-3775`)
 
 **◇(代码有、文档/注册表未覆盖或不一致)**
-- ◇-1 文件头 docstring 说 "42 个 / ~3200 LOC"(`slash_commands.py:5-6`),实为 52 个 handler / 5693 行
+- ◇-1 文件头 docstring 说 "42 个 / ~3200 LOC"(`gateway/slash_commands.py:5-6`),实为 52 个 handler / 5693 行
 - ◇-2 `/compress` 顶层异常文案不脱敏,aux 错误脱敏(4282-4284 vs 4330)
 - ◇-3 `_handle_topic_command` 的 `args` 形参是死参数(4332 vs 4353)
 - ◇-4 `/topic` 授权检查 `except Exception` 后继续执行 = fail-open(4350-4351)
@@ -1538,14 +1538,14 @@ Discord slash picker。加一条命令只改一处。派生结构全部在 impor
 - ◇-9 `/reload-skills` docstring 里写死消费点行号 "~L11025"(5253)
 - ◇-10 `/approve` 的 `all` 任意位置生效,`/deny` 只认首 token(5412 vs 5464)
 - ◇-11 `/debug` 注册表 args_hint 与 handler 完全脱节(见 ▲-4)
-- ◇-12 `PlatformEntry.allow_update_command` 默认 True(`platform_registry.py:106`),全仓仅 1 处显式 False
+- ◇-12 `PlatformEntry.allow_update_command` 默认 True(`gateway/platform_registry.py:106`),全仓仅 1 处显式 False
 - ◇-13 `/update` 里 5603-5610 与 5611-5618 是逐字重复的注释块
-- ◇-14 `/whoami` 手抄 floor 常量(`slash_commands.py:415`)而非引用 `_ALWAYS_ALLOWED_FOR_USERS`
+- ◇-14 `/whoami` 手抄 floor 常量(`gateway/slash_commands.py:415`)而非引用 `_ALWAYS_ALLOWED_FOR_USERS`
 - ◇-15 `/curator` 注册表可用、无 gateway handler(见 ▲-8)
-- ◇-A/B `/export` `/import` 已实现(`commands.py:136/138` + `cli.py:10252/10254`),文档 0 次提及
+- ◇-A/B `/export` `/import` 已实现(`hermes_cli/commands.py:136/138` + `cli.py:10252/10254`),文档 0 次提及
 - ◇-C~F 别名 `compact` / `v` / `ts` / `codex_runtime` 文档未列
-- ◇-G DM 的 `user_allowed_commands` 回退到 group 版(`slash_access.py:183-186`)文档未提
+- ◇-G DM 的 `user_allowed_commands` 回退到 group 版(`gateway/slash_access.py:183-186`)文档未提
 - ◇-H `/status` `/context` 忙路径 pre-gate 文档未提
-- ◇-I Slack 有 10 条命令只走 `/hermes <cmd>`(`commands.py:1276`)文档未提
-- ◇-J Slack 保留词吞掉 `/status` `/topic` 等原生 slash(`commands.py:1222-1229`)文档未提
-- ◇-K Telegram 菜单默认 60 条上限(`commands.py:638`)文档未提
+- ◇-I Slack 有 10 条命令只走 `/hermes <cmd>`(`hermes_cli/commands.py:1276`)文档未提
+- ◇-J Slack 保留词吞掉 `/status` `/topic` 等原生 slash(`hermes_cli/commands.py:1222-1229`)文档未提
+- ◇-K Telegram 菜单默认 60 条上限(`hermes_cli/commands.py:638`)文档未提

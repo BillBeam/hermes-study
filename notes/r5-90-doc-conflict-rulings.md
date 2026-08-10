@@ -49,7 +49,7 @@ R1 条目(hermes_state_search.py:1)。三索引证实:`messages_fts`(unicode61 �
 `messages_fts_trigram`(trigram 子串,视图排除 tool 行,~2.6x 体积)、`messages_fts_cjk`
 (cjk_unicode61 双字 bigram,可加载 C 扩展,#65544);`_FTS_TABLES` 权威三元组
 (hermes_state.py:9362)。第四条路 LIKE 全表扫是兜底不是索引。四形态证实
-(session_search_tool.py:863-873)。增量维护 = 触发器 + 高水位/进度双标记闸 + 分块 CAS 回填,
+(tools/session_search_tool.py:863-873)。增量维护 = 触发器 + 高水位/进度双标记闸 + 分块 CAS 回填,
 无后台线程(r5-10 §2)。
 
 ### 定案 B2 证伪 「Three calling shapes」
@@ -68,18 +68,18 @@ compacted=0)隐藏(#38763);discovery 的"当前会话排除"对压缩轮换旧�
 
 ### 定案 C1 ▲ 「项目上下文文件注入」——证实(三问全有答案)
 
-R1 条目(prompt_builder.py:2189-2194)。多约定并存:`.hermes.md/HERMES.md → AGENTS.md →
-CLAUDE.md → .cursorrules` **首中即停只装一种**(prompt_builder.py:2188-2196);大文件:窗口 6%
+R1 条目(agent/prompt_builder.py:2189-2194)。多约定并存:`.hermes.md/HERMES.md → AGENTS.md →
+CLAUDE.md → .cursorrules` **首中即停只装一种**(agent/prompt_builder.py:2188-2196);大文件:窗口 6%
 动态 cap(20K 地板/500K 顶),保 70% 头+20% 尾,中缝标记指引 read_file,告警进用户状态信道
 (ContextVar 隔离);注入前过 `scope="context"` 威胁扫描,命中**整文件替换为 [BLOCKED] 占位符**,
-BOM 预剥离防误杀(prompt_builder.py:66-79)。
+BOM 预剥离防误杀(agent/prompt_builder.py:66-79)。
 
 ### 定案 C2 证伪 configuration.md 的 AGENTS.md「递归+合并」
 
 `configuration.md:2303` "Recursive directory walk"、`:2311` "if subdirectories also have AGENTS.md,
 all are combined"。代码:启动仅 cwd 顶层("top-level only (no recursive walk)",
-prompt_builder.py:2062);子目录版本靠 subdirectory_hints 会话中按导航**附加到工具结果**,永不进
-系统提示、永不合并(subdirectory_hints.py:1-14)。developer-guide 的 prompt-assembly.md:260 表述
+agent/prompt_builder.py:2062);子目录版本靠 subdirectory_hints 会话中按导航**附加到工具结果**,永不进
+系统提示、永不合并(agent/subdirectory_hints.py:1-14)。developer-guide 的 prompt-assembly.md:260 表述
 正确——又一处文档内部矛盾,以代码为准。
 
 ### 定案 C3 证伪 prompt-assembly.md 技能索引在 stable 层
@@ -88,15 +88,15 @@ prompt_builder.py:2062);子目录版本靠 subdirectory_hints 会话中按导航
 *(R8-fix 修正锚点:原写 `:31,39`;`:31` 对,但 `:39` 是"memory/profile snapshots are part of the
 **volatile** tier"那一条,并非被质疑对象——被质疑的"skills are part of the **stable** tier"在 `:38`。
 实质断言不变,见 M-16a)*。代码:技能是运行时可变的,索引刻意放
-**volatile 层之首**(system_prompt.py:503-513 长注释:放 stable 会让一次技能变更把整个缓存前缀
+**volatile 层之首**(agent/system_prompt.py:503-513 长注释:放 stable 会让一次技能变更把整个缓存前缀
 从索引处炸掉)。同页示例的分钟级时间戳也证伪:实际 date-only "Conversation started:"
-(system_prompt.py:537-543,PR #20451)。另 `:42` 漏 `load_soul_identity` 这条腿(cron 模式
-skip_context_files 下仍装 SOUL,system_prompt.py:193)。
+(agent/system_prompt.py:537-543,PR #20451)。另 `:42` 漏 `load_soul_identity` 这条腿(cron 模式
+skip_context_files 下仍装 SOUL,agent/system_prompt.py:193)。
 
 ### 定案 C4 ◇ 「可插拔 ContextEngine 每轮钩子」——证实(文档罕见地完全同步)
 
-R1 条目(context_engine.py:215-221)。事故("第三方引擎被迫 should_compress 恒真蹭 compress 当
-每轮回调")写在钩子 docstring(context_engine.py:236-241);现设计 selection(select_context,
+R1 条目(agent/context_engine.py:215-221)。事故("第三方引擎被迫 should_compress 恒真蹭 compress 当
+每轮回调")写在钩子 docstring(agent/context_engine.py:236-241);现设计 selection(select_context,
 请求前可换本请求消息)与 observation(on_turn_complete,轮后只读)两钩子,no-op 默认 + 宿主
 fail-open + 恒等检查跳基类 + 空列表专防(`all([])` 陷阱)。`context-engine-plugin.md` 与代码
 逐条一致——**本轮唯一"文档完全正确"的机制页**,与 R3 的 Tool Search 同类,值得记。
@@ -107,12 +107,12 @@ fail-open + 恒等检查跳基类 + 空列表专防(`all([])` 陷阱)。`context
 
 `base.py:645-647` 注释:"the Windows subclass override converts a native C:\Users\x cwd…"。
 全仓**不存在**任何 Windows Environment 子类(grep 零命中);所指实为 `LocalEnvironment` 的两个
-跨平台 override(`_quote_cwd_for_cd`/`_quote_shell_path`,local.py:1477-1484)+ 模块级
+跨平台 override(`_quote_cwd_for_cd`/`_quote_shell_path`,tools/environments/local.py:1477-1484)+ 模块级
 `_IS_WINDOWS` 守卫。源码注释措辞与结构不符(功能无碍)。
 
 ### 定案 D2 ◇ local.py 类 docstring 的 cwd 说法过时
 
-`local.py:1419` "CWD persists via file-based read after each command"——现行实现与远端后端共享
+`tools/environments/local.py:1419` "CWD persists via file-based read after each command"——现行实现与远端后端共享
 stdout marker 解析(R4 已定的 #63255 统一),`_cwd_file` 仅剩 cleanup 遗产。源码内 docstring 漂移。
 
 ### 定案 D3 正面 浏览器/hooks 文档与代码一致
@@ -124,7 +124,7 @@ wire 格式/fail-open 语义,均与代码逐条一致,无新增冲突。
 
 ### 定案 E1 ▲ 「压缩触发决策:双重测量去噪 + 防抖断路器」——证实
 
-R1 条目(context_compressor.py:2629-2634)。查实:触发同时依赖请求前粗估与 provider 返回的真实
+R1 条目(agent/context_compressor.py:2629-2634)。查实:触发同时依赖请求前粗估与 provider 返回的真实
 prompt_tokens 双度量;粗估对 schema 重请求刻意高估,单靠它会"刚压完又压";防抖 + anti-thrash
 断路器持久化到 sessions 行(cooldown/fallback_streak/ineffective_count,state 侧 get/set 在
 hermes_state.py:3736-4006,策略在压缩引擎)。行为规格:test_compression_anti_thrash_persistence /
@@ -132,24 +132,24 @@ _recovery(本轮全过)。细节见 r5-20。
 
 ### 定案 E2 ◇ 「摘要角色交替修复与 provider 兼容护栏」——证实
 
-context_compressor.py:6661-6668 附近:摘要作为合成消息插回后满足 Mistral 严格交替模板(模板跳过
+agent/context_compressor.py:6661-6668 附近:摘要作为合成消息插回后满足 Mistral 严格交替模板(模板跳过
 tool 消息)、Anthropic/Bedrock 兼容。见 r5-20。
 
 ### 定案 E3 ◇ 「结构化 handoff 摘要生成」——证实
 
-context_compressor.py:3749-3752 附近:逐字保住用户最新未完成请求、防已完成写成待办、不翻译用户
+agent/context_compressor.py:3749-3752 附近:逐字保住用户最新未完成请求、防已完成写成待办、不翻译用户
 语言、不泄密钥、ghost-skill 防护。行为规格 test_compress_focus / test_compressed_summary_metadata
 / test_context_compressor_summary_continuity(全过)。见 r5-20。
 
 ### 定案 E4 ▲ 「确定性工具结果剪枝 + proactive prune 的 prompt-cache 滞回」——证实
 
-context_compressor.py:2886-2890 附近:大窗口模型 50% 阈值少触发,旧工具输出每轮重发;独立的无
+agent/context_compressor.py:2886-2890 附近:大窗口模型 50% 阈值少触发,旧工具输出每轮重发;独立的无
 LLM 剪枝路径 + 滞回保 prompt cache。ContextEngine ABC 的 `prune_tool_results_only` 默认安全 no-op
-(context_engine.py:194-211)即其插件面。见 r5-20。
+(agent/context_engine.py:194-211)即其插件面。见 r5-20。
 
 ### 定案 E5 ▲ 「压缩执行基础设施:锁/栅栏/超时/in-place 落库」——证实
 
-conversation_compression.py:887-889 附近。state 侧已由 r5-02 独立证实:compression_locks 租约表
+agent/conversation_compression.py:887-889 附近。state 侧已由 r5-02 独立证实:compression_locks 租约表
 (TTL + 结构化 holder + 死进程即时回收 + 只按 holder 续约)、`publish_compression_child` 单事务
 原子发布(读者要么见活父要么见完整子)、`archive_and_compact` 就地软归档、非持有写者 5s 短等后拒
 (#75083)。行为规格 test_hermes_state_compression_busy_retry(SLA:"A live compression lock must
@@ -183,7 +183,7 @@ memory_manager.py:354-361 附近:fenced block + 流式 Scrubber 防模型回显�
 
 ### 定案 F3 ▲ 「记忆写入审批门禁 + 外部漂移/坏读守护」——证实
 
-memory_tool.py:941-947 附近:自治写入走 write_approval 共享框架;漂移/坏读守护防外部 MEMORY.md
+tools/memory_tool.py:941-947 附近:自治写入走 write_approval 共享框架;漂移/坏读守护防外部 MEMORY.md
 被篡改后静默进系统提示。见 r5-40。
 
 ### 定案 F4 checkpoint 语义澄清 + 三处文档出入
