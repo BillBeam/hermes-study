@@ -1,0 +1,6 @@
+agent: 片 B · 其四 —— R11C §11.1 十五类遗留逐条阻断判定
+dispatched: 2026-08-10 (R11D 批次一)
+signal: RELEASED 片 B 完成信号(任务完成通知:16 行全部出判定 —— 阻断 4 / 已结清 6 / 不阻断 6;独立核实 6 条中 5 条通过、1 条只通过一半;三条自校验读数)
+path: notes/r11d-raw-blocking-rulings.md
+path: data/r11d/probes/blocking_*
+path: data/r11d/blocking-*

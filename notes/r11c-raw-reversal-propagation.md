@@ -262,7 +262,7 @@ E-26	chapters=59	institutional=32	[负控] r4-90 自检 grep 的 `iron` 误匹�
 E-05(`没有第三个`)6 处、E-04(`静默抹掉`)3 处、E-28 1 处,其余 32 处是 E-26 负控。
 E-05 的 6 处全部是「负结论的成本」这条纪律**拿它当反例**,方向与改判一致:
 
-`CLAUDE.md:344 @ 863e313`
+`CLAUDE.md:344 @ 25c612f`
 
 ```
 - **负结论的成本(R8-fix,review-1 附录 A-1/A-2)**:"全仓没有 X""没有第三个调用方"
@@ -303,7 +303,7 @@ R8C 在同一节里逐字引了被推翻的那句原文:
 
 `CLAUDE.md` 的同一句已由 R11B 挂上更正节:
 
-`CLAUDE.md:351 @ 863e313`
+`CLAUDE.md:351 @ 25c612f`
 
 ```
   > **R11B 更正**:此处原写"把用户的 `approvals.deny` **静默抹掉**"。该定性已被 **R8C 推翻**
@@ -440,7 +440,7 @@ STALE chapters/r1-what-is-hermes-agent.md:119 R1-inventoried 手抄邻域=[408, 
 
 **同一个 8,122 在 `CLAUDE.md` 里是对的**,因为它在那里是一句**历史陈述**:
 
-`CLAUDE.md:219 @ 863e313`
+`CLAUDE.md:219 @ 25c612f`
 
 ```
   R7 起这条线索中断了五轮,期间实际仍有 8,122 个文件从未开工。*
@@ -526,7 +526,7 @@ cd "$(git rev-parse --show-toplevel)" && python3 data/r11c/e-reversal-propagatio
 
 (b) 的两条:
 
-`CLAUDE.md:98 @ 863e313`
+`CLAUDE.md:98 @ 25c612f`
 
 ```
   `py mdx md yaml yml toml c h sh json tsx ts mjs js nix rs txt`(见

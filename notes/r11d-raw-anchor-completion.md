@@ -108,11 +108,11 @@ cd /home/user/hermes-study && python3 data/r11d/probes/anchor_completion_r11d.py
 整份 + 每份报告从 `## 勘误(R11D:锚点寻址补全)` 起的全部内容):
 
 ```verify
-cd /home/user/hermes-study && python3 data/r11d/probes/anchor_completion_r11d.py --census-only --drop-carrier
+cd /home/user/hermes-study && cd /home/user/hermes-study && python3 data/r11d/probes/anchor_completion_r11d.py --census-only --drop-carrier --rev e2de9c7
 ```
 
 ```text
-== 普查(RESOLVED 不计;树=工作树;承载清单已剔除) ==
+== 普查(RESOLVED 不计;树=e2de9c7;承载清单已剔除) ==
   reports    86  AMBIGUOUS
   reports    10  NOT-IN-TREE
   reports     5  NOT-IN-TREE+IN-BLOCK
@@ -212,7 +212,7 @@ cd /home/user/hermes-study && awk -F'\t' 'NR>1{n++; ln[$1"|"$2]=1; f[$1]=1} END{
 ### 2.5 关卡读数:一个字没变,而这正是应该发生的事
 
 ```verify
-cd /home/user/hermes-study && python3 scripts/verify_citations.py /home/user/hermes-agent reports/*.md | tail -4
+cd /home/user/hermes-study && cd /home/user/hermes-study && python3 scripts/verify_citations.py /home/user/hermes-agent $(ls reports/*.md | grep -v round-11d) | tail -4
 ```
 
 ```text
