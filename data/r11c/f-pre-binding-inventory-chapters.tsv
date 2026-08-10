@@ -1,0 +1,22 @@
+pos	file	round	lines	h2	h3	code_blocks	mermaid	citations	distinct_src_files	title
+1	r1-what-is-hermes-agent.md	r1	208	8	0	1	1	2	2	r1 · hermes-agent 是什么 —— 一张进城地图,和一份为什么值得逐条读透的理由
+2	r2-turn-loop-and-model-access.md	r2	788	7	11	29	5	28	15	R2 · 回合主循环与模型接入 —— 一个 agent turn 从用户输入到最终回复的全过程
+3	r3-tool-infrastructure.md	r3	412	7	7	5	3	17	9	R3 · 工具系统 —— 让 LLM 安全地对真实世界动手
+4	r4-execution-environments.md	r4	829	7	10	15	1	47	19	R4 · 执行环境 —— 一条命令到底在哪、怎么跑起来
+5	r5-session-state-and-persistence.md	r5	730	7	8	14	1	30	10	R5 · 会话状态与持久化 —— 让 agent 跨天记住你
+6	r6-memory-provider-ecosystem.md	r6	545	7	9	7	1	18	10	R6 · 记忆 provider 生态 —— 同一插口,八种外接大脑
+7	r7-gateway-session-core.md	r7	739	7	14	15	1	44	12	r7 · 网关会话核心与多路复用 —— 一个 agent 内核如何同时接待几十场对话
+8	r7b-platform-integration.md	r7b	896	7	7	32	1	40	11	r7b · 平台接入面 —— 一个 agent 如何同时住在二十几个聊天软件里
+9	r7c-gateway-periphery-and-scheduling.md	r7c	571	7	13	12	1	12	8	r7c · 网关外围面与定时调度 —— 一台长跑进程如何被人、被表、被监督者驱动
+10	r8a-configuration-surface.md	r8a	1771	7	11	72	1	91	35	r8a · 配置面 —— 一个键从哪里来,到哪里去
+11	r8b-cli-trunk-and-interaction.md	r8b	563	9	10	27	1	33	13	r8b · CLI 主干与交互 —— 一条命令从敲下回车到进入对话,中间有多少人在做决定
+12	r8c-dashboard-and-web.md	r8c	428	7	5	20	1	21	5	r8c · dashboard 与 web 面 —— 一个 17,732 行的单文件,和它身上七道门
+13	r8d-self-custody.md	r8d	565	8	7	19	1	18	14	r8d · 自持面 —— 一个装在别人机器上的 agent,怎么照顾自己
+14	r9a-capability-organization.md	r9a	547	7	9	19	1	28	16	r9a · 能力的组织、扩展与委派 —— 当 harness 开始给自己加装备
+15	r9b-multimodal-delivery.md	r9b	511	7	7	18	2	21	10	r9b · 多模态交付面 —— 当同一份知识有了第二个副本
+16	r9c-external-interfaces.md	r9c	613	7	6	23	1	18	15	r9c · 对外接驳面 —— 凭据、账单与信号往哪里去
+17	r9d-tool-surface-and-guard-placement.md	r9d	688	8	6	29	1	27	17	r9d · 工具面 —— 守卫装在哪一层,决定它挡不挡得住
+18	r10-client-interface-layer.md	r10	283	8	4	4	1	4	4	r10 · 客户端接驳面 —— 一个 Python 内核如何长出四种界面
+19	r10b-desktop-application.md	r10b	308	8	5	7	1	7	7	r10b · 桌面应用 —— 当 harness 长出一个原生客户端
+20	r11a-ops-and-delivery.md	r11a	302	7	5	10	1	7	6	r11a · 交付面 —— 从源码到一台跑着的机器,以及随它一起发货的知识库
+21	r11b-the-unwritten-layer.md	r11b	258	7	5	5	1	5	5	r11b · 没人写的那一层 —— harness 边角上的欠账

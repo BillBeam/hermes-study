@@ -2770,98 +2770,98 @@ def config_command(args):
 
 | 键 | 默认值 | 读/写点(@863e313) | 说明 |
 |---|---|---|---|
-| `_config_version` | `33` | 读 `hermes_cli/config.py:1841`;写 `hermes_cli/config.py:2367` | schema 版本;默认在 `config_defaults.py:3126` |
-| `custom_providers` | 无(缺省不存在) | 读+删 `config_migrations.py:84,137` | v11 遗留 list;仍是合法根键 |
-| `providers` | 无 | 写 `config_migrations.py:86,135` | v12 起的 keyed 形状 |
+| `_config_version` | `33` | 读 `hermes_cli/config.py:1841`;写 `hermes_cli/config.py:2367` | schema 版本;默认在 `hermes_cli/config_defaults.py:3126` |
+| `custom_providers` | 无(缺省不存在) | 读+删 `hermes_cli/config_migrations.py:84,137` | v11 遗留 list;仍是合法根键 |
+| `providers` | 无 | 写 `hermes_cli/config_migrations.py:86,135` | v12 起的 keyed 形状 |
 | `providers.<k>.api` | — | 生成 `config.py:1490` | 由旧 `base_url`/`url`/`api` 转来 |
-| `providers.<k>.api_key` | — | 删占位 `config_migrations.py:128` | `no-key`/`no-key-required`/`""` 被删 |
-| `providers.<k>.name` | — | `config_migrations.py:127` | 源条目无名字时删掉 |
-| `stt.model` | 无 | 读+删 `config_migrations.py:181,185` | v14 删除的扁平键 |
-| `stt.provider` | `"local"`(此处的取值默认) | `config_migrations.py:182` | 决定搬到哪个子段 |
-| `stt.local.model` | 默认 `"base"`(见注释 :207) | 写 `config_migrations.py:204-205` | 只接受白名单值 |
-| `stt.<provider>.model` | — | 写 `config_migrations.py:213-214` | 云 provider 分支 |
-| `display.interim_assistant_messages` | `True` | 写 `config_migrations.py:232`;默认 `config_defaults.py:1193` | v15;实际会被 strip |
-| `display.tool_progress_overrides` | 无 | 只读不删 `config_migrations.py:250` | v16 遗留 |
-| `display.platforms.<plat>.tool_progress` | 无 | 写 `config_migrations.py:259` | v16 目标 |
-| `compression.summary_model` | 无 | pop `config_migrations.py:278` | v17 删除 |
-| `compression.summary_provider` | 无 | pop `config_migrations.py:279` | `"auto"` 视同未设 |
-| `compression.summary_base_url` | 无 | pop `config_migrations.py:280` | — |
-| `auxiliary.compression.model/provider/base_url` | — | 写 `config_migrations.py:287,293,299` | v17 目标 |
-| `plugins.enabled` | 无(非默认根键) | 写 `config_migrations.py:364` | v21 opt-in 白名单 |
-| `plugins.disabled` | 无 | 读 `config_migrations.py:334` | 排除项 |
-| `curator.enabled` | `True` | `config_migrations.py:424-427`;默认 `config_defaults.py:1843` | v23 |
-| `curator.interval_hours` | `24 * 7` | 同上;默认 `config_defaults.py:1845` | |
-| `curator.min_idle_hours` | `2` | 同上;默认 `config_defaults.py:1847` | |
-| `curator.stale_after_days` | `30` | 同上;默认 `config_defaults.py:1849` | |
-| `curator.archive_after_days` | `90` | 同上;默认 `config_defaults.py:1852` | |
-| `curator.consolidate` | `False` | 无迁移,仅注释 `config_migrations.py:528-536` | v30 只改默认 |
-| `auxiliary.curator.provider` | `"auto"` | `config_migrations.py:443-445`;默认 `config_defaults.py:1006` | |
-| `auxiliary.curator.model` | `""` | 同上;`config_defaults.py:1007` | |
-| `auxiliary.curator.base_url` | `""` | 同上;`config_defaults.py:1008` | |
-| `auxiliary.curator.api_key` | `""` | 同上;`config_defaults.py:1009` | |
-| `auxiliary.curator.timeout` | `600` | 同上;`config_defaults.py:1010` | |
-| `auxiliary.curator.extra_body` | `{}` | 同上;`config_defaults.py:1011` | |
-| `auxiliary.curator.reasoning_effort` | `""` | 同上;`config_defaults.py:1012` | 注释里未列,代码会拷 |
-| `model_catalog.ttl_hours` | `1` | 改写 `config_migrations.py:486-487`;默认 `config_defaults.py:2397` | 只改 24 |
-| `memory.write_mode` | 无 | pop `config_migrations.py:514` | v29 删除 |
-| `skills.write_mode` | 无 | pop `config_migrations.py:514` | v29 删除 |
-| `memory.write_approval` / `skills.write_approval` | `False` | 写 `config_migrations.py:516`;默认 `config_defaults.py:1829` | 只有 `"approve"` → True |
-| `agent.verify_on_stop` | `"auto"` | 写 `config_migrations.py:562,594`;默认 `config_defaults.py:158` | 见 C-3 |
-| `delegation.max_async_children` | 无 | pop `config_migrations.py:621` | v33 删除 |
-| `delegation.max_concurrent_children` | `3` | 写 `config_migrations.py:632`;默认 `config_defaults.py:1709` | 取 max |
-| `secrets` | 见 `config_defaults.py:2875` | 读 `env_loader.py:730,742` | 只读这一段 |
+| `providers.<k>.api_key` | — | 删占位 `hermes_cli/config_migrations.py:128` | `no-key`/`no-key-required`/`""` 被删 |
+| `providers.<k>.name` | — | `hermes_cli/config_migrations.py:127` | 源条目无名字时删掉 |
+| `stt.model` | 无 | 读+删 `hermes_cli/config_migrations.py:181,185` | v14 删除的扁平键 |
+| `stt.provider` | `"local"`(此处的取值默认) | `hermes_cli/config_migrations.py:182` | 决定搬到哪个子段 |
+| `stt.local.model` | 默认 `"base"`(见注释 :207) | 写 `hermes_cli/config_migrations.py:204-205` | 只接受白名单值 |
+| `stt.<provider>.model` | — | 写 `hermes_cli/config_migrations.py:213-214` | 云 provider 分支 |
+| `display.interim_assistant_messages` | `True` | 写 `hermes_cli/config_migrations.py:232`;默认 `hermes_cli/config_defaults.py:1193` | v15;实际会被 strip |
+| `display.tool_progress_overrides` | 无 | 只读不删 `hermes_cli/config_migrations.py:250` | v16 遗留 |
+| `display.platforms.<plat>.tool_progress` | 无 | 写 `hermes_cli/config_migrations.py:259` | v16 目标 |
+| `compression.summary_model` | 无 | pop `hermes_cli/config_migrations.py:278` | v17 删除 |
+| `compression.summary_provider` | 无 | pop `hermes_cli/config_migrations.py:279` | `"auto"` 视同未设 |
+| `compression.summary_base_url` | 无 | pop `hermes_cli/config_migrations.py:280` | — |
+| `auxiliary.compression.model/provider/base_url` | — | 写 `hermes_cli/config_migrations.py:287,293,299` | v17 目标 |
+| `plugins.enabled` | 无(非默认根键) | 写 `hermes_cli/config_migrations.py:364` | v21 opt-in 白名单 |
+| `plugins.disabled` | 无 | 读 `hermes_cli/config_migrations.py:334` | 排除项 |
+| `curator.enabled` | `True` | `hermes_cli/config_migrations.py:424-427`;默认 `hermes_cli/config_defaults.py:1843` | v23 |
+| `curator.interval_hours` | `24 * 7` | 同上;默认 `hermes_cli/config_defaults.py:1845` | |
+| `curator.min_idle_hours` | `2` | 同上;默认 `hermes_cli/config_defaults.py:1847` | |
+| `curator.stale_after_days` | `30` | 同上;默认 `hermes_cli/config_defaults.py:1849` | |
+| `curator.archive_after_days` | `90` | 同上;默认 `hermes_cli/config_defaults.py:1852` | |
+| `curator.consolidate` | `False` | 无迁移,仅注释 `hermes_cli/config_migrations.py:528-536` | v30 只改默认 |
+| `auxiliary.curator.provider` | `"auto"` | `hermes_cli/config_migrations.py:443-445`;默认 `hermes_cli/config_defaults.py:1006` | |
+| `auxiliary.curator.model` | `""` | 同上;`hermes_cli/config_defaults.py:1007` | |
+| `auxiliary.curator.base_url` | `""` | 同上;`hermes_cli/config_defaults.py:1008` | |
+| `auxiliary.curator.api_key` | `""` | 同上;`hermes_cli/config_defaults.py:1009` | |
+| `auxiliary.curator.timeout` | `600` | 同上;`hermes_cli/config_defaults.py:1010` | |
+| `auxiliary.curator.extra_body` | `{}` | 同上;`hermes_cli/config_defaults.py:1011` | |
+| `auxiliary.curator.reasoning_effort` | `""` | 同上;`hermes_cli/config_defaults.py:1012` | 注释里未列,代码会拷 |
+| `model_catalog.ttl_hours` | `1` | 改写 `hermes_cli/config_migrations.py:486-487`;默认 `hermes_cli/config_defaults.py:2397` | 只改 24 |
+| `memory.write_mode` | 无 | pop `hermes_cli/config_migrations.py:514` | v29 删除 |
+| `skills.write_mode` | 无 | pop `hermes_cli/config_migrations.py:514` | v29 删除 |
+| `memory.write_approval` / `skills.write_approval` | `False` | 写 `hermes_cli/config_migrations.py:516`;默认 `hermes_cli/config_defaults.py:1829` | 只有 `"approve"` → True |
+| `agent.verify_on_stop` | `"auto"` | 写 `hermes_cli/config_migrations.py:562,594`;默认 `hermes_cli/config_defaults.py:158` | 见 C-3 |
+| `delegation.max_async_children` | 无 | pop `hermes_cli/config_migrations.py:621` | v33 删除 |
+| `delegation.max_concurrent_children` | `3` | 写 `hermes_cli/config_migrations.py:632`;默认 `hermes_cli/config_defaults.py:1709` | 取 max |
+| `secrets` | 见 `hermes_cli/config_defaults.py:2875` | 读 `hermes_cli/env_loader.py:730,742` | 只读这一段 |
 | `secrets.sources` | 无(注释掉) | 读 `agent/secret_sources/registry.py:265` | 显式顺序 |
 | `secrets.preserve_existing` | 无 | 读 `agent/secret_sources/registry.py:370` | 最高优先保留 |
 | `secrets.profile_alias` | `True` | 读 `agent/secret_sources/registry.py:375` | profile 别名 |
-| `secrets.bitwarden.enabled` | `False` | `config_defaults.py:2889` | 总开关 |
-| `secrets.bitwarden.access_token_env` | `"BWS_ACCESS_TOKEN"` | `config_defaults.py:2893` | bootstrap env 名 |
-| `secrets.bitwarden.project_id` | `""` | `config_defaults.py:2895` | |
-| `secrets.bitwarden.cache_ttl_seconds` | `300` | `config_defaults.py:2898` | |
-| `secrets.bitwarden.encrypted_cache.enabled` | `False` | `config_defaults.py:2905` | |
-| `secrets.bitwarden.encrypted_cache.max_stale_seconds` | `0` | `config_defaults.py:2906` | |
-| `secrets.bitwarden.override_existing` | `True` | `config_defaults.py:2912` | 反转 env 优先 |
-| `secrets.bitwarden.auto_install` | `True` | `config_defaults.py:2916` | 自动下 bws |
-| `secrets.bitwarden.server_url` | `""` | `config_defaults.py:2924` | |
-| `secrets.onepassword.enabled` | `False` | `config_defaults.py:2929` | |
-| `secrets.onepassword.env` | `{}` | `config_defaults.py:2933` | VAR → `op://…` |
-| `secrets.onepassword.account` | `""` | `config_defaults.py:2936` | |
-| `secrets.onepassword.service_account_token_env` | `"OP_SERVICE_ACCOUNT_TOKEN"` | `config_defaults.py:2941` | |
-| `secrets.onepassword.binary_path` | `""` | `config_defaults.py:2945` | |
-| `secrets.onepassword.cache_ttl_seconds` | `300` | `config_defaults.py:2948` | |
-| `secrets.onepassword.override_existing` | `True` | `config_defaults.py:2952` | |
-| `terminal.*`(19 个键) | 见 `config_defaults.py` terminal 段 | 桥接 `env_loader.py:554` → `config.py:3183-3205` | 显式键覆盖 env |
-| `skills.disabled` | 无(不在 DEFAULT_CONFIG) | 读 `skills_config.py:55`;写 `skills_config.py:68` | 全局禁用列表 |
-| `skills.platform_disabled.<platform>` | 无 | 读 `skills_config.py:58`;写 `skills_config.py:71` | 与全局取并集 |
-| `fallback_providers` | 无 | 读 `fallback_config.py:93` | 新键,保序 |
-| `fallback_model` | 无 | 读 `fallback_config.py:93` | 旧键,追加去重 |
-| `<fallback entry>.provider` / `.model` | — | `fallback_config.py:55-56` | 两者必填 |
-| `<fallback entry>.base_url` | — | `fallback_config.py:64` | 去尾斜杠 |
-| `<fallback entry>.api_key` | — | `fallback_config.py:32` | 内联,最高优先 |
-| `<fallback entry>.key_env` / `.api_key_env` | — | `fallback_config.py:35` | 环境变量名,经 secret scope |
-| `updates.pre_update_backup` | `"quick"` | `update_cmd.py:2532`;默认 `config_defaults.py:2765` | 迁移的唯一"备份"来源 |
+| `secrets.bitwarden.enabled` | `False` | `hermes_cli/config_defaults.py:2889` | 总开关 |
+| `secrets.bitwarden.access_token_env` | `"BWS_ACCESS_TOKEN"` | `hermes_cli/config_defaults.py:2893` | bootstrap env 名 |
+| `secrets.bitwarden.project_id` | `""` | `hermes_cli/config_defaults.py:2895` | |
+| `secrets.bitwarden.cache_ttl_seconds` | `300` | `hermes_cli/config_defaults.py:2898` | |
+| `secrets.bitwarden.encrypted_cache.enabled` | `False` | `hermes_cli/config_defaults.py:2905` | |
+| `secrets.bitwarden.encrypted_cache.max_stale_seconds` | `0` | `hermes_cli/config_defaults.py:2906` | |
+| `secrets.bitwarden.override_existing` | `True` | `hermes_cli/config_defaults.py:2912` | 反转 env 优先 |
+| `secrets.bitwarden.auto_install` | `True` | `hermes_cli/config_defaults.py:2916` | 自动下 bws |
+| `secrets.bitwarden.server_url` | `""` | `hermes_cli/config_defaults.py:2924` | |
+| `secrets.onepassword.enabled` | `False` | `hermes_cli/config_defaults.py:2929` | |
+| `secrets.onepassword.env` | `{}` | `hermes_cli/config_defaults.py:2933` | VAR → `op://…` |
+| `secrets.onepassword.account` | `""` | `hermes_cli/config_defaults.py:2936` | |
+| `secrets.onepassword.service_account_token_env` | `"OP_SERVICE_ACCOUNT_TOKEN"` | `hermes_cli/config_defaults.py:2941` | |
+| `secrets.onepassword.binary_path` | `""` | `hermes_cli/config_defaults.py:2945` | |
+| `secrets.onepassword.cache_ttl_seconds` | `300` | `hermes_cli/config_defaults.py:2948` | |
+| `secrets.onepassword.override_existing` | `True` | `hermes_cli/config_defaults.py:2952` | |
+| `terminal.*`(19 个键) | 见 `config_defaults.py` terminal 段 | 桥接 `hermes_cli/env_loader.py:554` → `config.py:3183-3205` | 显式键覆盖 env |
+| `skills.disabled` | 无(不在 DEFAULT_CONFIG) | 读 `hermes_cli/skills_config.py:55`;写 `hermes_cli/skills_config.py:68` | 全局禁用列表 |
+| `skills.platform_disabled.<platform>` | 无 | 读 `hermes_cli/skills_config.py:58`;写 `hermes_cli/skills_config.py:71` | 与全局取并集 |
+| `fallback_providers` | 无 | 读 `hermes_cli/fallback_config.py:93` | 新键,保序 |
+| `fallback_model` | 无 | 读 `hermes_cli/fallback_config.py:93` | 旧键,追加去重 |
+| `<fallback entry>.provider` / `.model` | — | `hermes_cli/fallback_config.py:55-56` | 两者必填 |
+| `<fallback entry>.base_url` | — | `hermes_cli/fallback_config.py:64` | 去尾斜杠 |
+| `<fallback entry>.api_key` | — | `hermes_cli/fallback_config.py:32` | 内联,最高优先 |
+| `<fallback entry>.key_env` / `.api_key_env` | — | `hermes_cli/fallback_config.py:35` | 环境变量名,经 secret scope |
+| `updates.pre_update_backup` | `"quick"` | `hermes_cli/update_cmd.py:2532`;默认 `hermes_cli/config_defaults.py:2765` | 迁移的唯一"备份"来源 |
 
 ### 7.2 环境变量
 
 | 变量 | 默认/回退 | 读写点(@863e313) | 说明 |
 |---|---|---|---|
-| `HERMES_HOME` | `Path.home()/".hermes"`(**本文件自己的回退**) | `env_loader.py:477` | 见 D-5/D-6:与 `hermes_constants.get_hermes_home()` 的回退链不一致 |
-| `HERMES_HOME` | 平台默认 + ContextVar 覆盖 | `hermes_constants.py:71,132-139`,经 `env_loader.py:748` | `_process_hermes_home()` 用的是这一条 |
-| `HERMES_HOME`(写) | — | `env_loader.py:220` | 冷 profile 补水时塞进私有 env |
-| `OP_SERVICE_ACCOUNT_TOKEN` | 无 | `env_loader.py:505` | 存在则跳过 `.op.env` 装载 |
-| `HERMES_MANAGED_DIR` | `/etc/hermes` | `managed_scope.py:65`,经 `env_loader.py:579` | managed scope 目录 |
-| `HERMES_ACP_AUTH_METHOD` | — | `env_loader.py:77` | profile-managed,缺失即清 |
-| `HERMES_ACP_AUTO_APPROVE` | — | `env_loader.py:78` | 同上 |
-| `HERMES_COPILOT_ACP_COMMAND` | — | `env_loader.py:79` | 同上 |
-| `HERMES_COPILOT_ACP_ARGS` | — | `env_loader.py:80` | 同上 |
-| `COPILOT_CLI_PATH` | — | `env_loader.py:81` | 同上 |
-| `COPILOT_ACP_BASE_URL` | — | `env_loader.py:82` | 同上 |
-| `*_API_KEY` / `*_TOKEN` / `*_SECRET` / `*_KEY` | — | `env_loader.py:20,311` | 后缀匹配即 ASCII 清洗(全 `os.environ` 扫描) |
-| `LLM_MODEL` | — | `config_migrations.py:155-159` | v13 置空(死变量) |
-| `OPENAI_MODEL` | — | `config_migrations.py:155-159` | 同上 |
-| `HERMES_TOOL_PROGRESS_MODE` | — | 提及 `config_migrations.py:49`;白名单 `config.py:301` | 已弃用但运行期仍读 |
+| `HERMES_HOME` | `Path.home()/".hermes"`(**本文件自己的回退**) | `hermes_cli/env_loader.py:477` | 见 D-5/D-6:与 `hermes_constants.get_hermes_home()` 的回退链不一致 |
+| `HERMES_HOME` | 平台默认 + ContextVar 覆盖 | `hermes_constants.py:71,132-139`,经 `hermes_cli/env_loader.py:748` | `_process_hermes_home()` 用的是这一条 |
+| `HERMES_HOME`(写) | — | `hermes_cli/env_loader.py:220` | 冷 profile 补水时塞进私有 env |
+| `OP_SERVICE_ACCOUNT_TOKEN` | 无 | `hermes_cli/env_loader.py:505` | 存在则跳过 `.op.env` 装载 |
+| `HERMES_MANAGED_DIR` | `/etc/hermes` | `hermes_cli/managed_scope.py:65`,经 `hermes_cli/env_loader.py:579` | managed scope 目录 |
+| `HERMES_ACP_AUTH_METHOD` | — | `hermes_cli/env_loader.py:77` | profile-managed,缺失即清 |
+| `HERMES_ACP_AUTO_APPROVE` | — | `hermes_cli/env_loader.py:78` | 同上 |
+| `HERMES_COPILOT_ACP_COMMAND` | — | `hermes_cli/env_loader.py:79` | 同上 |
+| `HERMES_COPILOT_ACP_ARGS` | — | `hermes_cli/env_loader.py:80` | 同上 |
+| `COPILOT_CLI_PATH` | — | `hermes_cli/env_loader.py:81` | 同上 |
+| `COPILOT_ACP_BASE_URL` | — | `hermes_cli/env_loader.py:82` | 同上 |
+| `*_API_KEY` / `*_TOKEN` / `*_SECRET` / `*_KEY` | — | `hermes_cli/env_loader.py:20,311` | 后缀匹配即 ASCII 清洗(全 `os.environ` 扫描) |
+| `LLM_MODEL` | — | `hermes_cli/config_migrations.py:155-159` | v13 置空(死变量) |
+| `OPENAI_MODEL` | — | `hermes_cli/config_migrations.py:155-159` | 同上 |
+| `HERMES_TOOL_PROGRESS_MODE` | — | 提及 `hermes_cli/config_migrations.py:49`;白名单 `config.py:301` | 已弃用但运行期仍读 |
 | `HERMES_TOOL_PROGRESS`(布尔版) | — | `config.py:298-300` 注释 | v12 底线后完全不支持 |
 | `BWS_ACCESS_TOKEN` | — | 由 `secrets.bitwarden.access_token_env` 指名 | Bitwarden bootstrap |
-| `TERMINAL_ENV` 等 19 个 `TERMINAL_*` | — | `config.py:3184-3205`,桥自 `env_loader.py:554` | config.yaml 显式键会覆盖 |
+| `TERMINAL_ENV` 等 19 个 `TERMINAL_*` | — | `hermes_cli/config.py:3184-3205`,桥自 `hermes_cli/env_loader.py:554` | config.yaml 显式键会覆盖 |
 | `HERMES_VERIFY_ON_STOP` | 无 | `agent/verification_stop.py:107` | 优先于 `agent.verify_on_stop`(迁移目标键的 env 兄弟) |
 
 ---
@@ -3026,23 +3026,23 @@ v15 的 `display.interim_assistant_messages=true` 也是同一情况。
 
 | # | 位置 | 问题 | 怎么会踩到 |
 |---|---|---|---|
-| D-1 | `config_migrations.py:155-159` | v13 用 `get_env_value`(先读 `os.environ`)判定「.env 里有旧值」,然后往 .env 写 `KEY=` | 用户只在 shell 里 `export LLM_MODEL=x` ⇒ .env 被凭空追加一行 `LLM_MODEL=`,且下次启动以 override 覆盖掉 shell 值 |
-| D-2 | `config_migrations.py:361-362` | v21 插件扫描的 `except` 把已收集的名字**全清空**,然后照样落盘并一次性完成 | 扫到第 N 个插件目录时 I/O 出错 ⇒ 前面 N-1 个已装插件被静默关掉,且因 `enabled` 已存在无法重试 |
-| D-3 | `config_migrations.py:409-413` | v23 `except` 分支引用可能未赋值的 `curator_dir` → `UnboundLocalError` | `get_hermes_home()` 抛异常(如 `HERMES_HOME` 含 NUL)⇒ 异常处理器自己抛,整个 `migrate_config` 挂掉 |
-| D-4 | `config_migrations.py:626,628` | v33 把 `max_concurrent_children` 的默认值 3 硬编码 | 将来改默认值(如 5)后,存量 `max_async_children: 4` 会把上限**下调**到 4 |
-| D-5 | `env_loader.py:477` | `os.getenv("HERMES_HOME", Path.home()/".hermes")` 未 `strip()`、未判空串 | `HERMES_HOME=""` ⇒ `Path("")` = `.` ⇒ 把 **当前工作目录的 `./.env`** 当成 user env 以 `override=True` 装载 |
-| D-6 | `env_loader.py:477` vs `hermes_constants.py:53-59` | 同上一行硬编码 `~/.hermes`,不走平台默认,也不认 ContextVar 覆盖 | Windows 上其余代码用 `%LOCALAPPDATA%/hermes`,`load_hermes_dotenv()` 却去 `~/.hermes` 找 .env ⇒ 凭据装不进来;同时 `_reapply_terminal_config_bridge` 的 home 比较必然不等 ⇒ terminal 桥被跳过 |
-| D-7 | `env_loader.py:55-66` | `_known_hermes_env_keys()` 定义了但**无调用点** | 死代码;读者会误以为清扫范围是「全部已知 Hermes 键」,实际只有 6 个 |
-| D-8 | `env_loader.py:20,310` | `_KEY` 后缀过宽 + 遍历整个 `os.environ` | 非 ASCII 路径下的 `TERMINAL_SSH_KEY` 被静默改写成不存在的路径,警告文案还误导为「从 PDF 复制」;第三方 `*_KEY` 变量也被改 |
-| D-9 | `env_loader.py:443-451` | 预清洗重写 .env 时不恢复原文件权限 | 0640 的 Docker volume mount .env 被清洗一次后变成 mkstemp 的 0600(`save_env_value` 有恢复逻辑,这里没有) |
-| D-10 | `env_loader.py:725` | `home_path == _process_hermes_home()` 用 `Path.__eq__`,同族其他处用 `.resolve()` | 传入带尾斜杠 / 相对 / symlink 路径时白白多解析一次 config.yaml(仅性能) |
-| D-11 | `env_loader.py:614-669` 无锁 vs `:184` 有锁 | 两条写同一批全局字典的路径只有一条加了 `_SECRET_SOURCE_CACHE_LOCK` | 网关热重载线程与首轮路由线程并发 ⇒ 同一 home 双份 fetch/状态行;`_SECRET_SOURCE_VALUES_BY_HOME` 交错写,可能被空 dict 覆盖 |
-| D-12 | `secret_prompt.py:46-51` | 只吞 ESC,不吞后续序列体(POSIX 侧;Windows 侧吞得完整) | 输密码时误按方向键 ⇒ `[A` 进入密钥、回显两个 `*`,认证失败且无法自查 |
-| D-13 | `skills_config.py:78-81` | docstring 与 `skip_disabled=True` 语义相反(**未确证**) | 若参数真是「过滤已禁用」,则已禁用技能不出现在勾选界面,**无法重新启用** |
-| D-14 | `skills_config.py:103-104` | 平台选择器把 Ctrl-C/EOF 当成「选 global」 | 想给单平台改设置的用户中途按 Ctrl-C,流程继续并作用于**全部平台** |
-| D-15 | `skills_config.py:163` | `PLATFORMS.get(platform, "All platforms")` 的默认分支不可达 | 死分支;`platform` 非 None 时必在 `PLATFORMS` 里 |
-| D-16 | `config_migrations.py:250-266` | v16 搬完不删 `display.tool_progress_overrides` | 旧键永久留在 config.yaml;与 v12/v17/v29/v33 的删除风格不一致(**是否有意未确证**) |
-| D-17 | `config_migrations.py:561-563` | v31 在 `agent` 不是 dict 时用 `{}` 替换整段 | 用户手写 `agent: some-string` ⇒ 该值被静默丢弃,换成 `{"verify_on_stop": False}` |
+| D-1 | `hermes_cli/config_migrations.py:155-159` | v13 用 `get_env_value`(先读 `os.environ`)判定「.env 里有旧值」,然后往 .env 写 `KEY=` | 用户只在 shell 里 `export LLM_MODEL=x` ⇒ .env 被凭空追加一行 `LLM_MODEL=`,且下次启动以 override 覆盖掉 shell 值 |
+| D-2 | `hermes_cli/config_migrations.py:361-362` | v21 插件扫描的 `except` 把已收集的名字**全清空**,然后照样落盘并一次性完成 | 扫到第 N 个插件目录时 I/O 出错 ⇒ 前面 N-1 个已装插件被静默关掉,且因 `enabled` 已存在无法重试 |
+| D-3 | `hermes_cli/config_migrations.py:409-413` | v23 `except` 分支引用可能未赋值的 `curator_dir` → `UnboundLocalError` | `get_hermes_home()` 抛异常(如 `HERMES_HOME` 含 NUL)⇒ 异常处理器自己抛,整个 `migrate_config` 挂掉 |
+| D-4 | `hermes_cli/config_migrations.py:626,628` | v33 把 `max_concurrent_children` 的默认值 3 硬编码 | 将来改默认值(如 5)后,存量 `max_async_children: 4` 会把上限**下调**到 4 |
+| D-5 | `hermes_cli/env_loader.py:477` | `os.getenv("HERMES_HOME", Path.home()/".hermes")` 未 `strip()`、未判空串 | `HERMES_HOME=""` ⇒ `Path("")` = `.` ⇒ 把 **当前工作目录的 `./.env`** 当成 user env 以 `override=True` 装载 |
+| D-6 | `hermes_cli/env_loader.py:477` vs `hermes_constants.py:53-59` | 同上一行硬编码 `~/.hermes`,不走平台默认,也不认 ContextVar 覆盖 | Windows 上其余代码用 `%LOCALAPPDATA%/hermes`,`load_hermes_dotenv()` 却去 `~/.hermes` 找 .env ⇒ 凭据装不进来;同时 `_reapply_terminal_config_bridge` 的 home 比较必然不等 ⇒ terminal 桥被跳过 |
+| D-7 | `hermes_cli/env_loader.py:55-66` | `_known_hermes_env_keys()` 定义了但**无调用点** | 死代码;读者会误以为清扫范围是「全部已知 Hermes 键」,实际只有 6 个 |
+| D-8 | `hermes_cli/env_loader.py:20,310` | `_KEY` 后缀过宽 + 遍历整个 `os.environ` | 非 ASCII 路径下的 `TERMINAL_SSH_KEY` 被静默改写成不存在的路径,警告文案还误导为「从 PDF 复制」;第三方 `*_KEY` 变量也被改 |
+| D-9 | `hermes_cli/env_loader.py:443-451` | 预清洗重写 .env 时不恢复原文件权限 | 0640 的 Docker volume mount .env 被清洗一次后变成 mkstemp 的 0600(`save_env_value` 有恢复逻辑,这里没有) |
+| D-10 | `hermes_cli/env_loader.py:725` | `home_path == _process_hermes_home()` 用 `Path.__eq__`,同族其他处用 `.resolve()` | 传入带尾斜杠 / 相对 / symlink 路径时白白多解析一次 config.yaml(仅性能) |
+| D-11 | `hermes_cli/env_loader.py:614-669` 无锁 vs `:184` 有锁 | 两条写同一批全局字典的路径只有一条加了 `_SECRET_SOURCE_CACHE_LOCK` | 网关热重载线程与首轮路由线程并发 ⇒ 同一 home 双份 fetch/状态行;`_SECRET_SOURCE_VALUES_BY_HOME` 交错写,可能被空 dict 覆盖 |
+| D-12 | `hermes_cli/secret_prompt.py:46-51` | 只吞 ESC,不吞后续序列体(POSIX 侧;Windows 侧吞得完整) | 输密码时误按方向键 ⇒ `[A` 进入密钥、回显两个 `*`,认证失败且无法自查 |
+| D-13 | `hermes_cli/skills_config.py:78-81` | docstring 与 `skip_disabled=True` 语义相反(**未确证**) | 若参数真是「过滤已禁用」,则已禁用技能不出现在勾选界面,**无法重新启用** |
+| D-14 | `hermes_cli/skills_config.py:103-104` | 平台选择器把 Ctrl-C/EOF 当成「选 global」 | 想给单平台改设置的用户中途按 Ctrl-C,流程继续并作用于**全部平台** |
+| D-15 | `hermes_cli/skills_config.py:163` | `PLATFORMS.get(platform, "All platforms")` 的默认分支不可达 | 死分支;`platform` 非 None 时必在 `PLATFORMS` 里 |
+| D-16 | `hermes_cli/config_migrations.py:250-266` | v16 搬完不删 `display.tool_progress_overrides` | 旧键永久留在 config.yaml;与 v12/v17/v29/v33 的删除风格不一致(**是否有意未确证**) |
+| D-17 | `hermes_cli/config_migrations.py:561-563` | v31 在 `agent` 不是 dict 时用 `{}` 替换整段 | 用户手写 `agent: some-string` ⇒ 该值被静默丢弃,换成 `{"verify_on_stop": False}` |
 
 ---
 

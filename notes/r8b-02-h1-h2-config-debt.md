@@ -352,6 +352,6 @@ R8A 的对照本身成立(两侧键数不同),**但"一边 6 个"说的是主装
 - **H-2 已结清**,无残留。
 - **■-R8B-01(§1.3)** 的修法有两种(改调 `load_cli_config()`,或把内置人格移进
   `DEFAULT_CONFIG` 的 `agent.personalities`),**本仓库只记录不修**。
-- 顶层死键 `personalities`(`config_defaults.py:2129`)与
-  `_OPEN_DICT_TOP_LEVEL_KEYS` 里的同名条目(`config.py:4660`)是否该删,
+- 顶层死键 `personalities`(`hermes_cli/config_defaults.py:2129`)与
+  `_OPEN_DICT_TOP_LEVEL_KEYS` 里的同名条目(`hermes_cli/config.py:4660`)是否该删,
   属配置面(R8A)的收尾判断,**不在本轮范围**,记为 **H-R8B-a** 移交 R11 复盘。

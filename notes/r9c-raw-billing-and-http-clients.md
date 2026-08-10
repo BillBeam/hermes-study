@@ -1552,7 +1552,7 @@ print(MicrosoftGraphClient._retry_delay(None, 9))"
 ```
 
 *但它同样走 `_resolve_url`,所以 5.1.4 的问题在下载路径上也在——只是目前的调用方
-(`meetings.py:205,263`)传的是自己拼的相对路径,没有把网络值传进来。*
+(`plugins/teams_pipeline/meetings.py:205,263`)传的是自己拼的相对路径,没有把网络值传进来。*
 
 ### 5.2 xAI(`tools/xai_http.py`)
 
@@ -1812,7 +1812,7 @@ python 3.11.15 · httpx 0.28.1
 
 1. **`test_credits_tracker.py` 51 个用例**,是本片密度最高的一份,把 header 解析的每一条拒绝规则
    都钉住了;`test_credits_fixture_snapshot.py` 更做了"夹具状态 ≡ 等价 header 解析结果"的**差分测试**
-   (这正是 `credits_tracker.py:727-731` 那段注释承诺的东西)。这份文件可以当成"如何测一个解析器"的范本。
+   (这正是 `agent/credits_tracker.py:727-731` 那段注释承诺的东西)。这份文件可以当成"如何测一个解析器"的范本。
 2. **`test_microsoft_graph_client.py` 只有 3 个用例**,而 5.1.4 / 5.1.5 两条 ■ 所在的分页与
    `Retry-After` 上限**都没有被覆盖**(分页 0 用例;`Retry-After` 有用例但只测 3 秒)。
 3. **`test_billing_links.py` 只有 3 个用例**,且文件里留着几段明显被删空的连续空行——
@@ -1827,7 +1827,7 @@ python 3.11.15 · httpx 0.28.1
 | # | 锚点 | 现象 | 实跑复核 |
 |---|---|---|---|
 | ■-1 | `tools/microsoft_graph_client.py:139` + `:333` | 分页跟随响应体给出的下一页地址,`_resolve_url` 对任意绝对 URL(含明文 http)原样放行,Graph bearer 随请求发出;已用 MockTransport 端到端实测 bearer 落到 `http://attacker.example`;生产有 4 处调用,测试 0 覆盖 | **建议实跑** |
-| ■-2 | `agent/billing_usage.py:270` | `HERMES_DEV_CREDITS_FIXTURE` 的第二个消费者没有 `HERMES_DEV_CREDITS` 主开关,绕过了 `credits_tracker.py:712` 自称的 "hard prod-leak guard",真实账号上会显示伪造的 `$0.00 / depleted` | **建议实跑** |
+| ■-2 | `agent/billing_usage.py:270` | `HERMES_DEV_CREDITS_FIXTURE` 的第二个消费者没有 `HERMES_DEV_CREDITS` 主开关,绕过了 `agent/credits_tracker.py:712` 自称的 "hard prod-leak guard",真实账号上会显示伪造的 `$0.00 / depleted` | **建议实跑** |
 | ■-3 | `agent/account_usage.py:173` vs `agent/billing_usage.py:157` | 同一个 `/usage` 的主路径与 fallback 路径读两个不同的 wire 字段算"本月已用",实测同一份账号数据给出 90% 与 10% 两个相反结论 | |
 | ■-4 | `tools/microsoft_graph_client.py:363` | 服务端 `Retry-After` 直接当睡眠时长且**不封顶**(实测 86400 秒);本地退避封顶 8 秒;`hermes_cli/auth.py:8112` 对同一件事做了 `min(..., 60)` 钳位 | |
 | ■-5 | `tools/microsoft_graph_auth.py:43` | `MSGRAPH_AUTHORITY_URL` 无 scheme/主机校验,`client_secret` 可被 POST 到明文 http 的任意主机;同仓库 xAI 对同型覆盖做了校验(`hermes_cli/auth.py:4758`) | |
@@ -1857,7 +1857,7 @@ python 3.11.15 · httpx 0.28.1
 
 | 编号 | 锚点文件 | 一句话现象 |
 |---|---|---|
-| H-R9C-1 | `hermes_cli/nous_billing.py:179` | `resolve_portal_base_url` 读环境变量与存储的 `portal_base_url` 时**不查** `_NOUS_PORTAL_ALLOWED_HOSTS`,而其返回值在 `nous_billing.py:399-402` 被用作 `Authorization: Bearer` 的目的地;同仓库 `hermes_cli/auth.py:5900` 读同一个存储字段时是查清单的。该文件不在 R9C-F 片范围,未定案 |
+| H-R9C-1 | `hermes_cli/nous_billing.py:179` | `resolve_portal_base_url` 读环境变量与存储的 `portal_base_url` 时**不查** `_NOUS_PORTAL_ALLOWED_HOSTS`,而其返回值在 `hermes_cli/nous_billing.py:399-402` 被用作 `Authorization: Bearer` 的目的地;同仓库 `hermes_cli/auth.py:5900` 读同一个存储字段时是查清单的。该文件不在 R9C-F 片范围,未定案 |
 | H-R9C-2 | `agent/billing_links.py:53` 与 `hermes_cli/doctor.py:2162` | `billing_links` 自称 provider→充值页的 "single source of truth",但 `doctor.py:2162` 与 `agent/conversation_loop.py:5204` 各自硬编码了同一个 OpenRouter 充值 URL;这两处属"401 鉴权失败"分类而非"billing"分类,是否算同一份知识的副本需要单独判定 |
 | H-R9C-3 | `agent/credits_tracker.py:300` | latch 键名 `seen_below_90` 与其实际语义(门槛是 `CREDITS_USAGE_BANDS[0][0]` = 0.50)已经不符;改档位表就会让键名进一步失真。低危命名债,记录备查 |
 | H-R9C-4 | `run_agent.py:3977` | `get_credits_spent_micros` = `session_start - current_remaining`;会话中途充值会让 `remaining` 上升,该值变**负**。该文件不在本片范围,未取证其显示路径是否有钳位 |

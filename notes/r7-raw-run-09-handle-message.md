@@ -33,7 +33,7 @@
 
 它按固定顺序过 21 个关卡(阶段),前 19 个都是"能不能进入 agent 回合"的筛选;第 20 阶段抢占
 会话槽位(sentinel + run generation + turn lease),第 21 阶段才把事件交给
-`_handle_message_with_agent`(run.py:16276,下一段的主角),并用 `finally` 保证释放。
+`_handle_message_with_agent`(gateway/run.py:16276,下一段的主角),并用 `finally` 保证释放。
 
 阶段一览(行号为本段内实际顺序,后文逐个展开):
 
@@ -100,7 +100,7 @@ gateway/run.py:14343-14358 @ 863e313
 ```
 
 **调用关系**:`gateway/session_context.py:315`(`reset_session_vars`)。其 docstring
-(session_context.py:315-338)明确区分 `reset`(回 `_UNSET`="从未绑定",task 开头用)与
+(gateway/session_context.py:315-338)明确区分 `reset`(回 `_UNSET`="从未绑定",task 开头用)与
 `clear`(设 `""`="显式清空、抑制 os.environ 回退",handler 结束用)。行为规格测试:
 `tests/tools/test_local_env_session_leak.py`、`tests/gateway/test_session_context_inheritance.py`。
 
@@ -326,17 +326,17 @@ gateway/run.py:14477-14500 @ 863e313
 **调用关系**:
 - `gateway/authz_mixin.py:386` `_is_user_authorized`:五层判定(per-platform allow-all →
   env allowlist → 配对 approved 表 → 全局 allow-all → 默认拒),HA/Webhook 平台恒真
-  (连接自身已认证),relay 平台信任上游认证(authz_mixin.py:403-430);
+  (连接自身已认证),relay 平台信任上游认证(gateway/authz_mixin.py:403-430);
 - `gateway/authz_mixin.py:785` `_get_unauthorized_dm_behavior`:决定 `"pair"`/`"ignore"`,
   优先级:平台级显式配置 > Email 默认 ignore(收件箱不是聊天,#见 docstring)> 全局显式配置 >
   adapter dm_policy > **配置了 allowlist 则默认 ignore(#9337)** > 无任何限制才默认 pair;
 - `gateway/authz_mixin.py:371` `_pairing_store_for`:多路复用时按 `source.profile` 选
   per-profile PairingStore,回退全局 `self.pairing_store`(隔离各 profile 的白名单);
-- `gateway/pairing.py:609` `generate_code`:码只存盐化 SHA-256(pairing.py:620-621
+- `gateway/pairing.py:609` `generate_code`:码只存盐化 SHA-256(gateway/pairing.py:620-621
   "The code is NOT stored in plaintext"),常量:`CODE_TTL_SECONDS=3600`、
   `RATE_LIMIT_SECONDS=600`、`MAX_PENDING_PER_PLATFORM=3`(pairing.py:51-56);
-  `_is_rate_limited`/`_record_rate_limit` 在 pairing.py:816/826;批准走 CLI
-  `hermes pairing approve`(pairing.py:665 `approve_code`)。
+  `_is_rate_limited`/`_record_rate_limit` 在 gateway/pairing.py:816/826;批准走 CLI
+  `hermes pairing approve`(gateway/pairing.py:665 `approve_code`)。
 
 **设计理由/取舍**:
 - 配对方向是"陌生人拿码 → 管理员在 CLI 批准",而非"管理员发码给陌生人":码本身不授予任何
@@ -377,7 +377,7 @@ gateway/run.py:14521-14522 @ 863e313
 chat_id(+thread_id;无 chat_id 回退 participant_id 防跨用户串史);群聊附 chat_id
 (+per-user id,受 `group_sessions_per_user` 控制)+thread_id(默认线程共享,
 `thread_sessions_per_user=False`);Slack 额外插 workspace `scope_id`。
-`_peek_session_state`(run.py:5841)是"只读不建"版的 `_session_state`(run.py:5832)。
+`_peek_session_state`(gateway/run.py:5841)是"只读不建"版的 `_session_state`(gateway/run.py:5832)。
 
 ### 3.2 `/update` 提示应答拦截(14513–14587)
 
@@ -444,7 +444,7 @@ don't double-post. The agent itself will produce the next user-facing message.")
 
 **调用关系**:`tools/clarify_gateway.py:179`(`get_pending_for_session`)、`:316`
 (`resolve_text_response_for_session`);语音路径 `_pending_event_audio_paths`
-(run.py:21706)、`_transcribe_pending_audio_event_once`(run.py:21715)。
+(gateway/run.py:21706)、`_transcribe_pending_audio_event_once`(gateway/run.py:21715)。
 
 **重实现要点**:1) "agent 在等提问答案"是会话级状态,入口必须先查再分发;2) 语音答案要先转写、
 转写空则保留 pending(用户可重试,超时 agent 拿空答案解锁);3) 拦截成功返回空串而非答案文本,
@@ -524,7 +524,7 @@ gateway/run.py:14714-14720 @ 863e313
 
 ### 4.2 busy 时的 slash 命令(14757–14792)
 
-`_is_session_running(_quick_key)`(run.py:5848)为真进入 busy 分支。顺序:
+`_is_session_running(_quick_key)`(gateway/run.py:5848)为真进入 busy 分支。顺序:
 1. `/status`、`/context` **预门**直接答(14769-14772)——用户任何时候都能看状态;
 2. `_check_slash_access` 门禁(14780-14783)——镜像冷路径,防"趁 busy 绕过权限"(注释
    14774-14779);
@@ -562,7 +562,7 @@ per-command if 链**(这正是与旧文档冲突处,见 §10)。
 4. **draining**(14851-14858):按 `_queue_during_drain_enabled()` 决定排队或拒绝,返回带
    `_status_action_gerund()`(restarting/shutting down…)的提示;
 5. **queue 模式**(14859-14862):`_busy_input_mode == "queue"` 时 `_queue_or_replace_pending_event`
-   (run.py:8666);
+   (gateway/run.py:8666);
 6. **steer 模式**(14863-14886):纯文本注入运行中 agent 的 `agent.steer(text)`;空文本/无
    steer 方法/steer 拒绝则回退 queue;
 7. **两大保护性降级**:
@@ -589,15 +589,15 @@ gateway/run.py:14887-14902 @ 863e313
 
 压缩保护同构(14903-14918,#56391):压缩本身抗打断(#23975),但此处 interrupt 会**对
 旋转前的父会话开新回合**,压缩完成后把 session_id 旋走,分叉出孤儿兄弟会话——所以排队等
-压缩+旋转落地。`_agent_has_active_subagents` 在 run.py:8558(读 `_active_children` 且拒绝
-MagicMock 假真值),`_session_has_compression_in_flight` 在 run.py:8595。
+压缩+旋转落地。`_agent_has_active_subagents` 在 gateway/run.py:8558(读 `_active_children` 且拒绝
+MagicMock 假真值),`_session_has_compression_in_flight` 在 gateway/run.py:8595。
 
 ### 4.4 redirect → interrupt(14919–14957)
 
 纯文本且运行时声明 `_supports_active_turn_redirect` 时先试 `running_agent.redirect(text)`
 (重定向当前回合、保留已显示上下文);失败或不支持才走成熟的 interrupt 路径。interrupt 前:
-语音先转写并回显(`_transcribe_and_echo_pending_voice`,run.py:21786),无文本纯媒体则造占位
-(`_build_media_placeholder`,run.py:2721),然后 `running_agent.interrupt(_interrupt_text)`。
+语音先转写并回显(`_transcribe_and_echo_pending_voice`,gateway/run.py:21786),无文本纯媒体则造占位
+(`_build_media_placeholder`,gateway/run.py:2721),然后 `running_agent.interrupt(_interrupt_text)`。
 末尾注释(14954-14956)交代一处已修的泄漏:`self._pending_messages` 曾只写不读、无限增长,
 真正的打断消息走 `adapter._pending_messages` 由 `_run_agent` 消费,故删除。
 
@@ -625,7 +625,7 @@ the typed command is not already known")。
 
 ### 5.2 slash 访问控制 + `command:<canonical>` 钩子(14995–15059)
 
-`_check_slash_access(source, canonical)`(run.py:18438)只在操作员配置了 `allow_admin_from`
+`_check_slash_access(source, canonical)`(gateway/run.py:18438)只在操作员配置了 `allow_admin_from`
 时生效;未配置=全员全命令(向后兼容),配置后非管理员只能跑 `user_allowed_commands` + 永allow
 底座(/help、/whoami);纯聊天不受影响(14995-15000 注释)。
 
@@ -645,7 +645,7 @@ telemetry 钩子行为不变。
 多在 `gateway/slash_commands.py` mixin)。值得单独交代的形态:
 
 **(a)破坏性命令包确认**:`/new`(15061-15075)与 `/undo`(15245-15266)不直接执行,包进
-`_maybe_confirm_destructive_slash`(run.py:20483)——闭包封装真正动作,由 slash-confirm 机制
+`_maybe_confirm_destructive_slash`(gateway/run.py:20483)——闭包封装真正动作,由 slash-confirm 机制
 (§3.4)决定是否弹确认。`/new` 前还查 Telegram topic 大厅(15062-15063:大厅里 `/new` 提示去
 开新 topic 而非重置)。`/undo` 解析数字参数生成不同确认文案。
 
@@ -731,8 +731,8 @@ gateway/run.py:15745-15761 @ 863e313(节选)
 **姊妹机制** `_restore_pending_one_turn_model_override`(15763-15776):`/model <name> --once`
 的还原。快照不放 event 而放 `SessionState.conversation.one_turn_restore`
 (gateway/session_state.py:97;由 slash_commands.py 的 /model handler 写入,
-slash_commands.py:1677 "--once — switch for the next turn only"),finally 里取出置空后经
-`_restore_session_model_override`(run.py:22782)还原。
+gateway/slash_commands.py:1677 "--once — switch for the next turn only"),finally 里取出置空后经
+`_restore_session_model_override`(gateway/run.py:22782)还原。
 
 **取舍对比**:MoA 快照挂在**event 对象**上(turn 私有,event 出作用域即丢——这正是注释
 15722-15729 强调必须放 finally 的原因);--once 快照挂在**会话状态**上(命令回合与生效回合是
@@ -811,7 +811,7 @@ gateway 单进程服务多平台,env 推平台不可信,故 bundle 路径显式�
 
 **unknown-command 兜底**(15601-15627):不是内建/插件/skill/已知未装技能 → 回
 "Unknown command `/{command}`" 而非静默把 `/xyz` 当自由文本喂 LLM(注释:防"model inventing
-a delegate_task call"式静默失败)。先经 `_check_unavailable_skill`(run.py:3059)区分
+a delegate_task call"式静默失败)。先经 `_check_unavailable_skill`(gateway/run.py:3059)区分
 "已知但禁用/未安装"给出可操作指引。
 
 **重实现要点**:1) 命令分发优先级要固定成文:内建 > quick > 插件 > bundle > skill > unknown;
@@ -822,8 +822,8 @@ per-platform 配置之间的缝要在分发点补检,且栈式的每个成员都
 ### 7.5 Telegram topic 大厅(15635–15642)
 
 topic 模式开启后,主 DM(General topic)变"大厅":非命令消息只回一条提醒(带防抖
-`_should_send_telegram_lobby_reminder`,run.py:6758——"forgets 十连发不给十条")或静默。
-判定 `_is_telegram_topic_root_lobby`(run.py:6736,General topic id 兼容 `""` 与 `"1"` 两种
+`_should_send_telegram_lobby_reminder`,gateway/run.py:6758——"forgets 十连发不给十条")或静默。
+判定 `_is_telegram_topic_root_lobby`(gateway/run.py:6736,General topic id 兼容 `""` 与 `"1"` 两种
 客户端行为,见 6731-6734 注释)。用 `asyncio.to_thread` 包 SessionDB 同步读。
 
 ### 7.6 外部 drain 新回合闸门(15644–15663)
@@ -880,12 +880,12 @@ gateway/run.py:15672-15688 @ 863e313
         _run_generation = self._begin_session_run_generation(_quick_key)
 ```
 
-四步:1) 跨进程槽位租约 `_claim_active_session_slot`(run.py:8528,经
+四步:1) 跨进程槽位租约 `_claim_active_session_slot`(gateway/run.py:8528,经
 `hermes_cli/active_sessions.try_acquire_active_session` 落盘,附并发上限
 `max_concurrent_sessions` 拒绝文案);2) 本进程 sentinel 占位
-(`_AGENT_PENDING_SENTINEL = object()`,run.py:2465——身份哨兵,busy 分支 14833 用 `is`
-识别);3) `_persist_active_agents`(run.py:7805)持久化 in-flight 计数供仪表盘;4) 领取
-run generation(run.py:23014:"Monotonic by design (#28686): incremented here, NEVER reset"
+(`_AGENT_PENDING_SENTINEL = object()`,gateway/run.py:2465——身份哨兵,busy 分支 14833 用 `is`
+识别);3) `_persist_active_agents`(gateway/run.py:7805)持久化 in-flight 计数供仪表盘;4) 领取
+run generation(gateway/run.py:23014:"Monotonic by design (#28686): incremented here, NEVER reset"
 ——/stop、/new 通过再 +1 作废旧回合,迟到结果可识别丢弃)。
 
 ### 8.2 try:进 agent + goal 续推(15690–15720)
@@ -897,7 +897,7 @@ run generation(run.py:23014:"Monotonic by design (#28686): incremented here, NEV
 always say 'continue' and we'd loop on error"(15704-15707 注释)。judge 全程 try/except:
 "a broken judge never breaks normal message handling"(15696-15697)。会话条目经
 `self.async_session_store.get_or_create_session(source)`(15709)取。
-**调用关系**:`_post_turn_goal_continuation`(run.py:18885)。
+**调用关系**:`_post_turn_goal_continuation`(gateway/run.py:18885)。
 
 ### 8.3 finally:四连释放(15721–15743)
 
@@ -929,14 +929,14 @@ gateway/run.py:15721-15743 @ 863e313
 ```
 
 两级释放的分工(#28686 vs #64934):
-- `_release_running_agent_state`(run.py:22802)**无代数守卫**调用——顶层 finally 是"本回合
+- `_release_running_agent_state`(gateway/run.py:22802)**无代数守卫**调用——顶层 finally 是"本回合
   链路的最外层",无条件清槽正是修 #28686 的手段(mid-flight 被 /new 抬代数后,`_run_agent`
   内部带守卫的释放返回 False,旧代码只查 sentinel 漏掉真 agent → 会话永锁);它统一收拢了
   曾经散落漂移的 `del self._running_agents[key]`(见其 docstring 22808-22815),会话级持久
   状态(model override、voice mode、pending approvals)明确不清;
-- `_release_turn_lease`(run.py:22859)**带代数**调用——lease token 按 (key, generation)
+- `_release_turn_lease`(gateway/run.py:22859)**带代数**调用——lease token 按 (key, generation)
   存,旧回合 unwind 只可能释放自己那代的令牌,registry 的身份检查再拒一层(#64934);另有
-  `_rebind_turn_lease`(run.py:22888)处理压缩中途旋转 session_id 时令牌跟随(#64934
+  `_rebind_turn_lease`(gateway/run.py:22888)处理压缩中途旋转 session_id 时令牌跟随(#64934
   rotation-alias window)。
 
 **重实现要点**:
@@ -1008,23 +1008,23 @@ markdown 段落做提示注入)。#17916:Slack 上附加信封来源的 `<@U...>
 
 ### 9.4 媒体分类与四路处理(15848–16043)
 
-逐附件分类(15853-15872):`_event_media_is_image(event, i)`(run.py:2679)按**该附件自身
+逐附件分类(15853-15872):`_event_media_is_image(event, i)`(gateway/run.py:2679)按**该附件自身
 MIME** 判图,仅 MIME 未知时才信消息级 PHOTO 类型——注释(15858-15862):否则与图同发的文档
 被误路由成图,provider 400;`MessageType.AUDIO`(音频文件附件,永不 STT)与
 `MessageType.VOICE`(语音消息,总是 STT)严格分流(15865-15866 注释);视频入 `video_paths`。
 
-**图片:native vs text 路由**(15874-15924):`_decide_image_input_mode`(run.py:21424,
+**图片:native vs text 路由**(15874-15924):`_decide_image_input_mode`(gateway/run.py:21424,
 依据 agent/image_routing.py)决定;决策含阻塞网络 IO(models.dev 拉取、Ollama `/api/show`
 探测),用 `asyncio.to_thread` 下放,注释(15877-15882):否则"单张图路由会卡住整个 gateway
 事件循环(所有会话)"。native → 写 `persistent.native_image_paths` 延迟到 run_conversation
-挂载;text → 先解析本会话真实运行时(`_resolve_session_agent_runtime`,run.py:6933)并以
+挂载;text → 先解析本会话真实运行时(`_resolve_session_agent_runtime`,gateway/run.py:6933)并以
 `scoped_runtime_main`(agent/auxiliary_client.py)绑定,再 `_enrich_message_with_vision`
-(run.py:21497)预跑 vision_analyze 把描述并入文本——绑定注释(15901-15904):增强发生在
+(gateway/run.py:21497)预跑 vision_analyze 把描述并入文本——绑定注释(15901-15904):增强发生在
 AIAgent.run_conversation 之前,不能依赖进程级全局镜像。
 
-**语音 STT + 回显**(15926-15958):`_enrich_message_with_transcription`(run.py:21566)
+**语音 STT + 回显**(15926-15958):`_enrich_message_with_transcription`(gateway/run.py:21566)
 返回 (新文本, 成功转写列表);配置开启时把每条转写 `🎙️ "..."` 回显给用户
-(`_should_echo_stt_transcripts`,run.py:19267)。15950-15958 的注释是一条完整事故复盘:
+(`_should_echo_stt_transcripts`,gateway/run.py:19267)。15950-15958 的注释是一条完整事故复盘:
 转写失败时旧代码直接 `adapter.send` 一条硬编码英文提示,绕过 LLM 产生**双回复**——预制英文
 片段被 TTS 用错误语言念出 + LLM 的本地化正确回复;修法是增强步骤只在提示词里留中性标记,
 让 LLM 产出单条用户语言回复,硬编码发送删除。
@@ -1037,7 +1037,7 @@ process it yourself ... instead of asking the user to describe it.]`;路径经
 `re.sub(r'[^\w.\- ]', '_')` 消毒,且从 `<ts>_<id>_<原名>` 的缓存文件名剥出原名(split("_",2))。
 
 **文档兜底**(15998-16043):对**未被前三路认领**的每个附件发"路径指向注"
-(`_build_document_context_note`,run.py:2743);MIME 空/octet-stream 时按扩展名表
+(`_build_document_context_note`,gateway/run.py:2743);MIME 空/octet-stream 时按扩展名表
 (`_TEXT_EXTENSIONS`)与 `mimetypes.guess_type` 补猜。注释(16004-16010)点明动机:混在
 PHOTO/VOICE 消息里的文档(消息级类型≠DOCUMENT)也要以可读缓存文件形式到达 agent,而不是
 因消息级类型不对被静默丢弃。
@@ -1103,14 +1103,14 @@ AttributeError 被静默吞掉,**该功能从未运行过**——修法是与卫
 ### 10.1 `_prepare_profile_scoped_inbound_message_text`(16186–16208)
 
 多路复用(`config.multiplex_profiles`)时把 §9 包进
-`_profile_runtime_scope(self._resolve_profile_home_for_source(source))`(run.py:1938 /
+`_profile_runtime_scope(self._resolve_profile_home_for_source(source))`(gateway/run.py:1938 /
 24209)——预处理内的 `load_config`、skill 查找等都要落在**路由到的 profile 的 HOME** 下;
 非复用直通。要点:profile 作用域要包住整个预处理而不是各取各的,否则半个函数读 A 配置半个读 B。
 
 ### 10.2 `_prepare_clarify_reply_text`(16210–16222)
 
 clarify 拦截(§3.3)的取文本器:无语音 → `event.text.strip()`;有语音 →
-`_transcribe_pending_audio_event_once`(run.py:21715,"once"=结果缓存回 event,后续路径不
+`_transcribe_pending_audio_event_once`(gateway/run.py:21715,"once"=结果缓存回 event,后续路径不
 重转写)取成功转写,`"\n\n"` 连接。
 
 ### 10.3 `_consume_pending_native_image_paths`(16224–16230)
@@ -1161,14 +1161,14 @@ gateway/session.py:1189(把同步 SQLite store 的方法 to_thread 化,供事件
 ## 11. `_handle_message` 与时间戳注入的关系(任务描述修正的展开)
 
 时间戳机制分三件,均不在本段函数内但由本段管线触达:
-1. **开关**:模块级 `_message_timestamps_enabled`(run.py:1296)读
+1. **开关**:模块级 `_message_timestamps_enabled`(gateway/run.py:1296)读
    `gateway.message_timestamps.enabled`,**默认 OFF**(1299-1302 注释:给所有 gateway 用户的
    每条消息加 `[Tue 2026-04-28 13:40:53 CEST]` 前缀改变模型所见,必须显式开启);
 2. **当前回合**:`_handle_message_with_agent` 在 `_prepare_profile_scoped_inbound_message_text`
-   返回后立即处理(run.py:17477-17511):**无论开关**都先
+   返回后立即处理(gateway/run.py:17477-17511):**无论开关**都先
    `strip_leading_message_timestamps` 把前缀剥出、时间落 metadata(存储永远干净、时间不丢),
    仅"模型看到的渲染"受开关控制(`render_user_content_with_timestamp`);
-3. **历史回放**:`_build_gateway_agent_history(..., inject_timestamps=...)`(run.py:1316,
+3. **历史回放**:`_build_gateway_agent_history(..., inject_timestamps=...)`(gateway/run.py:1316,
    调用点 5103)在回放时按存储 metadata 每条渲染一次。
 `gateway/message_timestamps.py` 提供 `coerce/format/render/strip` 四函数,文件头注释点明
 核心不变量:"persisted message content should stay clean so replay does not accumulate
@@ -1192,10 +1192,10 @@ Gateway: "Pairing code: ABC123. Share with the user."
 New user: ABC123
 Gateway: "Paired! You're now authorized."
 ```
-代码(run.py:14455-14500,§2):**陌生用户** DM bot → bot 把配对码发给**陌生用户** →
+代码(gateway/run.py:14455-14500,§2):**陌生用户** DM bot → bot 把配对码发给**陌生用户** →
 **owner 在 CLI** 跑 `hermes pairing approve <platform> <code>` 批准。且
 `hermes_cli/commands.py` 中**不存在** `/pair` 网关命令(grep 全文件无该命令定义);也不存在
-"新用户把码发回 bot 即通过"的路径(批准只走 CLI `approve_code`,pairing.py:665)。文档描述的
+"新用户把码发回 bot 即通过"的路径(批准只走 CLI `approve_code`,gateway/pairing.py:665)。文档描述的
 流程在代码里一步都对不上。
 
 **▲C2 "Running-Agent Guard" 的 if-链与 `self._running_agents` 字典已不存在**。
@@ -1206,7 +1206,7 @@ if _quick_key in self._running_agents:
         return "⏳ Agent is running — wait for it to finish or /stop first."
 ```
 代码:busy 判定是 `self._is_session_running(_quick_key)`(14757)读
-`SessionState.turn.agent`(run.py:5848);per-command if 链已被 `CommandDef.busy_policy/
+`SessionState.turn.agent`(gateway/run.py:5848);per-command if 链已被 `CommandDef.busy_policy/
 busy_handler` + 单一解析器 `_dispatch_busy_slash_command`(14098)取代(14758-14762 注释
 明言 "no per-command if-chain here");`_running_agents` 字典本身已被 SessionState 结构化
 替代(`_release_running_agent_state` docstring 22808-22815 称其为被替换的旧散点)。
@@ -1231,7 +1231,7 @@ gateway-internals.md:70-80 给出 `agent:main:{platform}:{chat_type}:{chat_id}`�
 (`group_sessions_per_user=True` 默认开)、thread_id 段、DM 无 chat_id 时的 participant 回退。
 文档自己的示例 `agent:main:telegram:private:123456789` 中 `private` 亦与代码的 chat_type
 取值 `dm`(session.py:1103 `if source.chat_type == "dm"`)不符。"Never construct session
-keys manually" 的告诫与代码一致(run.py:6679 确实统一走 build_session_key/店内生成)。
+keys manually" 的告诫与代码一致(gateway/run.py:6679 确实统一走 build_session_key/店内生成)。
 
 ---
 
@@ -1240,7 +1240,7 @@ keys manually" 的告诫与代码一致(run.py:6679 确实统一走 build_sessio
 | issue | 位置 | 一句话 |
 |---|---|---|
 | #51899 | 14366 | 忽略频道守卫必须先于配对/鉴权/会话 |
-| #9337 | authz_mixin.py:806 | 配了 allowlist 就不该给陌生人发配对码 |
+| #9337 | gateway/authz_mixin.py:806 | 配了 allowlist 就不该给陌生人发配对码 |
 | #17916 | 15831 | Slack 共享会话给发言人附可信 `<@U...>` id |
 | #30170 | 14887 | interrupt 级联杀子代理 → busy 降级为 queue |
 | #56391 / #23975 | 14903-14906 | 压缩在飞时 interrupt 分叉孤儿会话 → 排队 |
@@ -1249,7 +1249,7 @@ keys manually" 的告诫与代码一致(run.py:6679 确实统一走 build_sessio
 | #44727 | 15420 | quick command 绕过 slash 门禁 → 按 typed 名补查 |
 | #58888 | 15504 / 15561 | skill 进程级缓存 vs per-platform 禁用 → 分发点逐个再查 |
 | #5057 #6252 #10370 | 14114 | busy 时命令被 interrupt+静默吞 → 声明式 busy 拒绝 |
-| #18528 | 18562(定义处,调用在 slash_commands.py:1538) | /restart 重投递自激重启环 |
+| #18528 | 18562(定义处,调用在 gateway/slash_commands.py:1538) | /restart 重投递自激重启环 |
 
 ## 14. 本段调用关系速查(对方文件:行号)
 

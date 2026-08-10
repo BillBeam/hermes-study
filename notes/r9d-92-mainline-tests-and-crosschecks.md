@@ -248,7 +248,7 @@ R9C 未写出它的计数定义,故无法判断差在哪;本轮把定义写出�
 
 **■ 成立(独立复核,与 R9C 同向)**:1Password 的**明文**密钥缓存
 `<hermes_home>/cache/op_cache.json` 不在任何禁读清单里,而同类的 Bitwarden 缓存在 3 个文件里
-共 7 处被挡。仓库自己在 `file_safety.py:283` 记着"上次就是这样漏的"。
+共 7 处被挡。仓库自己在 `agent/file_safety.py:283` 记着"上次就是这样漏的"。
 
 **未取证**:未实跑一次 agent 的 `read_file` 去读 `op_cache.json` 观察是否放行——
 那需要构造一个完整的工具执行上下文。本条是**静态清单对读**,证据等级为静态。
@@ -300,7 +300,7 @@ _BLOCKED_PROJECT_ENV_BASENAMES: set[str] = {
 **结论:这个问号是阴性的——落盘目标在清单里,盖住了。**
 这与 §2 的 `op_cache` 形成对照:**同一张清单,`.env` 这条主路径盖得很密
 (profile 级 + 根级 + 项目本地七个基名),而后加的密钥缓存漏了一个。**
-不是"没人管",是**"新增来源没有跟着更新清单"**——与 `file_safety.py:283` 那条注释所记的
+不是"没人管",是**"新增来源没有跟着更新清单"**——与 `agent/file_safety.py:283` 那条注释所记的
 是同一种失效方式。
 
 *(H-R9C-b 的完整结构级理解见子代理取证书 `notes/r9d-90-handover-credential-landing.md`;

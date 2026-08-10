@@ -15,7 +15,7 @@
 | 与 `hermes_cli/config.py` 的关系 | 直接 `load_config()` / `save_config()` / `get_env_value()` / `save_env_value()` | **完全不接触**;调用方把 `config["moa"]` 这一小块字典传进来 |
 | 校验时机 | 保存前 + 探针前(`validate_mcp_server_entry`) | 读时宽容(`normalize_moa_config`)/ 写时严格(`validate_moa_payload`)双闸门 |
 | 配置根键 | `mcp_servers` | `moa` |
-| 是否在 `DEFAULT_CONFIG` 里 | **否**(全仓 `config_defaults.py` 无 `mcp_servers` 键) | 是(`config_defaults.py:1754`) |
+| 是否在 `DEFAULT_CONFIG` 里 | **否**(全仓 `config_defaults.py` 无 `mcp_servers` 键) | 是(`hermes_cli/config_defaults.py:1754`) |
 
 这个对照本身就是设计要点:MCP 的服务器条目是「用户自带的、每条都可能是任意本地命令」的外部资源,
 所以配置面必须带**安全校验 + 探针验证 + 密钥分离**;MoA 的预设是纯参数,所以配置面被压成一个可以
@@ -1560,7 +1560,7 @@ def moa_usage() -> str:
 
 | 键 | 默认 | 归一点(`@ 863e313`) | 备注 |
 |---|---|---|---|
-| `moa` | 见 `config_defaults.py:1754` | 由调用方 `load_config().get("moa")` | 本文件不读文件 |
+| `moa` | 见 `hermes_cli/config_defaults.py:1754` | 由调用方 `load_config().get("moa")` | 本文件不读文件 |
 | `moa.default_preset` | `"default"` | `hermes_cli/moa_config.py:393` | 名字不存在时回落到第一个 preset |
 | `moa.active_preset` | `""` | `hermes_cli/moa_config.py:399` | 名字不存在时归 `""` |
 | `moa.privacy_filter` | `""` | `hermes_cli/moa_config.py:422` | `''` / `display` / `full` |
@@ -1581,9 +1581,9 @@ def moa_usage() -> str:
 | `moa.presets.<p>.reference_max_tokens` | `None` | `hermes_cli/moa_config.py:355` | 只封顶顾问 |
 | `moa.presets.<p>.fanout` | `"user_turn"` | `hermes_cli/moa_config.py:368` | `user_turn` / `per_iteration` / `every_n:N` |
 | `moa.reference_models` 等(扁平) | — | `hermes_cli/moa_config.py:391` | legacy 形状,整块当 `default` preset |
-| `moa.save_traces` | `False` | 本文件**不处理** | `config_defaults.py:1763`;被 normalize 丢弃 |
+| `moa.save_traces` | `False` | 本文件**不处理** | `hermes_cli/config_defaults.py:1763`;被 normalize 丢弃 |
 | `moa.trace_dir` | `""` | 本文件**不处理** | 同上 |
-| `auxiliary.moa_reference.timeout` | `900` | 本文件只在 docstring 提及 | `config_defaults.py:1054` |
+| `auxiliary.moa_reference.timeout` | `900` | 本文件只在 docstring 提及 | `hermes_cli/config_defaults.py:1054` |
 
 ### 20.3 环境变量
 

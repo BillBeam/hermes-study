@@ -1599,7 +1599,7 @@ _THINK_BLOCK_RE = re.compile(r"<think[\s>].*?</think>", flags=re.DOTALL)
 | `DeliveryTarget.to_string()` | 只在 `deliver()` 内(`gateway/delivery.py:357/372/386`) | **不可达** |
 | `self.delivery_router`(run.py) | `gateway/run.py:5935` 构造;`:7323`, `:11348`, `:12488` 三处 **只赋值 `.adapters`,从不调用任何方法** | **休眠对象**:被精心维护但从不使用 |
 | `gateway/delivery_ledger.py` | `gateway/platforms/base.py:6062-6087`(record + attempting)、`:6100-6113`(delivered/failed)<br>`gateway/run.py:10361-10369`(sweep,由 `:11447` 触发) | **活跃** |
-| `delivery_ledger.debug_rows()` | **无**(仅 `tests/gateway/test_delivery_ledger.py:246`、`test_delivery_ledger_fd_leak.py:79`) | 调试工具,可接受 |
+| `delivery_ledger.debug_rows()` | **无**(仅 `tests/gateway/test_delivery_ledger.py:246`、`tests/gateway/test_delivery_ledger_fd_leak.py:79`) | 调试工具,可接受 |
 | `gateway/response_filters.py` | `gateway/stream_consumer.py:35-37`(→`:849`, `:888`)<br>`gateway/run.py:17612-17613`, `25622-25623`<br>`gateway/platforms/webhook.py:66, 97`<br>`cron/scheduler.py:323-325` | **活跃** |
 | `response_filters.SILENT_REPLY_TOKEN` | **无**(全仓仅定义行 `gateway/response_filters.py:14`) | **死常量** |
 | `gateway/mirror.py` | `cron/scheduler.py:717`, `851`, `949`<br>`tools/send_message_tool.py:507` | **活跃** |
@@ -1859,7 +1859,7 @@ _THINK_BLOCK_RE = re.compile(r"<think[\s>].*?</think>", flags=re.DOTALL)
 ### 其它被引用的编号(在我的切片里只作背景)
 
 - `#22773`、`#52060`、`#38922`(`cron/scheduler.py:1740-1750, 1798-1802, 1840-1855`)—— Telegram
-  三态话题路由与 cron live-adapter 超时语义,直接影响 `delivery.py:554-605` 的分支为何这么写。
+  三态话题路由与 cron live-adapter 超时语义,直接影响 `gateway/delivery.py:554-605` 的分支为何这么写。
 
 ---
 
@@ -1991,7 +1991,7 @@ tests/gateway/test_gateway_silence_tokens.py
 `rich_sent_store` / `sticker_cache` / `dead_targets` / `mirror` 四个小文件暴露同一组问题:
 
 - **路径解析时机必须统一**。context-local 的 profile override 下,
-  模块级常量(`sticker_cache.py:20`、`mirror.py:21`)= 冻结在 import 时刻 = 串 profile。
+  模块级常量(`gateway/sticker_cache.py:20`、`gateway/mirror.py:21`)= 冻结在 import 时刻 = 串 profile。
   **规则:凡是可被 context 覆盖的路径,一律写成函数,不写成常量。**
 - **全量 JSON 读改写是 O(n) 每次操作**,且并发是 last-writer-wins。
   条目上千就该换 sqlite。`sticker_cache` 甚至没有上限。

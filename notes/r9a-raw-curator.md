@@ -46,12 +46,27 @@ patterns, activity trends, model/platform breakdowns, and session metrics.
 只命中 3 行,全部是给 fork 传的 `skip_memory=True` / `_memory_nudge_interval` /
 `_memory_write_origin` 这类**关掉**记忆的参数(见 §6.3)。命令与输出见下。
 
+**R11C 片 C 改:原块把 cwd 写在注释里(「在 /home/user/hermes-agent 下重跑」),
+而关卡从学习仓库根跑,于是 `grep: agent/curator_backup.py: No such file or directory`
+—— 这条 stderr 与「零命中」在底稿里长得一样,而含义相反。改法:把那句注释变成命令里的真 `cd`,
+输出配对逐字比对。两个读数(0 / 三行)与原块注释一致,结论未变。**
+
 ```verify
-# 在 /home/user/hermes-agent 下重跑,应得到与本文一致的结果
-grep -c "curator\|skills/\|\.usage\.json\|hermes_home" agent/insights.py          # → 0
+cd /home/user/hermes-agent
+grep -c "curator\|skills/\|\.usage\.json\|hermes_home" agent/insights.py
 grep -n "hermes_state\|SessionDB\|state\.db\|sqlite\|checkpoint\|memory\|session_id\|Checkpoint" \
-     agent/curator.py agent/curator_backup.py                                     # → 仅 1936/1939/1948 三行
+     agent/curator.py agent/curator_backup.py
 ```
+
+```text
+0
+agent/curator.py:1936:            skip_memory=True,
+agent/curator.py:1939:        review_agent._memory_nudge_interval = 0
+agent/curator.py:1948:        review_agent._memory_write_origin = "background_review"
+```
+
+首行 `0` 是正向 grep 的**计数**(零命中);其后三行是反向 grep 的全部命中,
+**全部落在 `agent/curator.py`,`agent/curator_backup.py` 一行未中**。
 
 两者唯一的**概念**重叠是"技能使用次数",而且两边**统计的根本不是同一件事**(§8.2)。
 

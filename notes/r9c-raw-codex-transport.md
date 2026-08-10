@@ -448,7 +448,7 @@ cd /home/user/hermes-agent && grep -rnI --exclude-dir=.git --exclude-dir=__pycac
 
 搜索面:仓库根下**全部文本文件**(不加 `--include`;`-I` 跳过二进制,
 `--exclude-dir` 只剔 `.git/` 与 `__pycache__/`,不剔任何源码目录),模式为字面量
-`check_codex_binary`。结果只有:定义处(`codex_app_server.py:387`)、
+`check_codex_binary`。结果只有:定义处(`agent/transports/codex_app_server.py:387`)、
 `hermes_cli/codex_runtime_switch.py` 的包装 `check_codex_binary_ok` 及其唯一调用点、以及测试。
 `CodexAppServerSession.ensure_started()` / `CodexAppServerClient.__init__` 里**没有**任何版本检查
 (见 §4.2 摘录)。
@@ -2393,7 +2393,7 @@ cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 \
 
 **分句 (a)「we use `os.environ.copy()`」——假。** 代码走的是集中式的
 `hermes_subprocess_env(inherit_credentials=True)`,它在 `os.environ.copy()` 之上还剥掉了
-Tier-1 密钥与 Hermes 内部动态密钥(见 §2.3 的 `codex_app_server.py:79-94` 摘录)。
+Tier-1 密钥与 Hermes 内部动态密钥(见 §2.3 的 `agent/transports/codex_app_server.py:79-94` 摘录)。
 helper 自身:
 
 `tools/environments/local.py:606-610 @ 863e313`
@@ -2460,7 +2460,7 @@ def apply_subprocess_home_env(env: dict[str, str]) -> None:
 
 > The kanban tools are gated by `HERMES_KANBAN_TASK` env var the dispatcher sets — that var is propagated to the codex subprocess (codex inherits env) and from there to the spawned `hermes-tools` MCP server subprocess. So the tools see the right task id and gate correctly. For Codex app-server workers, Hermes also passes narrow app-server sandbox overrides when `HERMES_KANBAN_TASK` is present: keep `workspace-write` sandboxing, add the **board DB directory plus every Kanban path the dispatcher pinned** as extra writable roots (`HERMES_KANBAN_WORKSPACES_ROOT`, `HERMES_KANBAN_WORKSPACE`, legacy `HERMES_KANBAN_ROOT` — deduplicated, DB-dir first), and keep network disabled by default. This avoids the brittle `:danger-no-sandbox` workaround while letting `kanban_complete` / `kanban_block` update the board DB **and** letting workers write reports/artifacts under workspace mounts that live outside the DB directory (e.g. `/media/.../kanban-workspaces/...` on a separate drive — [issue #27941](https://github.com/NousResearch/hermes-agent/issues/27941)).
 
-代码侧(§2.4 已摘录 `codex_app_server.py:96-124`)只做了两件事:
+代码侧(§2.4 已摘录 `agent/transports/codex_app_server.py:96-124`)只做了两件事:
 把 `HERMES_KANBAN_DB` 的**目录**取出来,取不到才退到 `HERMES_KANBAN_ROOT`(或默认
 `$HERMES_HOME/kanban`),然后把**这一个**路径写进 `sandbox_workspace_write.writable_roots`。
 没有去重、没有"DB 目录在前"的排序(因为只有一个元素),

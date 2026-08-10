@@ -1809,12 +1809,12 @@ def build_moa_facade(agent, preset_name: Any = None) -> MoAClient:
 
 | 键 | 默认 | 定义处 | 读取处 | 作用 |
 |---|---|---|---|---|
-| `moa.default_preset` | `"default"` | config_defaults.py:1755 | moa_loop.py:2374 | 未指名时用哪个预设 |
-| `moa.active_preset` | `""` | config_defaults.py:1756 | moa_cmd.py:82/145/146 | CLI 侧"当前选中" |
-| `moa.save_traces` | `False` | config_defaults.py:1763 | moa_trace.py:50 | 整轮追踪总开关 |
-| `moa.trace_dir` | `""` | config_defaults.py:1764 | moa_trace.py:52 | 覆盖追踪目录 |
-| `moa.privacy_filter` | `""` | config_defaults.py:1774 | moa_loop.py:1892 | `''`/`display`/`full` |
-| `moa.presets` | 见下 | config_defaults.py:1775 | moa_config.py:381 | 命名预设字典 |
+| `moa.default_preset` | `"default"` | hermes_cli/config_defaults.py:1755 | agent/moa_loop.py:2374 | 未指名时用哪个预设 |
+| `moa.active_preset` | `""` | hermes_cli/config_defaults.py:1756 | hermes_cli/moa_cmd.py:82/145/146 | CLI 侧"当前选中" |
+| `moa.save_traces` | `False` | hermes_cli/config_defaults.py:1763 | agent/moa_trace.py:50 | 整轮追踪总开关 |
+| `moa.trace_dir` | `""` | hermes_cli/config_defaults.py:1764 | agent/moa_trace.py:52 | 覆盖追踪目录 |
+| `moa.privacy_filter` | `""` | hermes_cli/config_defaults.py:1774 | agent/moa_loop.py:1892 | `''`/`display`/`full` |
+| `moa.presets` | 见下 | hermes_cli/config_defaults.py:1775 | hermes_cli/moa_config.py:381 | 命名预设字典 |
 
 `hermes_cli/config_defaults.py:1751-1764 @ 863e313`
 ```python
@@ -1856,19 +1856,19 @@ def build_moa_facade(agent, preset_name: Any = None) -> MoAClient:
 
 | 键 | 默认 | 语义 | 运行时读取处 |
 |---|---|---|---|
-| `enabled` | `True` | false ⇒ 跳过扇出,aggregator 独行 | moa_loop.py:1941 |
-| `reference_models[]` | 2 个内置 slot | 参谋 slot 列表 | moa_loop.py:1895 |
-| `reference_models[].provider/model` | — | 必填,缺一即整条丢弃 | moa_config.py:197-200 |
-| `reference_models[].enabled` | `True` | 单个参谋开关 | moa_loop.py:1897 |
-| `reference_models[].reasoning_effort` | 无 | 每 slot 思考深度 | moa_loop.py:570 |
-| `reference_models[].max_tokens` | 无 | **压过**预设级 `reference_max_tokens` | moa_loop.py:543-544 |
-| `aggregator{provider,model,reasoning_effort}` | openrouter / claude-opus-4.8 | 行动模型 | moa_loop.py:1899 |
-| `reference_temperature` | `None` | None ⇒ 不发温度参数 | moa_loop.py:1921 |
-| `aggregator_temperature` | `None` | None ⇒ 回落到 agent 自己的温度 | moa_loop.py:1922/1933 |
-| `reference_timeout` | `None` | None ⇒ 继承 `auxiliary.moa_reference.timeout`(900s) | moa_loop.py:1926 |
-| `degraded_reference_policy` | `"loud"` | `loud` / `silent` | moa_loop.py:1930 |
-| `reference_max_tokens` | `None` | 只封参谋输出,**不封 aggregator** | moa_loop.py:1917 |
-| `fanout` | `"user_turn"` | `user_turn` / `per_iteration` / `every_n:<N>` | moa_loop.py:1968 |
+| `enabled` | `True` | false ⇒ 跳过扇出,aggregator 独行 | agent/moa_loop.py:1941 |
+| `reference_models[]` | 2 个内置 slot | 参谋 slot 列表 | agent/moa_loop.py:1895 |
+| `reference_models[].provider/model` | — | 必填,缺一即整条丢弃 | hermes_cli/moa_config.py:197-200 |
+| `reference_models[].enabled` | `True` | 单个参谋开关 | agent/moa_loop.py:1897 |
+| `reference_models[].reasoning_effort` | 无 | 每 slot 思考深度 | agent/moa_loop.py:570 |
+| `reference_models[].max_tokens` | 无 | **压过**预设级 `reference_max_tokens` | agent/moa_loop.py:543-544 |
+| `aggregator{provider,model,reasoning_effort}` | openrouter / claude-opus-4.8 | 行动模型 | agent/moa_loop.py:1899 |
+| `reference_temperature` | `None` | None ⇒ 不发温度参数 | agent/moa_loop.py:1921 |
+| `aggregator_temperature` | `None` | None ⇒ 回落到 agent 自己的温度 | agent/moa_loop.py:1922/1933 |
+| `reference_timeout` | `None` | None ⇒ 继承 `auxiliary.moa_reference.timeout`(900s) | agent/moa_loop.py:1926 |
+| `degraded_reference_policy` | `"loud"` | `loud` / `silent` | agent/moa_loop.py:1930 |
+| `reference_max_tokens` | `None` | 只封参谋输出,**不封 aggregator** | agent/moa_loop.py:1917 |
+| `fanout` | `"user_turn"` | `user_turn` / `per_iteration` / `every_n:<N>` | agent/moa_loop.py:1968 |
 | **`max_tokens`** | **4096** | **在 MoA 运行时里从未被读取** —— 见 ■-2 | **(无)** |
 
 温度的 `None` 语义有一段专门的反悔说明,值得抄:

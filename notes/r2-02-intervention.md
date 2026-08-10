@@ -39,13 +39,13 @@ worker tid 的中断位(3202-3218:worker 正常自清,但显式清保证陈旧�
 ## 2. steer():不打断注入(run_agent.py:3229-3263)
 
 只把文本存进 `_pending_steer`(加锁,多次调用换行拼接),**不动任何执行**。消费点两处:
-- **工具批次后**:`apply_pending_steer_to_tool_results`(agent_runtime_helpers.py:3921)把 steer
+- **工具批次后**:`apply_pending_steer_to_tool_results`(agent/agent_runtime_helpers.py:3921)把 steer
   以 marker 追加到最后一条 tool 结果 content —— piggyback 在 tool 输出上保住角色交替。
-- **pre-API drain**(conversation_loop.py:1498-1535):API 调用期间到达的 steer 在下一迭代
+- **pre-API drain**(agent/conversation_loop.py:1498-1535):API 调用期间到达的 steer 在下一迭代
   构建 api_messages 前注入最后一条 tool 消息(str 与多模态块都处理);无 tool 消息可注入则
   加锁回存,等下一个工具批次。
 - **最终回复后到达的 steer**:finalizer 取走放进 `result["pending_steer"]` 交还调用方作为
-  下一 user 回合(turn_finalizer.py:683-685),不静默丢失。
+  下一 user 回合(agent/turn_finalizer.py:683-685),不静默丢失。
 
 ## 3. redirect():只取消模型请求(run_agent.py:3265-3355)
 
@@ -60,10 +60,10 @@ worker tid 的中断位(3202-3218:worker 正常自清,但显式清保证陈旧�
    + `_active_request_abort("redirect_abort")` 关流;**不**扇出 worker、**不**传播子 agent
    (3341-3354)——工具与子代理继续跑。
 
-`_model_request_active` 的置位/清除在循环的 API 调用外包裹(conversation_loop.py:2420-2452,
+`_model_request_active` 的置位/清除在循环的 API 调用外包裹(agent/conversation_loop.py:2420-2452,
 同在 `_pending_redirect_lock` 下),保证 redirect 的"请求在飞"判定与请求生命周期原子一致。
 
-## 4. redirect 的回合重建(conversation_loop.py:122-201, 1416-1424)
+## 4. redirect 的回合重建(agent/conversation_loop.py:122-201, 1416-1424)
 
 循环顶部 `_drain_pending_redirect()` 有值 → `_apply_active_turn_redirect(agent, messages, text)`:
 - 已流出的可见文本剥 `<think>` 后作为降级 checkpoint 保留;脚手架文本

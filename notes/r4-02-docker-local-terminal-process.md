@@ -9,10 +9,10 @@
 **问题**:agent 在 Docker 沙箱里跑命令。Hermes 进程重启(或崩溃)后,该不该保留容器?每次重建容器要
 几秒 + 丢失容器内后台进程;但留着又可能堆积孤儿。
 
-**设计**:默认 `persist_across_processes=True`(docker.py:871),三态 cleanup:
+**设计**:默认 `persist_across_processes=True`(tools/environments/docker.py:871),三态 cleanup:
 - `force_remove=True` → stop + rm(显式拆除);
 - **persist 模式(默认)→ 对容器 no-op**,只丢进程内句柄让下次 __init__ 经标签重探到运行中的容器
-  (docker.py:1958-1966);
+  (tools/environments/docker.py:1958-1966);
 - persist=False → stop + rm(每进程隔离)。
 
 `tools/environments/docker.py:1955-1959 @ 863e313`:
@@ -24,14 +24,14 @@
 
 复用靠 **Docker 标签**:容器带 `label=hermes-agent=1` + `hermes-profile=<profile>` + task 标签,
 下次启动按 `(task, profile)` 标签查到运行中的容器直接接管。标签值要清洗成 `[a-zA-Z0-9_.-]` ≤63 字符
-才能过 `docker ps --filter`(`_sanitize_label_value`,docker.py:115)。
+才能过 `docker ps --filter`(`_sanitize_label_value`,tools/environments/docker.py:115)。
 
-**孤儿回收**(`reap_orphan_containers`,docker.py:144):cleanup 是 atexit 钩子,但 SIGKILL/OOM/崩溃会绕过它,
+**孤儿回收**(`reap_orphan_containers`,tools/environments/docker.py:144):cleanup 是 atexit 钩子,但 SIGKILL/OOM/崩溃会绕过它,
 留下容器永久孤儿。回收器扫 `label=hermes-agent=1` + `status=exited` + `FinishedAt` 早于 600s 的容器删除。
 三条安全约束:**运行中的容器永不回收**(可能属于正在用它的兄弟 Hermes 进程,killing 会让兄弟命令崩)、
-默认只扫本 profile(A profile 不拆 B 的)、只删够老的(刚退出正要被替换的不yank)(docker.py:154-164)。
+默认只扫本 profile(A profile 不拆 B 的)、只删够老的(刚退出正要被替换的不yank)(tools/environments/docker.py:154-164)。
 
-**iron-proxy egress 强制**:容器按 egress 姿态打 `_egress_reuse_fingerprint` 指纹(docker.py:559, 1077),
+**iron-proxy egress 强制**:容器按 egress 姿态打 `_egress_reuse_fingerprint` 指纹(tools/environments/docker.py:559, 1077),
 不同 egress 策略的容器不复用。R3 提过 MITM CA 注入 + per-provider 代理 token,这里是复用键的一部分。
 
 **★ tools.md:88 定案(R1 挂起条目)**:文档说"容器 stopped and removed on shutdown",实际默认
@@ -50,10 +50,10 @@
 
 `terminal_tool` 在把命令交给环境前做几处 shell 语义修补,每处对应一类真实故障:
 
-- **`A && B &` 重写**(terminal_tool.py:805-884):bash 把 `A && B &` 解析成"`&&` 紧于 `&`"——它 fork 一个
+- **`A && B &` 重写**(tools/terminal_tool.py:805-884):bash 把 `A && B &` 解析成"`&&` 紧于 `&`"——它 fork 一个
   子壳把整个 `A && B` 背景化。于是 A 也在后台跑,终端拿不到 A 的退出码。重写成 `A && { B & }` 保住 `&&` 的
   错误语义(A 前台跑、失败则不跑 B),只背景化 B。深度 0 才重写,幂等。
-- **`sudo -S` 密码管道**(terminal_tool.py:1040-1053):配了 `SUDO_PASSWORD` 或有回调时,把 `sudo` 改写成
+- **`sudo -S` 密码管道**(tools/terminal_tool.py:1040-1053):配了 `SUDO_PASSWORD` 或有回调时,把 `sudo` 改写成
   `sudo -S`(从 stdin 读密码),密码行按 `sudo` 出现次数重复(复合命令 `sudo a && sudo b` 每个 sudo 读一行)。
   密码经 stdin 传、不进命令字符串;按 secret scope 缓存(多 profile 隔离)。
 - **前台/后台引导**:工具描述(terminal_tool.py:TERMINAL_TOOL_DESCRIPTION)明确"永不用 nohup/setsid/尾部 &
@@ -67,14 +67,14 @@ calls"——就是 r4-01 快照重放机制对用户/模型的呈现;但描述**
 
 `background=true` 的进程交给 `ProcessRegistry` 管理。核心机制:
 
-- **崩溃恢复靠 JSON 检查点**(process_registry.py:9):进程会话写进检查点文件,Hermes 重启后能恢复对
+- **崩溃恢复靠 JSON 检查点**(tools/process_registry.py:9):进程会话写进检查点文件,Hermes 重启后能恢复对
   在跑进程的跟踪。
-- **PID-reuse 防误杀**(process_registry.py:103):`ProcessSession` 存 `host_start_time`(内核 start ticks,
+- **PID-reuse 防误杀**(tools/process_registry.py:103):`ProcessSession` 存 `host_start_time`(内核 start ticks,
   `/proc/<pid>/stat` 第 22 字段)。杀进程前比对 start time——PID 被系统回收给别的进程时 start time 不同,
   避免杀错无辜进程。
-- **完成通知 notify_on_complete**(process_registry.py:120):进程退出时给 agent 排一条通知,触发新回合
+- **完成通知 notify_on_complete**(tools/process_registry.py:120):进程退出时给 agent 排一条通知,触发新回合
   (这是 R2 讲的"后台进程通知"的实现侧)。
-- **watch_patterns + strike 熔断**(process_registry.py:67-71, 236-333):监视输出匹配模式(如"Server
+- **watch_patterns + strike 熔断**(tools/process_registry.py:67-71, 236-333):监视输出匹配模式(如"Server
   started")触发通知。但一个刷屏的进程会让匹配狂发——连续 `WATCH_STRIKE_LIMIT=3` 个 strike 窗口后
   **永久禁用该会话的 watch**,降级为 notify_on_complete,并发一条"watch disabled"说明(只发一次)。
   `tools/process_registry.py:287-289 @ 863e313`:
@@ -83,7 +83,7 @@ calls"——就是 r4-01 快照重放机制对用户/模型的呈现;但描述**
                         # exactly one notification when the process actually ends.
                         session.notify_on_complete = True
   ```
-- **本地 PTY/pipe 与沙箱内 nohup 双路径**(process_registry.py:9 附近):本地进程直接管;远端沙箱内的后台
+- **本地 PTY/pipe 与沙箱内 nohup 双路径**(tools/process_registry.py:9 附近):本地进程直接管;远端沙箱内的后台
   进程用 nohup + log/pid/exit 三文件轮询(因为远端没有真管道)。
 
 `daemon_pool.py`(64)是一个小的 DaemonThreadPoolExecutor——R2 工具执行器用它跑并发工具(daemon 线程,

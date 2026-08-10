@@ -1,0 +1,307 @@
+# 语料快照 : 8d6bac6  文件 276 份  剔除前缀 ('r11c-',)
+# 撞号     : 39 号 / 100 实体
+# 带处置语 : 23 号出现过 STRONG 处置语(结清/关闭/证伪/改判/…)
+	cid	entities	entity_idx	mint_file	mint_line	anchor_files	mint_text
+MINT	H-1	4	1	notes/r10b-raw-capability-panels.md	1012	apps/desktop/AGENTS.md	### ▲-H-1 —— `apps/desktop/AGENTS.md` 说注册表「不是公开插件 ABI」,基线里它是
+MINT	H-1	4	1	notes/r10b-raw-capability-panels.md	1084	apps/desktop/src/contrib/plugin.ts	### ◎-H-1 —— 「curated OS door」的措辞保守但字面为真
+MINT	H-1	4	2	notes/r8a-90-doc-conflict-rulings.md	2110	cli.py	| H-1 | **R8B** | `cli.py:441`(`load_cli_config` 的内联 `defaults`) | **本轮已数清:89 键中 28 个不在 `DEFAULT_CONFIG`(15 个是人格相关,13 个是真开关)**,名单见 ■-10;**未做的是逐个确证这 15
+MINT	H-1	4	2	notes/r8b-02-h1-h2-config-debt.md	10	cli.py	- **H-1** —— 锚点 `cli.py:441`(`load_cli_config` 的内联 `defaults`):
+MINT	H-1	4	3	notes/r8d-raw-provider-identity.md	2702	hermes_cli/auth.py,hermes_cli/models.py	| H-1 | `hermes_cli/models.py:1282` vs `hermes_cli/auth.py:2003` | `aliyun` / `build-nvidia` / `deep-seek` / `nemotron` / `nim` / `vertexai` 六个别名在 `he
+MINT	H-1	4	4	notes/r9a-raw-research-pipeline.md	2298	batch_runner.py	| H-1 | `batch_runner.py:1237` | `main` 的 bool 形参 `list_distributions` 遮蔽了同名模块函数;实跑 `--list_distributions` 得 `TypeError: 'bool' object is not callable
+VERDICT-STRONG	H-1	4	-	notes/r11b-raw-rulings-census.md	70	定案	| **S** 片内定案号 | 记号 + 片字母 + 序号 | `■-H-1`、`▲-G-01`、`▲ B-2` | 该片底稿 |
+VERDICT-WEAK	H-1	4	-	notes/r11b-raw-rulings-census.md	77	移交	`H-1`(R8A 的主线移交号)在纯文本里只差一个前缀记号。本片的探针按
+VERDICT-WEAK	H-1	4	-	notes/r11b-raw-rulings-census.md	518	移交	**(c) 跨轮同号复用。** R8A 的主线移交号 `H-1` … `H-7`,被 `notes/r8d-raw-provider-identity.md:2702-2708`、
+VERDICT-WEAK	H-1	4	-	notes/r8a-90-doc-conflict-rulings.md	1753	移交	连同完整名单移交 R8B(见 H-1 / H-2 —— `cli.py` 本就是 R8B 的主体)。
+VERDICT-WEAK	H-1	4	-	notes/r8b-02-h1-h2-config-debt.md	1	移交	# r8b-02 · 结算 R8A 移交的 H-1 / H-2
+VERDICT-STRONG	H-1	4	-	notes/r8b-90-handover-rulings.md	5	结清	> (H-1 / H-2 已在 `notes/r8b-02` 单独结清,此处只记结论)。
+VERDICT-STRONG	H-1	4	-	notes/r8b-90-handover-rulings.md	12	结清/升格	| H-1 | R8B | **结清**,并升格出 ■-R8B-01(详见 `notes/r8b-02` §1) | 维持 |
+VERDICT-WEAK	H-1	4	-	reports/round-8a-configuration-surface.md	837	移交	——本报告 `:676` 写的 17 才是对的(移交表 H-1…H-18 跳过 H-8,共 17 行)。
+VERDICT-STRONG	H-1	4	-	reports/round-8b-cli-trunk-and-interaction.md	220	结清	R8A 标为 **R8B** 的 7 条全部处理:**H-1 / H-2 / H-7 / H-14 / H-16 结清**,
+MINT	H-17	2	1	notes/r8a-90-doc-conflict-rulings.md	2125	hermes_cli/env_loader.py	| H-17 | **R8B/R8C** | `hermes_cli/env_loader.py:614-669`(无锁)vs `:184`(有 `_SECRET_SOURCE_CACHE_LOCK`) | 两条写同一批全局字典的路径只有一条加锁;子代理判为并发风险,**主线未复现**。网关热重载线
+MINT	H-17	2	1	notes/r8c-90-rulings.md	19	hermes_cli/env_loader.py	| **H-17** | R8A→R8B | `hermes_cli/env_loader.py:614-669`(无锁)vs `:184`(有锁) | **结清,定 ■-R8C-01**:成立,三条后果全部实测复现;**触发场景不是移交项猜的网关热重载,是 cron 并行池** | `notes/
+MINT	H-17	2	2	notes/r8c-10-h17-env-loader-race.md	17	gateway/run.py	**本轮结论:H-17 成立,定案 ■-R8C-01。三条后果全部在 venv 里实跑复现。**
+VERDICT-STRONG	H-17	2	-	chapters/r8b-cli-trunk-and-interaction.md	562	定案	- 移交项定案(含 H-7 / H-16 / H-17 的负结论与收窄):`notes/r8b-90-handover-rulings.md`
+VERDICT-STRONG	H-17	2	-	notes/r8a-90-doc-conflict-rulings.md	2125	定案	| H-17 | **R8B/R8C** | `hermes_cli/env_loader.py:614-669`(无锁)vs `:184`(有 `_SECRET_SOURCE_CACHE_LOCK`) | 两条写同一批全局字典的路径只有一条加锁;子代理判为并发风险,**主线未复现**。网关热重载线程与首轮路由线程并发时可能出现同一 home 双份 fetch,或缓存被空 dict 覆盖。需要一个
+VERDICT-WEAK	H-17	2	-	notes/r8b-90-handover-rulings.md	4	移交	> 本轮认领 R8A 移交里标注 **R8B** 的 **7** 条:H-1 / H-2 / H-7 / H-13 / H-14 / H-16 / H-17
+VERDICT-STRONG	H-17	2	-	notes/r8b-90-handover-rulings.md	18	改判/撤销	| H-17 | R8B / R8C | **确认存在**;原"后果比子代理报的窄"的收窄**部分撤销**(见 §5) | **改判** |
+VERDICT-WEAK	H-17	2	-	notes/r8b-90-handover-rulings.md	526	移交	**(c) 使 H-17 的原判在此成立,故本条对 R8C 的移交范围恢复到收窄前。**
+VERDICT-STRONG	H-17	2	-	notes/r8c-10-h17-env-loader-race.md	1	定案	# r8c-10 · H-17 定案 —— 无锁那半边的三条后果,全部实测复现
+VERDICT-STRONG	H-17	2	-	notes/r8c-10-h17-env-loader-race.md	10	改判	R8A 移交、R8B 复核后改判、再移交本轮的 H-17,锚点是:
+VERDICT-STRONG	H-17	2	-	notes/r8c-10-h17-env-loader-race.md	17	定案	**本轮结论:H-17 成立,定案 ■-R8C-01。三条后果全部在 venv 里实跑复现。**
+VERDICT-STRONG	H-17	2	-	notes/r8c-90-rulings.md	19	结清	| **H-17** | R8A→R8B | `hermes_cli/env_loader.py:614-669`(无锁)vs `:184`(有锁) | **结清,定 ■-R8C-01**:成立,三条后果全部实测复现;**触发场景不是移交项猜的网关热重载,是 cron 并行池** | `notes/r8c-10-h17-env-loader-race.md` |
+VERDICT-STRONG	H-17	2	-	reports/round-8-fix-review-1.md	295	撤销	| M-20 | 阻断 | **采纳** | `notes/r8b-90-*.md` §5:撤销"全程没有用空 dict 覆盖"这个全称否定,■-R8B-02 的后果由两条改为三条,H-17 排查面恢复 |
+VERDICT-WEAK	H-17	2	-	reports/round-8a-configuration-surface.md	453	移交	**另有三条子代理报了但主线未能确证的,按新制度作为 H-15…H-17 移交**
+VERDICT-WEAK	H-17	2	-	reports/round-8b-cli-trunk-and-interaction.md	221	移交	**H-17 确认并收窄**,**H-13 拆开后整体移交 R8C**(逐份对齐 8 个平台就绪判定,
+VERDICT-STRONG	H-17	2	-	reports/round-8b-cli-trunk-and-interaction.md	433	撤销	**加锁的孪生写法 `:236` 恰恰有 `if values:` 守卫**。收窄部分撤销,H-17 对 R8C 的排查面恢复。
+VERDICT-WEAK	H-17	2	-	reports/round-8b-cli-trunk-and-interaction.md	439	移交	**同一份报告里作者是有这个区分的**:H-13 写的是"拆开后整体移交 R8C"、H-17 写的是"确认并收窄",
+MINT	H-2	4	1	notes/r10b-raw-capability-panels.md	1045	apps/desktop/src/plugins/README.md	### ▲-H-2 —— `src/plugins/README.md` 说「目前没有内置插件」,实际有三个
+MINT	H-2	4	1	notes/r10b-raw-capability-panels.md	1182	apps/desktop/src/contrib/runtime-loader.ts	### ■-H-2 —— `hello-runtime/plugin.runtime.js` 是死文件,而加载器 docstring 仍把它当活的来源
+MINT	H-2	4	2	notes/r8a-90-doc-conflict-rulings.md	2111	cli.py	| H-2 | **R8B** | `cli.py:599`(`defaults[key].update(...)`) | 浅合并的**实际影响面**未穷举:哪些从 `CLI_CONFIG` 读的嵌套键**没有**硬编码兜底,那些才是会真出事的 |
+MINT	H-2	4	2	notes/r8b-02-h1-h2-config-debt.md	13	cli.py	- **H-2** —— 锚点 `cli.py:599`(`defaults[key].update(...)`):
+MINT	H-2	4	2	notes/r8b-02-h1-h2-config-debt.md	279	cli.py	**(c) `agent.personalities`(14 叶) —— 没救回来,这就是 H-2 的答案。**
+MINT	H-2	4	3	notes/r8d-raw-provider-identity.md	2703	hermes_cli/models.py	| H-2 | `plugins/model-providers/qwen-oauth/` 的 `aliases` vs `hermes_cli/models.py:1335` | 字符串 `qwen` 在 picker 侧 = DashScope、运行时侧 = Qwen CLI OAuth | 需
+MINT	H-2	4	4	notes/r9a-raw-research-pipeline.md	2299	trajectory_compressor.py	| H-2 | `trajectory_compressor.py:114-117` + `:166-171` | `num_workers` / `skip_under_target` / `save_over_limit` 读进配置后全仓零消费点;`per_trajectory_timeout`
+VERDICT-STRONG	H-2	4	-	notes/r8b-02-h1-h2-config-debt.md	317	定案	### 2.4 H-2 定案
+VERDICT-STRONG	H-2	4	-	notes/r8b-02-h1-h2-config-debt.md	352	结清/已结	- **H-2 已结清**,无残留。
+VERDICT-STRONG	H-2	4	-	notes/r8b-90-handover-rulings.md	13	结清	| H-2 | R8B | **结清**,影响面穷举 = 4 子树 / 24 叶,14 个真出事(`notes/r8b-02` §2) | 维持 |
+VERDICT-STRONG	H-2	4	-	notes/r9a-raw-research-pipeline.md	2299	定案	| H-2 | `trajectory_compressor.py:114-117` + `:166-171` | `num_workers` / `skip_under_target` / `save_over_limit` 读进配置后全仓零消费点;`per_trajectory_timeout` 连读都没读 | 已在本轮定案(■-2 / ■-3),无需重做;若做「配置键全表」资产可并入 |
+VERDICT-WEAK	H-2	4	-	reports/round-8a-configuration-surface.md	745	移交	——即真正会出事的集合——本轮未逐个排查,作为 **H-2** 移交 R8B。
+MINT	H-3	4	1	notes/r10b-raw-capability-panels.md	1212	tools/skills_guard.py	### ■-H-3(弱,记为待判)—— `should_allow_install` 的三值返回被调用方当二值用
+MINT	H-3	4	2	notes/r8a-90-doc-conflict-rulings.md	2112	hermes_cli/web_server.py	| H-3 | **R8C** | `hermes_cli/web_server.py:12320`(`approve_pairing` 路由) | 本轮已读该路由本体并定案 ■-8(与 CLI 的锁定报告不一致);**未查的是它的鉴权层**——`/api/pairing/approve` 由哪一层
+MINT	H-3	4	2	notes/r8c-90-rulings.md	15	hermes_cli/web_server.py	| **H-3** | R8A | `hermes_cli/web_server.py:12321`(`approve_pairing`;R8A 原写 `:12320`,那是空行,本轮更正) | **结清,负结论**:四种绑定形态 + 畸形 host 值,**没有任何组合**能让未认证请求打到该路由
+MINT	H-3	4	3	notes/r8d-raw-provider-identity.md	2704	hermes_cli/provider_catalog.py	| H-3 | `hermes_cli/provider_catalog.py:127` | `HERMES_OVERLAYS.get(slug)` 用 CLI slug 查 models.dev slug 键,9/43 落空 | 潜在,当前被 registry/profile 兜住;若后续有 pr
+MINT	H-3	4	4	notes/r9a-raw-research-pipeline.md	2300	trajectory_compressor.py	| H-3 | `trajectory_compressor.py:743-889` 与 `:891-1015` | 同步版与 async 版压缩逻辑逐行重复,两份摘要 prompt 是两份相同字面量(616-631 / 685-700);实际只走 async | 若 R10+ 做「重复代码/漂移风
+VERDICT-WEAK	H-3	4	-	notes/r10b-raw-capability-panels.md	1212	待判	### ■-H-3(弱,记为待判)—— `should_allow_install` 的三值返回被调用方当二值用
+VERDICT-STRONG	H-3	4	-	notes/r11b-raw-rulings-census.md	521	结清/已结	于是 `H-3` 这个号在语料里指**四件事**:R8A 的 dashboard 配对鉴权(R8C 已结清)、
+VERDICT-STRONG	H-3	4	-	notes/r8a-90-doc-conflict-rulings.md	2112	定案	| H-3 | **R8C** | `hermes_cli/web_server.py:12320`(`approve_pairing` 路由) | 本轮已读该路由本体并定案 ■-8(与 CLI 的锁定报告不一致);**未查的是它的鉴权层**——`/api/pairing/approve` 由哪一层保证只有已认证管理员可调,需在 R8C 全文精读时确证 |
+VERDICT-STRONG	H-3	4	-	notes/r8c-90-rulings.md	15	结清	| **H-3** | R8A | `hermes_cli/web_server.py:12321`(`approve_pairing`;R8A 原写 `:12320`,那是空行,本轮更正) | **结清,负结论**:四种绑定形态 + 畸形 host 值,**没有任何组合**能让未认证请求打到该路由。全部保护来自中间件链,路由本体零鉴权 | `notes/r8c-raw-boot-authchai
+VERDICT-WEAK	H-3	4	-	notes/r8c-raw-boot-authchain.md	301	移交	## 2. 核心问题二:移交项 H-3 —— `/api/pairing/approve` 到底由哪一层保证
+VERDICT-WEAK	H-3	4	-	notes/r9a-raw-delegate-tool.md	1632	移交	但白名单的求交有一处**回退放宽**,见第 9 节移交项 H-3:
+VERDICT-WEAK	H-3	4	-	reports/round-8b-cli-trunk-and-interaction.md	361	移交	1. **本轮向 R8C 移交了两笔**(H-13 的 8 份对齐、H-3 的 `/api/pairing/approve` 鉴权层),
+VERDICT-WEAK	H-3	4	-	reports/round-8c-dashboard-and-web.md	48	移交	**没配鉴权 provider 就拒绝启动**(`SystemExit`,不是打警告)。本轮把移交项 H-3 追到底,
+MINT	H-4	3	1	notes/r8a-90-doc-conflict-rulings.md	2113	cli.py	| H-4 | **R8D** | `hermes_cli/managed_scope.py` | 本轮从 `config.py:3396` 与 `cli.py:624` 两侧读到它,但**没读本体**;managed 层的叶级合并实现与失败姿态未取证 |
+MINT	H-4	3	2	notes/r8d-raw-provider-identity.md	2705	hermes_cli/providers.py	| H-4 | `hermes_cli/providers.py:402-405` | `vllm` / `llamacpp` / `llama.cpp` / `llama-cpp` 映到 `local`,而 `get_provider('local')` 返回 `None` | 死靶点;auth 
+MINT	H-4	3	3	notes/r9a-raw-research-pipeline.md	2301	mini_swe_runner.py	| H-4 | `mini_swe_runner.py:609-620` | 失败任务写出 `"conversations": []` 的空记录,压缩器判为 skipped_under_target 原样透传,无任何过滤 | 需确认下游(`scripts/sample_and_compress.py
+VERDICT-WEAK	H-4	3	-	reports/round-8a-configuration-surface.md	749	移交	读到它,但没读实现,作为 **H-4** 移交。
+MINT	H-5	3	1	notes/r8a-90-doc-conflict-rulings.md	2114	ui-tui/src/gatewayTypes.ts	| H-5 | **R9/R10** | `ui-tui/src/gatewayTypes.ts:89` 等 TS 侧读取点 | 856 个配置键中有一类**只由 TypeScript 读**;TS 侧是否有自己的默认值(即第三份默认值)未查 |
+MINT	H-5	3	2	notes/r8d-raw-provider-identity.md	2706	hermes_cli/model_normalize.py	| H-5 | `hermes_cli/model_normalize.py:493` | 若传入 models.dev 空间的 provider 名,所有分支落空、模型名原样返回 | 未找到实际会这么传的调用方,但没有断言拦住;**这是一条未证实的风险,不是已取证结论** |
+MINT	H-5	3	3	notes/r9a-raw-research-pipeline.md	2302	datagen-config-examples/web_research.yaml	| H-5 | `datagen-config-examples/web_research.yaml:1-46` | 整份文件配置的是不存在的 `WebResearchEnv` 与不存在的 `--config` 参数,11 个键无人读 | 已定案 ▲-1;台账里这 4 个样例文件建议标 L4「有理由
+VERDICT-STRONG	H-5	3	-	notes/r9a-raw-research-pipeline.md	2302	定案	| H-5 | `datagen-config-examples/web_research.yaml:1-46` | 整份文件配置的是不存在的 `WebResearchEnv` 与不存在的 `--config` 参数,11 个键无人读 | 已定案 ▲-1;台账里这 4 个样例文件建议标 L4「有理由排除:失效示例」而非 L3 |
+MINT	H-6	3	1	notes/r8d-raw-provider-identity.md	2707	agent/agent_runtime_helpers.py,hermes_cli/providers.py,hermes_cli/runtime_provider.py	| H-6 | `hermes_cli/providers.py:614` vs `hermes_cli/runtime_provider.py:106` | 两张 host→api_mode 表互为补集,直接调 `determine_api_mode` 的路径拿不到 x.ai / actual.i
+MINT	H-6	3	2	notes/r9a-raw-delegate-tool.md	2862	run_agent.py,tools/terminal_tool.py	- **H-6(生命周期口径,需要 R9 的 terminal / process_registry 负责人确认)**:
+MINT	H-6	3	3	notes/r9a-raw-research-pipeline.md	2303	batch_runner.py	| H-6 | `batch_runner.py:838-844` | `--resume` 时批号从 0 重编,新批追加写进老的 `batch_N.jsonl`,`checkpoint['batch_stats'][N]` 被覆盖 | 本轮只做了静态推演(§2.7),没有端到端跑通;若要写进成品章
+MINT	H-7	4	1	notes/r8a-90-doc-conflict-rulings.md	2117	hermes_cli/config.py	| H-7 | **R8B / R8D** | `hermes_cli/config.py:3065`(`require_readable_config_before_write`) | 该守卫只检查文件**可读**不检查**可解析**;`set/unset_config_value` 各自补了解析
+MINT	H-7	4	1	notes/r8b-90-handover-rulings.md	209	hermes_cli/config.py	## 1.9 原 §1 正文(迁移流水线那条线,结论仍成立,仅作废其"H-7 关闭"的推论)
+MINT	H-7	4	2	notes/r8d-raw-credentials-security.md	271	hermes_cli/credential_lifecycle.py	**(c) 写 config 前先做可读性守卫。** 这正是 CLAUDE.md 里 R8B "H-7 负结论"教训点名的那道闸:
+MINT	H-7	4	3	notes/r8d-raw-provider-identity.md	2708	hermes_cli/model_normalize.py	| H-7 | `hermes_cli/model_normalize.py:61` 与 `:65` | `_VENDOR_PREFIXES` 重复键 `"trinity"` | 无行为影响,可作为“lint 覆盖面”话题的实例 |
+MINT	H-7	4	4	notes/r9a-raw-research-pipeline.md	2304	batch_runner.py	| H-7 | `batch_runner.py:452-460` 与 `:491-506` | 被丢弃的零推理样本在 `continue` 处跳过了统计聚合,于是终局报表的 "Without reasoning" 分母不含这些样本 | 口径问题而非崩溃;需判定是有意(丢弃的不算样本)还是无意。本轮
+VERDICT-STRONG	H-7	4	-	notes/r11b-raw-rulings-census.md	650	关闭	本片实际取的短语(逐个跑过):`静默消失` / `静默抹掉`、`H-7 关闭`、`20+ 平台` / `20+ external`、
+VERDICT-WEAK	H-7	4	-	notes/r11b-raw-rulings-census.md	738	移交	> 这正是 CLAUDE.md 里 R8B 的 H-7 移交项描述的那类事故(坏 YAML 下把用户的
+VERDICT-STRONG	H-7	4	-	notes/r11b-raw-rulings-census.md	773	关闭/作废	| 「H-7 关闭,没有第三个读原始配置后落盘的调用方」 | `notes/r8b-90-handover-rulings.md:22`:`## 1. H-7:**重开**——第三个"读原始配置后落盘"的调用方确实存在(原负结论作废)` | `H-7 关闭` + 案号 `H-7` | **0 命中**:R8B 之后无任何一轮把它当结论;R8B 报告正文那句已由文末勘误节兜住 |
+VERDICT-WEAK	H-7	4	-	notes/r8a-90-doc-conflict-rulings.md	1972	移交	——那才是 F4 描述的形态。本轮未穷举,列为移交项 H-7。
+VERDICT-STRONG	H-7	4	-	notes/r8b-90-handover-rulings.md	14	结清/改判/不成立	| H-7 | R8B / R8D | ~~结清,负结论~~ → **重开:负结论不成立**(见 §1.0) | **改判**,派生 H-R8FIX-a |
+VERDICT-STRONG	H-7	4	-	notes/r8b-90-handover-rulings.md	22	作废	## 1. H-7:**重开**——第三个"读原始配置后落盘"的调用方确实存在(原负结论作废)
+VERDICT-STRONG	H-7	4	-	notes/r8b-90-handover-rulings.md	26	关闭/撤销/不成立	> **本节原来的结论是"没有被截断。H-7 关闭。"——这个负结论不成立,现予撤销。**
+VERDICT-STRONG	H-7	4	-	notes/r8b-90-handover-rulings.md	32	关闭	> 本卷写下"H-7 关闭",按 CLAUDE.md 的移交制度,后续轮次不会再回来看这里。
+VERDICT-STRONG	H-7	4	-	notes/r8b-90-handover-rulings.md	203	定案	**H-7 重开,并派生 H-R8FIX-a(见 §7)**:本轮只定案 `auth.py:7329` 一处并复核了五个裸写点;
+VERDICT-STRONG	H-7	4	-	notes/r8b-90-handover-rulings.md	209	关闭/作废	## 1.9 原 §1 正文(迁移流水线那条线,结论仍成立,仅作废其"H-7 关闭"的推论)
+VERDICT-STRONG	H-7	4	-	notes/r8b-90-handover-rulings.md	248	关闭/作废	*(R8-fix:原文此处写的是"H-7 关闭"。**该推论作废**:没被截断的是**迁移流水线**,
+VERDICT-STRONG	H-7	4	-	notes/r8b-90-handover-rulings.md	249	证伪	而 H-7 问的是"有没有第三个调用方"。答案是有,见 §1.0。**只证伪了一个候选,
+VERDICT-WEAK	H-7	4	-	notes/r8d-raw-extensions.md	2262	移交	这正是 CLAUDE.md 里 R8B 的 H-7 移交项描述的那类事故(坏 YAML 下把用户的
+VERDICT-STRONG	H-7	4	-	notes/r9a-raw-research-pipeline.md	2304	定案	| H-7 | `batch_runner.py:452-460` 与 `:491-506` | 被丢弃的零推理样本在 `continue` 处跳过了统计聚合,于是终局报表的 "Without reasoning" 分母不含这些样本 | 口径问题而非崩溃;需判定是有意(丢弃的不算样本)还是无意。本轮未定案 |
+VERDICT-STRONG	H-7	4	-	reports/round-8-fix-review-1.md	39	关闭	2. **发现并修正一条被关闭的负结论**(M-19)。R8B 写"H-7 关闭",而漏掉的那个调用方
+VERDICT-STRONG	H-7	4	-	reports/round-8-fix-review-1.md	141	证伪	R8B 的 H-7 问"有没有第三个'读原始配置后整文件落盘'的调用方",查了迁移流水线、证伪、
+VERDICT-STRONG	H-7	4	-	reports/round-8-fix-review-1.md	142	关闭/证伪	写下"**H-7 关闭**"。但**只证伪了一个候选,不等于穷举了候选集**。真正的第三个是:
+VERDICT-WEAK	H-7	4	-	reports/round-8a-configuration-surface.md	495	移交	残留疑问(是否存在第三个直接 `read_raw_config()` 后落盘的调用方)作为 **H-7** 移交。
+VERDICT-STRONG	H-7	4	-	reports/round-8b-cli-trunk-and-interaction.md	188	关闭	- **H-7 关闭**:没有第三个"读原始配置后落盘"的截断路径。13 行坏 YAML 实跑,
+VERDICT-STRONG	H-7	4	-	reports/round-8b-cli-trunk-and-interaction.md	402	结清/不成立	1. **【M-19 / 阻断】§5 记 "H-7 结清,负结论" —— 该负结论不成立,H-7 已重开。**
+VERDICT-STRONG	H-7	4	-	reports/round-8b-cli-trunk-and-interaction.md	425	结清	本报告写"H-7 结清",按移交制度后续轮次不会再回来看。而这条负结论的成立与否
+MINT	H-9A-1	2	1	notes/r9a-raw-moa.md	2546	agent/agent_init.py,cli.py	| H-9A-1 | `agent/agent_init.py:73-96` + `cli.py:12042` | `-Q` 的 MoA 静默保护函数只被自己的测试导入,生产链路(`build_moa_facade` 内联中继 → `cli._on_tool_progress`)无任何模式判定,`h
+MINT	H-9A-1	2	2	notes/r9a-raw-skills-hub.md	2231	tools/skills_tool.py	| H-9A-1 | `tools/skills_tool.py:1040` | `skill_view("ns:skill", file_path=...)` 返回 SKILL.md 全文、`success:true`、无 `file` 字段,请求的支持文件从未被读 | 下一轮确认插件 skill
+VERDICT-STRONG	H-9A-1	2	-	notes/r9a-raw-moa.md	2546	升格/定案	| H-9A-1 | `agent/agent_init.py:73-96` + `cli.py:12042` | `-Q` 的 MoA 静默保护函数只被自己的测试导入,生产链路(`build_moa_facade` 内联中继 → `cli._on_tool_progress`)无任何模式判定,`hermes chat -Q -m moa:<preset>` 会把参谋块打进 stdout。需要在真
+MINT	H-9A-2	2	1	notes/r9a-raw-moa.md	2547	agent/moa_loop.py,cli.py	| H-9A-2 | `agent/moa_loop.py:1209-1361` + `cli.py:14029-14032` | `aggregate_moa_context` 与 `_pending_moa_config` 构成一条完整但无生产生产者的 MoA 路径;`if _moa_cfg i
+MINT	H-9A-2	2	2	notes/r9a-raw-skills-hub.md	2232	tools/skills_tool.py	| H-9A-2 | `tools/skills_tool.py:1255` | 树外符号链接 + 注入关键词双命中时,`skill_view` 仍返回 `success:true` / `readiness_status: available`,告警只进 Python logger,返回体无任何警
+MINT	H-9A-3	2	1	notes/r9a-raw-moa.md	2548	hermes_cli/config_defaults.py	| H-9A-3 | `hermes_cli/config_defaults.py:1782` | `moa.presets.default.max_tokens: 4096` 在 MoA 运行时无任何读取点,但配置默认值/normalize/Web API/文档示例四处都留着。 |
+MINT	H-9A-3	2	2	notes/r9a-raw-skills-hub.md	2233	tools/skill_manager_tool.py	| H-9A-3 | `tools/skill_manager_tool.py:1337` | org 镜像 skill 的 `delete` 被拒、`remove_file` 成功删除 `references/note.md`,且不触发 `_maybe_auto_propose_org_edit`
+MINT	H-9A-4	2	1	notes/r9a-raw-moa.md	2549	website/docs/user-guide/features/mixture-of-agents.md	| H-9A-4 | `website/docs/user-guide/features/mixture-of-agents.md:52-61` | 整节 `## How it works in the agent loop` 停留在 `per_iteration` 旧默认(第 7 条 + 第 26
+MINT	H-9A-4	2	2	notes/r9a-raw-skills-hub.md	2234	tools/skills_hub.py	| H-9A-4 | `tools/skills_hub.py:3205` | `BrowseShSource.fetch` 对远端 JSON 给出的 `skillMdUrl` 直接 `httpx.get(..., follow_redirects=True)`,不经 `_guarded_http_
+MINT	H-9A-5	2	1	notes/r9a-raw-moa.md	2550	agent/moa_loop.py	| H-9A-5 | `agent/moa_loop.py:2195-2203` | 参谋建议以"私有可信上下文"身份拼进 aggregator 提示词,没有任何"以下来自不可信模型输出"的包裹;工具结果里的 prompt injection 会经参谋放大一层。需要与 R3 的审批/安全簇合并判定。
+MINT	H-9A-5	2	2	notes/r9a-raw-skills-hub.md	2235	tools/skills_guard.py	| H-9A-5 | `tools/skills_guard.py:101` | `THREAT_PATTERNS` 中无任何一条匹配 `` !`cmd` ``,而 `skills.inline_shell` 打开后该语法在 `skill_view` 时执行 | 下一轮读 `skills_guard
+MINT	H-9A-6	2	1	notes/r9a-raw-moa.md	2551	agent/moa_loop.py	| H-9A-6 | `agent/moa_loop.py:1883-1885` | `_preset_cache.clear()` 让同进程多预设互相驱逐,缓存命中率在"主 agent + 子代理用不同预设"时归零。 |
+MINT	H-9A-6	2	2	notes/r9a-raw-skills-hub.md	2236	tools/skills_tool.py	| H-9A-6 | `tools/skills_tool.py:118` | 深度 ≥2 的新增 skill 不改变缓存签名,`_find_all_skills` 在 30 秒内看不到它(实测 scan 2 缺 `second`) | 非缺陷,但 R12 蓝图写"缓存签名深度 = 允许的嵌套深度"
+MINT	H-R10B-a	2	1	notes/r10-raw-tui-gateway-methods.md	1648	tui_gateway/methods_session.py	| H-R10B-a | `tui_gateway/methods_session.py:1800`:`@method("pet.generate")` | 该行下一行直接是 `def _(rid, params: dict) -> dict:`,**没有** `@_profile_scoped`;
+MINT	H-R10B-a	2	1	reports/round-11b-review-and-reconciliation.md	95	tui_gateway/methods_session.py	**已造成实质后果的一处,主线逐处复核属实**:`H-R10B-a` 被 **3 处独立铸造**——
+MINT	H-R10B-a	2	2	notes/r10b-raw-capability-panels.md	1353	apps/desktop/src/plugins/gateway-pill/plugin.tsx	| **H-R10B-a** | `apps/desktop/src/plugins/gateway-pill/plugin.tsx:350`:`const plugin: HermesPlugin = {` | 该插件未声明 `defaultEnabled`,默认开启,与核心 `gateway-h
+VERDICT-STRONG	H-R10B-a	2	-	notes/r11a-90-handover-rulings.md	11	结清	| **H-R10B-a** 无扩展名锚点 | **结清** | `scripts/verify_citations.py:245`:`EXTLESS_NAMES = frozenset({` + 负控 13 条断言 |
+VERDICT-STRONG	H-R10B-a	2	-	notes/r11b-raw-rulings-census.md	536	结清	> | **H-R10B-a** 无扩展名锚点 | **结清** | `scripts/verify_citations.py:245`:`EXTLESS_NAMES = frozenset({` + 负控 13 条断言 |
+VERDICT-STRONG	H-R10B-a	2	-	notes/r11b-raw-rulings-census.md	538	结清	**「H-R10B-a 结清」这句话,在账面上读起来像三条都结清了,实际只结清了三分之一。**
+VERDICT-STRONG	H-R10B-a	2	-	notes/r11b-raw-rulings-census.md	883	结清	| **H-R11B-A-c** | R12 前置 | `tui_gateway/methods_session.py:1800`:`@method("pet.generate")` | `H-R10B-a` 三处独立铸号中的一处,R11A 只结清了 `scripts/` 那一处;本条从未被任何轮处置,且因号已标结清而不会被发现 |
+VERDICT-STRONG	H-R10B-a	2	-	notes/r11b-raw-rulings-census.md	884	结清/已结	| **H-R11B-A-d** | R12 前置 | `apps/desktop/src/plugins/gateway-pill/plugin.tsx:350`:`const plugin: HermesPlugin = {` | 同上,`H-R10B-a` 的第三处铸号(R10B 片 H);插件未声明 `defaultEnabled`,同样随号被误判为已结清 |
+VERDICT-STRONG	H-R10B-a	2	-	reports/round-11a-ops-and-delivery.md	19	结清	### 1.1 H-R10B-a 结清:无扩展名文件的锚点
+VERDICT-STRONG	H-R10B-a	2	-	reports/round-11b-review-and-reconciliation.md	99	结清	R11A 写「H-R10B-a 结清」只结清了第一处,**另两处从未处置,且因号已标结清而不会再被发现**。
+VERDICT-STRONG	H-R10B-a	2	-	reports/round-11b-review-and-reconciliation.md	597	结清/已结	1. **`H-R11B-A-c` / `-d`**:`H-R10B-a` 那两处被误判已结清的真欠账。
+MINT	H-R10B-b	2	1	notes/r10-raw-tui-gateway-methods.md	1649	tui_gateway/host_supervisor.py	| H-R10B-b | `tui_gateway/host_supervisor.py:511`:`self._stopped_respawning = True` | 全仓仅此一处置 `True`,无任何复位点;触发后 `is_running()` 恒 False,回合隔离在该进程余生静默失效,
+MINT	H-R10B-b	2	2	notes/r10b-raw-capability-panels.md	1354	apps/desktop/src/contrib/runtime-loader.ts,apps/desktop/src/plugins/hello-runtime/plugin.runtime.js	| **H-R10B-b** | `apps/desktop/src/plugins/hello-runtime/plugin.runtime.js:28`:`id: 'hello-runtime',` | 全仓无任何引用,双重不可达;`apps/desktop/src/contrib/runtim
+VERDICT-STRONG	H-R10B-b	2	-	reports/round-11b-review-and-reconciliation.md	354	关闭	| H-R9D-e + H-R10B-b | **合并关闭并入册**:"搜过没有"类测量必须报剔除/不剔除两个读数 |
+MINT	H-R10B-c	2	1	notes/r10-raw-tui-gateway-methods.md	1650	tui_gateway/host_supervisor.py	| H-R10B-c | `tui_gateway/host_supervisor.py:422`:`self._last_progress_counter = int(frame.get("progress_counter") or self._last_progress_counter)` | 
+MINT	H-R10B-c	2	2	notes/r10b-raw-capability-panels.md	1355	hermes_cli/skills_hub.py,tools/skill_manager_tool.py	| **H-R10B-c** | `hermes_cli/skills_hub.py:680`:`allowed, reason = should_allow_install(result, force=force)` | 被调函数用 `None` 表示「需确认」,此处 `if not allowe
+MINT	H-R10B-d	2	1	notes/r10-raw-tui-gateway-methods.md	1651	tests/test_tui_gateway_server.py,tui_gateway/methods_tools.py	| H-R10B-d | `tui_gateway/methods_tools.py:623`:`_apply_model_switch(` | 这条调用在 `command.dispatch` 的 `/moa` 分支里,**上游没有任何** `session.get("running")` 检查;
+MINT	H-R10B-d	2	2	notes/r10b-raw-capability-panels.md	1356	apps/desktop/src/contrib/types.ts	| **H-R10B-d** | `apps/desktop/src/contrib/types.ts:21`:`export type ContributionSource = 'core' \| (string & {})` | `source` 字段的注释说它「drives precedenc
+VERDICT-STRONG	H-R10B-d	2	-	reports/round-11b-review-and-reconciliation.md	363	改判	| H-R10B-d | **不改分层,改判理由**:全仓不可达属实,但 L4 是"主动决定不学",而它**刚产出一条发现**;记 **▲(码内)-R11B-01** |
+MINT	H-R10B-e	3	1	notes/r10-raw-tui-gateway-methods.md	1652	tui_gateway/project_tree.py	| H-R10B-e | `tui_gateway/project_tree.py:131`:`def _is_path_under(folder: str, target: str) -> bool:` | 该模块唯一的路径包含性判定,全仓零调用(`grep -rn "_is_path_under
+MINT	H-R10B-e	3	2	notes/r10b-raw-capability-panels.md	1357	apps/desktop/src/app/skills/index.tsx	| **H-R10B-e** | `apps/desktop/src/app/skills/index.tsx:733`:`const editable = skill.provenance === 'agent'` | UI 侧的 provenance 门无 API 侧对应物;星图右键(`node
+MINT	H-R10B-e	3	3	reports/round-10b-desktop-application.md	706	apps/desktop/playwright.config.ts	| **H-R10B-e** | R11A | `apps/desktop/playwright.config.ts:1` 的 `import { defineConfig` | 19 个 e2e spec 仍未跑;需 Electron 二进制 + 浏览器,是桌面端唯一的端到端验证缺口 |
+VERDICT-WEAK	H-R10B-e	3	-	notes/r11a-90-handover-rulings.md	356	移交	## 7. H-R10B-e —— 阻塞面比移交项写的小一半
+MINT	H-R10B-f	2	1	notes/r10-raw-tui-gateway-methods.md	1653	tui_gateway/methods_complete.py	| H-R10B-f | `tui_gateway/methods_complete.py:167`:`search_dir if os.path.isabs(search_dir) else os.path.join(root, search_dir)` | 显式路径分支直通绝对路径、无 `..`
+MINT	H-R10B-f	2	2	notes/r10b-raw-capability-panels.md	1358	apps/desktop/src/sdk/index.ts	| **H-R10B-f** | `apps/desktop/src/sdk/index.ts:250`:`export const PANES_AREA = 'panes'` | 22 个 area 中 `layouts` / `titleBar.tools.left` / `titleBar.t
+VERDICT-STRONG	H-R10B-f	2	-	notes/r11b-90-handover-rulings.md	187	结清	### H-R10-c + H-R10B-f —— 结清记录有多个存放地
+VERDICT-STRONG	H-R10B-f	2	-	reports/round-10b-desktop-application.md	707	结清/定案	| **H-R10B-f** | R11 复盘(与 **H-R10-c** 合并) | `data/r10/probes/handover_census.py:24` 的 `ORDER` | 移交普查的**输入面**靠手工清单维护,漏掉整轮而无提示;R10B 版已改为向 git 要顺序,建议连同「结清记录有两个存放地」一并定案 |
+VERDICT-STRONG	H-R10B-f	2	-	reports/round-11b-review-and-reconciliation.md	355	结清/关闭	| H-R10-c + H-R10B-f | **合并关闭,根因改述**:不是普查扫得不够宽(扩一次就冒出第三个存放地),而是**结清没有单一落点**。已入册 |
+MINT	H-R10B-g	2	1	notes/r10-raw-tui-gateway-methods.md	1654	tui_gateway/methods_config.py,tui_gateway/methods_tools.py	| H-R10B-g | `tui_gateway/methods_config.py:3`:`NOTE: ``config.set`` stays in server.py for now — the in-flight` | 读配置(`config.get`,21 key)已搬进 `method
+MINT	H-R10B-g	2	2	notes/r10b-raw-capability-panels.md	1359	apps/desktop/src/app/command-palette/index.tsx	| **H-R10B-g** | `apps/desktop/src/app/command-palette/index.tsx:488`:`export function CommandPalette() {` | 该文件 1,358 行 + 同目录三个文件,合计 1,810 行,**零测试文件、
+VERDICT-STRONG	H-R10B-g	2	-	notes/r11a-90-handover-rulings.md	12	结清/升格	| **H-R10B-g** verify 块配对率 | **结清** | 关卡升格 + 「钉数必配 text 块」写进 CLAUDE.md 与派工书 |
+VERDICT-STRONG	H-R10B-g	2	-	reports/round-11a-ops-and-delivery.md	104	结清	这正是 H-R10B-g 建议的做法,本轮结清。
+MINT	H-R8C-f	3	1	notes/r10-raw-web-dashboard.md	1438	web/src/App.tsx	### 6.2 H-R8C-f —— backup/import 在 `/system` 页,**import 有二次确认、backup 一次点击零警告**
+MINT	H-R8C-f	3	2	notes/r10b-90-handover-rulings.md	344	hermes_cli/web_server.py	| H-R8C-f(后端半边) | R11A | `hermes_cli/web_server.py:12892`:`@app.post("/api/ops/import")` —— 复核:解析得到,行号正确 |
+MINT	H-R8C-f	3	2	reports/round-10-client-interface-layer.md	526	hermes_cli/web_server.py	| **H-R8C-f**(后端半边) | R11A | `hermes_cli/web_server.py:12892`:`@app.post("/api/ops/import")` | 「来源校验仅 basename」需读 import 解包实现才能证成或证伪,本轮只结清前端半边 |
+MINT	H-R8C-f	3	2	reports/round-8c-dashboard-and-web.md	361	hermes_cli/web_server.py	| **H-R8C-f** | R9 | `hermes_cli/web_server.py:12801` 起的 Operations 簇;`/api/ops/import` | backup 打包整个 HERMES_HOME(含 `.env`/`auth.json`),import 覆盖凭据与配置
+MINT	H-R8C-f	3	3	notes/r11a-90-handover-rulings.md	25	hermes_cli/backup.py	| **H-R8C-f** import 仅校验 basename | **按原述证伪** | `hermes_cli/backup.py:973` 的 `target.resolve().relative_to(hermes_root.resolve())` |
+VERDICT-STRONG	H-R8C-f	3	-	notes/r10-90-handover-rulings.md	428	结清	1. §2.2(H-R8C-f)**没有结清后端半边**,理由写在该节:没读 import 的解包实现就不盖章。
+VERDICT-STRONG	H-R8C-f	3	-	notes/r10-raw-web-dashboard.md	1595	定案	**本条的处置**:按主线定案,H-R8C-f 的后端半边(import 解包实现的"来源校验仅 basename"
+VERDICT-STRONG	H-R8C-f	3	-	notes/r11a-90-handover-rulings.md	25	证伪	| **H-R8C-f** import 仅校验 basename | **按原述证伪** | `hermes_cli/backup.py:973` 的 `target.resolve().relative_to(hermes_root.resolve())` |
+VERDICT-STRONG	H-R8C-f	3	-	notes/r11a-90-handover-rulings.md	400	证伪	## 9. H-R8C-f —— 按原述证伪
+VERDICT-STRONG	H-R8C-f	3	-	reports/round-10-client-interface-layer.md	131	结清	| **H-R8C-f** | **拆两半**:前端半边由片 G 结清(`/system` 页 4 个入口,恢复有二次确认但文案不含凭据字样,**备份与下载零确认**);**后端半边归 R11A** —— 没读 import 解包实现就不盖章 |
+VERDICT-STRONG	H-R8C-f	3	-	reports/round-10-client-interface-layer.md	526	结清/证伪	| **H-R8C-f**(后端半边) | R11A | `hermes_cli/web_server.py:12892`:`@app.post("/api/ops/import")` | 「来源校验仅 basename」需读 import 解包实现才能证成或证伪,本轮只结清前端半边 |
+MINT	H-R8D-e	2	1	notes/r9a-90-rulings.md	500	tools/skills_sync_client.py	**(二)`sync.base_url` 那条 ■ 与 H-R8D-e 是同一形状的**另一个实例**,主线独立坐实。**
+MINT	H-R8D-e	2	2	reports/round-8d-cli-completion.md	428	hermes_cli/models.py	| **H-R8D-e** | R9 | `hermes_cli/models.py:4612` | Bearer 令牌走裸 `urlopen`,而 `base_url` 是配置可控的;全仓 60+ 个裸 `urlopen` 里还有多少带凭据**未普查** |
+VERDICT-STRONG	H-R8D-e	2	-	notes/r11b-raw-rulings-census.md	564	结清	- **误报 4 个**:`H-17` / `H-R8D-e` / `H-R9A-g` / `H-R8C-f`。它们只是「同一条的结清写在另一个文件里」,
+VERDICT-STRONG	H-R8D-e	2	-	notes/r9a-01-scope-and-split.md	299	结清	| `notes/r9a-h-r8d-ef-surveys.md` | 结清 H-R8D-e / H-R8D-f |
+VERDICT-WEAK	H-R8D-e	2	-	notes/r9a-90-rulings.md	515	移交	交给做 H-R8D-e 普查的那一路,见报告移交节。
+VERDICT-WEAK	H-R8D-e	2	-	notes/r9a-90-rulings.md	738	移交	做 H-R8D-e 普查的子代理在**移交项射程之外**发现了一条比锚点本身严重一个量级的问题。
+VERDICT-WEAK	H-R8D-e	2	-	notes/r9a-h-r8d-ef-surveys.md	1	移交	# r9a 底稿 · 两条移交项的全仓普查(H-R8D-e / H-R8D-f)
+VERDICT-STRONG	H-R8D-e	2	-	notes/r9a-h-r8d-ef-surveys.md	17	关闭	| **H-R8D-e** 带凭据的裸 `urlopen` | **关闭并加重** | 个例属实但**不是最严重的那个**;普查在 99 个非测试裸 `urlopen` 里找出 **44 个带凭据**、其中 **21 个 URL 可控**;最重的一处是 `gateway/relay/media.py` 的 `download()`(§1.5 发现 1)——URL 来自**入站事件**,门禁是一次 
+VERDICT-WEAK	H-R8D-e	2	-	notes/r9a-h-r8d-ef-surveys.md	26	移交	> **H-R8D-e**(移交 R9):锚点 `hermes_cli/models.py:4612`——Bearer 令牌走裸 `urlopen`,
+VERDICT-STRONG	H-R8D-e	2	-	notes/r9a-h-r8d-ef-surveys.md	812	关闭	## 1.8 结论:H-R8D-e **关闭并加重**
+VERDICT-STRONG	H-R8D-e	2	-	reports/round-9a-capability-organization.md	138	关闭	| **H-R8D-e**(带凭据的可控 URL 普查) | **关闭并加重** |
+MINT	H-R9A-a	3	1	notes/r9a-h-r8d-b-kanban-db.md	2063	hermes_cli/kanban_db.py	- **H-R9A-a(■-1 的处置)**:`hermes_cli/kanban_db.py:2018` 与 `:2125` ——
+MINT	H-R9A-a	3	2	notes/r9a-raw-egress.md	1794	hermes_cli/proxy_cli.py	- **H-R9A-a**:锚点 `hermes_cli/proxy_cli.py:884`——`known = set(ip._BEARER_PROVIDERS) |
+MINT	H-R9A-a	3	3	reports/round-9a-capability-organization.md	321	gateway/relay/media.py	| **H-R9A-a** | R9C(网关/传输片)或立即 | `gateway/relay/media.py:92` 的 `is_relay_media_url` | 子串判断使网关 bearer 可被挂到任意主机;修法是比对配置的 connector host,而非放宽/收紧子串 |
+MINT	H-R9A-a	3	3	reports/round-9b-multimodal-delivery.md	325	gateway/relay/media.py	**■ H-R9A-a(一并结清,比上一条重一个量级)**:
+VERDICT-STRONG	H-R9A-a	3	-	notes/r10-90-handover-rulings.md	65	结清/定案	| **H-R9A-a** | `notes/r9c-90-handover-rulings.md`:`H-R9A-a 结清:网关 bearer 的判定用子串` | 结清痕迹在底稿散文里,报告定案表未收录 |
+VERDICT-STRONG	H-R9A-a	3	-	notes/r10-90-handover-rulings.md	411	结清/已结	机械普查只看得到前者,于是 4 条已结清的项目(H-R9A-a / d / h、H-R8C-a)
+VERDICT-WEAK	H-R9A-a	3	-	notes/r11b-raw-rulings-census.md	68	移交	| **H** 移交号 | `H-<轮次或序号>[-后缀]` | `H-7`、`H-R9A-a`、`H-R10B-C-j` | 全项目(理论上) |
+VERDICT-WEAK	H-R9A-a	3	-	notes/r11b-raw-rulings-census.md	230	移交	R9A  H-R9A-a     reports/round-9a-capability-organization.md:321   移交表,锚 media.py:92
+VERDICT-STRONG	H-R9A-a	3	-	notes/r11b-raw-rulings-census.md	237	定案	**R9A 一轮之内就铸了两个号**(`■-01` 定案 + `H-R9A-a` 移交),这是本项目的结构性来源:
+VERDICT-STRONG	H-R9A-a	3	-	notes/r11b-raw-rulings-census.md	428	定案	**形态与 M-1 里 R9A 的「■-01 + H-R9A-a」完全一样**:一条既定案又移交的条目拿两个号,
+VERDICT-STRONG	H-R9A-a	3	-	notes/r11b-raw-rulings-census.md	789	定案	> R9C 对 H-R9A-a 的定案说"只做主机校验而不换成 `open_credentialed_url`,**实测仍会泄漏**"——
+VERDICT-STRONG	H-R9A-a	3	-	notes/r11b-raw-rulings-census.md	802	结清/已结/定案	> | **H-R9A-a / d / h、H-R8C-a** | **判为「已结清,账目未记」** —— 结清写在底稿散文里,报告定案表没收录,机械普查因此读成 OPEN。这是账目问题,不是欠账 |
+VERDICT-STRONG	H-R9A-a	3	-	notes/r11b-raw-rulings-census.md	810	升格	就在同一个类里」),照着它取证并升格 —— **R9C 的卷宗在 `H-R9A-a` 名下,路上没有任何一步会经过它。**
+VERDICT-STRONG	H-R9A-a	3	-	notes/r9b-90-rulings.md	198	结清	## 2. H-R9A-a 结清:网关 bearer 的判定用子串,而正确的比较值就在同一个对象上
+VERDICT-WEAK	H-R9A-a	3	-	notes/r9c-90-handover-rulings.md	18	维持	## 1. H-R9A-a:维持 ■,但修法要改
+VERDICT-STRONG	H-R9A-a	3	-	notes/r9d-90-handover-credential-landing.md	328	定案	**实测复现(与 R9C 的 H-R9A-a 定案同型)。** 我起了两个回环 HTTP 服务:A 用 302 把请求重定向到 B
+VERDICT-STRONG	H-R9A-a	3	-	notes/r9d-90-handover-credential-landing.md	358	定案	R9C 对 H-R9A-a 的定案说"只做主机校验而不换成 `open_credentialed_url`,**实测仍会泄漏**"——
+VERDICT-STRONG	H-R9A-a	3	-	notes/r9d-90-handover-credential-landing.md	947	改判	| **H-R9C-a** | **改判**:env 分支非缺陷(推翻);stored 分支降级为设计缺口;**新增 ■ = 裸 `urlopen` 跨源重定向泄漏 Bearer**,与 H-R9A-a 同型 | `hermes_cli/nous_billing.py:413`:`with urllib.request.urlopen(req, timeout=timeout) as resp:`
+VERDICT-STRONG	H-R9A-a	3	-	notes/r9d-91-handover-rulings.md	629	定案	**这与 R9C 定案的 H-R9A-a 是同一形态**(`urllib` + `Authorization`),
+VERDICT-STRONG	H-R9A-a	3	-	reports/round-10-client-interface-layer.md	134	结清/已结/定案	| **H-R9A-a / d / h、H-R8C-a** | **判为「已结清,账目未记」** —— 结清写在底稿散文里,报告定案表没收录,机械普查因此读成 OPEN。这是账目问题,不是欠账 |
+VERDICT-STRONG	H-R9A-a	3	-	reports/round-9b-multimodal-delivery.md	325	结清	**■ H-R9A-a(一并结清,比上一条重一个量级)**:
+VERDICT-STRONG	H-R9A-a	3	-	reports/round-9c-external-interfaces.md	6	结清	切六片派工;结清 R9A / R9B 移交中归属本轮的全部条目,其中 **H-R9A-a 给出处置结论**;
+MINT	H-R9A-b	3	1	notes/r9a-h-r8d-b-kanban-db.md	2068	hermes_cli/kanban_db.py,tools/process_registry.py	- **H-R9A-b(■-2 的范围确认)**:`hermes_cli/kanban_db.py:6941` 的
+MINT	H-R9A-b	3	1	notes/r9d-90-handover-process-and-verification.md	316	hermes_cli/kanban_db.py	**■ H-R9A-b 成立。** `hermes_cli/kanban_db.py:6941` 的 `os.waitpid(-1, os.WNOHANG)`
+MINT	H-R9A-b	3	1	notes/r9d-90-handover-process-and-verification.md	642	hermes_cli/kanban_db.py	| H-R9A-b | **改判:立 ■**(R9A 原为"不主张") | `hermes_cli/kanban_db.py:6941`:`pid, status = os.waitpid(-1, os.WNOHANG)` | 子系统级后台循环用进程级 `waitpid(-1)` 排干**全进程**
+MINT	H-R9A-b	3	1	notes/r9d-90-handover-process-and-verification.md	643	tests/hermes_cli/test_kanban_db.py	| H-R9A-b 附 | 新增 ■(覆盖缺口) | `tests/hermes_cli/test_kanban_db.py:1548`:`# reap_worker_zombies() tests` | 该测试小节标题下 1550–1559 行全空,**一个用例都没有** |
+MINT	H-R9A-b	3	1	notes/r9d-91-handover-rulings.md	765	hermes_cli/kanban_db.py	| **H-R9A-b** | `hermes_cli/kanban_db.py:6941`:`pid, status = os.waitpid(-1, os.WNOHANG)` | **立 ■**,推翻 R9A「不主张」;实证 42→0 降级 + fail-open 后果;R9A 测的 async
+MINT	H-R9A-b	3	1	reports/round-9a-capability-organization.md	322	hermes_cli/kanban_db.py	| **H-R9A-b** | R9D | `hermes_cli/kanban_db.py:6941` 的 `os.waitpid(-1, os.WNOHANG)` | 全仓唯一一处 `waitpid(-1)`,跑在网关工作线程上,会替别处的后台 `Popen` 收尸使属主拿到错误退出码;asyn
+MINT	H-R9A-b	3	2	notes/r9a-raw-egress.md	1799	agent/proxy_sources/iron_proxy.py	- **H-R9A-b**:锚点 `agent/proxy_sources/iron_proxy.py:1174` 的 `"match_body": False`——
+MINT	H-R9A-b	3	3	notes/r9d-raw-kanban-todo-cron.md	1618	gateway/kanban_watchers.py	**所以 H-R9A-b 的暴露面恰好只有两处,都在 dispatcher 侧**:
+VERDICT-STRONG	H-R9A-b	3	-	notes/r9d-90-handover-process-and-verification.md	642	改判	| H-R9A-b | **改判:立 ■**(R9A 原为"不主张") | `hermes_cli/kanban_db.py:6941`:`pid, status = os.waitpid(-1, os.WNOHANG)` | 子系统级后台循环用进程级 `waitpid(-1)` 排干**全进程**已退出子进程;被偷走状态的 `Popen` 属主在 CPython 下得 `returncode =
+VERDICT-STRONG	H-R9A-b	3	-	notes/r9d-91-handover-rulings.md	6	定案	> 本轮需定案 7 条:R9A 移交归 R9D 的 5 条(H-R9A-b / c / e / f / g)+ R9C 的 2 条(H-R9C-a / b)。
+VERDICT-STRONG	H-R9A-b	3	-	notes/r9d-raw-kanban-todo-cron.md	1589	定案	### 给 H-R9A-b 定案位的材料(waitpid 移交项)
+VERDICT-WEAK	H-R9A-b	3	-	reports/round-9b-multimodal-delivery.md	462	续转/移交	| **H-R9A-b / c / e / f / g**(续转) | R9D | 见 `reports/round-9a-capability-organization.md` §11 | R9A 移交、归 R9D 的五条,本轮未动 |
+VERDICT-WEAK	H-R9A-b	3	-	reports/round-9c-external-interfaces.md	420	续转/移交	| **H-R9A-b / c / e / f / g**(续转) | R9D | `reports/round-9a-capability-organization.md` §11 | R9A 移交、归 R9D 的五条,本轮未动 |
+VERDICT-WEAK	H-R9A-b	3	-	reports/round-9c-external-interfaces.md	430	移交	3. 落实 R9A 移交归 R9D 的五条(H-R9A-b / c / e / f / g)与本轮的 H-R9C-a / b。
+VERDICT-STRONG	H-R9A-b	3	-	reports/round-9d-l1-completion.md	160	关闭	**H-R9A-b —— R9A 的负结论关闭了调查,而它测的恰是唯一安全的那一侧。**
+MINT	H-R9A-c	3	1	notes/r9a-h-r8d-b-kanban-db.md	2075	hermes_cli/kanban_db.py	- **H-R9A-c(段 B 剩余业务面未精读)**:`hermes_cli/kanban_db.py:8203-8674`
+MINT	H-R9A-c	3	2	notes/r9a-raw-egress.md	1802	tools/environments/docker.py	- **H-R9A-c**:锚点 `tools/environments/docker.py:923` 的 `resource_args.append("--network=none")`——
+MINT	H-R9A-c	3	3	notes/r9d-90-handover-process-and-verification.md	644	agent/tool_result_classification.py,agent/verification_stop.py	| H-R9A-c | **维持 ■** | `agent/tool_result_classification.py:9`:`FILE_MUTATING_TOOL_NAMES = frozenset({"write_file", "patch"})` | verify-on-stop 门只认这两个
+MINT	H-R9A-c	3	3	notes/r9d-90-handover-process-and-verification.md	645	website/docs/user-guide/features/hooks.md	| H-R9A-c ▲ | 新增 ▲ | `website/docs/user-guide/features/hooks.md:670` 的 `Fires` | 文档写门"when the agent edited code"触发,实为"when write_file/patch succeeded
+MINT	H-R9A-c	3	3	notes/r9d-90-handover-process-and-verification.md	646	tools/working_diff.py	| H-R9A-c ◇ | 新增 ◇ | `tools/working_diff.py:70` 的 `collect_working_diff` | 仓库已有 git 级工作区改动探针,但只被 `/diff` 与 CLI 调用,**验证门从不调它** |
+MINT	H-R9A-c	3	3	notes/r9d-90-handover-process-and-verification.md	647	agent/display.py	| H-R9A-c ■附 | 新增 ■(内部不自洽) | `agent/display.py:909`:`if tool_name not in {"write_file", "patch", "skill_manage"}:` | 同一"改文件工具"概念在 display 是三元集合(多 `ski
+MINT	H-R9A-c	3	3	notes/r9d-91-handover-rulings.md	766	agent/tool_result_classification.py	| **H-R9A-c** | `agent/tool_result_classification.py:9`:`FILE_MUTATING_TOOL_NAMES = frozenset({"write_file", "patch"})` | **立 ■ 但改述定性**:是收尾验证门变窄,**非**
+MINT	H-R9A-c	3	3	reports/round-9a-capability-organization.md	323	agent/tool_result_classification.py	| **H-R9A-c** | R9D | `agent/tool_result_classification.py:9` 的 `FILE_MUTATING_TOOL_NAMES` | 验证门按工具名白名单,`sed -i` / `execute_code` / MCP 文件工具改代码后门直接放行,
+VERDICT-WEAK	H-R9A-c	3	-	notes/r9d-90-handover-process-and-verification.md	1	移交	# r9d-90 · 移交项取证组 A —— H-R9A-b(waitpid 收尸)+ H-R9A-c(改文件工具白名单)
+VERDICT-WEAK	H-R9A-c	3	-	notes/r9d-90-handover-process-and-verification.md	599	维持/移交	**■ H-R9A-c 成立,维持原移交项判断,并收紧其表述。**
+VERDICT-WEAK	H-R9A-c	3	-	notes/r9d-90-handover-process-and-verification.md	644	维持	| H-R9A-c | **维持 ■** | `agent/tool_result_classification.py:9`:`FILE_MUTATING_TOOL_NAMES = frozenset({"write_file", "patch"})` | verify-on-stop 门只认这两个名字;`sed -i` / `execute_code` / MCP 改代码后 `changed_p
+VERDICT-WEAK	H-R9A-c	3	-	reports/round-9d-l1-completion.md	151	维持	| **H-R9A-c** | **维持 ■,但改述定性**:是收尾验证门变窄,**非**审批旁路 |
+MINT	H-R9A-d	3	1	notes/r9a-h-r8d-b-kanban-db.md	2080	website/docs/user-guide/features/kanban.md	- **H-R9A-d(◇-4 的取证深度)**:`website/docs/user-guide/features/kanban.md:1021-1026`
+MINT	H-R9A-d	3	2	notes/r9a-raw-egress.md	1817	website/docs/developer-guide/egress-internals.md	- **H-R9A-d**:`website/docs/developer-guide/egress-internals.md:294` 声称 iron-proxy 写的是
+MINT	H-R9A-d	3	3	notes/r9b-90-rulings.md	8	tools/skills_sync_client.py	## 1. H-R9A-d 结清:凭据获取侧有主机允许清单,凭据**使用**侧没有
+MINT	H-R9A-d	3	3	reports/round-9a-capability-organization.md	324	tools/skills_sync_client.py	| **H-R9A-d** | R9B/R9C 任一 | `tools/skills_sync_client.py:318` 的 `resolve_sync_base_url` | 同步端点只做 `strip()`,无 scheme 校验无主机白名单,而其上挂 Nous JWT bearer;走 `
+MINT	H-R9A-d	3	3	reports/round-9b-multimodal-delivery.md	309	tools/skills_sync_client.py	**■ H-R9A-d(结清,现象属实但两侧都要修正)**:
+VERDICT-STRONG	H-R9A-d	3	-	notes/r10-90-handover-rulings.md	66	结清	| **H-R9A-d** | `notes/r9b-90-rulings.md`:`H-R9A-d(结清,现象属实但两侧都要修正)` | 同上 |
+VERDICT-STRONG	H-R9A-d	3	-	notes/r11b-90-handover-rulings.md	393	结清/已结	| **H-R9A-d** | 「R9B/R9C 任一」 | **确认为已结清、账目未记**:`notes/r9b-90-rulings.md` 的结论表已写 `H-R9A-d(结清,现象属实但两侧都要修正)`,普查因列名匹配读成移交。本轮 §H-R10-c 的入册规则正是为它这一类 |
+VERDICT-WEAK	H-R9A-d	3	-	notes/r9a-h-r8d-ef-surveys.md	1342	移交	**本轮新开的移交项**:H-R9A-a / H-R9A-b / H-R9A-c(普查一)、H-R9A-d(普查二),
+VERDICT-STRONG	H-R9A-d	3	-	notes/r9b-90-rulings.md	8	结清	## 1. H-R9A-d 结清:凭据获取侧有主机允许清单,凭据**使用**侧没有
+VERDICT-STRONG	H-R9A-d	3	-	reports/round-11b-review-and-reconciliation.md	374	结清/已结	**H-R9A-d 与 H-R9A-h 确认为已结清、账目未记**——后者的结清写在 `CLAUDE.md` 里,
+VERDICT-STRONG	H-R9A-d	3	-	reports/round-9b-multimodal-delivery.md	309	结清	**■ H-R9A-d(结清,现象属实但两侧都要修正)**:
+MINT	H-R9A-g	2	1	notes/r9d-91-handover-rulings.md	769	AGENTS.md	| **H-R9A-g** | `AGENTS.md:966`:`All toolsets are defined in ` | **关闭**。R9A 的「漏 28」改正为 **31**;**主线初判被推翻**——按定稿快照(集合严格相等)拆为 24 平台族 **◇** + 7 能力 toolset
+MINT	H-R9A-g	2	1	reports/round-9a-capability-organization.md	327	AGENTS.md	| **H-R9A-g** | R9D | `AGENTS.md:971-974` 的 toolset 清单 | 文档列 30 个键、代码有 58 个,**文档还漏 28 个**;本轮只判定了「文档有而代码无」的 3 个,漏列那一半未判 |
+MINT	H-R9A-g	2	2	notes/r9d-92-mainline-tests-and-crosschecks.md	624	toolsets.py	**一处跨条目的呼应,值得单独指出**:`x_search` 同时是 §H-R9A-g 查出的
+VERDICT-STRONG	H-R9A-g	2	-	notes/r11b-raw-rulings-census.md	191	改判	| **M-10** | `AGENTS.md` toolset 清单与代码不符 | R9A `▲-3`(moa 底稿)、r9a 章 `▲4`、`H-R9A-g` | 3 | 2 | `H-R9A-g`(R9D 已改判) |
+VERDICT-STRONG	H-R9A-g	2	-	notes/r11b-raw-rulings-census.md	447	结清	R9A 的 moa 底稿立 `▲-3`、成品章列 `▲4`、主线移交表铸 `H-R9A-g`。R9D 结清时把它
+VERDICT-WEAK	H-R9A-g	2	-	notes/r9d-90-handover-agents-md-toolset-census.md	1	移交	# r9d-90 · 移交项取证组 C —— H-R9A-g:`AGENTS.md` toolset 清单的文档缺口普查
+VERDICT-WEAK	H-R9A-g	2	-	notes/r9d-90-handover-agents-md-toolset-census.md	29	移交	R9A 移交项 H-R9A-g:锚点写作「AGENTS.md 的 971–974 行」的 toolset 清单;现象是「文档列 30 个键、
+VERDICT-STRONG	H-R9A-g	2	-	notes/r9d-90-handover-agents-md-toolset-census.md	657	关闭	**H-R9A-g:关闭并改述。**
+VERDICT-STRONG	H-R9A-g	2	-	notes/r9d-91-handover-rulings.md	572	关闭	- **判定完成,H-R9A-g 关闭。**
+VERDICT-STRONG	H-R9A-g	2	-	notes/r9d-91-handover-rulings.md	769	关闭	| **H-R9A-g** | `AGENTS.md:966`:`All toolsets are defined in ` | **关闭**。R9A 的「漏 28」改正为 **31**;**主线初判被推翻**——按定稿快照(集合严格相等)拆为 24 平台族 **◇** + 7 能力 toolset **▲**;R9A 锚点 `971-974` 改正为 `971-975`(原范围漏一整行 8 个键
+VERDICT-STRONG	H-R9A-g	2	-	reports/round-9d-l1-completion.md	154	关闭	| **H-R9A-g** | **关闭**;**主线初判被推翻并更正** |
+MINT	H-R9B-1	2	1	notes/r9b-raw-pet.md	1389	hermes_cli/pets.py	| H-R9B-1 | `hermes_cli/pets.py:182`:`states = [s for s in STATE_ROWS if s in {e.value for e in PetState}]` | `--cycle` 实测只产出 `['idle','failed','waiti
+MINT	H-R9B-1	2	2	notes/r9b-raw-voicein.md	1798	tools/voice_mode.py	**H-R9B-1(必做,■-1 的收口)** ——
+MINT	H-R9B-2	2	1	notes/r9b-raw-pet.md	1390	agent/pet/generate/imagegen.py	| H-R9B-2 | `agent/pet/generate/imagegen.py:4`:`two things sprite generation needs that the agent-facing ``image_generate`` tool` | docstring 称 agent 
+MINT	H-R9B-2	2	2	notes/r9b-raw-voicein.md	1806	hermes_cli/config_defaults.py,tools/wake_word.py	**H-R9B-2** —— `tools/wake_word.py:75`:`_DEFAULTS: Dict[str, Any] = {`
+MINT	H-R9B-3	2	1	notes/r9b-raw-pet.md	1391	tests/agent/test_pet_generate.py	| H-R9B-3 | `tests/agent/test_pet_generate.py:14`:`pytestmark = pytest.mark.skipif(` | 覆盖 atlas 全流水线的 11 条用例默认整文件跳过,CI 常态不跑 | 查 `.github/workflows/**`
+MINT	H-R9B-3	2	2	notes/r9b-raw-voicein.md	1812	tools/voice_mode.py	**H-R9B-3** —— `tools/voice_mode.py:1736`:`def listen_for_speech(`(第一代 barge-in)
+VERDICT-WEAK	H-R9B-3	2	-	notes/r9b-raw-pet.md	1122	移交	(见移交项 H-R9B-3)。
+MINT	H-R9B-4	2	1	notes/r9b-raw-pet.md	1392	agent/pet/render.py	| H-R9B-4 | `agent/pet/render.py:340`:`_ROWCOL_DIACRITICS: tuple[int, ...] = (` | 297 个码点的 kitty 变音符号表逐字抄进仓库,占 render.py 的 4.6% | 若做"外部规范内联"专题,可与其它抄表处
+MINT	H-R9B-4	2	2	notes/r9b-raw-voicein.md	1817	tools/transcription_tools.py	**H-R9B-4** —— `tools/transcription_tools.py:112`:`DEFAULT_STT_MODEL = os.getenv("STT_OPENAI_MODEL", "whisper-1")`
+MINT	H-R9B-5	2	1	notes/r9b-raw-pet.md	1393	agent/pet/store.py	| H-R9B-5 | `agent/pet/store.py:218`:`while (pets_dir() / slug).exists():` | `unique_slug` 与 `register_local_pet` 之间是 TOCTOU:两次并发 hatch 同名概念会撞到同一个 slu
+MINT	H-R9B-5	2	2	notes/r9b-raw-voicein.md	1822	tools/voice_mode.py	**H-R9B-5** —— `tools/voice_mode.py:1813`(■-2 的残句注释)。
+MINT	H-R9B-a	4	1	notes/r9b-raw-tts.md	1741	tools/tts_tool.py	| H-R9B-a | `tools/tts_tool.py:2703`:`conv_cmd = [ffmpeg, "-i", wav_path, "-y", "-loglevel", "error", output_path]` | ■-2 的 Vorbis 推定**未实测**(本容器 `whic
+MINT	H-R9B-a	4	2	notes/r9b-raw-video.md	2845	website/docs/developer-guide/video-gen-provider-plugin.md	### H-R9B-a:开发者文档"网关会在交付时解析远程 URL"这句话未定真伪
+MINT	H-R9B-a	4	3	reports/round-9b-multimodal-delivery.md	451	tools/voice_mode.py	| **H-R9B-a** | R9C/R9D 任一 | `tools/voice_mode.py:2193` 的 `native_stt_available` | 同一份内置 STT 名单全仓三份、漂了一份;修法是 import 权威集合而非再抄一遍,顺带查全仓还有多少处同型硬编码名单 |
+MINT	H-R9B-a	4	4	reports/round-9c-external-interfaces.md	234	tools/transcription_tools.py	**H-R9B-a 的改述**:移交项说"病因是抄了一份,修法是 import 权威集合"。**不准确。**
+VERDICT-STRONG	H-R9B-a	4	-	notes/r11b-raw-rulings-census.md	781	关闭	| 「H-R9B-a 病因是抄了一份,修法是 import 权威集合」 | `notes/r9c-90-handover-rulings.md:257`:`## 2. H-R9B-a:关闭,但病因要改述` | `native_stt_available` / `BUILTIN_STT_PROVIDERS` 在 R9D 及以后 | **0 命中** |
+VERDICT-STRONG	H-R9B-a	4	-	notes/r9b-raw-tts.md	1741	定案	| H-R9B-a | `tools/tts_tool.py:2703`:`conv_cmd = [ffmpeg, "-i", wav_path, "-y", "-loglevel", "error", output_path]` | ■-2 的 Vorbis 推定**未实测**(本容器 `which ffmpeg` 为空);任何有 ffmpeg 的环境跑一次 `ffprobe` 即可定案:neu
+VERDICT-WEAK	H-R9B-a	4	-	notes/r9b-raw-video.md	2560	移交	第三句后半 "the gateway resolves remote URLs on delivery" 的真伪**未定**,见 §6 移交项 H-R9B-a。
+VERDICT-STRONG	H-R9B-a	4	-	notes/r9c-90-handover-rulings.md	12	关闭	| **H-R9B-a** | R9B 移交(「R9C/R9D 任一」) | **关闭并改述**:病因不是「抄了一份」,而是**守卫装在了没漂的那两份上** |
+VERDICT-STRONG	H-R9B-a	4	-	notes/r9c-90-handover-rulings.md	257	关闭	## 2. H-R9B-a:关闭,但病因要改述
+VERDICT-STRONG	H-R9B-a	4	-	reports/round-9c-external-interfaces.md	230	关闭	| **H-R9B-a**(STT 名单三份漂一份) | **关闭并改述** |
+VERDICT-WEAK	H-R9B-a	4	-	reports/round-9c-external-interfaces.md	234	移交	**H-R9B-a 的改述**:移交项说"病因是抄了一份,修法是 import 权威集合"。**不准确。**
+MINT	H-R9B-b	3	1	notes/r9b-raw-tts.md	1742	tests/tools/test_tts_streaming.py	| H-R9B-b | `tests/tools/test_tts_streaming.py:20`:`pytest.importorskip("numpy")` | 流式 TTS 唯一的单元测试文件在只装 `[dev]` 的环境里 **0 用例执行**,门禁仍显示 0 failed;下一轮若要把流
+MINT	H-R9B-b	3	2	notes/r9b-raw-video.md	2859	agent/video_gen_registry.py	### H-R9B-b:`register_provider` 不 strip name,而 `get_provider` strip
+MINT	H-R9B-b	3	3	reports/round-9b-multimodal-delivery.md	452	tools/tts_tool.py	| **H-R9B-b** | R9C/R9D 任一 | `tools/tts_tool.py:1665` 的 `_XAI_SPEECH_TAG_RE` | 包裹型标签只认尖括号而提示词禁止尖括号;现有测试只钉住尖括号那一支,故一直是绿的 |
+VERDICT-STRONG	H-R9B-b	3	-	notes/r9c-90-handover-rulings.md	13	关闭	| **H-R9B-b** | R9B 移交(「R9C/R9D 任一」) | **关闭**:唯一相关测试只钉尖括号那一支,已逐字取证 |
+VERDICT-STRONG	H-R9B-b	3	-	notes/r9c-90-handover-rulings.md	415	关闭	## 3. H-R9B-b:关闭
+VERDICT-STRONG	H-R9B-b	3	-	reports/round-9c-external-interfaces.md	231	关闭	| **H-R9B-b**(xAI 语音标签只认尖括号) | **关闭** |
+MINT	H-R9B-c	3	1	notes/r9b-raw-tts.md	1743	tools/tts_tool.py	| H-R9B-c | `tools/tts_tool.py:774`:`voice = tts_config.get("voice") if isinstance(tts_config, dict) else None` | ◇-2:TTS 插件从**顶层** `tts.voice/model/s
+MINT	H-R9B-c	3	2	notes/r9b-raw-video.md	2867	tools/video_generation_tool.py,tools/xai_video_tools.py	### H-R9B-c:`video_gen` 的可见性门与 `xai_video_edit/extend` 的可见性门可以互相矛盾
+MINT	H-R9B-c	3	3	reports/round-9b-multimodal-delivery.md	453	tools/image_generation_tool.py	| **H-R9B-c** | R9C/R9D 任一 | `tools/image_generation_tool.py:642` 的 `payload["image_urls"] = list(image_urls)` | schema 承诺可传本地绝对路径,默认后端 FAL 原样透传不读文件;「
+VERDICT-STRONG	H-R9B-c	3	-	notes/r9c-90-handover-rulings.md	14	关闭	| **H-R9B-c** | R9B 移交(「R9C/R9D 任一」) | **关闭并加重**;剩余推定部分**在本项目内结构性不可解**,不再续转 |
+VERDICT-STRONG	H-R9B-c	3	-	notes/r9c-90-handover-rulings.md	433	关闭	## 4. H-R9B-c:关闭并加重
+VERDICT-STRONG	H-R9B-c	3	-	reports/round-9c-external-interfaces.md	232	关闭	| **H-R9B-c**(image schema 承诺本地路径) | **关闭并加重**;剩余推定判为本项目内结构性不可解 |
+MINT	H-R9B-d	2	1	notes/r10-90-handover-rulings.md	83	gateway/relay/media.py	**一条 H-R9B-d,去向 R9C(网关片),主线判为真孤儿但不属 R10。**
+MINT	H-R9B-d	2	1	notes/r10b-90-handover-rulings.md	345	gateway/relay/media.py	| H-R9B-d | R11A | `gateway/relay/media.py:94` 的 `is_relay_media_url` —— 复核:解析得到,行号正确 |
+MINT	H-R9B-d	2	1	notes/r11a-90-handover-rulings.md	20	gateway/relay/media.py	| **H-R9B-d** 中继媒体 bearer | **证实,升为 ■-R11A-01** | `gateway/relay/media.py:94` 的 `return "/relay/media/" in (url or "")` |
+MINT	H-R9B-d	2	1	reports/round-10-client-interface-layer.md	527	gateway/relay/media.py	| **H-R9B-d**(改判后续转) | R11A | `gateway/relay/media.py:94` 的 `is_relay_media_url` | 去向原写 R9C 但四个 R9 轮次均未处置,确认为真孤儿;与同处代码的 H-R9C-d 同轮做 |
+MINT	H-R9B-d	2	1	reports/round-11a-ops-and-delivery.md	494	gateway/relay/media.py	- **■-R11A-01**(由 H-R9B-d 升格):`gateway/relay/media.py:94` 用**子串**决定要不要带
+MINT	H-R9B-d	2	1	reports/round-9b-multimodal-delivery.md	454	gateway/relay/media.py	| **H-R9B-d** | R9C(网关片) | `gateway/relay/media.py:94` 的 `"/relay/media/" in (url or "")` | 网关 bearer 的发送判定用子串不比主机,`url` 来自未校验的入站帧;正确比较值 `self._base_u
+MINT	H-R9B-d	2	2	notes/r9b-raw-tts.md	1744	tools/tts_tool.py	| H-R9B-d | `tools/tts_tool.py:1666`:`r"(\[(?:" + "|".join(_XAI_INLINE_SPEECH_TAGS) + r")\]|</?(?:" + "|".join(_XAI_WRAPPING_SPEECH_TAGS) + r")>)",` |
+VERDICT-WEAK	H-R9B-d	2	-	notes/r10-90-handover-rulings.md	83	去向	**一条 H-R9B-d,去向 R9C(网关片),主线判为真孤儿但不属 R10。**
+VERDICT-STRONG	H-R9B-d	2	-	notes/r11b-92-fix-regression-correction.md	19	改判	| **H-R9A-a** = **H-R9B-d** | R9A 移交(去向写「R9C 或立即」),R9B 已取证 | **改判:维持 ■,但移交项给的修法不足以修好它**;正确修法已在仓库内,实测有效 |
+VERDICT-STRONG	H-R9B-d	2	-	notes/r11b-92-fix-regression-correction.md	161	升格/定案	`■-R11A-01` 的立项路径是 **H-R9B-d 升格**。而 H-R9B-d 在 R9C 已被并入 H-R9A-a 并一起定案
+VERDICT-STRONG	H-R9B-d	2	-	notes/r11b-raw-rulings-census.md	38	改判	4. **A-2 的成因就是 A-1**:R9C 把改判归档在 `H-R9A-a` 名下(并当场声明 `H-R9A-a` = `H-R9B-d`),
+VERDICT-WEAK	H-R9B-d	2	-	notes/r11b-raw-rulings-census.md	39	移交	R10 / R10B 只把 `H-R9B-d` 这个号转下去,R11A 拿着 `H-R9B-d` 回到 R9B 的移交表取原始表述,
+VERDICT-WEAK	H-R9B-d	2	-	notes/r11b-raw-rulings-census.md	231	移交	R9B  H-R9B-d     reports/round-9b-multimodal-delivery.md:454       移交表,锚 media.py:94(重新铸号)
+VERDICT-STRONG	H-R9B-d	2	-	notes/r11b-raw-rulings-census.md	232	改判	R9C  (改判)      notes/r9c-90-handover-rulings.md:11               表头写「H-R9A-a = H-R9B-d」
+VERDICT-STRONG	H-R9B-d	2	-	notes/r11b-raw-rulings-census.md	233	升格	R11A ■-R11A-01   reports/round-11a-ops-and-delivery.md:494         「由 H-R9B-d 升格」
+VERDICT-STRONG	H-R9B-d	2	-	notes/r11b-raw-rulings-census.md	238	定案	**一条「既定案又移交」的条目天然拿两个号**。R9C 在表头声明过 `H-R9A-a` = `H-R9B-d`:
+VERDICT-STRONG	H-R9B-d	2	-	notes/r11b-raw-rulings-census.md	242	改判	> | **H-R9A-a** = **H-R9B-d** | R9A 移交(去向写「R9C 或立即」),R9B 已取证 | **改判:维持 ■,但移交项给的修法不足以修好它**;正确修法已在仓库内,实测有效 |
+VERDICT-STRONG	H-R9B-d	2	-	notes/r11b-raw-rulings-census.md	685	证伪/升格	**R11A 怎么覆盖的。** R11A 把 `H-R9B-d` 升格为 `■-R11A-01`,正文重新把被证伪的那半句写成结论:
+VERDICT-STRONG	H-R9B-d	2	-	notes/r11b-raw-rulings-census.md	797	改判	1. **R9C** 把改判归档在 `H-R9A-a` 名下,并在同一行声明 `H-R9A-a` = `H-R9B-d`。
+VERDICT-STRONG	H-R9B-d	2	-	notes/r11b-raw-rulings-census.md	798	结清/已结	2. **R10** 在同一张表的**相邻两行**里,一行说 `H-R9A-a` 已结清、另一行说 `H-R9B-d` 是真孤儿:
+VERDICT-WEAK	H-R9B-d	2	-	notes/r11b-raw-rulings-census.md	809	移交	4. **R11A** 拿着 `H-R9B-d` 回到 **R9B 的移交表**取原始表述(「正确比较值 `self._base_url`
+VERDICT-STRONG	H-R9B-d	2	-	notes/r11b-raw-rulings-census.md	821	改判/升格	点明 `■-R11A-01` 由 `H-R9B-d` 升格,而 `H-R9B-d` 已由 R9C 与 `H-R9A-a` 并案并改判过;
+VERDICT-STRONG	H-R9B-d	2	-	notes/r9c-90-handover-rulings.md	11	改判	| **H-R9A-a** = **H-R9B-d** | R9A 移交(去向写「R9C 或立即」),R9B 已取证 | **改判:维持 ■,但移交项给的修法不足以修好它**;正确修法已在仓库内,实测有效 |
+VERDICT-STRONG	H-R9B-d	2	-	reports/round-10-client-interface-layer.md	527	改判	| **H-R9B-d**(改判后续转) | R11A | `gateway/relay/media.py:94` 的 `is_relay_media_url` | 去向原写 R9C 但四个 R9 轮次均未处置,确认为真孤儿;与同处代码的 H-R9C-d 同轮做 |
+VERDICT-STRONG	H-R9B-d	2	-	reports/round-11a-ops-and-delivery.md	494	升格	- **■-R11A-01**(由 H-R9B-d 升格):`gateway/relay/media.py:94` 用**子串**决定要不要带
+VERDICT-STRONG	H-R9B-d	2	-	reports/round-11b-review-and-reconciliation.md	153	改判	**其一是其二的成因。** R9C 把改判归档在 `H-R9A-a` 名下(并当场声明 = `H-R9B-d`);
+VERDICT-STRONG	H-R9B-d	2	-	reports/round-11b-review-and-reconciliation.md	155	结清/已结	一行说 `H-R9A-a` 已结清、下一行说 `H-R9B-d` 是真孤儿;R11A 拿 `H-R9B-d` 回 R9B 移交表
+MINT	H-R9B-e	3	1	notes/r11a-90-handover-rulings.md	22	tests/gateway/test_teams.py	| **H-R9B-e** 缺 extra 表现为断言失败 | **证实,并找到第二例** | `tests/gateway/test_teams.py:173` 的 `assert _teams_mod.check_teams_requirements() is True` |
+MINT	H-R9B-e	3	2	notes/r9b-raw-tts.md	1745	tools/tts_tool.py	| H-R9B-e | `tools/tts_tool.py:3522`:`_spoken_sentences: list[str] = []  # track spoken sentences to skip duplicates` | 观察项:流式去重表无上界、永久丢弃重复句;未评估长会话下的实
+MINT	H-R9B-e	3	3	reports/round-9b-multimodal-delivery.md	455	pyproject.toml	| **H-R9B-e** | R11A | `pyproject.toml:167` 的 `fal = ["fal-client==0.13.1"]` | 缺 extra 在本簇表现为**普通断言失败**而非收集期 ImportError,比 H-R8D-j 已知的形态更隐蔽 |
+VERDICT-WEAK	H-R9B-e	3	-	reports/round-9b-multimodal-delivery.md	461	续转	| **H-R8D-j**(续转) | R11A | `pyproject.toml:36` 的 `` `exa-py`, `fal-client`, `edge-tts` `` 一句 | `pip install -e ".[dev]"` 装不出全绿套件;本轮新增 H-R9B-e 那个更隐蔽的形态 |
+VERDICT-WEAK	H-R9B-e	3	-	reports/round-9c-external-interfaces.md	418	续转	| **H-R8D-j / H-R9B-e**(续转) | R11A | `pyproject.toml` 的 extra 定义 | `pip install -e ".[dev]"` 装不出全绿套件;本轮新增一个形态:`importorskip` 导致**整文件静默不跑**而计数仍显示全绿 |
+VERDICT-WEAK	H-R9B-e	3	-	reports/round-9d-l1-completion.md	445	续转	| **H-R8D-j / H-R9B-e**(续转) | R11A | `pyproject.toml:157`:`[project.optional-dependencies]`(`dev` 在 `:175`,`python-telegram-bot` 在 `:176` 的 `messaging`) | `pip install -e ".[dev]"` 装不出全绿套件;本轮新增形态:`imp
+MINT	H-R9B-f	2	1	notes/r9b-raw-tts.md	1746	website/docs/user-guide/features/tts.md	| H-R9B-f | `website/docs/user-guide/features/tts.md:39`:`| WhatsApp | Audio file attachment | MP3 |` | ▲-1 只核到了 TTS 工具这一侧(生成 `.ogg` + 打 `[[audio_as_v
+MINT	H-R9B-f	2	2	reports/round-9b-multimodal-delivery.md	456	tools/tts_tool.py	| **H-R9B-f** | R11 复盘 | `tools/tts_tool.py:2703` 的 `ffmpeg` 调用 | `.ogg` 目标下三处走裸 ffmpeg(默认 Vorbis),而 Gemini 分支显式加 `-acodec libopus`;**本容器无 ffmpeg,未实跑确
+VERDICT-STRONG	H-R9B-f	2	-	reports/round-11b-review-and-reconciliation.md	361	关闭/不成立	| H-R9B-f | **维持推定,不关闭**。本容器无 ffmpeg 且本轮不扩共享环境;**不把"没跑成"写成"不成立"** |
+VERDICT-WEAK	H-R9B-f	2	-	reports/round-9c-external-interfaces.md	419	续转	| **H-R9B-f / H-R9B-g**(续转) | R11 复盘 | 见 R9B 报告 §9 | 本轮已把 H-R9B-g 的纪律落地为开工杂项(实测开关有效),但"写进 CLAUDE.md"这一步仍待复盘轮裁定 |

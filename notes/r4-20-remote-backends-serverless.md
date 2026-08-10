@@ -105,7 +105,7 @@ class ProcessHandle(Protocol):
 
 三个 SDK 后端的 `_run_bash` 都是同一模板,差别只在 exec_fn/cancel_fn:
 
-- **Modal direct**(`modal.py:408-440`):exec_fn = `sandbox.exec.aio("bash","-c",cmd)` 后 `read`/`wait`;cancel = `sandbox.terminate.aio()`。注意它把 async 调用丢进独立事件循环线程 `_AsyncWorker` 跑(`modal.py:127-161`),`run_coroutine` 用 `future.result(timeout)` 同步等。
+- **Modal direct**(`tools/environments/modal.py:408-440`):exec_fn = `sandbox.exec.aio("bash","-c",cmd)` 后 `read`/`wait`;cancel = `sandbox.terminate.aio()`。注意它把 async 调用丢进独立事件循环线程 `_AsyncWorker` 跑(`tools/environments/modal.py:127-161`),`run_coroutine` 用 `future.result(timeout)` 同步等。
 
 `tools/environments/modal.py:415-440 @ 863e313`
 
@@ -180,15 +180,15 @@ class BaseModalExecutionEnvironment(BaseEnvironment):
     gateway owns that responsibility.
 ```
 
-轮询循环(`modal_utils.py:125-155`):`_start_modal_exec` 起一个 exec 拿 handle → 循环里 `is_interrupted()` 就 `_cancel_modal_exec`、`_poll_modal_exec` 返回非 None 就结束、过 deadline 就 cancel+超时。三个抽象方法由 `ManagedModalEnvironment` 实现成 REST 调用:
-- start = `POST /v1/sandboxes/{id}/execs`(`managed_modal.py:72-119`),同步完成的直接返回结果;
-- poll = `GET .../execs/{execId}`(`managed_modal.py:121-146`),状态在 `{completed,failed,cancelled,timeout}` 里就返回结果;
-- cancel = `POST .../execs/{execId}/cancel`(`managed_modal.py:248-256`)。
+轮询循环(`tools/environments/modal_utils.py:125-155`):`_start_modal_exec` 起一个 exec 拿 handle → 循环里 `is_interrupted()` 就 `_cancel_modal_exec`、`_poll_modal_exec` 返回非 None 就结束、过 deadline 就 cancel+超时。三个抽象方法由 `ManagedModalEnvironment` 实现成 REST 调用:
+- start = `POST /v1/sandboxes/{id}/execs`(`tools/environments/managed_modal.py:72-119`),同步完成的直接返回结果;
+- poll = `GET .../execs/{execId}`(`tools/environments/managed_modal.py:121-146`),状态在 `{completed,failed,cancelled,timeout}` 里就返回结果;
+- cancel = `POST .../execs/{execId}/cancel`(`tools/environments/managed_modal.py:248-256`)。
 
 ### 1.4 设计理由 / 取舍 / 重实现要点
 
 - **理由**:统一的 `_wait_for_process`(带中断检查、活性心跳 `touch_activity_if_due`、超时、bounded capture、grandchild 管道防挂死)是所有后端共享的宝贵逻辑(`base.py:891-1210`)。用 `_ThreadedProcessHandle` 把 SDK 调用"降维"成进程,就能白嫖这套逻辑而不必每后端重写。
-- **取舍 1(无真流式)**:SDK 后端是"跑完再一次性写管道",所以 `bounded_capture`(边流边截断防 OOM)对它们**无效**——输出已在内存里成型。Managed Modal 的注释明确承认这点(`modal_utils.py:89-93`)。长命令的实时输出/超大输出对 SDK 后端是隐患。
+- **取舍 1(无真流式)**:SDK 后端是"跑完再一次性写管道",所以 `bounded_capture`(边流边截断防 OOM)对它们**无效**——输出已在内存里成型。Managed Modal 的注释明确承认这点(`tools/environments/modal_utils.py:89-93`)。长命令的实时输出/超大输出对 SDK 后端是隐患。
 - **取舍 2(kill 粒度粗)**:本地进程能精确杀进程组;SDK 后端的 cancel 往往是"停整个沙箱"(Daytona/Vercel)或 terminate(Modal)。中断一条命令 = 掀翻沙箱,代价是下一条命令要付重启成本。
 - **重实现要点**:(a) 适配器必须给 stdout 造**真 fd**(`os.pipe`),否则 select 型 drain 循环无法工作;(b) worker 线程务必在 finally 里 `close(write_fd)` + `set(done)`,否则 drain 线程/poll 循环永远不结束;(c) cancel_fn 必须幂等且吞异常(`kill()` 里 `try/except`),因为它会在超时/中断/GC 多路径被触发。
 
@@ -226,11 +226,11 @@ README 宣称 *"Daytona and Modal offer serverless persistence — your agent's 
                     )
 ```
 
-- restore 路径(`modal.py:194-278`):构造时按 `task_id` 查台账拿 `snapshot_id`,`_resolve_modal_image` 把 `im-` 前缀的 id 转成 `Image.from_id`(`modal.py:105-106`),用它当创建沙箱的 image;若复活失败则删台账、退回 base image 重建(`modal.py:264-275`)。
+- restore 路径(`tools/environments/modal.py:194-278`):构造时按 `task_id` 查台账拿 `snapshot_id`,`_resolve_modal_image` 把 `im-` 前缀的 id 转成 `Image.from_id`(`tools/environments/modal.py:105-106`),用它当创建沙箱的 image;若复活失败则删台账、退回 base image 重建(`tools/environments/modal.py:264-275`)。
 
-**台账的关键设计——命名空间隔离 + legacy 迁移**(`modal.py:34-80`):快照 id 存在 `{HERMES_HOME}/modal_snapshots.json`,键是 `direct:<task_id>`(`_direct_snapshot_key`)。为什么要 `direct:` 前缀?因为同一 `task_id` 在 direct 与其它 Modal 传输路径下可能各自有快照,裸 `task_id` 键会串味。`_get_snapshot_restore_candidate` 先查命名空间键,回落到 legacy 裸键并标记 `restored_from_legacy_key`;复活成功后 `_store_direct_snapshot` 把它迁移到命名空间键并 `pop` 掉裸键(`modal.py:50-80, 277-278`)。这条迁移路径正是 `test_modal_snapshot_isolation.py` 的核心断言(见 §6)。
+**台账的关键设计——命名空间隔离 + legacy 迁移**(`tools/environments/modal.py:34-80`):快照 id 存在 `{HERMES_HOME}/modal_snapshots.json`,键是 `direct:<task_id>`(`_direct_snapshot_key`)。为什么要 `direct:` 前缀?因为同一 `task_id` 在 direct 与其它 Modal 传输路径下可能各自有快照,裸 `task_id` 键会串味。`_get_snapshot_restore_candidate` 先查命名空间键,回落到 legacy 裸键并标记 `restored_from_legacy_key`;复活成功后 `_store_direct_snapshot` 把它迁移到命名空间键并 `pop` 掉裸键(`tools/environments/modal.py:50-80, 277-278`)。这条迁移路径正是 `test_modal_snapshot_isolation.py` 的核心断言(见 §6)。
 
-**取舍**:所谓 "hibernate when idle" 在 direct 模式下**并不精确**——沙箱创建时 `timeout` 默认 3600s(`modal.py:252`),那是**最大存活**不是空闲计时;真正的"省钱"来自 cleanup 时 terminate(不再计费)+ 下次从快照冷启。也就是说:是**会话结束即快照+销毁**,不是后台空闲探测。这是"地图"与"代码"的第一处出入(§5)。
+**取舍**:所谓 "hibernate when idle" 在 direct 模式下**并不精确**——沙箱创建时 `timeout` 默认 3600s(`tools/environments/modal.py:252`),那是**最大存活**不是空闲计时;真正的"省钱"来自 cleanup 时 terminate(不再计费)+ 下次从快照冷启。也就是说:是**会话结束即快照+销毁**,不是后台空闲探测。这是"地图"与"代码"的第一处出入(§5)。
 
 ### 2.2 Managed Modal:更接近真"空闲休眠"
 
@@ -249,8 +249,8 @@ README 宣称 *"Daytona and Modal offer serverless persistence — your agent's 
 
 **机制**:持久化靠"停/启同一个 sandbox 实体",文件系统天然随实体保留。
 
-- resume 路径(`daytona.py:89-131`):persistent 时先按 `hermes-<task_id>` 名 `daytona.get(name)` 找到旧沙箱并 `start()`;找不到再按 label `list()` 找 legacy;都没有才 `create()`。
-- 创建时 `auto_stop_interval=0`(`daytona.py:125`)——**显式关掉 Daytona 自己的空闲自动停机**。
+- resume 路径(`tools/environments/daytona.py:89-131`):persistent 时先按 `hermes-<task_id>` 名 `daytona.get(name)` 找到旧沙箱并 `start()`;找不到再按 label `list()` 找 legacy;都没有才 `create()`。
+- 创建时 `auto_stop_interval=0`(`tools/environments/daytona.py:125`)——**显式关掉 Daytona 自己的空闲自动停机**。
 - cleanup 路径(`tools/environments/daytona.py:261-287`):persistent 时 `sandbox.stop()`(保留文件系统),非 persistent 才 `daytona.delete()`。
 
 ```260:267:/home/user/hermes-agent/tools/environments/daytona.py
@@ -262,13 +262,13 @@ README 宣称 *"Daytona and Modal offer serverless persistence — your agent's 
                     self._daytona.delete(self._sandbox)
 ```
 
-- 中断自愈(`daytona.py:206-217`):因为中断的 cancel_fn 会 `stop()` 沙箱,所以每条命令前 `_before_execute` → `_ensure_sandbox_ready`:`refresh_data()` 后若状态是 STOPPED/ARCHIVED 就 `start()`。
+- 中断自愈(`tools/environments/daytona.py:206-217`):因为中断的 cancel_fn 会 `stop()` 沙箱,所以每条命令前 `_before_execute` → `_ensure_sandbox_ready`:`refresh_data()` 后若状态是 STOPPED/ARCHIVED 就 `start()`。
 
 **取舍**:`auto_stop_interval=0` 意味着"空闲休眠"并非 Daytona 平台自动做的,而是 **Hermes 在 cleanup 里主动 stop**。README 的"hibernates when idle"在 Daytona 上同样是"会话结束即停",不是后台 idle 计时(§5 第二处出入)。好处是 stop-resume 比快照更保真(连 `/root` 下非同步文件也在),坏处是停机前那一刻的活进程/PID 不保留。
 
 ### 2.4 Vercel:snapshot 持久化 + 沙箱健康自愈
 
-**机制**:与 Modal direct 同构——cleanup 拍 `sandbox.snapshot()` 存 id,创建时 `source={"type":"snapshot","snapshot_id":...}` 复活(`vercel_sandbox.py:306-342, 448-475`)。台账 `{HERMES_HOME}/vercel_sandbox_snapshots.json`,键是裸 `task_id`(`vercel_sandbox.py:76, 175-200`)。复活失败则 `_delete_snapshot` 剪枝 + 退回全新沙箱(`vercel_sandbox.py:323-331`)。
+**机制**:与 Modal direct 同构——cleanup 拍 `sandbox.snapshot()` 存 id,创建时 `source={"type":"snapshot","snapshot_id":...}` 复活(`tools/environments/vercel_sandbox.py:306-342, 448-475`)。台账 `{HERMES_HOME}/vercel_sandbox_snapshots.json`,键是裸 `task_id`(`tools/environments/vercel_sandbox.py:76, 175-200`)。复活失败则 `_delete_snapshot` 剪枝 + 退回全新沙箱(`tools/environments/vercel_sandbox.py:323-331`)。
 
 `tools/environments/vercel_sandbox.py:448-469 @ 863e313`
 
@@ -292,8 +292,8 @@ README 宣称 *"Daytona and Modal offer serverless persistence — your agent's 
 ```
 
 Vercel 独有两块工程化:
-- **瞬时错误重试**:`_retry_vercel_call` 对创建/写文件包了 3 次指数退避,`_is_transient_vercel_error` 顺着异常链认 `{408,425,429,500,502,503,504}` 与 httpx 网络错(`vercel_sandbox.py:66-135, 306-342`)。
-- **每命令前健康检查 + 重建**:`_ensure_sandbox_ready`(`vercel_sandbox.py:477-511`)`refresh()`,若进入 terminal 态(ABORTED/FAILED/STOPPED)就关旧客户端、`_create_sandbox` 重建、重新 `_configure_attached_sandbox`,再 `_wait_for_running`。这让"沙箱被平台回收"对 agent 透明。
+- **瞬时错误重试**:`_retry_vercel_call` 对创建/写文件包了 3 次指数退避,`_is_transient_vercel_error` 顺着异常链认 `{408,425,429,500,502,503,504}` 与 httpx 网络错(`tools/environments/vercel_sandbox.py:66-135, 306-342`)。
+- **每命令前健康检查 + 重建**:`_ensure_sandbox_ready`(`tools/environments/vercel_sandbox.py:477-511`)`refresh()`,若进入 terminal 态(ABORTED/FAILED/STOPPED)就关旧客户端、`_create_sandbox` 重建、重新 `_configure_attached_sandbox`,再 `_wait_for_running`。这让"沙箱被平台回收"对 agent 透明。
 
 **注意**:README 只点名 Daytona 和 Modal,但 Vercel **同样**提供 snapshot 持久化(`features/tools.md:68, 148` 也这么写)。README 漏了 Vercel(§5)。
 
@@ -310,10 +310,10 @@ Vercel 独有两块工程化:
             cmd.append("--writable-tmpfs")
 ```
 
-- overlay 目录预建(`singularity.py:191-195`):`{scratch}/hermes-overlays/overlay-<task_id>`。
-- cleanup(`singularity.py:251-268`):`instance stop`;persistent 时把 overlay 路径记进 `singularity_snapshots.json`(纯记账,目录本身就地保留)。
+- overlay 目录预建(`tools/environments/singularity.py:191-195`):`{scratch}/hermes-overlays/overlay-<task_id>`。
+- cleanup(`tools/environments/singularity.py:251-268`):`instance stop`;persistent 时把 overlay 路径记进 `singularity_snapshots.json`(纯记账,目录本身就地保留)。
 
-**定位**:Singularity 是"绑定挂载/本地文件系统直接可见"类后端,`file_sync` 用不上(`base.py:1276-1284` 注释、`file_sync.py:5-7`),持久化完全靠本地 overlay。它不是 serverless,但 overlay 机制回答了任务问的"Singularity overlay 目录怎么实现空闲休眠、按需唤醒":停实例=休眠、`--overlay` 同目录再起=唤醒,状态在 overlay 的 upper 层。
+**定位**:Singularity 是"绑定挂载/本地文件系统直接可见"类后端,`file_sync` 用不上(`base.py:1276-1284` 注释、`tools/environments/file_sync.py:5-7`),持久化完全靠本地 overlay。它不是 serverless,但 overlay 机制回答了任务问的"Singularity overlay 目录怎么实现空闲休眠、按需唤醒":停实例=休眠、`--overlay` 同目录再起=唤醒,状态在 overlay 的 upper 层。
 
 ### 2.6 五后端持久化对照表
 
@@ -331,15 +331,15 @@ Vercel 独有两块工程化:
 
 ### 3.1 场景:credentials/skills/cache 如何进出远端沙箱
 
-远端后端里,宿主机上的 `~/.hermes/{credentials,skills,cache}` 与沙箱内不是同一个文件系统。agent 在沙箱里可能新增/改写 skill,退出前得把改动拉回宿主;开工时又得把宿主的凭据推上去。`FileSyncManager` 就是这套双向同步的**后端无关引擎**——各后端只注入传输回调(`file_sync.py:134-164`)。
+远端后端里,宿主机上的 `~/.hermes/{credentials,skills,cache}` 与沙箱内不是同一个文件系统。agent 在沙箱里可能新增/改写 skill,退出前得把改动拉回宿主;开工时又得把宿主的凭据推上去。`FileSyncManager` 就是这套双向同步的**后端无关引擎**——各后端只注入传输回调(`tools/environments/file_sync.py:134-164`)。
 
 ### 3.2 正向 sync:mtime/size 变更检测 + 事务回滚 + 限速
 
-`iter_sync_files(container_base)` 把 credentials/skills/cache 拍平成 `[(host_path, remote_path)]`,并把硬编码的 `/root/.hermes` 重映射到各后端真实 home(`file_sync.py:53-79`)——这是 Daytona 用 `/home/daytona`、Vercel 用 `$HOME` 时路径能对上的关键。
+`iter_sync_files(container_base)` 把 credentials/skills/cache 拍平成 `[(host_path, remote_path)]`,并把硬编码的 `/root/.hermes` 重映射到各后端真实 home(`tools/environments/file_sync.py:53-79`)——这是 Daytona 用 `/home/daytona`、Vercel 用 `$HOME` 时路径能对上的关键。
 
-`_sync_transaction`(`file_sync.py:178-250`)一个周期:
-1. **限速**:非 force 且距上次 < `sync_interval`(5s)直接返回(`file_sync.py:180-183`)。SSH/Modal/Daytona/Vercel 的 `_before_execute` 每条命令都调 `sync()`,靠这层限速避免每命令都传全量。
-2. **算 diff**:对每个文件用 `_file_mtime_key = (mtime, size)` 比对 `_synced_files`,变了才进 `to_upload`;`_synced_files` 里有、当前集合没有的进 `to_delete`(`file_sync.py:190-202`)。
+`_sync_transaction`(`tools/environments/file_sync.py:178-250`)一个周期:
+1. **限速**:非 force 且距上次 < `sync_interval`(5s)直接返回(`tools/environments/file_sync.py:180-183`)。SSH/Modal/Daytona/Vercel 的 `_before_execute` 每条命令都调 `sync()`,靠这层限速避免每命令都传全量。
+2. **算 diff**:对每个文件用 `_file_mtime_key = (mtime, size)` 比对 `_synced_files`,变了才进 `to_upload`;`_synced_files` 里有、当前集合没有的进 `to_delete`(`tools/environments/file_sync.py:190-202`)。
 3. **事务性**:先快照 `prev_files/prev_hashes`,执行 bulk_upload(有则用批量,否则逐个)+ delete;**全部成功**才提交(算 sha256 写 `_pushed_hashes`、更新 `_synced_files`、推进限速时钟);任一步抛异常就回滚 state 且**故意不推进时钟**,好让下一周期立刻重试(`tools/environments/file_sync.py:241-274`)。
 
 ```241:250:/home/user/hermes-agent/tools/environments/file_sync.py
@@ -357,29 +357,29 @@ Vercel 独有两块工程化:
 
 ### 3.3 反向 sync_back:tar 下载 → sha256 diff → last-write-wins,外加四层护栏
 
-cleanup 时各后端调 `sync_back()`(`file_sync.py:256-267` → `_sync_back_transaction`)。核心 `_sync_back_impl`(`file_sync.py:353-443`):
-1. bulk_download 把远端 `.hermes/` 打成 tar 下载,`extractall(staging, filter="data")`(防路径穿越,`file_sync.py:380-382`)。
+cleanup 时各后端调 `sync_back()`(`tools/environments/file_sync.py:256-267` → `_sync_back_transaction`)。核心 `_sync_back_impl`(`tools/environments/file_sync.py:353-443`):
+1. bulk_download 把远端 `.hermes/` 打成 tar 下载,`extractall(staging, filter="data")`(防路径穿越,`tools/environments/file_sync.py:380-382`)。
 2. 遍历解出的每个文件,用 `_pushed_hashes` 判断:与推上去时的 hash 相同则跳过(未改);不同或本来就没推过(远端新建)才考虑落地。
-3. host 路径解析:已知映射走 `_resolve_host_path`,远端新建文件走 `_infer_host_path`——用"某个已知 remote 目录前缀 → host 目录前缀"的替换推断落点(`file_sync.py:454-476`)。
-4. **冲突处理 last-write-wins**:若 host 侧 push 后也被改过(host_hash≠pushed_hash)且远端也变了,记 WARNING 后仍用远端版覆盖(`file_sync.py:426-437`)。
+3. host 路径解析:已知映射走 `_resolve_host_path`,远端新建文件走 `_infer_host_path`——用"某个已知 remote 目录前缀 → host 目录前缀"的替换推断落点(`tools/environments/file_sync.py:454-476`)。
+4. **冲突处理 last-write-wins**:若 host 侧 push 后也被改过(host_hash≠pushed_hash)且远端也变了,记 WARNING 后仍用远端版覆盖(`tools/environments/file_sync.py:426-437`)。
 
 四层护栏:
-- **凭据 upload-only**:`_credential_host_paths()` 收集的凭据文件在 sync_back 里被跳过(`file_sync.py:82-102, 385-424`)——凭据只上不下,防止沙箱侧污染宿主凭据。
-- **SIGINT 延迟**:主线程上跑时把 SIGINT handler 换成"记下待办",同步完再恢复并用 `signal.raise_signal` 补投(`file_sync.py:301-334`);worker 线程上跳过(signal 只能主线程设)。目的:别让 Ctrl-C 打断到一半留下半同步状态。
-- **flock 串行化**:`fcntl.flock(LOCK_EX)` 序列化并发网关沙箱的 sync_back;Windows 无 fcntl 则跳过(`file_sync.py:336-351`)。
-- **尺寸上限**:tar 超 2GiB 拒绝解压(`file_sync.py:131, 369-378`),防恶意/失控沙箱撑爆磁盘。
-- **重试**:3 次 `(2,4,8)s` 退避,全失败只记 WARNING 不抛(`file_sync.py:129-130, 284-299`)——cleanup 不该因同步失败而崩。
-- **空推送短路**:从未成功推过(`_pushed_hashes` 和 `_synced_files` 皆空)就跳过 sync_back,避免对未初始化远端发起重试风暴(`file_sync.py:277-279`)。
+- **凭据 upload-only**:`_credential_host_paths()` 收集的凭据文件在 sync_back 里被跳过(`tools/environments/file_sync.py:82-102, 385-424`)——凭据只上不下,防止沙箱侧污染宿主凭据。
+- **SIGINT 延迟**:主线程上跑时把 SIGINT handler 换成"记下待办",同步完再恢复并用 `signal.raise_signal` 补投(`tools/environments/file_sync.py:301-334`);worker 线程上跳过(signal 只能主线程设)。目的:别让 Ctrl-C 打断到一半留下半同步状态。
+- **flock 串行化**:`fcntl.flock(LOCK_EX)` 序列化并发网关沙箱的 sync_back;Windows 无 fcntl 则跳过(`tools/environments/file_sync.py:336-351`)。
+- **尺寸上限**:tar 超 2GiB 拒绝解压(`tools/environments/file_sync.py:131, 369-378`),防恶意/失控沙箱撑爆磁盘。
+- **重试**:3 次 `(2,4,8)s` 退避,全失败只记 WARNING 不抛(`tools/environments/file_sync.py:129-130, 284-299`)——cleanup 不该因同步失败而崩。
+- **空推送短路**:从未成功推过(`_pushed_hashes` 和 `_synced_files` 皆空)就跳过 sync_back,避免对未初始化远端发起重试风暴(`tools/environments/file_sync.py:277-279`)。
 
 ### 3.4 各后端注入的传输回调(同一引擎、五种传输)
 
 | 后端 | bulk_upload | bulk_download | 传输要点 |
 |---|---|---|---|
-| SSH | `tar c` 本地 → SSH 管道 → 远端 `tar x`(`ssh.py:188-301`) | `ssh ... tar cf -`(`ssh.py:303-319`) | 单 TCP 流;symlink staging 规避 `--transform`;`--no-overwrite-dir` 防坏 sshd StrictModes |
-| Modal direct | 内存 `tar.gz` → base64 → stdin 分块喂 `base64 -d | tar xzf -`(`modal.py:325-367`) | `tar cf - -C / root/.hermes`(`modal.py:369-388`) | 绕开 SDK 64KB exec-arg 限;1MB 分块喂 stdin |
-| Daytona | `sandbox.fs.upload_files()` 一次 multipart(`daytona.py:160-180`) | 远端打 tar + `fs.download_file`(`daytona.py:182-196`) | 580 文件从 ~5min → <2s;PID 后缀防并发撞名 |
-| Vercel | `sandbox.write_files()`(`vercel_sandbox.py:516-535`) | 远端 tar + `download_file`(`vercel_sandbox.py:554-589`) | 包 3 次瞬时重试 |
-| SSH/Modal/Daytona/Vercel 共用 | `iter_sync_files` / `quoted_mkdir_command` / `quoted_rm_command` / `unique_parent_dirs`(`file_sync.py:53-118`) | | 路径全 `shlex.quote`,批量 mkdir/rm 减往返 |
+| SSH | `tar c` 本地 → SSH 管道 → 远端 `tar x`(`tools/environments/ssh.py:188-301`) | `ssh ... tar cf -`(`tools/environments/ssh.py:303-319`) | 单 TCP 流;symlink staging 规避 `--transform`;`--no-overwrite-dir` 防坏 sshd StrictModes |
+| Modal direct | 内存 `tar.gz` → base64 → stdin 分块喂 `base64 -d | tar xzf -`(`tools/environments/modal.py:325-367`) | `tar cf - -C / root/.hermes`(`tools/environments/modal.py:369-388`) | 绕开 SDK 64KB exec-arg 限;1MB 分块喂 stdin |
+| Daytona | `sandbox.fs.upload_files()` 一次 multipart(`tools/environments/daytona.py:160-180`) | 远端打 tar + `fs.download_file`(`tools/environments/daytona.py:182-196`) | 580 文件从 ~5min → <2s;PID 后缀防并发撞名 |
+| Vercel | `sandbox.write_files()`(`tools/environments/vercel_sandbox.py:516-535`) | 远端 tar + `download_file`(`tools/environments/vercel_sandbox.py:554-589`) | 包 3 次瞬时重试 |
+| SSH/Modal/Daytona/Vercel 共用 | `iter_sync_files` / `quoted_mkdir_command` / `quoted_rm_command` / `unique_parent_dirs`(`tools/environments/file_sync.py:53-118`) | | 路径全 `shlex.quote`,批量 mkdir/rm 减往返 |
 
 **重实现要点**:同步引擎与传输解耦(回调注入),diff 用 (mtime,size) 快判、sha256 精判,事务性 = 全成才提交 + 失败不推进限速钟;sync_back 必须处理凭据单向、并发串行、信号延迟、尺寸/重试护栏——这些都是被真事故打磨出来的(见测试 §6)。
 
@@ -391,7 +391,7 @@ cleanup 时各后端调 `sync_back()`(`file_sync.py:256-267` → `_sync_back_tra
 
 - egress 凭据注入防火墙(iron-proxy)只在 **Docker** 后端被接线:`_egress_proxy_args_for_docker()` 构造 `HTTPS_PROXY`/CA-bundle/token 三元组注入容器(`tools/environments/docker.py:393-531`,`DockerEnvironment.__init__` 处 1070-1215 合并)。
 - egress 内部文档也只列 `tools/environments/docker.py` 作为后端接入点,SSH/Modal/Daytona/Vercel/Singularity **均未出现**(`website/docs/developer-guide/egress-internals.md:12` 起的模块清单)。
-- 对本簇 7 文件 grep `iron|egress|HTTPS_PROXY|proxy` **零命中**(仅 Vercel 关掉自身遥测 `VERCEL_TELEMETRY_DISABLED`,`vercel_sandbox.py:47-56`,与 egress 无关)。
+- 对本簇 7 文件 grep `iron|egress|HTTPS_PROXY|proxy` **零命中**(仅 Vercel 关掉自身遥测 `VERCEL_TELEMETRY_DISABLED`,`tools/environments/vercel_sandbox.py:47-56`,与 egress 无关)。
 
 **结论(记入学习产出)**:iron-proxy 的出口凭据隔离目前**仅 Docker 后端**享有;远端后端(SSH/Modal/Daytona/Vercel)与 Singularity 的出口流量**不经 iron-proxy 强制**。若安全模型依赖 egress 隔离,选远端后端时这是一个覆盖缺口。重实现同级 harness 时应意识到:egress 强制与执行后端是正交维度,需各后端单独接线,不能假设"选了远端就有出口管控"。
 
@@ -405,17 +405,17 @@ cleanup 时各后端调 `sync_back()`(`file_sync.py:256-267` → `_sync_back_tra
 
 | 断言(地图) | 代码(领土) | 判定 |
 |---|---|---|
-| README:"Daytona and Modal … hibernates when idle"(`README.md:29`) | Modal direct 是 **cleanup 拍快照 + 销毁**,沙箱 `timeout=3600` 是最大存活非空闲计时(`modal.py:252,451-469`);Daytona `auto_stop_interval=0` 显式关掉平台 idle 自动停,靠 cleanup `stop()`(`daytona.py:125,262`) | **修正**:direct/Daytona 无"后台空闲探测",是"会话结束即休眠"。只有 **managed Modal** 有真 `idleTimeoutMs`(`managed_modal.py:189`) |
-| `features/tools.md:148`:Vercel "snapshot preserve filesystem … not preserve live processes/PID" | 完全吻合:`snapshot()`+`source=snapshot`,重建换沙箱身份(`vercel_sandbox.py:448-511`) | **证实**,且此处 docs 比 README 精确 |
+| README:"Daytona and Modal … hibernates when idle"(`README.md:29`) | Modal direct 是 **cleanup 拍快照 + 销毁**,沙箱 `timeout=3600` 是最大存活非空闲计时(`tools/environments/modal.py:252,451-469`);Daytona `auto_stop_interval=0` 显式关掉平台 idle 自动停,靠 cleanup `stop()`(`tools/environments/daytona.py:125,262`) | **修正**:direct/Daytona 无"后台空闲探测",是"会话结束即休眠"。只有 **managed Modal** 有真 `idleTimeoutMs`(`tools/environments/managed_modal.py:189`) |
+| `features/tools.md:148`:Vercel "snapshot preserve filesystem … not preserve live processes/PID" | 完全吻合:`snapshot()`+`source=snapshot`,重建换沙箱身份(`tools/environments/vercel_sandbox.py:448-511`) | **证实**,且此处 docs 比 README 精确 |
 | docs 是否讲 Modal 文件系统快照细节 / Daytona stop-resume / Singularity overlay | `features/tools.md` 仅一句带过 Modal "Serverless, scale"、Daytona "Persistent remote dev environments";**未**解释快照 id 台账、namespace 迁移、overlay `--overlay` 等实现;Singularity overlay 持久化 docs 基本无文 | **修正/补白**:实现细节远比文档丰富,本底稿 §2 即补文档空白 |
 
 ### 定案 b) README "seven terminal backends" 与 "Daytona and Modal offer serverless persistence" 是否名副其实
 
-**"seven terminal backends" —— 证实。** 工厂 `_create_environment` 的 `env_type` 分支恰好 7 个:`local, docker, singularity, modal, daytona, vercel_sandbox, ssh`(`terminal_tool.py:1633-1760`)。managed Modal **不是**第 8 个后端,而是 `modal` 这一 env_type 下的传输子模式(`_get_modal_backend_state` 在 direct/managed 间选,`terminal_tool.py:1668-1723`),故不改变"7 个"的数目。README 列的七个与代码分支一一对应。
+**"seven terminal backends" —— 证实。** 工厂 `_create_environment` 的 `env_type` 分支恰好 7 个:`local, docker, singularity, modal, daytona, vercel_sandbox, ssh`(`tools/terminal_tool.py:1633-1760`)。managed Modal **不是**第 8 个后端,而是 `modal` 这一 env_type 下的传输子模式(`_get_modal_backend_state` 在 direct/managed 间选,`tools/terminal_tool.py:1668-1723`),故不改变"7 个"的数目。README 列的七个与代码分支一一对应。
 
 **"Daytona and Modal offer serverless persistence" —— 证实但不完整。**
 - Daytona、Modal 确有持久化(§2.1-2.3),**证实**。
-- 但 **Vercel 同样提供 snapshot 持久化**(`vercel_sandbox.py:448-475`,`features/tools.md:68,148` 亦承认),README 只字未提 → **不完整/低估**。
+- 但 **Vercel 同样提供 snapshot 持久化**(`tools/environments/vercel_sandbox.py:448-475`,`features/tools.md:68,148` 亦承认),README 只字未提 → **不完整/低估**。
 - Singularity 提供 overlay 持久化(本地非 serverless),不在 README 该句范围内,不算冲突,但说明"能持久化的后端 > README 点名的两个"。
 - "serverless" 一词对 Daytona 略勉强:Daytona 是长驻可停/启的 dev sandbox(stop-resume),不是 FaaS 式 serverless;但从计费角度(停机不计费)可接受该营销措辞。
 
@@ -462,8 +462,8 @@ cleanup 时各后端调 `sync_back()`(`file_sync.py:256-267` → `_sync_back_tra
 #### 规格 2 — `tests/tools/test_modal_snapshot_isolation.py`(serverless 快照持久化的隔离/迁移契约,228 行)
 
 用纯 stub 把 modal SDK、base、credential 全替身掉(`_install_modal_test_modules`, 54-197),不碰真云,专测**快照 id 台账**语义:
-- **legacy 键迁移 + 用快照复活**(`test_modal_environment_migrates_legacy_snapshot_key_and_uses_snapshot_id`, 200-214):台账初值 `{"task-legacy":"im-legacy123"}`;构造 `ModalEnvironment(task_id="task-legacy")` 后断言:①用 `Image.from_id("im-legacy123")` 复活(`from_id_calls==["im-legacy123"]`)、②创建沙箱的 image 是该快照对象、③cleanup 后台账被迁移成命名空间键 `{"direct:task-legacy":"im-legacy123"}`(裸键被 pop)。这正是 `modal.py:50-80,277-278` 的迁移逻辑。
-- **image 解析双路**(`test_resolve_modal_image_uses_snapshot_ids_and_registry_images`, 217-228):`im-` 前缀 → `Image.from_id`;普通 tag → `Image.from_registry` 且 setup 命令含 `ensurepip`(对应 `modal.py:105-124`)。
+- **legacy 键迁移 + 用快照复活**(`test_modal_environment_migrates_legacy_snapshot_key_and_uses_snapshot_id`, 200-214):台账初值 `{"task-legacy":"im-legacy123"}`;构造 `ModalEnvironment(task_id="task-legacy")` 后断言:①用 `Image.from_id("im-legacy123")` 复活(`from_id_calls==["im-legacy123"]`)、②创建沙箱的 image 是该快照对象、③cleanup 后台账被迁移成命名空间键 `{"direct:task-legacy":"im-legacy123"}`(裸键被 pop)。这正是 `tools/environments/modal.py:50-80,277-278` 的迁移逻辑。
+- **image 解析双路**(`test_resolve_modal_image_uses_snapshot_ids_and_registry_images`, 217-228):`im-` 前缀 → `Image.from_id`;普通 tag → `Image.from_registry` 且 setup 命令含 `ensurepip`(对应 `tools/environments/modal.py:105-124`)。
 
 读它即懂"快照 id 如何被 key、如何隔离 direct 命名空间、如何从旧格式迁移、复活失败如何回退"。
 

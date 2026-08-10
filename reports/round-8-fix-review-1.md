@@ -177,7 +177,7 @@ def _update_config_for_provider(
 
 **本卡在评审位之上多做的一步:把全部同类写入点拉出来逐个读。**
 
-```verify
+```shell-session
 $ grep -rn "atomic_yaml_write(config_path\|atomic_yaml_write(get_config_path" --include=*.py . | grep -v "^./tests/"
 ./hermes_cli/auth.py:7329
 ./hermes_cli/auth.py:7397
@@ -404,3 +404,25 @@ r7b 的 ▲1 已按此扩写为逐分句判定。
    并不能把它从仓库历史中取消,**改动的收益是零而破坏记录完整性的成本是实的**。
    R8C 起继续按 R7B–R8B 的口径执行(标识只进会话回复)。记在这里是为了让"口径究竟是哪一个"
    有一处可查的定论,而不是留下四比一的先例让下一轮自己猜。
+
+3. **【R11C 片 C 处置,只改围栏标签,不动正文一个字】§4 那个 `atomic_yaml_write` 搜索块
+   由 ```` ```verify ```` 改标为 ```` ```shell-session ````。**
+
+   原因:该块是一段 `$` 提示符**转录** —— 命令、输出、以及给 `config.py:3112` 挂的那句
+   旁注(「`atomic_config_write` 自己的函数体,不算绕行」)混排在同一个围栏里。
+   R11C 给 `scripts/verify_evidence_commands.py` 落地了**可跑性检查**:未配对的只读
+   ```` ```verify ```` 块会被真跑一遍,「非零退出 + 有 stderr」判 `EVIDENCE-RUNFAIL` 并**阻断**。
+   这一块原样重跑会把输出行当命令执行,报
+   `bash: line 7: ./hermes_cli/credential_lifecycle.py:174: No such file or directory`。
+
+   **处置的边界**:按 CLAUDE.md「`reports/` 正文不静默改写」,本轮**不**把它拆成
+   「命令 + 配对输出」(那是改写正文),只把围栏标签换成 ```` ```shell-session ````
+   —— 它本来就是 shell 会话转录,而 `shell-session` 是 CLAUDE.md 已列的**声明式非源码**围栏。
+   **块内容逐字未动,六个命中点、旁注、结论全部原样保留。**
+
+   同一条命令在 `notes/r8b-90-handover-rulings.md` 里有一份**同源副本**(片 C 同轮处置的 #24),
+   那一份按 `notes/` 「直接改正文」的规矩已拆成可重跑命令 + 配对输出,并被关卡逐字比对。
+   要机械核验这六个写入点,请以那一份为准。
+
+   *为什么不是「删掉它就完事」:派工书对这一类明令 —— 正当处置只有修好它、
+   声明它不是可重跑命令、或点名留下说明修不了三种,**删掉是第四种,不许用。***

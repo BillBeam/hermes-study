@@ -591,7 +591,7 @@ def model_call_fields(kwargs: dict[str, Any]) -> dict[str, str]:
 the metrics backend"),代价是**自建/私有模型名会原样落进本地包**——比如一个内部模型
 `acme-internal-v3` 会逐字出现在 `outbox/*.json` 里。在"无远程 sink"的前提下这不构成外泄,
 但它把"未来加 exporter"这件事的隐私评审门槛抬高了,而文档自己也把这件事挂了起来
-(`relay-shared-metrics.md:159` 那句"A future remote exporter must not reuse the persistent
+(`docs/observability/relay-shared-metrics.md:159` 那句"A future remote exporter must not reuse the persistent
 local identifier by default")。
 
 v2 新增的 `client_active` 计数器则是相反方向的克制——**维度必须为空、值必须恰为 1**:
@@ -911,8 +911,8 @@ plist/unit 路径、linger、launchd 重载)、`website/docs/reference/cli-comma
 对 `hermes_cli/gateway.py:3697` 与 `:2514-2516`)、systemd 单元名
 (`hermes-gateway[-<profile>].service`,对 `:1832-1835`)、shared metrics 的
 opt-in 位置 / 无远程通道 / install_id 语义 / v1 保持不变 / 30 天本地留存
-(对 `shared_metrics.py:28-33` 与 3.2 节的 grep)、s6 服务目录布局与 `s6-svc` 操作
-(对 `service_manager.py:334-335`)。**未发现矛盾**;发现的偏差都是"漏说"或"保守",
+(对 `hermes_cli/observability/shared_metrics.py:28-33` 与 3.2 节的 grep)、s6 服务目录布局与 `s6-svc` 操作
+(对 `hermes_cli/service_manager.py:334-335`)。**未发现矛盾**;发现的偏差都是"漏说"或"保守",
 已分别记为 ◇ / ◎。
 
 ---

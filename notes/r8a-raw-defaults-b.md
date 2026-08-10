@@ -1,4 +1,4 @@
-# r8a-raw-defaults-b · config_defaults.py:2200-4313
+# r8a-raw-defaults-b · hermes_cli/config_defaults.py:2200-4313
 
 底稿。基线 `NousResearch/hermes-agent @ 863e31318553cda8ad61df681d08175364d4164b`(下简写 `863e313`)。
 本段覆盖 `hermes_cli/config_defaults.py` 第 **2200 行到文件末尾 4313 行**,即:
@@ -1559,14 +1559,14 @@ OPTIONAL_ENV_VARS = {
 
 | 字段 | 类型 | 语义 | 谁消费 |
 |---|---|---|---|
-| `description` | str | 一句话说明,展示在 setup checklist / dashboard 卡片 | `config.py:2325`、`web_server.py:7054` |
-| `prompt` | str | 交互式输入时的提示语 | `setup.py:3535`、`web_server.py:8243` |
-| `url` | str \| None | 去哪申请这个 key(注册页) | `config.py:2337`、`provider_catalog.py:161` |
-| `password` | bool | 是否密文字段(dashboard 打码 + reveal 门控;也参与沙箱 blocklist 判定) | `web_server.py:7057`、`tools/environments/local.py:246` |
+| `description` | str | 一句话说明,展示在 setup checklist / dashboard 卡片 | `config.py:2325`、`hermes_cli/web_server.py:7054` |
+| `prompt` | str | 交互式输入时的提示语 | `hermes_cli/setup.py:3535`、`hermes_cli/web_server.py:8243` |
+| `url` | str \| None | 去哪申请这个 key(注册页) | `config.py:2337`、`hermes_cli/provider_catalog.py:161` |
+| `password` | bool | 是否密文字段(dashboard 打码 + reveal 门控;也参与沙箱 blocklist 判定) | `hermes_cli/web_server.py:7057`、`tools/environments/local.py:246` |
 | `category` | str | `provider` / `tool` / `skill` / `messaging` / `setting` 五选一 | 分流的主键,见 §3.3 |
 | `advanced` | bool | 高级项:setup 向导**跳过**它们("those are for power users") | `config.py:2308` |
-| `tools` | list[str] | 这个 key 解锁哪些工具,用于 checklist 上的 `→ web_search, web_extract` 尾注 | `config.py:5270`、`setup.py:3558` |
-| `help` | str | 更长的操作指引(只有三条 Slack 键有) | `web_server.py:8244` |
+| `tools` | list[str] | 这个 key 解锁哪些工具,用于 checklist 上的 `→ web_search, web_extract` 尾注 | `config.py:5270`、`hermes_cli/setup.py:3558` |
+| `help` | str | 更长的操作指引(只有三条 Slack 键有) | `hermes_cli/web_server.py:8244` |
 
 category 分布(静态表):`provider` 53、`messaging` 52、`tool` 39、`skill` 4、`setting` 3。
 

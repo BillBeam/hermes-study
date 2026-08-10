@@ -29,7 +29,7 @@
 ```
 - 幂等:第二个并发 `stop()` 调用只 await 已有 `_stop_task`(创建于 13173:`self._stop_task = asyncio.create_task(_stop_impl())`),不会跑两遍。
 - restart 三个布尔在真正停机前先记下,后续阶段(detached 重启、exit code 75、状态持久化)据此分叉。
-- `getattr` 守卫是测试友好:shutdown 测试用 `object.__new__` 造裸 runner,没有 liveness guard 机制(见 12667–12668 注释)。`_stop_loop_liveness_guards` 定义在 run.py:10646。
+- `getattr` 守卫是测试友好:shutdown 测试用 `object.__new__` 造裸 runner,没有 liveness guard 机制(见 12667–12668 注释)。`_stop_loop_liveness_guards` 定义在 gateway/run.py:10646。
 
 ### 1.3 内嵌 `_kill_tool_subprocesses(phase)` —— 四路清扫 + cron 防"假成功"(12681–12744)
 
@@ -68,8 +68,8 @@
             # delayed hard-exit in the worker.
             _watchdog_done = threading.Event()
 ```
-- 设计理由:停机卡死时事件循环本身可能被冻结,任何 asyncio 级超时(`wait_for` 等)都依赖循环还活着,因此救不了;必须用纯 OS 线程。`arm_shutdown_watchdog`(gateway/shutdown_watchdog.py:337)是 daemon 线程,以 1s 步进等 `done_event`,超时后写 faulthandler 全线程栈转储(文件 + stderr 双写,"wedged disk" 是 #66892 假设之一,见 shutdown_watchdog.py:324–325)再 `os._exit(exit_code)`;退出前先释放 PID 文件与运行锁再 drain 日志队列(shutdown_watchdog.py:400–403)。
-- 时限 = drain_timeout + grace(`resolve_shutdown_watchdog_delay`,shutdown_watchdog.py:274–288)。
+- 设计理由:停机卡死时事件循环本身可能被冻结,任何 asyncio 级超时(`wait_for` 等)都依赖循环还活着,因此救不了;必须用纯 OS 线程。`arm_shutdown_watchdog`(gateway/shutdown_watchdog.py:337)是 daemon 线程,以 1s 步进等 `done_event`,超时后写 faulthandler 全线程栈转储(文件 + stderr 双写,"wedged disk" 是 #66892 假设之一,见 gateway/shutdown_watchdog.py:324–325)再 `os._exit(exit_code)`;退出前先释放 PID 文件与运行锁再 drain 日志队列(gateway/shutdown_watchdog.py:400–403)。
+- 时限 = drain_timeout + grace(`resolve_shutdown_watchdog_delay`,gateway/shutdown_watchdog.py:274–288)。
 - `snapshot_fn`(12756–12772)在触发时采集 restart/draining/active agents/cron/api 计数与阶段耗时,进转储头部,便于事后归因。
 - pytest 下跳过布防(12774),否则驱动 stop() 的单测会在 worker 里收到延迟硬退出。
 - `try/finally` 保证 `_watchdog_done.set()`(12782–12788)——正常完成即解除。
@@ -78,9 +78,9 @@
 
 每阶段都打 `Shutdown phase: ... at +%.2fs` 日志(`_phase_elapsed`,12798–12799),是排障时的时间轴。
 
-**P1 翻标志 + 停外围(12801–12808)**:`self._running = False; self._draining = True`;停 systemd sd_notify 心跳(`_stop_systemd_watchdog`,run.py:12651–12657,注释"Stop heartbeats before any potentially long shutdown drain"——否则长 drain 期间心跳停了会被 systemd 当 hang 杀掉,索性先主动停);取消 secondary profile 重连任务(`_cancel_secondary_profile_reconnect_tasks`,run.py:12603–12633,见 §4)。
+**P1 翻标志 + 停外围(12801–12808)**:`self._running = False; self._draining = True`;停 systemd sd_notify 心跳(`_stop_systemd_watchdog`,gateway/run.py:12651–12657,注释"Stop heartbeats before any potentially long shutdown drain"——否则长 drain 期间心跳停了会被 systemd 当 hang 杀掉,索性先主动停);取消 secondary profile 重连任务(`_cancel_secondary_profile_reconnect_tasks`,gateway/run.py:12603–12633,见 §4)。
 
-**P2 通知活跃会话(12810–12816)**:`_notify_active_sessions_of_shutdown()`(run.py:9253)。注释点明顺序约束:"Adapters are still connected here, so messages can be sent"——必须在 drain/断连**之前**发。
+**P2 通知活跃会话(12810–12816)**:`_notify_active_sessions_of_shutdown()`(gateway/run.py:9253)。注释点明顺序约束:"Adapters are still connected here, so messages can be sent"——必须在 drain/断连**之前**发。
 
 **P3 预标 resume_pending(12820–12835,#27856)**:`gateway/run.py:12820-12833 @ 863e313`:
 ```python
@@ -99,9 +99,9 @@
                     )
                     _pre_drain_keys.append(_sk)
 ```
-`mark_resume_pending`(gateway/session.py:2751–2778)保留 session_id + transcript,下一条消息自动续上同一会话;且**从不覆盖显式 suspended**(session.py:2769–2772,suspended 是 /stop 或卡死升级的硬信号)。`_AGENT_PENDING_SENTINEL`(run.py:2465)代表"已占坑未启动"的 agent,无需标记。
+`mark_resume_pending`(gateway/session.py:2751–2778)保留 session_id + transcript,下一条消息自动续上同一会话;且**从不覆盖显式 suspended**(session.py:2769–2772,suspended 是 /stop 或卡死升级的硬信号)。`_AGENT_PENDING_SENTINEL`(gateway/run.py:2465)代表"已占坑未启动"的 agent,无需标记。
 
-**P4 drain + 优雅清标(12837–12869)**:`_drain_active_agents(timeout)`(run.py:9184)等 agent 自然跑完,超时上限 `self._restart_drain_timeout`。若未超时,把 P3 预标的、且已不在 `_running_agents` 里的会话逐个 `clear_resume_pending`(session.py:2780)——否则跑完的会话下轮还会带上一条"被重启打断"的陈旧系统注记。
+**P4 drain + 优雅清标(12837–12869)**:`_drain_active_agents(timeout)`(gateway/run.py:9184)等 agent 自然跑完,超时上限 `self._restart_drain_timeout`。若未超时,把 P3 预标的、且已不在 `_running_agents` 里的会话逐个 `clear_resume_pending`(gateway/session.py:2780)——否则跑完的会话下轮还会带上一条"被重启打断"的陈旧系统注记。
 
 **P5 超时路径(12871–12935)**:再次对**当前** `_running_agents` 标 resume_pending。为什么不用 drain 开始时的快照?`gateway/run.py:12892-12901 @ 863e313`:
 ```python
@@ -116,13 +116,13 @@
                 # started yet, there's nothing to interrupt, and the
                 # session shouldn't carry a misleading resume flag.
 ```
-随后 `_interrupt_running_agents(reason)`(run.py:9243;reason 取 `_INTERRUPT_REASON_GATEWAY_RESTART`/`_SHUTDOWN`,定义于 run.py:2837–2838),给 5 秒宽限循环(12918–12921,期间持续 `_update_runtime_status("draining")`),然后**立即** `_kill_tool_subprocesses("post-interrupt")`(12931,#8202:不能拖到 stop() 尾部,systemd 可能先升级 SIGKILL,子进程就变成"被 systemd 杀"而非"被我们杀",丢掉清理语义)。注释同时交代分层:resume_pending 管"下条消息续会话";真正卡死的会话由 `.restart_failure_counts` 卡死计数(阈值 3)升级成 `suspended=True` 并覆盖 resume_pending(12886–12891)。
+随后 `_interrupt_running_agents(reason)`(gateway/run.py:9243;reason 取 `_INTERRUPT_REASON_GATEWAY_RESTART`/`_SHUTDOWN`,定义于 gateway/run.py:2837–2838),给 5 秒宽限循环(12918–12921,期间持续 `_update_runtime_status("draining")`),然后**立即** `_kill_tool_subprocesses("post-interrupt")`(12931,#8202:不能拖到 stop() 尾部,systemd 可能先升级 SIGKILL,子进程就变成"被 systemd 杀"而非"被我们杀",丢掉清理语义)。注释同时交代分层:resume_pending 管"下条消息续会话";真正卡死的会话由 `.restart_failure_counts` 卡死计数(阈值 3)升级成 `suspended=True` 并覆盖 resume_pending(12886–12891)。
 
-**P6 detached restart(12937–12941)**:`_restart_detached` 时调 `_launch_detached_restart_command()`(run.py:9795),失败只记 error 不中断停机。
+**P6 detached restart(12937–12941)**:`_restart_detached` 时调 `_launch_detached_restart_command()`(gateway/run.py:9795),失败只记 error 不中断停机。
 
-**P7 收尾 agent + idle 缓存(12943–12965)**:`_finalize_shutdown_agents(active_agents)`(run.py:9452)处理 drain 时刻还在轮中的 agent;随后单独处理 `_agent_cache` 里的 idle agent——它们的 MemoryProvider 从没收到 on_session_end。逐个走 `_cleanup_agent_resources_off_loop`(run.py:9596),注释:"Bounded + off-loop so a wedged memory provider on one idle agent can't hang shutdown indefinitely — that path is why SIGTERM failed to kill the process (#53175)"(12960–12962)。即 #53175 的根因就是 idle agent 清理挂在事件循环里。
+**P7 收尾 agent + idle 缓存(12943–12965)**:`_finalize_shutdown_agents(active_agents)`(gateway/run.py:9452)处理 drain 时刻还在轮中的 agent;随后单独处理 `_agent_cache` 里的 idle agent——它们的 MemoryProvider 从没收到 on_session_end。逐个走 `_cleanup_agent_resources_off_loop`(gateway/run.py:9596),注释:"Bounded + off-loop so a wedged memory provider on one idle agent can't hang shutdown indefinitely — that path is why SIGTERM failed to kill the process (#53175)"(12960–12962)。即 #53175 的根因就是 idle agent 清理挂在事件循环里。
 
-**P8 adapter 断连(12967–12982)**:先 primary(`self.adapters`)后 secondary(`self._profile_adapters` 两层字典),都走 `_bounded_adapter_teardown`(run.py:6525,带超时预算),profile 版多传 `profile=_prof` 便于日志。
+**P8 adapter 断连(12967–12982)**:先 primary(`self.adapters`)后 secondary(`self._profile_adapters` 两层字典),都走 `_bounded_adapter_teardown`(gateway/run.py:6525,带超时预算),profile 版多传 `profile=_prof` 便于日志。
 
 **P9 后台任务取消(12984–12994,#12875)**:`gateway/run.py:12984-12992 @ 863e313`:
 ```python
@@ -169,9 +169,9 @@
 ```
 超时被强制中断的会话可能处于"尾随 tool response、没有最终 assistant 消息"的残破状态(13077–13079),**故意不写标记**,让下次启动走 `suspend_recently_active()` 给用户干净的新会话,而不是恢复半截 tool loop。
 
-**P15 卡死循环计数(13094–13100,#7536)**:停机时仍活跃的会话逐个 `_increment_restart_failure_counts`(run.py:9698);连续 3 次重启都在跑 → 下次启动自动 suspend,打破"会话让 gateway 崩→重启→会话又让它崩"的循环。
+**P15 卡死循环计数(13094–13100,#7536)**:停机时仍活跃的会话逐个 `_increment_restart_failure_counts`(gateway/run.py:9698);连续 3 次重启都在跑 → 下次启动自动 suspend,打破"会话让 gateway 崩→重启→会话又让它崩"的循环。
 
-**P16 restart 标记 + exit 75(13102–13137)**:无外部命令来源的重启先原子写 planned-restart 通知标记(`_planned_restart_notification_path`,run.py:1797)。service 路线先试 `_launch_systemd_restart_shortcut()`(run.py:9982),但**无论 helper 成败都**置 `self._exit_code = GATEWAY_SERVICE_RESTART_EXIT_CODE`(= 75,gateway/restart.py:10)。理由(13118–13135 注释):helper 在真实部署常失败(非 root 单元调 `systemd-run --system` 被 Polkit 拒、headless 无 user bus、运维单元用 `Restart=on-failure` 而非 always);EX_TEMPFAIL(75)配合 unit 的 `RestartForceExitStatus=75` 让 systemd 把计划内重启当"受控失败"复活;干净退出 0 在 Linux 上曾让 gateway 死到有人重启主机为止。且只白名单 75:真崩溃退非 75 的非零码,仍受正常 `Restart=`/`RestartSec`/StartLimit 治理,不会被强制复活掩盖崩溃循环。
+**P16 restart 标记 + exit 75(13102–13137)**:无外部命令来源的重启先原子写 planned-restart 通知标记(`_planned_restart_notification_path`,gateway/run.py:1797)。service 路线先试 `_launch_systemd_restart_shortcut()`(gateway/run.py:9982),但**无论 helper 成败都**置 `self._exit_code = GATEWAY_SERVICE_RESTART_EXIT_CODE`(= 75,gateway/restart.py:10)。理由(13118–13135 注释):helper 在真实部署常失败(非 root 单元调 `systemd-run --system` 被 Polkit 拒、headless 无 user bus、运维单元用 `Restart=on-failure` 而非 always);EX_TEMPFAIL(75)配合 unit 的 `RestartForceExitStatus=75` 让 systemd 把计划内重启当"受控失败"复活;干净退出 0 在 Linux 上曾让 gateway 死到有人重启主机为止。且只白名单 75:真崩溃退非 75 的非零码,仍受正常 `Restart=`/`RestartSec`/StartLimit 治理,不会被强制复活掩盖崩溃循环。
 
 **P17 终态持久化(13139–13171,#42675)**:`gateway/run.py:13161-13169 @ 863e313`:
 ```python
@@ -185,7 +185,7 @@
             else:
                 self._update_runtime_status("stopped", self._exit_reason)
 ```
-#42675 因果:Docker(s6-overlay)的 `container_boot.py` 下次开机只自启上次状态为 "running" 的 gateway;例行 `docker compose up --force-recreate` 发的 SIGTERM 若被持久化成 "stopped"(或留下中途的 "draining"),消息通道就永久静默直到人工重启。区分手段:操作员主动停(`hermes gateway stop`、ExecStop、Ctrl+C)会在发信号**前**写 planned-stop 标记,归类为计划停机,如实存 "stopped";没有标记的信号(docker restart、OOM、裸 kill)视为意外,保留运行意图存 "running"。restart 也存 "stopped"(重启进程自己会拉起来)。最后 `_shutdown_gateway_health_export(self)`(run.py:26348)导出健康快照并打总耗时。
+#42675 因果:Docker(s6-overlay)的 `container_boot.py` 下次开机只自启上次状态为 "running" 的 gateway;例行 `docker compose up --force-recreate` 发的 SIGTERM 若被持久化成 "stopped"(或留下中途的 "draining"),消息通道就永久静默直到人工重启。区分手段:操作员主动停(`hermes gateway stop`、ExecStop、Ctrl+C)会在发信号**前**写 planned-stop 标记,归类为计划停机,如实存 "stopped";没有标记的信号(docker restart、OOM、裸 kill)视为意外,保留运行意图存 "running"。restart 也存 "stopped"(重启进程自己会拉起来)。最后 `_shutdown_gateway_health_export(self)`(gateway/run.py:26348)导出健康快照并打总耗时。
 
 ### 1.6 wait_for_shutdown(13176–13178)
 
@@ -213,7 +213,7 @@
 
 `gateway.multiplex_profiles` 开启后,一个 gateway 进程要同时服务多个 profile(各自独立的 HERMES_HOME、config.yaml、`.env` 凭据、skills、memory)。难点:① 每个 profile 的 adapter 必须在**它自己的**配置与密钥作用域下创建/连接/处理消息;② 两个 profile 配了同一个 bot token 会造成"同一 token 被两个客户端轮询"的逐消息竞速;③ HTTP 端口类平台只能由 default profile 独占监听;④ 单个坏 profile 不能拖垮整个 multiplexer。
 
-### 2.2 作用域机制 `_profile_runtime_scope`(run.py:1938–1971,段外支撑)
+### 2.2 作用域机制 `_profile_runtime_scope`(gateway/run.py:1938–1971,段外支撑)
 
 `gateway/run.py:1939-1954 @ 863e313`:
 ```python
@@ -252,15 +252,15 @@
                     claimed[retry_claim] = active
 ```
   即"排队重试中的 primary 仍拥有其资源",防 secondary 在重连窗口抢走端点。
-- 逐 profile 调 `_start_one_profile_adapters`;异常分层(13232–13244):`SecondaryPortBindingConfigError` → 只 warning 跳过该 profile(单个坏 profile 不拖垮全局);`MultiplexConfigError` → **上抛**到启动守卫(安全类配置错必须 fatal,见 run.py:1924–1930 类注释:"config error means the operator must fix config.yaml…propagate to the startup guard instead of being treated as retryable adapter noise");其它异常 → error 日志继续。
+- 逐 profile 调 `_start_one_profile_adapters`;异常分层(13232–13244):`SecondaryPortBindingConfigError` → 只 warning 跳过该 profile(单个坏 profile 不拖垮全局);`MultiplexConfigError` → **上抛**到启动守卫(安全类配置错必须 fatal,见 gateway/run.py:1924–1930 类注释:"config error means the operator must fix config.yaml…propagate to the startup guard instead of being treated as retryable adapter noise");其它异常 → error 日志继续。
 - 收尾(13246–13264):为每个 served profile 建 `PairingStore`(active 用现成的,其余按 profile home 解析),供 authz_mixin 把配对校验路由到正确白名单;`write_runtime_status(served_profiles=...)` 供 `hermes status` 展示。
 
 ### 2.4 `_start_one_profile_adapters`(13268–13396)
 
 顺序:
 1. **scope 内加载该 profile 的 gateway config**(13274–13276)。
-2. **open-policy 校验**(13276–13283):`_own_policy_open_startup_violation`(run.py:2428)发现某 profile 开了 `dm_policy/group_policy: open` 又没配 allow-all → 抛 `MultiplexConfigError`(fatal,安全问题不许降级为跳过)。
-3. **端口绑定平台校验**(13285–13300):任何 enabled 且 `_platform_binds_port`(从 gateway/config.py 导入,run.py:1918–1921)判定绑端口的平台 → 抛 `SecondaryPortBindingConfigError`。设计:default profile 独占共享 HTTP listener,secondary 走 `/p/<profile>/` URL 前缀(报错文案 13294–13299 直接给修复指引)。
+2. **open-policy 校验**(13276–13283):`_own_policy_open_startup_violation`(gateway/run.py:2428)发现某 profile 开了 `dm_policy/group_policy: open` 又没配 allow-all → 抛 `MultiplexConfigError`(fatal,安全问题不许降级为跳过)。
+3. **端口绑定平台校验**(13285–13300):任何 enabled 且 `_platform_binds_port`(从 gateway/config.py 导入,gateway/run.py:1918–1921)判定绑端口的平台 → 抛 `SecondaryPortBindingConfigError`。设计:default profile 独占共享 HTTP listener,secondary 走 `/p/<profile>/` URL 前缀(报错文案 13294–13299 直接给修复指引)。
 4. **逐平台创建**:RELAY 跳过(13307–13314 注释:relay 是进程级共享 ingress,active profile 拥有唯一连接,connector 打的 `source.profile` 负责把入站轮路由到 secondary);scope 内 `_create_adapter`(见 §6),失败/返 None 各自记日志继续。
 5. **凭据冲突拒启**(13335–13351):`gateway/run.py:13336-13351 @ 863e313`:
 ```python
@@ -282,11 +282,11 @@
                     continue
 ```
    关键取舍:冲突的 adapter **从未 connect,因此不调 disconnect**——同凭据的 Photon adapter 若 disconnect 会误关 primary 的活 sidecar(共享平台状态被污染)。listener 冲突(13353–13373)同理拒启不断连,报错文案直接指出该改 `platforms.<p>.extra.sidecar_port`。
-6. **配置 + 连接**(13375–13395):`_configure_profile_adapter`;scope 内 `_connect_initial_adapter_with_timeout`(run.py:6647);成功才把 claim 登记到本 profile 名下(13384–13387,"先到先得,后来者看得见");失败/异常走 `_safe_adapter_disconnect`(run.py:6496)。
+6. **配置 + 连接**(13375–13395):`_configure_profile_adapter`;scope 内 `_connect_initial_adapter_with_timeout`(gateway/run.py:6647);成功才把 claim 登记到本 profile 名下(13384–13387,"先到先得,后来者看得见");失败/异常走 `_safe_adapter_disconnect`(gateway/run.py:6496)。
 
 ### 2.5 `_configure_profile_adapter`(13398–13418)
 
-给 secondary adapter 装满一套 profile 化的钩子:profile message handler(§5)、profile fatal error handler(§4)、共享 session_store、busy session handler(`_handle_active_session_busy_message`,run.py:8742——忙时路径与冷路径同源)、reaction handler(可选)、Telegram topic 恢复函数、profile 绑定的 authz 回调(§7),最后同步 `_busy_text_mode`(run.py:5770 默认 "interrupt",8291 从配置载入;与 11102/12474 primary 路径同款赋值)。
+给 secondary adapter 装满一套 profile 化的钩子:profile message handler(§5)、profile fatal error handler(§4)、共享 session_store、busy session handler(`_handle_active_session_busy_message`,gateway/run.py:8742——忙时路径与冷路径同源)、reaction handler(可选)、Telegram topic 恢复函数、profile 绑定的 authz 回调(§7),最后同步 `_busy_text_mode`(gateway/run.py:5770 默认 "interrupt",8291 从配置载入;与 11102/12474 primary 路径同款赋值)。
 
 ### 2.6 重实现要点(multiplex 启动)
 
@@ -329,13 +329,13 @@
                         await self._safe_adapter_disconnect(adapter, platform)
                         return
 ```
-① 槽位已被更新的重连占了 → 弃own;② connect 期间开始 shutdown(`_running` 已 False)→ 不得向已 drain 的注册表"复活"adapter,释放部分资源;③ 失败且 `has_fatal_error and not fatal_error_retryable` → 永久退出(13477–13481)。CancelledError/普通异常都先断连再处理(13482–13494)。退避 `_reconnect_backoff(attempts)`(run.py:3665)。
+① 槽位已被更新的重连占了 → 弃own;② connect 期间开始 shutdown(`_running` 已 False)→ 不得向已 drain 的注册表"复活"adapter,释放部分资源;③ 失败且 `has_fatal_error and not fatal_error_retryable` → 永久退出(13477–13481)。CancelledError/普通异常都先断连再处理(13482–13494)。退避 `_reconnect_backoff(attempts)`(gateway/run.py:3665)。
 
 `finally` 自清(13507–13516):只有当 `_profile_failed_platforms[profile][platform]` 记录的 task 就是当前 task(或不是 Task)才 pop——防止把**后继重连任务**的登记误删;空 dict 级联清理。
 
 ### 3.2 `_schedule_secondary_profile_reconnect`(13518–13541)
 
-守卫:`not self._running or not adapter.fatal_error_retryable` 直接放弃;`(profile, platform)` 已有在飞任务则去重(13529–13530);新任务命名 `secondary-reconnect:<profile>:<platform>` 并纳入 `_background_tasks`(带 `add_done_callback(discard)`),从而受 stop() P9 统一取消、受 §1.5 P1 的 `_cancel_secondary_profile_reconnect_tasks` 有界等待(run.py:12603–12633:先 cancel 再以 adapter 断连预算 `asyncio.wait`,等不完也没关系——"the stopped runner state still prevents it from installing an adapter when it eventually resumes",12609–12610)。
+守卫:`not self._running or not adapter.fatal_error_retryable` 直接放弃;`(profile, platform)` 已有在飞任务则去重(13529–13530);新任务命名 `secondary-reconnect:<profile>:<platform>` 并纳入 `_background_tasks`(带 `add_done_callback(discard)`),从而受 stop() P9 统一取消、受 §1.5 P1 的 `_cancel_secondary_profile_reconnect_tasks` 有界等待(gateway/run.py:12603–12633:先 cancel 再以 adapter 断连预算 `asyncio.wait`,等不完也没关系——"the stopped runner state still prevents it from installing an adapter when it eventually resumes",12609–12610)。
 
 ### 3.3 重实现要点(重连)
 
@@ -400,7 +400,7 @@
 ## 七、`_create_adapter`(13712–13841)
 
 - 先把 runner 级配置注入 `config.extra` 默认值:`group_sessions_per_user`、`thread_sessions_per_user`(13722–13730,`setdefault` 不覆盖平台级显式配置)。
-- **插件注册表优先**(13732–13757):`gateway.platform_registry.platform_registry.is_registered` → `create_adapter`。成功则无条件注入反向引用 `adapter.gateway_runner = self`(13738–13745 注释:BasePlatformAdapter 声明了该属性,故对所有平台生效,用于跨平台 admin 告警投递与 `runner._profile_name_for_source` 入站 profile 路由,后者定义在 run.py:24161)。**注册了但创建失败 → 返回 None 不回落内建链**(13747–13754:插件平台没有内建实现,静默回落只会掩盖错误)。注册表查询异常仅 debug,继续走内建。
+- **插件注册表优先**(13732–13757):`gateway.platform_registry.platform_registry.is_registered` → `create_adapter`。成功则无条件注入反向引用 `adapter.gateway_runner = self`(13738–13745 注释:BasePlatformAdapter 声明了该属性,故对所有平台生效,用于跨平台 admin 告警投递与 `runner._profile_name_for_source` 入站 profile 路由,后者定义在 gateway/run.py:24161)。**注册了但创建失败 → 返回 None 不回落内建链**(13747–13754:插件平台没有内建实现,静默回落只会掩盖错误)。注册表查询异常仅 debug,继续走内建。
 - 内建 if/elif 链(13759–13841):whatsapp_cloud、signal、weixin、api_server、webhook、msgraph_webhook、bluebubbles、qqbot、yuanbao。模式统一:惰性导入 + `check_*_requirements()` 依赖预检(缺依赖 warning + None,不抛)+ 个别平台配置校验(signal 的 `validate_signal_config`);api_server 与 webhook 两个内建平台也注入 `gateway_runner`(13798、13807)。链尾返回 None(13841)。
 - 注:telegram/discord/slack 等主流平台不在内建链——它们在 863e313 已迁到 plugin 注册表(plugins/platforms/…),内建链只剩未迁移平台。
 
@@ -418,7 +418,7 @@
 
 ## 九、`_deliver_platform_notice`(13886–13926)
 
-运维/配置类通知的统一投递轨:按 source 找 adapter;Slack 的 ignored channel 直接跳过(13893–13902);读 `config.get_notice_delivery(platform)` 决定 "private"/"public"——private 时先试 `adapter.send_private_notice(chat_id, user_id, content)`(平台私密回执,如 Slack ephemeral),失败或不成功**回落公开 send**(13909–13926)。调用点如 run.py:4896(setup 提示)与 17440。
+运维/配置类通知的统一投递轨:按 source 找 adapter;Slack 的 ignored channel 直接跳过(13893–13902);读 `config.get_notice_delivery(platform)` 决定 "private"/"public"——private 时先试 `adapter.send_private_notice(chat_id, user_id, content)`(平台私密回执,如 Slack ephemeral),失败或不成功**回落公开 send**(13909–13926)。调用点如 gateway/run.py:4896(setup 提示)与 17440。
 
 重实现要点:① 通知投递策略按平台配置化(私密优先、公开兜底);② 忽略名单在投递层再查一次(生产者不必知道);③ 回落必须显式而非异常驱动上抛。
 
@@ -428,7 +428,7 @@
 
 ### 10.1 问题(#55578 / #57498)
 
-异步委托(delegate 工具的后台模式)完成后,完成通知以合成 MessageEvent 注回 gateway,metadata 里带发起时钉住的 `gateway_session_id`(打标处 run.py:22001:`metadata["gateway_session_id"] = parent_session_id`)。消费点在 `_handle_message_with_agent`(run.py:16276)——`gateway/run.py:16307-16317 @ 863e313`:
+异步委托(delegate 工具的后台模式)完成后,完成通知以合成 MessageEvent 注回 gateway,metadata 里带发起时钉住的 `gateway_session_id`(打标处 gateway/run.py:22001:`metadata["gateway_session_id"] = parent_session_id`)。消费点在 `_handle_message_with_agent`(gateway/run.py:16276)——`gateway/run.py:16307-16317 @ 863e313`:
 ```python
         pinned_session_id = str(
             (getattr(event, "metadata", None) or {}).get("gateway_session_id") or ""
@@ -478,7 +478,7 @@
 ### 10.3 绑定:两种原语,CAS 语义
 
 路由与目标一致直接返回(14045–14046)。不一致时(14048–14059):
-- 压缩谱系 → `advance_compression_session(session_key, prior, target)`(gateway/session.py:2957–2991):**CAS**——条目当前 session_id 必须仍等于 `expected_session_id` 才推进,期间被 /new 抢先则返 None,调用方 fail-closed;且**不动 SQLite 行生命周期**(压缩事务已拥有该生命周期,这里只修 gateway 的 key→session 持久映射,session.py:2965–2969)。
+- 压缩谱系 → `advance_compression_session(session_key, prior, target)`(gateway/session.py:2957–2991):**CAS**——条目当前 session_id 必须仍等于 `expected_session_id` 才推进,期间被 /new 抢先则返 None,调用方 fail-closed;且**不动 SQLite 行生命周期**(压缩事务已拥有该生命周期,这里只修 gateway 的 key→session 持久映射,gateway/session.py:2965–2969)。
 - 非压缩(钉住会话还活着但路由已指向别处,如用户 /resume 去了别的会话)→ `switch_session(session_key, target)`(session.py:2993 起):像 /resume 一样结束当前行、复用目标 session_id,把路由拉回完成结果的属主会话。
 - `switched is None` → 丢(14060–14067);成功打 `#57498` 日志(14069–14075)并返回新 entry,后续整轮 agent 在属主会话上跑。
 
@@ -498,10 +498,10 @@
 ### 11.1 问题与架构(#5057 / #6252 / #10370 / #2170)
 
 agent 正在跑时用户又发了斜杠命令,历史实现是手写的逐命令 if 链,散落两处(adapter 层 + runner 层),漏一个命令就出事故。现在是声明式:每个命令的忙时行为写在 `CommandDef.busy_policy / busy_handler` 上(hermes_cli/commands.py:55–95),两道 Guard 读同一注册表:
-- **Guard 1**(gateway/platforms/base.py:5604–5640):adapter 层。`should_bypass_active_session(cmd)` 的命令直接内联分发(不进 pending 队列);其中 `is_interrupt_then_dispatch(cmd)`(busy_policy == "interrupt_then_dispatch",即 /new(别名 /reset)与 /stop,commands.py:106–108、140–141)走专门的 cancel-handoff 路径,串行化"取消在飞任务 + runner 应答 + pending 排水"。base.py:5595–5598 注释交代不这么做的两种事故:命令文本泄漏进对话成为用户消息(/stop、/new),或死锁(/approve、/deny——agent 正阻塞在 Event.wait 等审批)。
-- **Guard 2**(run.py:14757–14792,`_handle_message` 内):runner 层兜底。会话运行中时 resolve 命令 → /status、/context 先于门禁直通(用户永远能看状态)→ `_check_slash_access` 门禁(镜像冷路径,防"agent 恰好在忙"绕过权限)→ 任何可识别命令交 `_dispatch_busy_slash_command`;未识别命令与普通文本落到 interrupt/queue 逻辑。
+- **Guard 1**(gateway/platforms/base.py:5604–5640):adapter 层。`should_bypass_active_session(cmd)` 的命令直接内联分发(不进 pending 队列);其中 `is_interrupt_then_dispatch(cmd)`(busy_policy == "interrupt_then_dispatch",即 /new(别名 /reset)与 /stop,hermes_cli/commands.py:106–108、140–141)走专门的 cancel-handoff 路径,串行化"取消在飞任务 + runner 应答 + pending 排水"。base.py:5595–5598 注释交代不这么做的两种事故:命令文本泄漏进对话成为用户消息(/stop、/new),或死锁(/approve、/deny——agent 正阻塞在 Event.wait 等审批)。
+- **Guard 2**(gateway/run.py:14757–14792,`_handle_message` 内):runner 层兜底。会话运行中时 resolve 命令 → /status、/context 先于门禁直通(用户永远能看状态)→ `_check_slash_access` 门禁(镜像冷路径,防"agent 恰好在忙"绕过权限)→ 任何可识别命令交 `_dispatch_busy_slash_command`;未识别命令与普通文本落到 interrupt/queue 逻辑。
 
-`busy_policy` 三值(commands.py:62–74):`dispatch`(忙时照常跑,或跑 `busy_handler` 命名的忙时变体)、`reject`(拒绝;无 busy_handler 用通用文案,有则用定制文案)、`interrupt_then_dispatch`(先杀当前轮再跑)。默认 **reject**(commands.py:75)——新命令不声明就安全拒绝。不变量测试 tests/hermes_cli/test_busy_policy_invariants.py 用重构前的手写 frozenset 对照注册表,保证迁移无语义漂移。
+`busy_policy` 三值(hermes_cli/commands.py:62–74):`dispatch`(忙时照常跑,或跑 `busy_handler` 命名的忙时变体)、`reject`(拒绝;无 busy_handler 用通用文案,有则用定制文案)、`interrupt_then_dispatch`(先杀当前轮再跑)。默认 **reject**(hermes_cli/commands.py:75)——新命令不声明就安全拒绝。不变量测试 tests/hermes_cli/test_busy_policy_invariants.py 用重构前的手写 frozenset 对照注册表,保证迁移无语义漂移。
 
 ### 11.2 `_dispatch_busy_slash_command`(14098–14170)
 
@@ -521,7 +521,7 @@ agent 正在跑时用户又发了斜杠命令,历史实现是手写的逐命令 
 
 ### 11.3 逐命令
 
-- **/start**(14172–14177):Telegram 在 bot 启动/深链时自动发 /start,是平台 ping 不是用户命令——返回 `""`(无帮助转储、无打断、无排队)。commands.py:104–105 的描述就叫 "Acknowledge platform start pings without a reply"。
+- **/start**(14172–14177):Telegram 在 bot 启动/深链时自动发 /start,是平台 ping 不是用户命令——返回 `""`(无帮助转储、无打断、无排队)。hermes_cli/commands.py:104–105 的描述就叫 "Acknowledge platform start pings without a reply"。
 - **/egress**(14179–14182):纯信息命令,直接返回 `hermes_cli.proxy_cli.format_status_text()`。
 - **/stop**(14184–14197):`gateway/run.py:14184-14197 @ 863e313`:
 ```python
@@ -540,9 +540,9 @@ agent 正在跑时用户又发了斜杠命令,历史实现是手写的逐命令 
         logger.info("STOP for session %s — agent interrupted, session lock released", quick_key)
         return EphemeralReply(t("gateway.stop.stopped"))
 ```
-  软中断的失效模式:真挂死的 agent 的 executor 线程阻塞着,永远轮询不到 `_interrupt_requested` 标志——必须硬杀 + 强制清 `_running_agents` 解锁会话。`_interrupt_and_clear_session`(run.py:23065)做 `request_hard_interrupt` + run generation 失效(先 bump 再调度收割线程,防误杀替换轮的进程,23089–23098)+ 起线程收割该轮 spawn 的 OS 进程。返回 `EphemeralReply`(gateway/platforms/base.py:2375,str 子类,支持平台按 TTL 自动删除系统回执,不支持 delete_message 的平台静默忽略)。
+  软中断的失效模式:真挂死的 agent 的 executor 线程阻塞着,永远轮询不到 `_interrupt_requested` 标志——必须硬杀 + 强制清 `_running_agents` 解锁会话。`_interrupt_and_clear_session`(gateway/run.py:23065)做 `request_hard_interrupt` + run generation 失效(先 bump 再调度收割线程,防误杀替换轮的进程,23089–23098)+ 起线程收割该轮 spawn 的 OS 进程。返回 `EphemeralReply`(gateway/platforms/base.py:2375,str 子类,支持平台按 TTL 自动删除系统回执,不支持 delete_message 的平台静默忽略)。
 - **/new(/reset)**(14199–14216,#2170):事故因果:/reset 曾被当普通文本排队,中断完成后 "/reset" 字符串作为用户消息**连同坏掉的历史一起**喂回 agent。修法:先 `_interrupt_and_clear_session`(invalidation_reason="new_command",同时清 adapter pending 队列防旧文本重放),再调 `_handle_reset_command(event)` 正常走重置。
-- **/queue**(14218–14256):不打断,FIFO 入队,**每条 /queue 是独立完整的一轮,不合并**(14221–14224 注释,与普通 followup 文本的 merge 行为相对)。媒体保真:带图/文档/回复上下文的 "/queue"(如作为图片 caption)即使无文本也有效,重建 MessageEvent 时完整复制 media_urls/media_types/reply_to_* 五件套/auto_skill/channel_prompt 等字段(14228–14251,"Dropping these fields silently lost the attachment")。入队原语 `_enqueue_fifo`(run.py:7691–7703):adapter `_pending_messages` 单 slot 为主位,占用时溢出到 SessionState 的 `queued_events` 列表;`_queue_depth`(run.py:7736)= slot + overflow,回执报深度。
+- **/queue**(14218–14256):不打断,FIFO 入队,**每条 /queue 是独立完整的一轮,不合并**(14221–14224 注释,与普通 followup 文本的 merge 行为相对)。媒体保真:带图/文档/回复上下文的 "/queue"(如作为图片 caption)即使无文本也有效,重建 MessageEvent 时完整复制 media_urls/media_types/reply_to_* 五件套/auto_skill/channel_prompt 等字段(14228–14251,"Dropping these fields silently lost the attachment")。入队原语 `_enqueue_fifo`(gateway/run.py:7691–7703):adapter `_pending_messages` 单 slot 为主位,占用时溢出到 SessionState 的 `queued_events` 列表;`_queue_depth`(gateway/run.py:7736)= slot + overflow,回执报深度。
 - **/steer**(14258–14305):与 /queue 的分工在注释里:"Unlike /queue (turn boundary), /steer lands BETWEEN tool-call iterations inside the same agent run, by appending to the last tool result's content. No interrupt, no new user turn, no role-alternation violation."(14260–14263)。底层 `AIAgent.steer(text)`(run_agent.py:3229–3263):线程安全地把文本暂存 `_pending_steer`,agent 循环在当前工具批次结束后**把它拼进最后一个 tool result 的内容**,模型下一次迭代把 steer 当工具输出的一部分读到——绕开了"user 消息必须与 assistant 交替"的角色约束。多次 steer 换行拼接。两个退化路径都落回 /queue 语义:agent 还是 `_AGENT_PENDING_SENTINEL`(占坑未启动,没有可 steer 的对象)→ 入队 + "Agent still starting";agent 缺 steer 方法 → 入队 + "No active agent"。接受后回执带 60 字预览。
 - **/goal**(14307–14326):控制动词白名单。`gateway/run.py:14313-14326 @ 863e313`:
 ```python
@@ -578,28 +578,28 @@ agent 正在跑时用户又发了斜杠命令,历史实现是手写的逐命令 
 
 | 本段成员 | 调用/被调 | 对方位置 |
 |---|---|---|
-| `stop()` | 被 restart 编排、信号处理、CLI stop 调;内调 `_drain_active_agents`/`_interrupt_running_agents`/`_notify_active_sessions_of_shutdown`/`_finalize_shutdown_agents`/`_cleanup_agent_resources_off_loop`/`_increment_restart_failure_counts`/`_launch_detached_restart_command`/`_launch_systemd_restart_shortcut` | run.py:9184/9243/9253/9452/9596/9698/9795/9982 |
+| `stop()` | 被 restart 编排、信号处理、CLI stop 调;内调 `_drain_active_agents`/`_interrupt_running_agents`/`_notify_active_sessions_of_shutdown`/`_finalize_shutdown_agents`/`_cleanup_agent_resources_off_loop`/`_increment_restart_failure_counts`/`_launch_detached_restart_command`/`_launch_systemd_restart_shortcut` | gateway/run.py:9184/9243/9253/9452/9596/9698/9795/9982 |
 | `stop()` 外部依赖 | `process_registry.kill_all`;`mark_running_jobs_interrupted`;`async_delegation.interrupt_all`;`flush_pending_to_file`;`shutdown_cached_clients`;`arm_shutdown_watchdog`/`resolve_shutdown_watchdog_delay`;`remove_pid_file`/`release_gateway_runtime_lock`;`GATEWAY_SERVICE_RESTART_EXIT_CODE` | tools/process_registry.py;cron/scheduler.py:366;tools/async_delegation.py;gateway/shutdown_flush.py:82;agent/auxiliary_client.py;gateway/shutdown_watchdog.py:337/274;gateway/status.py;gateway/restart.py:10 |
 | `mark_resume_pending`/`clear_resume_pending` | AsyncSessionStore → SessionStore | gateway/session.py:2751/2780 |
-| `_start_secondary_profile_adapters` | 由启动序列调(run.py:11227);内调 `profiles_to_serve`/`get_active_profile_name`、`PairingStore`、`write_runtime_status` | hermes_cli/profiles.py:957;gateway/pairing.py;gateway/status.py |
-| `_start_one_profile_adapters` | `_profile_runtime_scope`(run.py:1938)、`load_gateway_config`、`_own_policy_open_startup_violation`(run.py:2428)、`_platform_binds_port`(gateway/config.py,经 run.py:1918–1921 导入)、`_create_adapter`、`_connect_initial_adapter_with_timeout`(run.py:6647)、`_safe_adapter_disconnect`(run.py:6496) | 见左 |
+| `_start_secondary_profile_adapters` | 由启动序列调(gateway/run.py:11227);内调 `profiles_to_serve`/`get_active_profile_name`、`PairingStore`、`write_runtime_status` | hermes_cli/profiles.py:957;gateway/pairing.py;gateway/status.py |
+| `_start_one_profile_adapters` | `gateway/run.py:1938`:`_profile_runtime_scope`、`load_gateway_config`、`_own_policy_open_startup_violation`(gateway/run.py:2428)、`_platform_binds_port`(gateway/config.py,经 gateway/run.py:1918–1921 导入)、`_create_adapter`、`_connect_initial_adapter_with_timeout`(gateway/run.py:6647)、`_safe_adapter_disconnect`(gateway/run.py:6496) | 见左 |
 | `_configure_profile_adapter` | `set_message_handler/set_fatal_error_handler/set_busy_session_handler/...` | gateway/platforms/base.py(set_busy_session_handler:3345) |
-| `_run_secondary_profile_reconnect` | `get_profile_dir`(hermes_cli/profiles.py:370)、`_connect_adapter_with_timeout`(run.py:6609)、`_reconnect_backoff`(run.py:3665)、`_sync_voice_mode_state_to_adapter`(run.py:6423) | 见左 |
+| `_run_secondary_profile_reconnect` | `get_profile_dir`(hermes_cli/profiles.py:370)、`_connect_adapter_with_timeout`(gateway/run.py:6609)、`_reconnect_backoff`(gateway/run.py:3665)、`_sync_voice_mode_state_to_adapter`(gateway/run.py:6423) | 见左 |
 | `_handle_profile_adapter_fatal_error` | 由 adapter fatal 回调触发(base.py 的 fatal_error_handler 机制) | gateway/platforms/base.py |
 | `_make_adapter_auth_check` | 被 11101/12473(primary)与 13415(secondary)安装;回调进 `BasePlatformAdapter._is_sender_authorized`;委托 `_is_user_authorized` | gateway/authz_mixin.py:386 |
 | `_create_adapter` | `platform_registry.create_adapter`;各内建 adapter 模块 | gateway/platform_registry.py;gateway/platforms/*.py |
-| `_resolve_async_delegation_session` | 唯一调用点 `_handle_message_with_agent`(run.py:16311);钉打标于 run.py:22001;前置分类 `_classify_completion_target`(run.py:22043);内调 `get_session`/`get_compression_tip`(hermes_state.py:5719)、`advance_compression_session`/`switch_session`(gateway/session.py:2957/2993) | 见左 |
-| `_dispatch_busy_slash_command` | 唯一调用点 run.py:14790(`_handle_message` 忙路径);Guard 1 对照 base.py:5604–5640;命令声明 hermes_cli/commands.py:102 起 | 见左 |
-| `_busy_stop/_busy_new` | `_interrupt_and_clear_session`(run.py:23065)、`_handle_reset_command` | run.py |
-| `_busy_queue/_busy_steer` | `_enqueue_fifo`(run.py:7691)、`_queue_depth`(run.py:7736)、`AIAgent.steer` | run_agent.py:3229 |
+| `_resolve_async_delegation_session` | 唯一调用点 `_handle_message_with_agent`(gateway/run.py:16311);钉打标于 gateway/run.py:22001;前置分类 `gateway/run.py:22043`:`_classify_completion_target`;内调 `get_session`/`get_compression_tip`(hermes_state.py:5719)、`advance_compression_session`/`switch_session`(gateway/session.py:2957/2993) | 见左 |
+| `_dispatch_busy_slash_command` | 唯一调用点 gateway/run.py:14790(`_handle_message` 忙路径);Guard 1 对照 base.py:5604–5640;命令声明 hermes_cli/commands.py:102 起 | 见左 |
+| `_busy_stop/_busy_new` | `_interrupt_and_clear_session`(gateway/run.py:23065)、`_handle_reset_command` | run.py |
+| `_busy_queue/_busy_steer` | `_enqueue_fifo`(gateway/run.py:7691)、`_queue_depth`(gateway/run.py:7736)、`AIAgent.steer` | run_agent.py:3229 |
 
 ---
 
 ## 十三、文档-代码冲突候选
 
-1. **▲ multiplex 文档"startup fails fast"vs 代码"跳过重复者继续"**。website/docs/user-guide/multi-profile-gateways.md:188–190:"If two profiles configure the same `(platform, token)`, startup fails fast naming both profiles";同文 474–476 称 "the second gateway refuses to start with an error"。而 multiplexer 内的同凭据冲突(run.py:13336–13351)是 **log error + continue**:只拒绝重复的那个 adapter,该 profile 的其余平台与其余 profile 照常启动,gateway 整体不退。文档的 "fails fast/refuses to start" 更贴近**两个独立 gateway 进程**的旧式 token 冲突检查;对 multiplex 内冲突,代码语义是"拒重复、不失败"。以代码为准。
-2. **◇ `busy_policy="interrupt_then_dispatch"` 在 Guard 2 普通表分支不打断**。commands.py:70–74 说该策略"interrupt/kill the running agent first, then dispatch";run.py:14136 的 `if policy in ("dispatch", "interrupt_then_dispatch")` 若命中普通 handler 表会**直接 dispatch 而不打断**。当前注册表中该策略仅 /new 与 /stop,两者都有 busy_handler,总在 ① 特表被截获(特表内自行打断),普通表分支实际不可达;真正到达 14159 的只会打 warning 落兜底拒绝。属"防御分支与文档措辞不一致",非现网行为错误(不变量测试守着注册表)。
-3. **◇ 14111 注释把 `/reset` 列进"会被打断+吞掉"的例子**。/reset 是 /new 的别名(commands.py:107),busy_policy=interrupt_then_dispatch + busy_handler="new",如今在 Guard 1/特表正确处理;注释列举的是**历史事故清单**(#5057 等修复前的状态),读代码时不应据此推断现行为。
+1. **▲ multiplex 文档"startup fails fast"vs 代码"跳过重复者继续"**。website/docs/user-guide/multi-profile-gateways.md:188–190:"If two profiles configure the same `(platform, token)`, startup fails fast naming both profiles";同文 474–476 称 "the second gateway refuses to start with an error"。而 multiplexer 内的同凭据冲突(gateway/run.py:13336–13351)是 **log error + continue**:只拒绝重复的那个 adapter,该 profile 的其余平台与其余 profile 照常启动,gateway 整体不退。文档的 "fails fast/refuses to start" 更贴近**两个独立 gateway 进程**的旧式 token 冲突检查;对 multiplex 内冲突,代码语义是"拒重复、不失败"。以代码为准。
+2. **◇ `busy_policy="interrupt_then_dispatch"` 在 Guard 2 普通表分支不打断**。hermes_cli/commands.py:70–74 说该策略"interrupt/kill the running agent first, then dispatch";gateway/run.py:14136 的 `if policy in ("dispatch", "interrupt_then_dispatch")` 若命中普通 handler 表会**直接 dispatch 而不打断**。当前注册表中该策略仅 /new 与 /stop,两者都有 busy_handler,总在 ① 特表被截获(特表内自行打断),普通表分支实际不可达;真正到达 14159 的只会打 warning 落兜底拒绝。属"防御分支与文档措辞不一致",非现网行为错误(不变量测试守着注册表)。
+3. **◇ 14111 注释把 `/reset` 列进"会被打断+吞掉"的例子**。/reset 是 /new 的别名(hermes_cli/commands.py:107),busy_policy=interrupt_then_dispatch + busy_handler="new",如今在 Guard 1/特表正确处理;注释列举的是**历史事故清单**(#5057 等修复前的状态),读代码时不应据此推断现行为。
 4. **◇ `stop()` docstring(12666)"Stop the gateway and disconnect all adapters"** 严重轻描淡写:实际还承担 restart 编排、退出码协议、状态持久化、数据落盘等十余职责。仅记为文档不充分,不算冲突。
 
 ---

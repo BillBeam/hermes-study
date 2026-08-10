@@ -25,11 +25,11 @@
 ```
 
 **机制**:两阶段。
-- `parse_v4a_patch(patch_content)`(patch_parser.py:70)→ `(operations, error)`:把文本解析成
+- `parse_v4a_patch(patch_content)`(tools/patch_parser.py:70)→ `(operations, error)`:把文本解析成
   `PatchOperation` 列表(每个带 OperationType + Hunk 列表)。解析失败返回错误串而非抛异常。
-- `apply_v4a_operations(operations, file_ops)`(patch_parser.py:394):通过一个 `file_ops` 接口落地每个操作。
-  V4A **绕过** WriteResult/PatchResult 常规管线(patch_parser.py:430 注释),但仍尽力回传 LSP 诊断和 lint
-  结果(`_apply_add` 从 WriteResult 抽 `lsp_diagnostics` 和 `lint`,patch_parser.py:539-546),让补丁也能
+- `apply_v4a_operations(operations, file_ops)`(tools/patch_parser.py:394):通过一个 `file_ops` 接口落地每个操作。
+  V4A **绕过** WriteResult/PatchResult 常规管线(tools/patch_parser.py:430 注释),但仍尽力回传 LSP 诊断和 lint
+  结果(`_apply_add` 从 WriteResult 抽 `lsp_diagnostics` 和 `lint`,tools/patch_parser.py:539-546),让补丁也能
   surface 语法检查。
 
 **上下文匹配**:hunk 的上下文行(空格前缀)用来在文件里定位改动位置。这里和 R3 的 `fuzzy_match` 联动——
@@ -46,12 +46,12 @@ patch_parser 负责**解析格式**,fuzzy_match 负责**容错定位**。
 分段调度器(tool_dispatch_helpers 的路径重叠检查)只管**单个 agent 内**一批工具的路径冲突,管不了
 **跨子代理**的这种读后写竞态。
 
-**机制**:一个进程级单例 `FileStateRegistry`(file_state.py:59)按解析后的路径跟踪三样东西:
+**机制**:一个进程级单例 `FileStateRegistry`(tools/file_state.py:59)按解析后的路径跟踪三样东西:
 - 每 agent 的读时间戳:`{task_id: {path: (mtime, read_ts, partial)}}`;
 - 全局最后写者:`{path: (task_id, write_ts)}`;
 - 每路径一个 `threading.Lock`,包住 read→modify→write 临界区。
 
-三个公共钩子给文件工具用(file_state.py:19-22):
+三个公共钩子给文件工具用(tools/file_state.py:19-22):
 - `record_read(task_id, path, partial)` —— read_file 调用后记读时间戳;
 - `note_write(task_id, path)` —— write_file/patch 后记写者;
 - `check_stale(task_id, path)` —— write_file/patch **前**检查:如果本 agent 上次读之后有别人写过这个文件,
@@ -64,12 +64,12 @@ patch_parser 负责**解析格式**,fuzzy_match 负责**容错定位**。
 外加 `lock_path(path)` 上下文管理器包住整个读改写块,`writes_since(task_id, since_ts, paths)` 给
 delegate_tool 的"子代理完成提醒"用(看子代理干活期间改了哪些文件)。
 
-**与单代理机制的分工**(file_state.py:1-31 docstring):它刻意独立于 `file_tools.py` 的 `_read_tracker`
+**与单代理机制的分工**(tools/file_state.py:1-31 docstring):它刻意独立于 `file_tools.py` 的 `_read_tracker`
 (那个是 per-task、处理连续读);也补充 `run_agent._should_parallelize_tool_batch` 的单代理路径重叠检查
 (R2 分段调度)。三者各管一层:分段调度管单 agent 一批工具、_read_tracker 管 per-task 连续读、
 FileStateRegistry 管跨子代理的读后写。
 
-**逃生阀**:`HERMES_DISABLE_FILE_STATE_GUARD=1` 时所有方法 no-op(file_state.py:25)。
+**逃生阀**:`HERMES_DISABLE_FILE_STATE_GUARD=1` 时所有方法 no-op(tools/file_state.py:25)。
 
 **取舍**:进程级单例只能守"同进程"的子代理(gateway 里并发子代理是同进程),跨进程(不同 Hermes)的并发
 写它守不住——但那种情况罕见,且有环境层(docker persist)的容器隔离兜底。

@@ -111,7 +111,7 @@ asyncio 侧的 watcher 线程**通常抢先**(主线 8 次全赢),但**并非结
 ```
 
 `gateway/run.py:11490` 把它作为受监督任务起在网关进程里(`_spawn_supervised(self._kanban_dispatcher_watcher, ...)`),
-默认 tick 间隔 60 秒(`kanban_watchers.py:1029` 的 `dispatch_interval_seconds`,下限 1.0 秒)。
+默认 tick 间隔 60 秒(`gateway/kanban_watchers.py:1029` 的 `dispatch_interval_seconds`,下限 1.0 秒)。
 
 **`subprocess.run()` 也中招**——这一条必须单独证,因为受害现场用的是 `run()` 而非裸 `Popen`:
 
@@ -148,7 +148,7 @@ webhook_filters.py:279 的判据 'result.returncode != 0'(非零=拒绝该 webho
 - **机制已实证**(用基线真函数):`Popen.wait()` 与 `subprocess.run().returncode` 都从 42 降级为 0,**且无任何日志**。
   (对照:asyncio 侧被抢到时记 255 并打 warning —— 同一个收尸动作,两条路径的失败**可见度**完全不同。)
 - **可达性已实证**:收尸者与受害者同在网关进程,收尸每 60 秒一次。
-- **后果方向已实证**:`webhook_filters.py:279` 的安全判据从"拒绝"翻成"放行"。
+- **后果方向已实证**:`gateway/platforms/webhook_filters.py:279` 的安全判据从"拒绝"翻成"放行"。
 - **修法**:`reap_worker_zombies` 不该用 `waitpid(-1)`。它已经维护着 `_recent_worker_exits`
   这张 pid 表,应当**只收自己派发出去的 worker pid**(`waitpid(pid, WNOHANG)` 逐个收),
   而不是见僵尸就收。
@@ -213,7 +213,7 @@ R9A 的措辞「直接放行」容易读成权限旁路。**本轮改述:它与�
 
 `changed_paths` 来自 `agent/conversation_loop.py:7046` 的
 `changed_paths=getattr(agent, "_turn_file_mutation_paths", set())`;同一个集合还在
-`conversation_loop.py:7102` 门控 `pre_verify` 钩子的续跑。
+`agent/conversation_loop.py:7102` 门控 `pre_verify` 钩子的续跑。
 
 于是链条是:**只有 `write_file` / `patch` 会把路径写进 `_turn_file_mutation_paths`
 → 用 `terminal`(`sed -i`)/ `execute_code` / MCP 文件工具改的文件不进这个集合
@@ -287,7 +287,7 @@ cd /home/user/hermes-agent && grep -rn "collect_working_diff" --include=*.py . |
                     if _edited and has_hook("pre_verify") and _attempt < max_verify_nudges():
 ```
 
-而 `_edited` 只来自 `_turn_file_mutation_paths`(`conversation_loop.py:7102`),
+而 `_edited` 只来自 `_turn_file_mutation_paths`(`agent/conversation_loop.py:7102`),
 该集合只被 `write_file` / `patch` 填。
 
 **判 ▲ 的理由,以及它为什么与本轮另一条"不判 ▲"的裁定不矛盾**——这两条值得并排看:
@@ -308,7 +308,7 @@ cd /home/user/hermes-agent && grep -rn "collect_working_diff" --include=*.py . |
 
 **未取证**:未实跑一次 `terminal` + `sed -i` 的完整回合去观察提示不触发——那需要模型凭据
 (项目边界明写不配置)。上面的判定是**静态全链对读**:写入侧的早退(`run_agent.py:3408`)
-与消费侧的短路(`verification_stop.py:217`)两处都读到了,链条闭合,但**证据等级是静态,不是实跑**。
+与消费侧的短路(`agent/verification_stop.py:217`)两处都读到了,链条闭合,但**证据等级是静态,不是实跑**。
 
 ---
 
@@ -612,9 +612,9 @@ CLAUDE.md 立 ▲/◇/◎ 之分时说的就是这件事,我初判时没有去�
 
 **这段话把本条一分为二,而且是作者自己分的:**
 
-- **env 分支**(`nous_billing.py:179-181`)不查清单 —— **正确,合乎设计**。
+- **env 分支**(`hermes_cli/nous_billing.py:179-181`)不查清单 —— **正确,合乎设计**。
   作者明写 env 是运营者自己设的、可信,**"must NOT be gated"**。
-- **stored 分支**(`nous_billing.py:182-185`)不查清单 —— **正是这条清单被写出来要挡的那一种**
+- **stored 分支**(`hermes_cli/nous_billing.py:182-185`)不查清单 —— **正是这条清单被写出来要挡的那一种**
   ("a poisoned portal_base_url persisted to auth.json")。
 
 ### 6.3 后果:bearer 发往该地址,且走的是 `urlopen`
@@ -625,7 +625,7 @@ CLAUDE.md 立 ▲/◇/◎ 之分时说的就是这件事,我初判时没有去�
         with urllib.request.urlopen(req, timeout=timeout) as resp:
 ```
 
-请求头在 `nous_billing.py:399-402` 组装,首项是 `"Authorization": f"Bearer {token}"`。
+请求头在 `hermes_cli/nous_billing.py:399-402` 组装,首项是 `"Authorization": f"Bearer {token}"`。
 **这与 R9C 定案的 H-R9A-a 是同一形态**(`urllib` + `Authorization`),
 故 R9C 的结论在此原样适用:**只补主机校验不够,还须换成 `open_credentialed_url`**,
 否则重定向仍会把 bearer 带到新主机。

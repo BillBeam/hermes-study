@@ -655,6 +655,12 @@ helper 读的键回填到调用它的 handler),这超出 L2 的读接口面范�
 
 服务端事件出口不止一个 `_emit`,共 6 个来源。枚举脚本:
 
+**R11C 片 C 改:原脚本最后一步读 `/tmp/handled.txt`,那个文件由 §3.2 那条带 `tee` 的命令产生
+—— 而关卡把带 `tee` 的块判为 MUTATING、**永远不跑**,于是这个临时文件在新容器里根本不存在,
+本块原样重跑必然 `FileNotFoundError`。改法是把客户端处理集**就地算出来**(用与 §3.2 完全相同的
+`^      case '…'` 正则扫同一个文件),脚本从此自足、不依赖任何跨块的临时文件。
+读数与原块注释一致,结论未变。**
+
 ```verify
 cd /home/user/hermes-agent
 python3 - <<'PY'
@@ -675,13 +681,47 @@ names |= {'gateway.ready'}
 names |= set(re.findall(r'"(subagent\.[a-z_]+)"', open('tools/delegate_tool.py').read()))
 # 6) desktop_ui 开放中继(server.py:9334),生产里只有 message.reaction
 names |= {'message.reaction'}
-handled = set(open('/tmp/handled.txt').read().split())
+# 7) 客户端处理集就地算出(R11C 改:原为 open('/tmp/handled.txt'),见块前说明)
+handled = set(re.findall(r"^      case '([a-z_.]+)'",
+                         open('ui-tui/src/app/createGatewayEventHandler.ts').read(), re.M))
+print("客户端处理事件类型 =", len(handled))
 print("服务端事件类型 =", len(names))
 print("TUI 处理但 tui_gateway 不发 =", sorted(handled - names))
 print("tui_gateway 发但 TUI 不处理 =", len(names - handled)); print(*sorted(names - handled), sep='\n')
 PY
-# 服务端事件类型 = 63 / 交集 41 / handled-only 4 / server-only 22
 ```
+
+```text
+客户端处理事件类型 = 45
+服务端事件类型 = 63
+TUI 处理但 tui_gateway 不发 = ['gateway.protocol_error', 'gateway.start_timeout', 'gateway.stderr', 'tool.progress']
+tui_gateway 发但 TUI 不处理 = 22
+agent.terminal.output
+clarify.expire
+cron.changed
+message.reaction
+pairing.changed
+pet.changed
+pet.generate.progress
+pet.hatch.progress
+platforms.changed
+preview.read.expire
+preview.read.request
+preview.restart.complete
+preview.restart.progress
+session.reclaimed
+session.title
+sessions.changed
+subagent.text
+terminal.close
+terminal.read.expire
+terminal.read.request
+tool.output_risk
+voice.interrupted
+```
+
+即**服务端 63 类 / 客户端 45 类 / 交集 41 / 只在客户端 4 / 只在服务端 22** ——
+与原块末行注释写的数字逐个一致。
 
 **(a) TUI 处理但 `tui_gateway` 从不发:4 条**
 

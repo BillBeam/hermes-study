@@ -1,4 +1,4 @@
-# r8a-raw-defaults-a · config_defaults.py:1-2200
+# r8a-raw-defaults-a · hermes_cli/config_defaults.py:1-2200
 
 > 底稿(求全求证)。研究对象:`NousResearch/hermes-agent` @ `863e31318553cda8ad61df681d08175364d4164b`(下称 863e313)。
 > 本篇负责 `hermes_cli/config_defaults.py` 的 **第 1-2200 行**(全文 4313 行)。

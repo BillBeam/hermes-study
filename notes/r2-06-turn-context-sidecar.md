@@ -29,7 +29,7 @@ install_safe_stdio、sanitize_surrogates 等)**以参数显式传入**,让本模
 之后依次:系统提示 restore-or-build → `_ensure_db_session`(在系统提示后建 DB 行,防 system_prompt=NULL
 的首回合缓存 miss,#45499)→ preflight 压缩 → pre_llm_call 插件钩子 → 外部记忆预取 → api_content 组装。
 
-## 2. 系统提示 restore-or-build 与静态前缀重建(conversation_loop.py:475-611)
+## 2. 系统提示 restore-or-build 与静态前缀重建(agent/conversation_loop.py:475-611)
 
 `_restore_or_build_system_prompt` 的三态区分(482-493,全部落日志让静默缓存 miss 可见):
 `missing`(无会话行,合法首回合)/ `null`(行存在但列 NULL,遗留会话)/ `empty`(列为空串,

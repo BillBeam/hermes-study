@@ -1,4 +1,4 @@
-# r8a-raw-tools-config-a · tools_config.py:1-1900
+# r8a-raw-tools-config-a · hermes_cli/tools_config.py:1-1900
 
 底稿。基线 `863e313`,精读对象 `hermes_cli/tools_config.py` 第 1–1900 行(全文 5452 行)。
 本段的实际内容 = **声明式注册表**(第 91–749 行)+ **post-setup 安装钩子体系**(第 752–2009 行的前 3/4)。

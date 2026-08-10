@@ -1,0 +1,5 @@
+agent: 片 B · 定案去重未完成的 82 簇
+dispatched: R11C 派发批次三
+signal: RELEASED 片 B 完成信号(任务完成通知,含 705 行底稿 + 裁决可机械重跑);主线已复跑 tally/coverage 两个探针与两道关卡,并独立核对 R11B 原文的「82 簇」措辞
+path: notes/r11c-raw-dedup-82.md
+path: data/r11c/b-dedup-82-*

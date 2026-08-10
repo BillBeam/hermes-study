@@ -74,7 +74,7 @@ The failure modes we've seen in the wild:
 
 ### 1.2 机制:一个主动 pass + 若干反应式 strip
 
-**入口 `sanitize_tool_schemas(tools)`**(`tools/schema_sanitizer.py:120`)对每个 tool 深拷贝后跑 `_sanitize_single_tool`(138)。深拷贝是契约:`schema_sanitizer.py:125-127` 明说返回是 deep copy,调用方可安全 mutate,不影响 registry 原件。这点很关键——registry 里存的是"真名/原构造",清洗只作用于**发线**的副本。
+**入口 `sanitize_tool_schemas(tools)`**(`tools/schema_sanitizer.py:120`)对每个 tool 深拷贝后跑 `_sanitize_single_tool`(138)。深拷贝是契约:`tools/schema_sanitizer.py:125-127` 明说返回是 deep copy,调用方可安全 mutate,不影响 registry 原件。这点很关键——registry 里存的是"真名/原构造",清洗只作用于**发线**的副本。
 
 `_sanitize_single_tool`(138-174)按序做:
 1. 缺失/非 dict parameters → 补最小合法体 `{"type":"object","properties":{}}`(147-149)。
@@ -143,15 +143,15 @@ _REF_FORBIDDEN_SIBLINGS = frozenset({"default"})
                 out.pop(key, None)
 ```
 
-**(vi) 顶层 combinator 剥离**(OpenAI Codex backend `chatgpt.com/backend-api/codex` 比公开 Functions API 更严,顶层不许 oneOf/anyOf/allOf/enum/not)——`schema_sanitizer.py:205, 229-236 @ 863e313`。注释 218-220 强调:这些通常是 conditional-required 提示,剥掉不改变哪些**值**合法,因为"the tool handler always re-validates required fields"。且只剥顶层,property 内嵌 combinator 保留(223-224)。
+**(vi) 顶层 combinator 剥离**(OpenAI Codex backend `chatgpt.com/backend-api/codex` 比公开 Functions API 更严,顶层不许 oneOf/anyOf/allOf/enum/not)——`tools/schema_sanitizer.py:205, 229-236 @ 863e313`。注释 218-220 强调:这些通常是 conditional-required 提示,剥掉不改变哪些**值**合法,因为"the tool handler always re-validates required fields"。且只剥顶层,property 内嵌 combinator 保留(223-224)。
 
-**(vii) 非-schema 兄弟关键字的护栏**:`required`/`enum`/`examples`/`dependentRequired` 的值是字面量(property 名字符串、任意 JSON),不是 schema,不能递归清洗(否则 `"path"` 会被误当裸 string schema 替换成 dict)。`schema_sanitizer.py:409-424`。测试 `test_dependent_required_preserved_through_public_api` 正是这条的规格。
+**(vii) 非-schema 兄弟关键字的护栏**:`required`/`enum`/`examples`/`dependentRequired` 的值是字面量(property 名字符串、任意 JSON),不是 schema,不能递归清洗(否则 `"path"` 会被误当裸 string schema 替换成 dict)。`tools/schema_sanitizer.py:409-424`。测试 `test_dependent_required_preserved_through_public_api` 正是这条的规格。
 
-**(viii) `required` 裁剪到实际存在的 properties**(防畸形 MCP)——`schema_sanitizer.py:436-442`。
+**(viii) `required` 裁剪到实际存在的 properties**(防畸形 MCP)——`tools/schema_sanitizer.py:436-442`。
 
 ### 1.3 property-key 重命名往返(无损的关键)
 
-这是本层最精巧处。Cloudflare flat API MCP 出 61 个非法 key(`issue_class~neq`、`meta.<field>[<operator>]`),一个坏 key 400 整条请求(注释 `schema_sanitizer.py:47-51`)。清洗层不能直接删——那会丢参数;要**重命名成合法 key 发给模型**,再在分派时**还原回原始 wire 名**。
+这是本层最精巧处。Cloudflare flat API MCP 出 61 个非法 key(`issue_class~neq`、`meta.<field>[<operator>]`),一个坏 key 400 整条请求(注释 `tools/schema_sanitizer.py:47-51`)。清洗层不能直接删——那会丢参数;要**重命名成合法 key 发给模型**,再在分派时**还原回原始 wire 名**。
 
 无损靠的是"两侧独立地、确定性地算出同一张映射表",而非把映射存在某处传来传去。
 
@@ -262,9 +262,9 @@ PINNED_THRESHOLDS: Dict[str, float] = {
     result = env.execute(cmd, timeout=30, stdin_data=content)
     return result.get("returncode", 1) == 0
 ```
-路径用 `shlex.quote` 防注入;文件名经 `_safe_result_filename`(64-79)清洗(坏字符→`_`,超长/改动过则加 sha256 前 12 位),防 `tool_use_id` 逃逸 storage 目录。替换块 `<persisted-output>`(119-141)告诉模型"用 read_file offset/limit 取全量"。存储目录按环境解析(Termux 用 `$TMPDIR`),默认 `/tmp/hermes-results`——`tool_result_storage.py:41`、`_resolve_storage_dir`(48-61)。落盘失败或无 env 时回退 inline 截断(196-200)。
+路径用 `shlex.quote` 防注入;文件名经 `_safe_result_filename`(64-79)清洗(坏字符→`_`,超长/改动过则加 sha256 前 12 位),防 `tool_use_id` 逃逸 storage 目录。替换块 `<persisted-output>`(119-141)告诉模型"用 read_file offset/limit 取全量"。存储目录按环境解析(Termux 用 `$TMPDIR`),默认 `/tmp/hermes-results`——`tools/tool_result_storage.py:41`、`_resolve_storage_dir`(48-61)。落盘失败或无 env 时回退 inline 截断(196-200)。
 
-**第三层——per-turn 聚合预算 `enforce_turn_budget`(203-254)。** 收齐一个 turn 的所有 tool 结果,加总超 `turn_budget`(默认 200K,`budget_config.py:18`)则按大小降序把最大的未落盘结果逐个 spill(threshold=0 强制落盘)直到低于预算。`tools/tool_result_storage.py:228-244 @ 863e313`:
+**第三层——per-turn 聚合预算 `enforce_turn_budget`(203-254)。** 收齐一个 turn 的所有 tool 结果,加总超 `turn_budget`(默认 200K,`tools/budget_config.py:18`)则按大小降序把最大的未落盘结果逐个 spill(threshold=0 强制落盘)直到低于预算。`tools/tool_result_storage.py:228-244 @ 863e313`:
 ```python
     candidates.sort(key=lambda x: x[1], reverse=True)
 ...
@@ -283,22 +283,22 @@ PINNED_THRESHOLDS: Dict[str, float] = {
 ```
 第三层复用第二层的落盘原语,只是把阈值压到 0。
 
-**上下文自适应缩放(横切三层)**——小模型的窗口装不下固定 100K/200K。`budget_for_context_window`(`budget_config.py:84-114`)按窗口比例缩放(单结果 15%、整轮 30%),对大模型 clamp 到历史默认(字节级不变),对小模型按窗口缩、留 floor(#23767)。`budget_config.py:75-81`。
+**上下文自适应缩放(横切三层)**——小模型的窗口装不下固定 100K/200K。`budget_for_context_window`(`tools/budget_config.py:84-114`)按窗口比例缩放(单结果 15%、整轮 30%),对大模型 clamp 到历史默认(字节级不变),对小模型按窗口缩、留 floor(#23767)。`tools/budget_config.py:75-81`。
 
 ### 2.3 消费方接线(在 tool_executor)
 
 三层不在 model_tools,而在 `agent/tool_executor.py`:
 - 导入 `agent/tool_executor.py:48-51`(`maybe_persist_tool_result`、`enforce_turn_budget`、`budget_for_context_window`)。
-- 预算按上下文缩放:`tool_executor.py:89` `budget_for_context_window(int(ctx)) if ctx else DEFAULT_BUDGET`。
-- 单结果落盘调用点 `tool_executor.py:1463`、`2221`。
-- 整轮预算调用点 `tool_executor.py:1565`、`2328`、`2391`(串行/并行/子序列三处)。
+- 预算按上下文缩放:`agent/tool_executor.py:89` `budget_for_context_window(int(ctx)) if ctx else DEFAULT_BUDGET`。
+- 单结果落盘调用点 `agent/tool_executor.py:1463`、`2221`。
+- 整轮预算调用点 `agent/tool_executor.py:1565`、`2328`、`2391`(串行/并行/子序列三处)。
 
 ### 2.4 取舍
 
 - **保住全量 vs 省上下文**:不硬截断,而是落盘+preview+路径,模型仍能 read_file 回取全量;代价是多一次工具往返、依赖沙箱可写。
 - **落盘走 env.execute**:任何后端(local/docker/ssh/modal/daytona)一致可达,代价是走一次子进程;stdin 传内容绕过 128 KB argv 上限。
 - **read_file 必须 pin inf**:否则 persist 的 preview 本身又触发 persist,死循环。
-- **registry 值封顶到 default**:防小模型下 per-tool 注册的大 max_result_size 把缩放后的预算又顶回窗口之外(`budget_config.py:44-47`)。
+- **registry 值封顶到 default**:防小模型下 per-tool 注册的大 max_result_size 把缩放后的预算又顶回窗口之外(`tools/budget_config.py:44-47`)。
 - **三层分工**:第一层是工具作者的第一道防线(唯一它能控);第二层兜住单个巨结果;第三层兜住"很多中等结果加总溢出"这个第一二层都漏的场景。
 
 ### 2.5 重实现要点
@@ -344,7 +344,7 @@ BRIDGE_TOOL_NAMES = frozenset({TOOL_SEARCH_NAME, TOOL_DESCRIBE_NAME, TOOL_CALL_N
 ```
 无法解析到 registry entry 的工具**不**声称可 defer(221-222 `entry is None → return False`),`classify_tools`(230-250)把不可分类者留在 visible——防 OpenClaw #84141 那类"cron 静默丢工具"。
 
-**tiered disclosure(2026-07 方案):任何可 defer 工具存在就激活桥接;随 catalog 规模变化的是 listing 深度,不是激活决策。** `should_activate`(275-295):off 不激活,否则只要有 ≥1 可 defer 工具就激活——`tool_search.py:291-295`。threshold_pct 不再 gate 激活,改为 gate listing 预算(`listing_token_budget`,298-312:`min(listing_max_tokens, threshold_pct% of context)`,无窗口时回退 10K)。
+**tiered disclosure(2026-07 方案):任何可 defer 工具存在就激活桥接;随 catalog 规模变化的是 listing 深度,不是激活决策。** `should_activate`(275-295):off 不激活,否则只要有 ≥1 可 defer 工具就激活——`tools/tool_search.py:291-295`。threshold_pct 不再 gate 激活,改为 gate listing 预算(`listing_token_budget`,298-312:`min(listing_max_tokens, threshold_pct% of context)`,无窗口时回退 10K)。
 
 三档(`assemble_tool_defs` 尾部定 tier,824-825):
 - **Tier 0**:无可 defer 工具 → 纯透传(799 `if not deferrable: return ...activated=False`)。
@@ -362,7 +362,7 @@ BRIDGE_TOOL_NAMES = frozenset({TOOL_SEARCH_NAME, TOOL_DESCRIBE_NAME, TOOL_CALL_N
 ```
 form 有 full/names/mixed/groups/none 五种;tier = 1 if form∈{full,names,mixed} else 2(824-825)。
 
-**为什么要 listing**:没有它,被 defer 的能力对模型"不可见",实测模型会拿可见的核心工具替代(在终端跑 `gh` 而不去搜 GitHub 工具),或直接宣称能力不存在。listing 把 skills 模式套到工具上——名字始终可见,full schema 仍 defer。`bridge_tool_schemas` 把 listing 嵌进 `tool_search` 描述,并按 form 给不同措辞(groups 型强制"先搜再说别替代",`tool_search.py:655-662`)。
+**为什么要 listing**:没有它,被 defer 的能力对模型"不可见",实测模型会拿可见的核心工具替代(在终端跑 `gh` 而不去搜 GitHub 工具),或直接宣称能力不存在。listing 把 skills 模式套到工具上——名字始终可见,full schema 仍 defer。`bridge_tool_schemas` 把 listing 嵌进 `tool_search` 描述,并按 form 给不同措辞(groups 型强制"先搜再说别替代",`tools/tool_search.py:655-662`)。
 
 ### 3.3 BM25 检索 + substring 兜底
 
@@ -404,7 +404,7 @@ form 有 full/names/mixed/groups/none 五种;tier = 1 if form∈{full,names,mixe
                     )
                 )
 ```
-`scoped_deferrable_names`(946-963)返回 tool-defs 中可 defer 的名集,注释 951-956 说这是"会话能通过 tool_call 合法触达的宇宙"。tool_executor 侧也有对称 unwrap 闸(`tool_executor.py:365`)。原 bug:两处 unwrap 读全局 registry,受限会话能搜/调整个进程注册表(测试 `TestRegression_ToolsetScoping` 是规格)。
+`scoped_deferrable_names`(946-963)返回 tool-defs 中可 defer 的名集,注释 951-956 说这是"会话能通过 tool_call 合法触达的宇宙"。tool_executor 侧也有对称 unwrap 闸(`agent/tool_executor.py:365`)。原 bug:两处 unwrap 读全局 registry,受限会话能搜/调整个进程注册表(测试 `TestRegression_ToolsetScoping` 是规格)。
 
 **桥接透明**:`tool_call` 命中后**递归**调 `handle_function_call(function_name=underlying_name, ...)`(`model_tools.py:1262-1278`),所有 hook/guardrail/approval/截断都对**真名**触发,桥接对 hook 不可见(注释 1260-1261)。另有 blind-call 探针:缺 required 参数时返回 schema 而非盲派(`validate_deferred_call_args`,966-1016,port 自 nearai/ironclaw#5149)。
 
@@ -431,7 +431,7 @@ form 有 full/names/mixed/groups/none 五种;tier = 1 if form∈{full,names,mixe
 
 ### 4.1 问题(一次具体请求走法)
 
-用户第一次让 agent 用 ElevenLabs TTS。`elevenlabs` 这个包不是每个用户都需要,历史做法把它塞进 `[all]` extra 开箱全装——但只要 `[all]` 里任一传递依赖在 PyPI 被隔离/yank(比如 mistralai 2.4.6 恶意版本),整个 `[all]` resolve 就失败,新装机静默掉到裁剪档,一次丢十几个不相关 extra;且只跟一个 provider 说话的用户被迫拉几百个永不 import 的包(docstring `lazy_deps.py:9-17`)。懒装要在"按需装"和"绝不让一个坏后端包 brick 掉 agent 核心"之间给出安全模型。
+用户第一次让 agent 用 ElevenLabs TTS。`elevenlabs` 这个包不是每个用户都需要,历史做法把它塞进 `[all]` extra 开箱全装——但只要 `[all]` 里任一传递依赖在 PyPI 被隔离/yank(比如 mistralai 2.4.6 恶意版本),整个 `[all]` resolve 就失败,新装机静默掉到裁剪档,一次丢十几个不相关 extra;且只跟一个 provider 说话的用户被迫拉几百个永不 import 的包(docstring `tools/lazy_deps.py:9-17`)。懒装要在"按需装"和"绝不让一个坏后端包 brick 掉 agent 核心"之间给出安全模型。
 
 ### 4.2 机制
 
@@ -442,7 +442,7 @@ form 有 full/names/mixed/groups/none 五种;tier = 1 if form∈{full,names,mixe
 **安全模型(docstring 25-58 逐条)**:
 
 - **默认 venv-scoped**:装进 `sys.executable` 的 venv,不碰系统 Python。
-- **durable-target(不可变镜像)**:镜像封 venv(`HERMES_DISABLE_LAZY_INSTALLS=1` + `/opt/hermes` 只读)时,`HERMES_LAZY_INSTALL_TARGET` 把装机重定向到可写数据卷。该目录**追加到 sys.path 末尾**,绝不前插、绝不经 PYTHONPATH 导出——`lazy_deps.py:453-472`,核心 `_activate_target_on_syspath`。结构保证:懒装包只能**新增**模块,永不能 shadow/降级/破坏核心已发的模块。docstring `tools/lazy_deps.py:36-41 @ 863e313`:
+- **durable-target(不可变镜像)**:镜像封 venv(`HERMES_DISABLE_LAZY_INSTALLS=1` + `/opt/hermes` 只读)时,`HERMES_LAZY_INSTALL_TARGET` 把装机重定向到可写数据卷。该目录**追加到 sys.path 末尾**,绝不前插、绝不经 PYTHONPATH 导出——`tools/lazy_deps.py:453-472`,核心 `_activate_target_on_syspath`。结构保证:懒装包只能**新增**模块,永不能 shadow/降级/破坏核心已发的模块。docstring `tools/lazy_deps.py:36-41 @ 863e313`:
 ```python
   site-packages wins every name collision. A package installed this way can
   only ADD new importable modules; it can never shadow, downgrade, or break
@@ -510,7 +510,7 @@ form 有 full/names/mixed/groups/none 五种;tier = 1 if form∈{full,names,mixe
 
 **安全护栏(把"能匹配"和"敢写"分开):**
 
-- **相似度策略不许 replace_all**:`block_anchor`/`context_aware` 是近似匹配,单点唯一替换安全,但 replace_all 会把不含 old_string 的区域也改掉——`fuzzy_match.py:166, 185-191`。
+- **相似度策略不许 replace_all**:`block_anchor`/`context_aware` 是近似匹配,单点唯一替换安全,但 replace_all 会把不含 old_string 的区域也改掉——`tools/fuzzy_match.py:166, 185-191`。
 - **多匹配非 replace_all → 报错并列位置**:`_format_match_locations`(94-116)给出 `L<line>: snippet`,让模型一次消歧(加 context 或 replace_all),不用重读文件。
 - **escape-drift 护栏**:非 exact 匹配时,若 new_string 含 `\'`/`\"` 而匹配区域没有,判定为 tool-call 序列化漂移(撇号/引号被加了多余反斜杠),拦下报错——`_detect_escape_drift`(256-293)。
 - **条件 unescape `\t`/`\r`**:只在匹配区域真含对应控制字符时才 unescape(`_maybe_unescape_new_string`,380-413);`\n` 刻意排除(注释 398-400)。
@@ -561,18 +561,18 @@ form 有 full/names/mixed/groups/none 五种;tier = 1 if form∈{full,names,mixe
 ### (c) ◇ Tool Search 渐进式工具披露(3 桥接工具 + BM25 + 分层 listing + 会话范围防越权)—— **证伪(有专门文档,且相当详尽)**
 
 `website/docs/user-guide/features/tool-search.md` 是一整页专门文档,覆盖到位:
-- 3 桥接工具签名与典型交互序列(`tool-search.md:32-47`)。
-- tiered disclosure 的 tier 0/1/2 表 + 逐 server 降级(`tool-search.md:58-71`),连 Cloudflare 3300 工具/32K token 的例子都对得上代码。
-- BM25 + substring 兜底(`tool-search.md:151-155`),zero-IDF 退化解释与代码一致。
-- catalog 无跨轮状态(`tool-search.md:156-159`)。
-- **会话范围防越权**(`tool-search.md:160-166 @ 863e313`):"The catalog is scoped to the session's toolsets ... cannot use the bridge to discover or call a tool outside that subset"。
-- 桥接透明(hook 对真名触发,`tool-search.md:49-54`)、trade-offs(`tool-search.md:126-147`)、不做 JS sandbox(`tool-search.md:167-170`)。
+- 3 桥接工具签名与典型交互序列(`website/docs/user-guide/features/tool-search.md:32-47`)。
+- tiered disclosure 的 tier 0/1/2 表 + 逐 server 降级(`website/docs/user-guide/features/tool-search.md:58-71`),连 Cloudflare 3300 工具/32K token 的例子都对得上代码。
+- BM25 + substring 兜底(`website/docs/user-guide/features/tool-search.md:151-155`),zero-IDF 退化解释与代码一致。
+- catalog 无跨轮状态(`website/docs/user-guide/features/tool-search.md:156-159`)。
+- **会话范围防越权**(`website/docs/user-guide/features/tool-search.md:160-166 @ 863e313`):"The catalog is scoped to the session's toolsets ... cannot use the bridge to discover or call a tool outside that subset"。
+- 桥接透明(hook 对真名触发,`website/docs/user-guide/features/tool-search.md:49-54`)、trade-offs(`website/docs/user-guide/features/tool-search.md:126-147`)、不做 JS sandbox(`website/docs/user-guide/features/tool-search.md:167-170`)。
 
 故 ◇"未见于文档"**证伪**:此机制簇已充分文档化,文档甚至比代码注释更系统地列了 trade-off。
 
-**唯一 territory 出入(map≠code)**:`model_tools.py:579 @ 863e313` 内联注释仍写 "when the deferrable surface exceeds the configured threshold (default 10% of context window)",但代码真实默认 `threshold_pct=5.0`(`tool_search.py:111,130`),且 tiered 方案下 threshold **已不再 gate 激活**(改 gate listing 预算,`should_activate` 291-295 只看"有无可 defer 工具")。这是模型侧内联注释的双重陈旧——tool-search.md 正文是对的(`threshold_pct: 5`、"no longer gates activation")。
+**唯一 territory 出入(map≠code)**:`model_tools.py:579 @ 863e313` 内联注释仍写 "when the deferrable surface exceeds the configured threshold (default 10% of context window)",但代码真实默认 `threshold_pct=5.0`(`tools/tool_search.py:111,130`),且 tiered 方案下 threshold **已不再 gate 激活**(改 gate listing 预算,`should_activate` 291-295 只看"有无可 defer 工具")。这是模型侧内联注释的双重陈旧——tool-search.md 正文是对的(`threshold_pct: 5`、"no longer gates activation")。
 
-**附带发现(fuzzy_match 的 in-code map≠code)**:`fuzzy_match.py:9-18` 模块 docstring 自称 "9-strategy chain" 却只编号列了 8 条(1-8),漏掉了 `unicode_normalized`;而实际 `strategies` 列表(149-159)是 9 条、`unicode_normalized` 作为第 7 位插在 `block_anchor` 前。docstring 的编号清单陈旧,与代码差一条。非 website/docs 冲突,但属本簇 territory 记录。
+**附带发现(fuzzy_match 的 in-code map≠code)**:`tools/fuzzy_match.py:9-18` 模块 docstring 自称 "9-strategy chain" 却只编号列了 8 条(1-8),漏掉了 `unicode_normalized`;而实际 `strategies` 列表(149-159)是 9 条、`unicode_normalized` 作为第 7 位插在 `block_anchor` 前。docstring 的编号清单陈旧,与代码差一条。非 website/docs 冲突,但属本簇 territory 记录。
 
 ---
 

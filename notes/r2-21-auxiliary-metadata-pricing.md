@@ -40,16 +40,16 @@ Agent harness 里除了主对话循环,还有大量"副脑"工作:上下文压�
 
 ### 1.2 辅助任务枚举(与主 agent 的关系)
 
-任务的权威清单在 `hermes_cli/config_defaults.py` 的 `"auxiliary"` 段(config_defaults.py:831-1070),共 **18 个任务块** + 4 个顶层旋钮:
+任务的权威清单在 `hermes_cli/config_defaults.py` 的 `"auxiliary"` 段(hermes_cli/config_defaults.py:831-1070),共 **18 个任务块** + 4 个顶层旋钮:
 
 - 任务块:`vision`、`web_extract`、`compression`、`skills_hub`、`approval`、`mcp`、`title_generation`、`memory_query_rewrite`、`tts_audio_tags`、`triage_specifier`、`kanban_decomposer`、`profile_describer`、`goal_judge`、`curator`、`monitor`、`background_review`、`moa_reference`、`moa_aggregator`
-- 顶层旋钮:`transient_retries`(默认 2,config_defaults.py:838)、`free_only`(config_defaults.py:846)、`openrouter_model`(config_defaults.py:852)、`stream_only_base_urls`(config_defaults.py:859)
-- 历史任务 `session_search` 已不再走 LLM(config_defaults.py:888-891 注释:PR #27590 后该块被移除,残留配置被忽略)
-- 插件还可注册新任务(`_get_auxiliary_task_config` 会把插件声明的 defaults 垫在用户配置之下,auxiliary_client.py:7517-7558)
+- 顶层旋钮:`transient_retries`(默认 2,hermes_cli/config_defaults.py:838)、`free_only`(hermes_cli/config_defaults.py:846)、`openrouter_model`(hermes_cli/config_defaults.py:852)、`stream_only_base_urls`(hermes_cli/config_defaults.py:859)
+- 历史任务 `session_search` 已不再走 LLM(hermes_cli/config_defaults.py:888-891 注释:PR #27590 后该块被移除,残留配置被忽略)
+- 插件还可注册新任务(`_get_auxiliary_task_config` 会把插件声明的 defaults 垫在用户配置之下,agent/auxiliary_client.py:7517-7558)
 
 代码中实际以 `task="..."` 调用的还有 `kanban_estimator`(共享 decomposer 配置族),grep 实证:`compression`(29 处)、`title_generation`(13)、`moa_aggregator`(10)、`vision`(7)、`moa_reference`(6)等。
 
-与主 agent 的关系:主循环在每轮开始用 `set_runtime_main()` 把**活跃运行时**(provider/model/base_url/api_key/api_mode)发布到 contextvar(auxiliary_client.py:3055-3103),辅助任务解析时最先读它,其次才读 config.yaml:
+与主 agent 的关系:主循环在每轮开始用 `set_runtime_main()` 把**活跃运行时**(provider/model/base_url/api_key/api_mode)发布到 contextvar(agent/auxiliary_client.py:3055-3103),辅助任务解析时最先读它,其次才读 config.yaml:
 
 > agent/auxiliary_client.py:2667-2669
 > ```python
@@ -62,7 +62,7 @@ contextvar 保证并发 gateway 会话互不覆盖(3066-3070 docstring);另有�
 
 ### 1.3 `_resolve_auto` 完整解析顺序(定案 a 的核心证据)
 
-`_resolve_auto(main_runtime, task)`(auxiliary_client.py:5391-5569)是 `provider: auto`(即默认)时的总入口。逐步:
+`_resolve_auto(main_runtime, task)`(agent/auxiliary_client.py:5391-5569)是 `provider: auto`(即默认)时的总入口。逐步:
 
 **Step 0 — 预处理**
 - 5408-5409:重置 `auxiliary_is_nous` 标志;`_normalize_main_runtime` 归一 runtime dict(5410)。
@@ -140,7 +140,7 @@ docstring 直接给出理由(可预测性 > 省钱):
 >          switches to a cheap fallback model for side tasks.
 > ```
 
-反向证据(不复用会怎样)在 xai-oauth 分支注释:若缺这个分支,xAI 订阅用户的所有副任务会被静默重路由到 OpenRouter/Nous 产生"surprise bills"(auxiliary_client.py:5943-5949)。`background_review` 的默认注释还给出成本论证:同模型可复用主 prompt cache,换便宜模型反而要冷写 digest(config_defaults.py:1029-1039)。
+反向证据(不复用会怎样)在 xai-oauth 分支注释:若缺这个分支,xAI 订阅用户的所有副任务会被静默重路由到 OpenRouter/Nous 产生"surprise bills"(agent/auxiliary_client.py:5943-5949)。`background_review` 的默认注释还给出成本论证:同模型可复用主 prompt cache,换便宜模型反而要冷写 digest(hermes_cli/config_defaults.py:1029-1039)。
 
 ### 1.5 每 task 的 config 覆盖链(`auxiliary.<task>.*`)
 
@@ -215,7 +215,7 @@ unhealthy 缓存刻意只在进程内(3631-3633:双 profile 双 key 场景不应
 
 ### 2.2 `get_model_context_length` 十步仲裁链
 
-docstring 即规格(model_metadata.py:2494-2516),按序:0 config 显式覆盖(2517-2519)→ 0a MoA 解包到聚合器(2527-2555)→ 0b custom_providers per-model 覆盖(2557-2572)→ 端点作用域元数据(2590-2595)→ **1 持久缓存**(2609-2689,带四类陈旧值失效:Kimi≤32K、MiniMax-M3≤204,800、Grok-4.3≤256,000、Bedrock 低于静态表;Nous URL 与 LM Studio、Codex OAuth 整体绕过缓存)→ 1b Bedrock 静态表+探测(2691-2737)→ 2 真 custom 端点 `/models` 探测 + 本地服务器探测 + Ollama `/api/show`(2746-2806)→ 4 Anthropic `/v1/models`(2808-2814)→ 5 provider 感知分支:Copilot 账户级 `/models`(2830-2841)、Nous Portal 权威探测(2843-2856)、Codex OAuth 账户目录(2857-2870)、GMI(2871-2876)、Ollama 泛化探测(2888-2899)、OpenRouter live(2900-2920)、**models.dev**(2922-2937)→ 6 OpenRouter 目录仅在 provider 未知时兜底(2939-2955)→ 7 本地服务器再探(2957-2965)→ 8 硬编码家族表最长键优先(2967-2976)→ 9 默认 256K + 去重告警(2978-2982)。
+docstring 即规格(agent/model_metadata.py:2494-2516),按序:0 config 显式覆盖(2517-2519)→ 0a MoA 解包到聚合器(2527-2555)→ 0b custom_providers per-model 覆盖(2557-2572)→ 端点作用域元数据(2590-2595)→ **1 持久缓存**(2609-2689,带四类陈旧值失效:Kimi≤32K、MiniMax-M3≤204,800、Grok-4.3≤256,000、Bedrock 低于静态表;Nous URL 与 LM Studio、Codex OAuth 整体绕过缓存)→ 1b Bedrock 静态表+探测(2691-2737)→ 2 真 custom 端点 `/models` 探测 + 本地服务器探测 + Ollama `/api/show`(2746-2806)→ 4 Anthropic `/v1/models`(2808-2814)→ 5 provider 感知分支:Copilot 账户级 `/models`(2830-2841)、Nous Portal 权威探测(2843-2856)、Codex OAuth 账户目录(2857-2870)、GMI(2871-2876)、Ollama 泛化探测(2888-2899)、OpenRouter live(2900-2920)、**models.dev**(2922-2937)→ 6 OpenRouter 目录仅在 provider 未知时兜底(2939-2955)→ 7 本地服务器再探(2957-2965)→ 8 硬编码家族表最长键优先(2967-2976)→ 9 默认 256K + 去重告警(2978-2982)。
 
 关键设计:**只持久化权威来源**。Nous 分支注释:
 
@@ -236,13 +236,13 @@ Codex 同理只持久化 `source == "live"`(2864-2870)。Bedrock 静态表是**�
 - `parse_context_limit_from_error`(1524-1551):7 个正则从错误文本抓极限值,1024–10M 合理性校验;
 - `get_context_length_from_provider_error`(1554-1571):**只接受 provider 明说的更低值,不猜**——"Context-overflow recovery must not invent a new model window size";
 - 区分两类错误:输入超窗(压缩解决)vs `max_tokens` 过大(`parse_available_output_tokens_from_error`,1574-1696:只降本次输出上限,不动 context_length);
-- 消费侧:成功调用后只有"provider 确认过的"探测值才写盘(conversation_loop.py:3310-3313 `_context_probe_persistable` 门)。
+- 消费侧:成功调用后只有"provider 确认过的"探测值才写盘(agent/conversation_loop.py:3310-3313 `_context_probe_persistable` 门)。
 
 ### 2.4 缓存策略汇总
 
 | 缓存 | 位置 | TTL | 备注 |
 |---|---|---|---|
-| OpenRouter 目录 | 内存 + `~/.hermes` 磁盘 | 3600s(model_metadata.py:134) | 网络失败退内存→退磁盘(1197-1210);(5,10) 连接/读取双超时防代理黑洞(1170-1173) |
+| OpenRouter 目录 | 内存 + `~/.hermes` 磁盘 | 3600s(agent/model_metadata.py:134) | 网络失败退内存→退磁盘(1197-1210);(5,10) 连接/读取双超时防代理黑洞(1170-1173) |
 | 端点 `/models` | 内存 per base_url | 300s(137) | 候选 URL 试 `/v1` 双形态;黑洞端点熔断(1234-1238) |
 | 本地探测 | 内存 30s(398)+ 磁盘 300s(248) | | LM Studio 不持久化(可随时重载) |
 | 持久上下文 | `~/.hermes/context_length_cache.yaml`(1417-1420) | 无 TTL | 键 `model@base_url`(1437-1444),失效需同步清内存探测缓存与 legacy 键形(1488-1513) |
@@ -250,7 +250,7 @@ Codex 同理只持久化 `source == "live"`(2864-2870)。Bedrock 静态表是**�
 
 ### 2.5 models_dev.py — 能力目录
 
-数据源 `https://models.dev/api.json`(models_dev.py:39),社区维护 4000+ 模型 109+ provider(1-9)。核心是 stale-serve 缓存机:
+数据源 `https://models.dev/api.json`(agent/models_dev.py:39),社区维护 4000+ 模型 109+ provider(1-9)。核心是 stale-serve 缓存机:
 
 > agent/models_dev.py:370-373
 > ```python
@@ -280,7 +280,7 @@ Codex 同理只持久化 `source == "live"`(2864-2870)。Bedrock 静态表是**�
 
 ### 3.2 usage 归一:4 种形状 → `CanonicalUsage`
 
-`CanonicalUsage`(usage_pricing.py:30-65):五桶 `input/output/cache_read/cache_write/reasoning` + `request_count`;`prompt_tokens = input+cache_read+cache_write`(41-42);`__add__` 支持 MoA 扇出求和,`raw_usage` 弃合并(48-65)。
+`CanonicalUsage`(agent/usage_pricing.py:30-65):五桶 `input/output/cache_read/cache_write/reasoning` + `request_count`;`prompt_tokens = input+cache_read+cache_write`(41-42);`__add__` 支持 MoA 扇出求和,`raw_usage` 弃合并(48-65)。
 
 `normalize_usage(response_usage, provider, api_mode)`(1205-1297)的 4 种形状:
 
@@ -317,9 +317,9 @@ reasoning tokens 双源:`output_tokens_details.reasoning_tokens`(Responses)优�
 
 `estimate_usage_cost`(1300-1376):**严格模式**——某桶有用量但缺该桶价,整体返回 `unknown` 而非少算(1325-1346);Decimal 运算;OpenRouter 附"待对账"note(1365-1366)。消费方:
 
-- 主循环:`conversation_loop.py:3225`(normalize)与 `conversation_loop.py:3355`(estimate,MoA 时换用聚合器真实槽位定价,3339-3361;advisor 费用按各自模型价另加,3364-3370);五桶累加进 session 计数(3318-3326);
-- 辅助调用:`aux_accounting.py:105/116`,由 `_validate_llm_response` 这个唯一验证卡点触发(auxiliary_client.py:8096-8097),contextvar 携带 `(session_db, session_id)`,MoA 两任务除外防双计(aux_accounting.py:43);
-- MoA advisor 逐槽定价:`moa_loop.py:578/593`;Codex 原生环:`codex_runtime.py:143`;`/insights` 报表:`insights.py:66/505/654`;CLI 懒加载转发:`cli.py:96-105`。
+- 主循环:`agent/conversation_loop.py:3225`(normalize)与 `agent/conversation_loop.py:3355`(estimate,MoA 时换用聚合器真实槽位定价,3339-3361;advisor 费用按各自模型价另加,3364-3370);五桶累加进 session 计数(3318-3326);
+- 辅助调用:`agent/aux_accounting.py:105/116`,由 `_validate_llm_response` 这个唯一验证卡点触发(agent/auxiliary_client.py:8096-8097),contextvar 携带 `(session_db, session_id)`,MoA 两任务除外防双计(agent/aux_accounting.py:43);
+- MoA advisor 逐槽定价:`agent/moa_loop.py:578/593`;Codex 原生环:`agent/codex_runtime.py:143`;`/insights` 报表:`insights.py:66/505/654`;CLI 懒加载转发:`cli.py:96-105`。
 
 ### 3.5 account_usage.py — 账户级配额视图
 
@@ -331,7 +331,7 @@ reasoning tokens 双源:`output_tokens_details.reasoning_tokens`(Responses)优�
 
 ### 3.6 credits_tracker.py(概述级)
 
-Nous 推理响应头 `x-nous-credits-*` 的硬化解析器(852 行)。要点:金额只以 micros 整数处理,`int()` 直接解析、**禁止** `int(float())`(2^53 精度损失会悄悄改钱数,62-79);USD 串按 `^-?\d+\.\d{2}$` 原样验证保存、绝不转 float(53、83-87);版本门 `!=1` 即 miss、`>1` 一次性警告(486-493);`subscription_micros` 是唯一允许负值(欠费)的字段(100);枯竭判定**只**看 `paid_access == False`,绝不用 `remaining==0`(127-134);`subscription_limit` 半对出现按双缺处理但整体解析仍成功(fail-open,557-562);`used_fraction` 以 limit 字段而非 `denominator_kind` 为准(137-150)。下游:`evaluate_credits_notices` 升级式通知(266)、`seed_credits_at_session_start`(799)、`_snapshot_from_credits_state` 桥接到 /usage 视图(account_usage.py:283)。
+Nous 推理响应头 `x-nous-credits-*` 的硬化解析器(852 行)。要点:金额只以 micros 整数处理,`int()` 直接解析、**禁止** `int(float())`(2^53 精度损失会悄悄改钱数,62-79);USD 串按 `^-?\d+\.\d{2}$` 原样验证保存、绝不转 float(53、83-87);版本门 `!=1` 即 miss、`>1` 一次性警告(486-493);`subscription_micros` 是唯一允许负值(欠费)的字段(100);枯竭判定**只**看 `paid_access == False`,绝不用 `remaining==0`(127-134);`subscription_limit` 半对出现按双缺处理但整体解析仍成功(fail-open,557-562);`used_fraction` 以 limit 字段而非 `denominator_kind` 为准(137-150)。下游:`evaluate_credits_notices` 升级式通知(266)、`seed_credits_at_session_start`(799)、`_snapshot_from_credits_state` 桥接到 /usage 视图(agent/account_usage.py:283)。
 
 ### 3.7 取舍与重实现要点
 
@@ -347,7 +347,7 @@ Nous 推理响应头 `x-nous-credits-*` 的硬化解析器(852 行)。要点:金
 
 > `- **Auxiliary tasks**: use their own independent provider auto-detection chain (see Auxiliary model routing above)`
 
-精读结论:辅助任务确实有**自己的解析代码路径**(不参与主循环 `_try_activate_fallback` 的原位换模),这半句在"fallback 不共享激活状态"的上下文里成立;但"independent auto-detection chain"作为对默认行为的描述是**错的**——`_resolve_auto` Step 1(auxiliary_client.py:5437-5532,上文 1.3 全序)**直接复用主 provider + 主 model**,独立发现链(openrouter→nous→local/custom→api-key)只是 Step 3 的兜底,且 Step 2 还优先尊重与主 agent 同源的 `fallback_providers` 配置(5534-5547)——即辅助路由既不"独立"于主运行时,也不"独立"于主 fallback 策略。第一轮在 5437 附近的认定成立并在此给出完整链条作证。同类过时表述还有 fallback-providers.md:14("independent provider resolution for side tasks")。另记一处文档漂移:provider-runtime.md:148-156 只列 6 类辅助任务(含已废弃的"memory flushes"式描述),而 config_defaults.py:831-1070 实有 18 个任务块;其中 `provider: main` 的写法与代码一致(`_normalize_aux_provider`,auxiliary_client.py:541-548 确有 `main` 别名)。
+精读结论:辅助任务确实有**自己的解析代码路径**(不参与主循环 `_try_activate_fallback` 的原位换模),这半句在"fallback 不共享激活状态"的上下文里成立;但"independent auto-detection chain"作为对默认行为的描述是**错的**——`_resolve_auto` Step 1(agent/auxiliary_client.py:5437-5532,上文 1.3 全序)**直接复用主 provider + 主 model**,独立发现链(openrouter→nous→local/custom→api-key)只是 Step 3 的兜底,且 Step 2 还优先尊重与主 agent 同源的 `fallback_providers` 配置(5534-5547)——即辅助路由既不"独立"于主运行时,也不"独立"于主 fallback 策略。第一轮在 5437 附近的认定成立并在此给出完整链条作证。同类过时表述还有 fallback-providers.md:14("independent provider resolution for side tasks")。另记一处文档漂移:provider-runtime.md:148-156 只列 6 类辅助任务(含已废弃的"memory flushes"式描述),而 hermes_cli/config_defaults.py:831-1070 实有 18 个任务块;其中 `provider: main` 的写法与代码一致(`_normalize_aux_provider`,agent/auxiliary_client.py:541-548 确有 `main` 别名)。
 
 ### 4b. ◇ 用量归一与定价未见于文档 — **判定:证实**
 
@@ -376,6 +376,6 @@ Nous 推理响应头 `x-nous-credits-*` 的硬化解析器(852 行)。要点:金
 ## 附:本轮观察到的文档-代码冲突清单(供台账)
 
 1. provider-runtime.md:196 与 fallback-providers.md:14 —"独立自动探测链"表述与 `_resolve_auto` Step 1 main-first 事实相悖(定案 4a,证伪/修正);
-2. provider-runtime.md:148-156 辅助任务清单(6 类)严重落后于 config_defaults.py:831-1070(18 块),且含已移除的 session_search 时代口径;
+2. provider-runtime.md:148-156 辅助任务清单(6 类)严重落后于 hermes_cli/config_defaults.py:831-1070(18 块),且含已移除的 session_search 时代口径;
 3. 用量归一/定价机制在 website/docs 无任何机制级描述,仅剩 DB 列与 CLI 字段两处外围痕迹(定案 4b,证实);
 4. auxiliary_client.py 模块 docstring(:7-15)自述的 auto 链与实现一致(main → OR → Nous → custom → anthropic → api-key),但未提 Step 2 的用户 fallback 策略优先(5534-5547)——模块内注释比模块头新。

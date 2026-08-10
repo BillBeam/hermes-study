@@ -1244,7 +1244,13 @@ cd /home/user/hermes-agent/apps/desktop/src && grep -rn "?raw" --include=*.ts --
 
 环境:主线备好的基线副本 `/home/user/r10b-ts/hermes-agent/apps/desktop`,**未装任何包**。
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 它不是可重跑命令。**
+vitest 要 `apps/desktop/node_modules`,而基线是只读 checkout、**没有 `apps/desktop/node_modules`**;补它只能在基线里 `npm ci`,
+那会弄脏全项目的引用基准(CLAUDE.md 边界第一条)。R10B 跑它用的是基线之外一份
+**会话专属副本**,该目录已随会话消失 —— 所以这条命令在新容器里**原理上跑不出原值**。
+按派工书如实声明,不伪造输出;块正文一字未动。
+
+```text
 cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project ui src/contrib src/plugins src/app/contrib src/app/skills src/app/starmap
 ```
 
@@ -1256,7 +1262,13 @@ cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project ui s
 (`<body><div /></body>`)。该次运行 `Duration 61.15s`、其中 `import 63.06s`,
 即并行导入把单用例挤过了 testing-library 的默认等待窗。单独重跑该文件两次:
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 它不是可重跑命令。**
+vitest 要 `apps/desktop/node_modules`,而基线是只读 checkout、**没有 `apps/desktop/node_modules`**;补它只能在基线里 `npm ci`,
+那会弄脏全项目的引用基准(CLAUDE.md 边界第一条)。R10B 跑它用的是基线之外一份
+**会话专属副本**,该目录已随会话消失 —— 所以这条命令在新容器里**原理上跑不出原值**。
+按派工书如实声明,不伪造输出;块正文一字未动。
+
+```text
 cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project ui src/app/skills/index.test.tsx
 ```
 

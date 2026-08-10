@@ -1390,8 +1390,14 @@ ui-tui/README.md:391 @ 863e313
 `widgetGrid.ts`(510 行)是布局求解器,`themeBoot.ts` 是首帧主题机制——
 三个都是核心件。反向核对:File map 里列出的 37 个**都存在**。
 
+**R11C 片 C 改:原块把 cwd 写在注释里(「在 /home/user/hermes-agent/ui-tui 下跑」),
+而关卡是从学习仓库根跑的,于是 `ls: cannot access 'src/lib/'`。改法是把那句注释变成命令里的
+真 `cd`,并把输出配对进 ```text 块。**四个 `comm` 的结果与原块注释里写的完全一致
+(12 个 / 空 / 8 个 / 空,计数 24 / 36 与 37 / 45),结论未变。**
+
 ```verify
-# ◇1/◇2 复核(bash,在 /home/user/hermes-agent/ui-tui 下跑;不落临时文件)
+# ◇1/◇2 复核(bash;不落临时文件)
+cd /home/user/hermes-agent/ui-tui
 # 只在磁盘上、README File map 未列的组件(应打出 12 个)
 comm -13 <(sed -n '377,401p' README.md | grep -oE "^      [a-zA-Z]+\.tsx" | tr -d ' ' | sort) \
          <(ls src/components/ | sort)
@@ -1408,6 +1414,37 @@ comm -23 <(sed -n '435,472p' README.md | grep -oE "^      [a-zA-Z0-9]+\.tsx?" | 
 sed -n '377,401p' README.md | grep -cE "^      [a-zA-Z]+\.tsx"; ls src/components/ | wc -l
 sed -n '435,472p' README.md | grep -cE "^      [a-zA-Z0-9]+\.tsx?"; ls src/lib/ | grep -vc '\.test\.'
 ```
+
+```text
+accordion.tsx
+gridStreamsDemo.tsx
+gridTestOverlay.tsx
+journey.tsx
+loaders.tsx
+overlay.tsx
+overlayPrimitives.tsx
+overlayScrollbar.tsx
+petPicker.tsx
+petSprite.tsx
+subscriptionOverlay.tsx
+widgetGrid.tsx
+billingDialog.ts
+charts.ts
+color.ts
+model-search-text.ts
+resizeCoalescer.ts
+starmapPalette.ts
+themeBoot.ts
+widgetGrid.ts
+24
+36
+37
+45
+```
+
+四段输出依次是:磁盘上有而 README File map 未列的**组件 12 个**、README 里有而磁盘上没有的
+组件(**空**)、同理的 **lib 模块 8 个**、以及反向(**空**);最后四个数是
+README 列出的组件数 24 / 磁盘组件数 36、README 列出的 lib 数 37 / 磁盘 lib 数 45。
 
 ### ◇3 File map 整体漏掉 `ui-tui/scripts/`(9 文件)与 `src/sdk/`(11 文件)
 

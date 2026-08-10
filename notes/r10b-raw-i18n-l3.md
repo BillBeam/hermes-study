@@ -96,7 +96,14 @@ wc -l catalog.ts context.tsx define-locale.ts index.ts \
 单列,并额外解析 `apps/desktop/src/app/settings/constants.ts` 把那两棵子树接回来,
 否则 `en` 与其他 4 个包**不可比**(初版就因此把 `en` 少算了 138 个叶子)。
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 它不是可重跑命令。**
+命令自己的第一行注释就写着「需要一个装了 typescript 的 checkout 提供 NODE_PATH」,
+指的是 R10B 那份**会话专属** TS 副本;基线是只读 checkout、**没有 `apps/desktop/node_modules`**;补它只能在基线里 `npm ci`,
+那会弄脏全项目的引用基准(CLAUDE.md 边界第一条)。R10B 跑它用的是基线之外一份
+**会话专属副本**,该目录已随会话消失 —— 所以这条命令在新容器里**原理上跑不出原值**。
+按派工书如实声明,不伪造输出;块正文一字未动。
+
+```text
 # 需要一个装了 typescript 的 checkout 提供 NODE_PATH(R10B 的 TS 副本即可)
 NODE_PATH=/home/user/r10b-ts/hermes-agent/node_modules \
   node /home/user/hermes-study/data/r10b/probes/probe_i_leafkeys.mjs /home/user/hermes-agent
@@ -831,7 +838,13 @@ export const KEYBIND_ACTION_IDS: readonly string[] = KEYBIND_ACTIONS.map(action 
 
 `apps/desktop/src/i18n/` 下 4 个测试文件(LT 层,不计入本片 13 文件):
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 它不是可重跑命令。**
+vitest 要 `apps/desktop/node_modules`,而基线是只读 checkout、**没有 `apps/desktop/node_modules`**;补它只能在基线里 `npm ci`,
+那会弄脏全项目的引用基准(CLAUDE.md 边界第一条)。R10B 跑它用的是基线之外一份
+**会话专属副本**,该目录已随会话消失 —— 所以这条命令在新容器里**原理上跑不出原值**。
+按派工书如实声明,不伪造输出;块正文一字未动。
+
+```text
 cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project ui src/i18n/
 ```
 

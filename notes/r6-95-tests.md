@@ -16,7 +16,7 @@
 ## 2. 环境依赖(与 R2/R4 同款模式)
 
 `test_hindsight_provider.py` 初跑 6 失败:`_lazy_ensure("memory.hindsight")` 在密封环境禁懒装且
-`hindsight-client` 未装。补装 `hindsight-client==0.6.1`(lazy_deps.py:194 声明的规格)后 57/57 全过。
+`hindsight-client` 未装。补装 `hindsight-client==0.6.1`(tools/lazy_deps.py:194 声明的规格)后 57/57 全过。
 非代码缺陷。其余后端测试全部离线 stub,无需真实凭据。
 
 ## 3. 行为规格精选(与底稿呼应)

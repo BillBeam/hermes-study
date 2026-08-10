@@ -553,7 +553,7 @@ def _get_starts_log_path() -> Path:
 
 - **fail OPEN 是硬约束**,两处 docstring 都写死了(`:26-27`、`:100-101`):
   "a broken breaker must never wedge a healthy gateway"。所以整个模块没有一处会抛异常,
-  调用侧还额外包了一层 `except`(run.py:10508)。
+  调用侧还额外包了一层 `except`(gateway/run.py:10508)。
 - **`now` 参数可注入**(`:73`、`:93`、`:126`),让测试不依赖真实时钟,
   见 `tests/hermes_cli/test_gateway_restart_loop.py:955-969`。
 
@@ -1649,11 +1649,11 @@ test without a live gateway.
 
 | scale_to_zero.py 纯函数 | run.py 绑定方法 | 绑定做了什么 |
 |---|---|---|
-| `scale_to_zero_enabled()` | `_scale_to_zero_should_arm` `run.py:7525` / `_log_..._reason` `run.py:7545` | 直接调用,读真实 `os.environ` |
-| `messaging_is_relay_only_or_absent()` | 同上 `run.py:7527` / `run.py:7559` | **过滤 `pc.enabled`** 后再传(见 §2.1(d)) |
-| `should_arm()` | `_scale_to_zero_should_arm` `run.py:7524-7528` | 补上 `relay_wake_url()`(`gateway/relay/__init__.py:228`) |
-| `parse_idle_timeout_seconds()` | `_scale_to_zero_idle_timeout_seconds` `run.py:7457-7469` | 从 `config.yaml` 的 `gateway.scale_to_zero.idle_timeout_minutes` 取原值 |
-| `is_idle()` | `_scale_to_zero_is_idle` `run.py:7576-7584` | 补上四个实时量 |
+| `scale_to_zero_enabled()` | `_scale_to_zero_should_arm` `gateway/run.py:7525` / `_log_..._reason` `gateway/run.py:7545` | 直接调用,读真实 `os.environ` |
+| `messaging_is_relay_only_or_absent()` | 同上 `gateway/run.py:7527` / `gateway/run.py:7559` | **过滤 `pc.enabled`** 后再传(见 §2.1(d)) |
+| `should_arm()` | `_scale_to_zero_should_arm` `gateway/run.py:7524-7528` | 补上 `relay_wake_url()`(`gateway/relay/__init__.py:228`) |
+| `parse_idle_timeout_seconds()` | `_scale_to_zero_idle_timeout_seconds` `gateway/run.py:7457-7469` | 从 `config.yaml` 的 `gateway.scale_to_zero.idle_timeout_minutes` 取原值 |
+| `is_idle()` | `_scale_to_zero_is_idle` `gateway/run.py:7576-7584` | 补上四个实时量 |
 
 `gateway/run.py:7576-7584 @ 863e313`:
 ```python
@@ -1817,12 +1817,12 @@ test without a live gateway.
 
 | 义务(合同原文要点) | 代码落点 | 状态 |
 |---|---|---|
-| §3.4(1) 挂起前必须已注册 wakeUrl,否则是黑洞 | `should_arm` 第三个合取项 `scale_to_zero.py:104`;取值 `gateway/relay/__init__.py:228` | ✅ |
+| §3.4(1) 挂起前必须已注册 wakeUrl,否则是黑洞 | `should_arm` 第三个合取项 `gateway/scale_to_zero.py:104`;取值 `gateway/relay/__init__.py:228` | ✅ |
 | §3.4(2) 必须 `going_idle` → 等 ack 再关 socket | 委托给 transport,`gateway/relay/ws_transport.py:634` `go_dormant` | ✅(在原语侧) |
 | §3.4(3) 重连循环必须保持存活 | `adapter.go_dormant` docstring 明写 "keeps the adapter's reconnect path armed"(`adapter.py:875-877`) | ✅ |
-| §3.4(4) 健康模型必须区分"挂起"与"宕机" | **代码里找不到落点。** watcher 只把 runtime status 标成 `draining`(`run.py:7651`);readiness 把 `draining` 判为 ok(`readiness.py:85`),算是被动满足 | ⚠️ 无显式实现 |
-| §3.4(5) 唤醒戳是尽力而为,不可假定即时 | watcher 的 cooldown(`run.py:7662`)与"重连时必然 drain"的兜底 | ✅ |
-| §3.4(6) 必须与既有 drain 状态机组合,不另起并行路径 | `run.py:7614-7619` docstring 明确引用 §3.4(6),用 `_update_runtime_status("draining")` 而不是 `_running=False` | ✅ |
+| §3.4(4) 健康模型必须区分"挂起"与"宕机" | **代码里找不到落点。** watcher 只把 runtime status 标成 `draining`(`gateway/run.py:7651`);readiness 把 `draining` 判为 ok(`gateway/readiness.py:85`),算是被动满足 | ⚠️ 无显式实现 |
+| §3.4(5) 唤醒戳是尽力而为,不可假定即时 | watcher 的 cooldown(`gateway/run.py:7662`)与"重连时必然 drain"的兜底 | ✅ |
+| §3.4(6) 必须与既有 drain 状态机组合,不另起并行路径 | `gateway/run.py:7614-7619` docstring 明确引用 §3.4(6),用 `_update_runtime_status("draining")` 而不是 `_running=False` | ✅ |
 
 **合同本身仍把行为层称为 "future"**(`docs/relay-connector-contract.md:302-303`:
 "a future scale-to-zero behaviour layer";`:333` 标题 "Obligations on a **future** scale-to-zero
@@ -1867,7 +1867,7 @@ behaviour layer"),而代码已经实现了。记为 ▲7(见 §4)。
 
 **结论:一旦 arm 成功,watcher 自身就是 `_background_tasks` 里一个永远 `not done()` 的成员,
 `_scale_to_zero_has_live_background_work()` 恒返回 True,`is_idle()` 恒返回 False
-(`scale_to_zero.py:121-122`),网关永远不会 go dormant。** 就算把 watcher 自己排除掉,
+(`gateway/scale_to_zero.py:121-122`),网关永远不会 go dormant。** 就算把 watcher 自己排除掉,
 另外 8 个常驻 watcher 也会把它钉死在 True。
 
 **实证(在基线仓库上跑真实代码,未修改任何文件):**
@@ -1898,10 +1898,10 @@ monkeypatch 掉了 `_scale_to_zero_is_idle`(`:42`),绕开了这条路径:
 **证据强度说明:** 我没有 boot 一个真实的、armed 的网关来端到端确认它不休眠
 (需要 relay 凭据 + Fly 环境,按 CLAUDE.md 边界不得配置)。上述结论建立在
 三条可独立复核的静态事实 + 一次真实代码的行为实证之上:
-(a) `run.py:11545` 用 `_spawn_supervised` 起 watcher;
-(b) `run.py:11611` 把任务加入 `_background_tasks`;
-(c) `run.py:7437` 对该集合做 `any(not t.done())`。
-另有 8 个同样常驻的 watcher(`run.py:11475-11560`)独立地锁死同一条件。
+(a) `gateway/run.py:11545` 用 `_spawn_supervised` 起 watcher;
+(b) `gateway/run.py:11611` 把任务加入 `_background_tasks`;
+(c) `gateway/run.py:7437` 对该集合做 `any(not t.done())`。
+另有 8 个同样常驻的 watcher(`gateway/run.py:11475-11560`)独立地锁死同一条件。
 
 **这个 bug 的形态值得记进"重实现要点":纯函数把语义外包给调用方,
 而调用方拿了一个名字听起来对、含义完全不同的字段(`_background_tasks` 听起来是
@@ -1910,8 +1910,8 @@ monkeypatch 掉了 `_scale_to_zero_is_idle`(`:42`),绕开了这条路径:
 "三个看门狗共用一钟"(#72039 单一进度源契约),这里恰恰缺了那个契约。
 
 **顺带的第二个口子:** `_scale_to_zero_is_idle` 用的是 `_running_agent_count()`
-(`run.py:7378-7379`,只数 `self._running_agents`),不是 `_active_work_count()`
-(`run.py:7381-7388`,= agents + cron jobs + api runs)。所以**一个在跑的 cron 作业
+(`gateway/run.py:7378-7379`,只数 `self._running_agents`),不是 `_active_work_count()`
+(`gateway/run.py:7381-7388`,= agents + cron jobs + api runs)。所以**一个在跑的 cron 作业
 或 API run 不会通过 `running_agent_count` 挡住休眠**。今天被上面那个恒 True 掩盖了,
 一旦修掉恒 True,这个口子就会暴露。
 
@@ -1929,7 +1929,7 @@ monkeypatch 掉了 `_scale_to_zero_is_idle`(`:42`),绕开了这条路径:
 | `gateway/readiness.py` | `gateway/platforms/api_server.py:96`(import)+ `:2896`(调用);`hermes_cli/web_server.py:3259-3262`(import 私有 `_probe_state_db`) | ✅ 两处,一处用公开 API 一处用私有 |
 | `gateway/systemd_notify.py` | `gateway/run.py:12642`(唯一 import)→ `:12645-12648` 起 + `:12658` 停;`_start_systemd_watchdog` 被 `gateway/run.py:26938-26940` 调用,`_stop_systemd_watchdog` 被 `:12804-12806` 调用 | ✅ 单一消费者(GatewayRunner) |
 | `gateway/cgroup_cleanup.py` | **不经 import** —— `hermes_cli/gateway.py:2922`(system unit)与 `:2960`(user unit)的 `ExecStopPost=-{python_path} -m gateway.cgroup_cleanup` | ✅ 已接线,但仅 systemd 路径(launchd/s6 无) |
-| `gateway/scale_to_zero.py` | `gateway/run.py:7458`、`:7497-7501`、`:7539-7542`、`:7577`(4 处延迟 import);arm 点 `:11540-11545`;时钟 `:14397` | ✅ 已接线,**但见 §2.5:生产语义被 run.py:7437 破坏** |
+| `gateway/scale_to_zero.py` | `gateway/run.py:7458`、`:7497-7501`、`:7539-7542`、`:7577`(4 处延迟 import);arm 点 `:11540-11545`;时钟 `:14397` | ✅ 已接线,**但见 §2.5:生产语义被 gateway/run.py:7437 破坏** |
 | `gateway/code_skew.py` | `gateway/run.py:26378-26379`(启动快照)、`gateway/slash_commands.py:85-87`(检测)→ 被 `:1816` 与 `:2124` 调用 | ✅ 已接线 |
 
 **死代码 / 命名漂移小结:**
@@ -1937,9 +1937,9 @@ monkeypatch 掉了 `_scale_to_zero_is_idle`(`:42`),绕开了这条路径:
 - `restart_loop_guard.clear`(`:114-119`)—— 生产零调用,**docstring 声称的 "clean shutdown"
   用法不存在**(▲6)。
 - `readiness._probe_state_db` —— 私有名但被 `hermes_cli/web_server.py` 跨模块使用,
-  `__all__`(`readiness.py:122`)未包含。
+  `__all__`(`gateway/readiness.py:122`)未包含。
 - `systemd_notify.SystemdWatchdog.__init__` 的 `lag_tolerance_seconds`(`:67`)——
-  生产调用点(`run.py:12645`)不传,仅测试用。
+  生产调用点(`gateway/run.py:12645`)不传,仅测试用。
 - `cgroup_cleanup.reap_cgroup` 的返回值(杀了几个)—— `main()`(`:75-77`)丢弃,无处消费。
 
 ---
@@ -1997,7 +1997,7 @@ monkeypatch 掉了 `_scale_to_zero_is_idle`(`:42`),绕开了这条路径:
   默认值 `hermes_cli/config_defaults.py:2514-2517`。
 - 裁决:◇ 证实。两个熔断器一个有文档一个没有,不是刻意区分,是遗漏。
   用户遇到"重启后会话不自动续跑了"时,唯一线索是那条 WARNING 日志
-  (`restart_loop_guard.py:139-149`,它确实给了自救路径)。
+  (`gateway/restart_loop_guard.py:139-149`,它确实给了自救路径)。
 
 **◇3 —— `gateway/cgroup_cleanup.py` 与 cgroup 收割整体无文档。**
 - 文档:`cgroup` 在全部检索路径 **0 命中**。
@@ -2021,7 +2021,7 @@ monkeypatch 掉了 `_scale_to_zero_is_idle`(`:42`),绕开了这条路径:
 
 **◇6 —— 退出码 75 / 78 的语义无文档。**
 - 文档:`exit 75|EX_TEMPFAIL|EX_CONFIG|exit 78` **0 命中**;
-  `RestartForceExitStatus` 只在 `messaging/index.md:574` 出现一次,且只是提了名字没解释。
+  `RestartForceExitStatus` 只在 `website/docs/user-guide/messaging/index.md:574` 出现一次,且只是提了名字没解释。
 - 代码:`gateway/restart.py:8-16`,以及 unit 模板、s6 finish 生成器、CLI 诊断四处消费。
 - 裁决:◇ 证实。运维会在 `systemctl status` 里看到 "status=75",无从查证含义。
   代码侧倒是给了兜底:`hermes gateway status` 会翻译它
@@ -2057,8 +2057,8 @@ ExecStopPost=-{python_path} -m gateway.cgroup_cleanup
   但一个照着做却打开了主 unit 文件的用户会删掉 cgroup 收割器,**直接回退到 #37454**
   (残留 `adb`/bridge 卡住 cgroup → `Restart=always` 拉不起来)。
 - 两者不冲突的技术原因(文档没写):Hermes 那行是 `-` 前缀(失败即忽略)、
-  目标是 cgroup 内**除自己以外**的 PID(`cgroup_cleanup.py:63-64` 的 `if pid == own: continue`)、
-  且只在主进程已退出后才跑(`cgroup_cleanup.py:3-4` docstring);
+  目标是 cgroup 内**除自己以外**的 PID(`gateway/cgroup_cleanup.py:63-64` 的 `if pid == own: continue`)、
+  且只在主进程已退出后才跑(`gateway/cgroup_cleanup.py:3-4` docstring);
   systemd 的 stop job 完成后才启动 start job,所以不存在"杀掉刚起来的新实例"。
 - 裁决:**▲ 成立(中度)** —— 文档不完整 + 一条可能误导的操作指令。
 
@@ -2119,7 +2119,7 @@ is treated as a deliberate stop and the gateway stays dead (#43475) — so
   无条件 KeepAlive,docstring 没跟。测试本身仍然正确(它测的是 `XPC_SERVICE_NAME`/
   外部标记的探测,不是 plist)。
 
-**▲5 —— `restart.py:12-15` 说"The s6 finish script"像是指一个签进仓库的文件,实际是运行时生成的。**
+**▲5 —— `gateway/restart.py:12-15` 说"The s6 finish script"像是指一个签进仓库的文件,实际是运行时生成的。**
 - 代码 `gateway/restart.py:12-16 @ 863e313` 的措辞:"The s6 finish script translates
   this into exit 125"。
 - 事实:签进仓库的只有 `docker/s6-rc.d/dashboard/finish`(**dashboard 的,不是网关的**);
@@ -2146,7 +2146,7 @@ def clear() -> None:
   `:335-336`:"this section is the **contract a separate scale-to-zero behaviour workstream
   must honour**"。
 - 代码:`gateway/scale_to_zero.py` + `gateway/run.py:7423-7667` 已实现,且 docstring 逐条
-  引用 §3.4 条款(`scale_to_zero.py:100-101` 引 §3.4(1);`run.py:7616` 引 §3.4(6))。
+  引用 §3.4 条款(`gateway/scale_to_zero.py:100-101` 引 §3.4(1);`gateway/run.py:7616` 引 §3.4(6))。
 - 裁决:▲(轻微,时态滞后)。合同文档本身内容仍然有效(6 条义务都是活的),
   只是"future"这个词已经过期。
 
@@ -2168,13 +2168,13 @@ readiness checks. A degraded readiness result still uses HTTP 200; inspect the
 top-level `status` and `readiness.checks` fields.
 ```
   逐项核对 `gateway/readiness.py:105-117` 的六个 check —— 全中,连"不暴露什么"的清单都
-  与 `readiness.py:99-102` 的 docstring 一字不差。"degraded 仍返 200"也与
-  `api_server.py:2903`(无 `status=` 参数)一致。**这是本簇文档质量的高点。**
+  与 `gateway/readiness.py:99-102` 的 docstring 一字不差。"degraded 仍返 200"也与
+  `gateway/platforms/api_server.py:2903`(无 `status=` 参数)一致。**这是本簇文档质量的高点。**
 - **`systemd_watchdog_seconds` 的用户文档正确。**
   `website/docs/user-guide/messaging/index.md:182-187` 说 "A positive value makes the
   generated unit use `Type=notify`, `NotifyAccess=main`, and the matching `WatchdogSec`" ——
   与 `hermes_cli/gateway.py:2783-2785` 完全一致;"Hermes sends heartbeats only while its
-  event loop is making timely progress" 与 `systemd_notify.py:126,133-137` 一致;
+  event loop is making timely progress" 与 `gateway/systemd_notify.py:126,133-137` 一致;
   "The default `0` keeps the existing `Type=simple` behavior" 与
   `gateway/config.py:931` + `hermes_cli/gateway.py:2783-2784` 一致。
 - **`--external-supervisor` 的 CLI 文档正确。**
@@ -2339,7 +2339,7 @@ def test_idle_exactly_at_threshold():
    自己的 `Restart=`/`RestartSec`/`StartLimit`。
 3. **跨重启的状态一律落盘,且 fail OPEN。** 每次重启都是新进程,内存状态毫无意义。
    落盘的熔断器坏了要"放行"而不是"拦截"——
-   `restart_loop_guard.py:26-27`:"a broken breaker must never wedge a healthy gateway"。
+   `gateway/restart_loop_guard.py:26-27`:"a broken breaker must never wedge a healthy gateway"。
 4. **熔断的动作要选最小的那个。** hermes 熔断后不停网关、不停平台、不退避,
    只跳过"自动续跑"这一个放大器;网关继续服务真实用户消息,人自动回到环路里。
    **熔断日志里给出自救路径(删哪个文件)。**
@@ -2371,7 +2371,7 @@ def test_idle_exactly_at_threshold():
     所有消费者共用**(对照 hermes 自己在 #72039 里做对的"三个看门狗共用一钟")。
 13. **"沉默的 False"是最贵的 bug。** 任何"本该启用却没启用"的分支,都要在
     **用户已明确 opt-in** 的前提下打一条说明原因的日志(hermes 的
-    `_log_scale_to_zero_not_armed_reason`,`run.py:7530-7573`),
+    `_log_scale_to_zero_not_armed_reason`,`gateway/run.py:7530-7573`),
     且在未 opt-in 时保持安静。
 14. **同一个字面量在不同机制里的语义要各自写清。** hermes 里 `0` 在
     `restart_after_turn_timeout` 是"显式禁用",在 `scale_to_zero.idle_timeout_minutes`

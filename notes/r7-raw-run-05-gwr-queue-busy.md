@@ -451,7 +451,7 @@ system_prompt 优先,否则全局 `_ephemeral_system_prompt`;legacy `channel_pro
                 return _t_state.conversation.service_tier_override
         return self._load_service_tier()
 ```
-(哨兵 import 自 run.py:2371 `SERVICE_TIER_UNSET as _SERVICE_TIER_UNSET`。)
+(哨兵 import 自 gateway/run.py:2371 `SERVICE_TIER_UNSET as _SERVICE_TIER_UNSET`。)
 写入(8228-8247):`clear=True` 写回哨兵(回落 config),否则存 "priority"/None。
 `_load_service_tier`(8249-8266):`fast|priority|on → "priority"`,
 `normal|default|standard|off|none|空 → None`,未知值 warning 后 None。
@@ -488,7 +488,7 @@ text_mode 值域(steer 在上游 input_mode 层处理)。
 
 装载点:`gateway/run.py:5906-5907 @ 863e313`(`__init__`),并镜像给每个 adapter
 (11102/12474/13418 `adapter._busy_text_mode = self._busy_text_mode`)—— adapter 用它决定
-text 防抖候选(`base.py:5726` `_is_queue_text_debounce_candidate`)。
+text 防抖候选(`gateway/platforms/base.py:5726` `_is_queue_text_debounce_candidate`)。
 
 重实现要点:新旧两个旋钮并存时,把"新钮为真源、旧钮仅显式设置时生效"的仲裁收进一个装载函数;
 装载结果一次性算好(进程级),busy 路径高频读不再碰 config。
@@ -499,7 +499,7 @@ text 防抖候选(`base.py:5726` `_is_queue_text_debounce_candidate`)。
 
 - `_load_restart_drain_timeout`(`gateway/run.py:8314-8331 @ 863e313`):env
   `HERMES_RESTART_DRAIN_TIMEOUT` > `agent.restart_drain_timeout`;解析在
-  `gateway/restart.py:69` `parse_restart_drain_timeout`(默认常量 restart.py:23)。注意
+  `gateway/restart.py:69` `parse_restart_drain_timeout`(默认常量 gateway/restart.py:23)。注意
   8322-8330 的 warning 技巧:解析器失败会静默回默认,所以外层"值==默认 且原始串确实非法"时才补
   warning —— 既不重复告警,又不吞掉用户的错字。
 - `_load_restart_after_turn_timeout`(8333-8354,**#77184** in-band restart 等 idle 的超时):
@@ -578,13 +578,13 @@ fallback 链(主 provider 失败时依次切换的 provider 列表)原先在进�
 ## 14. 并发会话上限:`_claim_active_session_slot`
 
 ### 实现(两级检查:进程内 + 跨进程)
-- `_snapshot_running_agents`(8498-8503):滤掉 `_AGENT_PENDING_SENTINEL`(run.py:2465 定义的
+- `_snapshot_running_agents`(8498-8503):滤掉 `_AGENT_PENDING_SENTINEL`(gateway/run.py:2465 定义的
   占位对象,表示"槽已 claim 但 AIAgent 未建好")。
 - `_get_max_concurrent_sessions`(8505-8512)→ `hermes_cli/active_sessions.py:56`
   `resolve_max_concurrent_sessions`(顶层 `max_concurrent_sessions`,回退 `gateway.*`)。
 - 进程内预检 `_active_session_limit_message`(8514-8526):未配置→放行;**本会话已在跑→放行**
   (追发不算新会话);`_running_agent_count() < max` →放行;否则返回
-  `active_sessions.py:99` 的拒绝文案(点名占坑者:"slots 由 CLI/desktop/gateway 共享,被拒的
+  `hermes_cli/active_sessions.py:99` 的拒绝文案(点名占坑者:"slots 由 CLI/desktop/gateway 共享,被拒的
   往往不是占坑的那个表面",99-114)。
 - 跨进程取租约:`gateway/run.py:8534-8555 @ 863e313`
 ```python
@@ -612,7 +612,7 @@ fallback 链(主 provider 失败时依次切换的 provider 列表)原先在进�
             return None, None
 ```
 (metadata 处为省行号缩写;原文 8546-8551 传 platform/chat_id/user_id。)
-`try_acquire_active_session`(active_sessions.py:271-291):cap 未启用时返回 **no-op 租约**,
+`try_acquire_active_session`(hermes_cli/active_sessions.py:271-291):cap 未启用时返回 **no-op 租约**,
 调用方可无条件 `release()`;异常时 `(None, None)` = fail-open(上限机制失效不至于拒绝所有消息)。
 
 ### 调用点与时序
@@ -1023,8 +1023,8 @@ drain(§1)把它作为下一回合取走 —— 这就是 interrupt 模式"打�
    / queue+压缩降级 "⏳ Compressing context…" / 普通 queue "⏳ Queued for the next turn…" /
    interrupt "⚡ Interrupting current task…"。
 6. 首触 onboarding(9139-9162):`agent/onboarding.py:26` `BUSY_INPUT_FLAG`、
-   `busy_input_hint_gateway(mode)`(onboarding.py:36,按实际生效模式措辞)、`is_seen`/`mark_seen`
-   (onboarding.py:211/216,原子 YAML 写持久化到 config.yaml,一台安装只提示一次)。
+   `busy_input_hint_gateway(mode)`(agent/onboarding.py:36,按实际生效模式措辞)、`is_seen`/`mark_seen`
+   (agent/onboarding.py:211/216,原子 YAML 写持久化到 config.yaml,一台安装只提示一次)。
 7. 发送(9164-9180):Telegram anchor 规则同 §19b;发送失败仅 debug 日志。
 
 行为规格:`tests/gateway/test_busy_session_ack.py`、`test_steer_command.py`、
@@ -1049,20 +1049,20 @@ drain(§1)把它作为下一回合取走 —— 这就是 interrupt 模式"打�
 
 | 本段成员 | 依赖/被调 |
 |---|---|
-| `_enqueue_fifo`/`_promote_queued_event`/`_queue_depth` | adapter `_pending_messages`;drain 点 run.py:25480-25487;/queue run.py:14252;/steer run.py:14281/14304;goal run.py:18960、slash_commands.py:2763;heartbeat run.py:18807;/status slash_commands.py:558 |
-| `_is_goal_continuation_event` 等 | 模板 hermes_cli/goals.py:90-147;GoalManager.is_active(hermes_cli/goals.py);slash_commands.py:2636/2654;drain run.py:25692 |
+| `_enqueue_fifo`/`_promote_queued_event`/`_queue_depth` | adapter `_pending_messages`;drain 点 gateway/run.py:25480-25487;/queue gateway/run.py:14252;/steer gateway/run.py:14281/14304;goal gateway/run.py:18960、gateway/slash_commands.py:2763;heartbeat gateway/run.py:18807;/status gateway/slash_commands.py:558 |
+| `_is_goal_continuation_event` 等 | 模板 hermes_cli/goals.py:90-147;GoalManager.is_active(hermes_cli/goals.py);gateway/slash_commands.py:2636/2654;drain gateway/run.py:25692 |
 | `_update_runtime_status`/`_persist_active_agents` | gateway/status.py:980 write_runtime_status(`_UNSET` merge) |
 | 外部 drain 三函数 | gateway/drain_control.py:210 drain_requested(epoch,NS-570) |
 | `_pause/_resume_paused_platform` | `_failed_platforms`(reconnect watcher 段);status.py platforms 子字典 |
 | `_resolve_model_for_channel` | hermes_cli/model_switch.py:760 resolve_effective_model;`_get_channel_override`;`_resolve_gateway_model` |
 | `_load_reasoning_config` | hermes_constants.py:1099 resolve_reasoning_config |
 | fallback 链三函数 | hermes_cli/fallback_config.py:80 get_fallback_chain;hermes_cli/config.read_user_config_raw;managed_scope.apply_managed_overlay;agent `_fallback_*` 字段 |
-| `_claim_active_session_slot` | hermes_cli/active_sessions.py:56/99/271;调用点 run.py:15672 |
+| `_claim_active_session_slot` | hermes_cli/active_sessions.py:56/99/271;调用点 gateway/run.py:15672 |
 | `_agent_has_active_subagents` | run_agent.py:3150-3159(interrupt 级联);agent/agent_init.py(_active_children 初始化) |
 | `_session_has_compression_in_flight` | session_store 私有锁;`_session_db._db.get_compression_lock_holder` |
 | `_queue_or_replace_pending_event` | gateway/platforms/base.py:2438 merge_pending_message_event |
-| `_prepare_busy_steer_text` | run.py:21706 `_pending_event_audio_paths`;run.py:21786 `_transcribe_and_echo_pending_voice` |
-| busy 总入口 | 注册 run.py:11096/12468/13410 → base.py:3345/5711;tools/approval.py:2526;slash_commands.py:5377/5435;run_agent.py:3028/3229/3265/4001;agent/onboarding.py:26/36/211/216;gateway/display_config.resolve_display_setting |
+| `_prepare_busy_steer_text` | gateway/run.py:21706 `_pending_event_audio_paths`;gateway/run.py:21786 `_transcribe_and_echo_pending_voice` |
+| busy 总入口 | 注册 gateway/run.py:11096/12468/13410 → base.py:3345/5711;tools/approval.py:2526;gateway/slash_commands.py:5377/5435;run_agent.py:3028/3229/3265/4001;agent/onboarding.py:26/36/211/216;gateway/display_config.resolve_display_setting |
 
 ---
 
@@ -1074,7 +1074,7 @@ drain(§1)把它作为下一回合取走 —— 这就是 interrupt 模式"打�
 
 代码:adapter 命中活跃会话后**首先回调 runner 的 busy handler**(base.py:5711-5716),排队只是
 handler 返回 False/未注册时的兜底;且兜底路径是 merge/防抖(base.py:5721-5747),**不设任何
-interrupt event** —— interrupt 决策完全在 runner 侧(run.py:9003-9024)。"sets an interrupt
+interrupt event** —— interrupt 决策完全在 runner 侧(gateway/run.py:9003-9024)。"sets an interrupt
 event"描述的是早已不存在的旧机制。
 
 **▲21-2 `gateway-internals.md:88`(Level 2)**
@@ -1097,7 +1097,7 @@ redirect 优先(8962-8976)、subagents 自动降级 #30170(8905-8915)、压缩�
 一句过时描述。
 
 **(代码内部发现,非文档冲突,归入定案)** gate-failed goal continuation 模板
-(`hermes_cli/goals.py:134`)逃逸 `_is_goal_continuation_event` 前缀(run.py:7753),
+(`hermes_cli/goals.py:134`)逃逸 `_is_goal_continuation_event` 前缀(gateway/run.py:7753),
 pause/clear 摘除与 drain 新鲜度复核对它均失效(§2)。
 
 ---

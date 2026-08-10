@@ -2191,30 +2191,30 @@ lands in the repo.
 | # | 位置 | 文档说 | 代码是 |
 |---|---|---|---|
 | ▲1 | `agent/secret_sources/__init__.py:16-30`(bundled 清单 + "possible future exception")、`registry.py:22-23`、`website/docs/user-guide/secrets/index.md:49`("## Adding your own backend"标题下) | 内建来源只有 Bitwarden + 1Password;command 是"可能的未来例外" | `registry.py:180-186` 把 `CommandSource` 注册为内建;`command.py` 501 行已在树里;同一网站页顶部又把它列为受支持 |
-| ▲2 | `managed_scope.py:13`、`env_loader.py:567`、`config.py:3395`、`doctor.py:689` 指向 `docs/design/managed-scope.md`;`security_audit.py:14` 指向 `references/security-disclosure-triage.md` | 这两份设计文档存在 | 两份都不在基线里(`ls docs/design/` 只有 `profile-builder.md`;`references/` 目录不存在) |
-| ▲3 | `security_audit_startup.py:33-34` | 哨兵是为了"CLI **和** gateway 两条启动路径都调用"时只跑一次 | 全仓唯一生产调用点是 `gateway/run.py:26570`;CLI 从不调 |
-| ▲4 | `security_audit_startup.py:193-194` | `_network_listener_without_auth` "Covers the API server … **and the dashboard**" | 函数体只有 API server 一段,没有任何 dashboard 分支 |
-| ▲5 | `copilot_auth.py:79`("Raises ValueError if only a classic PAT is available")+ 模块头第 12-16 行的搜索顺序清单 + 第 8-9 行的 token 类型表 | 只有经典 PAT 时抛 ValueError;`gh auth token` 是第 4 顺位;`copilot login` 默认产 `gho_` | 设过任一 Copilot env 变量就直接返回 `("","")`(实测);`gh` 回落是**有条件**的;本文件的 OAuth client id 已换成 VS Code App ID,产 `ghu_`(第 34-40 行注释自证) |
+| ▲2 | `hermes_cli/managed_scope.py:13`、`hermes_cli/env_loader.py:567`、`config.py:3395`、`doctor.py:689` 指向 `docs/design/managed-scope.md`;`hermes_cli/security_audit.py:14` 指向 `references/security-disclosure-triage.md` | 这两份设计文档存在 | 两份都不在基线里(`ls docs/design/` 只有 `profile-builder.md`;`references/` 目录不存在) |
+| ▲3 | `hermes_cli/security_audit_startup.py:33-34` | 哨兵是为了"CLI **和** gateway 两条启动路径都调用"时只跑一次 | 全仓唯一生产调用点是 `gateway/run.py:26570`;CLI 从不调 |
+| ▲4 | `hermes_cli/security_audit_startup.py:193-194` | `_network_listener_without_auth` "Covers the API server … **and the dashboard**" | 函数体只有 API server 一段,没有任何 dashboard 分支 |
+| ▲5 | `hermes_cli/copilot_auth.py:79`("Raises ValueError if only a classic PAT is available")+ 模块头第 12-16 行的搜索顺序清单 + 第 8-9 行的 token 类型表 | 只有经典 PAT 时抛 ValueError;`gh auth token` 是第 4 顺位;`copilot login` 默认产 `gho_` | 设过任一 Copilot env 变量就直接返回 `("","")`(实测);`gh` 回落是**有条件**的;本文件的 OAuth client id 已换成 VS Code App ID,产 `ghu_`(第 34-40 行注释自证) |
 
 ### ◇(代码有、文档无)—— 5 条
 
 - **◇1** `urllib_security` 这条凭据重定向策略只被 4 个文件、5 处非测试调用点采用,全仓有 60+ 个裸 `urlopen`;没有任何 lint/测试/运行时机制阻止新调用点绕过。文档(含 `website/docs/developer-guide/`)未交代这条策略的存在与适用面。
 - **◇2** 仓里有**两套** OSV 客户端:`hermes_cli/security_audit.py`(`/v1/querybatch`,CVE,按需)与 `tools/osv_check.py`(`/v1/query`,只看 MAL-\*,spawn 前,fail-open)。语义不同是合理的,但无文档说明二者关系。
 - **◇3** `hermes security audit` 会把本机 venv 中**每个包的名字与版本**POST 给 `api.osv.dev`;`cli-commands.md` 的 `hermes security` 一节与模块 docstring 都没提这一层数据外发。
-- **◇4** `security_advisories.py:61` 注释指引用 `superseded_by` 标记被取代的 advisory,而 `Advisory` dataclass 没有这个字段。
+- **◇4** `hermes_cli/security_advisories.py:61` 注释指引用 `superseded_by` 标记被取代的 advisory,而 `Advisory` dataclass 没有这个字段。
 - **◇5** 本簇两个 secrets CLI 存 token 走 `save_env_value`,不走 §2 的 `save_provider_env_credential` 收口 —— 证明"every surface should route through"没有强制力(此处无害,但形状在)。
 
 ### ■(代码缺陷)—— 8 条
 
 | # | 严重度 | 位置 | 现象 |
 |---|---|---|---|
-| ■1 | **高** | `credential_lifecycle.py:78-107` + `auth.py:1575-1580` + `credential_pool.py:3086` | profile 模式下删凭据只剪 profile 的 `auth.json`;`read_credential_pool` 会回落全局根,抑制标记又只在**播种**时生效、不过滤已落盘条目 → 被删的 key 在该 profile 里仍然可用(#51071 形状重开) |
+| ■1 | **高** | `hermes_cli/credential_lifecycle.py:78-107` + `auth.py:1575-1580` + `agent/credential_pool.py:3086` | profile 模式下删凭据只剪 profile 的 `auth.json`;`read_credential_pool` 会回落全局根,抑制标记又只在**播种**时生效、不过滤已落盘条目 → 被删的 key 在该 profile 里仍然可用(#51071 形状重开) |
 | ■2 | **中高** | `hermes_cli/models.py:4612` | `Authorization: Bearer {AI_GATEWAY_API_KEY}` 走裸 `urlopen`;`base_url` 由 env 可控 → 一个 302 就能把 key 交给第三方主机(§3.1 已实测 stdlib 会转发) |
-| ■3 | **中高** | `managed_scope.py:49` | `_under_pytest()` 只看 `PYTEST_CURRENT_TEST` 在不在 env 里;生产环境任何用户 `export PYTEST_CURRENT_TEST=x` 即让 managed scope 整层消失,连写守卫一起失效(已实测)。文档的 v1 限制清单没有这一条 |
-| ■4 | 中 | `security_audit_startup.py:190-223` + `tests/…/test_security_audit_startup.py` | docstring 声称覆盖 dashboard 的检查未实现;且四项检查里三项没有直测(测试文件里留着空小节标题) |
-| ■5 | 中 | `mcp_security.py:149-177` + `tools/mcp_tool.py:4668` | 出网/持久化形状扫描**只读 `args`**(IOC 扫描却读 `env`),且过滤发生在 `_interpolate_env_vars` **之前**;`{"command":"bash","args":["-c","$P"],"env":{"P":"curl …"}}` 直接放行(已实测) |
-| ■6 | 中 | `security_audit.py:343-365` | `score` 初始化后从未赋值 → CVSS 分数→等级映射 8 行是死代码;只带 CVSS 向量的 `PYSEC-*` 记录一律 `UNKNOWN`,而 `UNKNOWN` 排在 `LOW` 之下 → 默认 `--fail-on critical` 对绝大多数 PyPI 漏洞退出码 0(已实测) |
-| ■7 | 低 | `copilot_auth.py:465-468`(及 `:400-406` 的 evict 路径同形) | `.copilot_jwt.json` 走"write_text 后再 chmod",有 0644 窗口(已实测);同仓 `auth.py:1301-1309` 早已用 `os.open(O_EXCL, 0600)` 关掉该窗口并点名两个历史 issue;managed(2770 家目录)模式下窗口对同组可见 |
+| ■3 | **中高** | `hermes_cli/managed_scope.py:49` | `_under_pytest()` 只看 `PYTEST_CURRENT_TEST` 在不在 env 里;生产环境任何用户 `export PYTEST_CURRENT_TEST=x` 即让 managed scope 整层消失,连写守卫一起失效(已实测)。文档的 v1 限制清单没有这一条 |
+| ■4 | 中 | `hermes_cli/security_audit_startup.py:190-223` + `tests/…/test_security_audit_startup.py` | docstring 声称覆盖 dashboard 的检查未实现;且四项检查里三项没有直测(测试文件里留着空小节标题) |
+| ■5 | 中 | `hermes_cli/mcp_security.py:149-177` + `tools/mcp_tool.py:4668` | 出网/持久化形状扫描**只读 `args`**(IOC 扫描却读 `env`),且过滤发生在 `_interpolate_env_vars` **之前**;`{"command":"bash","args":["-c","$P"],"env":{"P":"curl …"}}` 直接放行(已实测) |
+| ■6 | 中 | `hermes_cli/security_audit.py:343-365` | `score` 初始化后从未赋值 → CVSS 分数→等级映射 8 行是死代码;只带 CVSS 向量的 `PYSEC-*` 记录一律 `UNKNOWN`,而 `UNKNOWN` 排在 `LOW` 之下 → 默认 `--fail-on critical` 对绝大多数 PyPI 漏洞退出码 0(已实测) |
+| ■7 | 低 | `hermes_cli/copilot_auth.py:465-468`(及 `:400-406` 的 evict 路径同形) | `.copilot_jwt.json` 走"write_text 后再 chmod",有 0644 窗口(已实测);同仓 `auth.py:1301-1309` 早已用 `os.open(O_EXCL, 0600)` 关掉该窗口并点名两个历史 issue;managed(2770 家目录)模式下窗口对同组可见 |
 | ■8 | 中 | `tests/hermes_cli/test_credential_lifecycle.py` | 模块两条头号契约(OAuth 保全、删除粘性)**零测试**;文件里留着空小节标题与未被调用的夹具/常量 |
 
 ### ◎(文档成立但显著保守)—— 0 条
@@ -2236,7 +2236,7 @@ lands in the repo.
 2. **H-8D-2(中高)** `hermes_cli/models.py:4612`:`with urllib.request.urlopen(req, timeout=timeout)`
    紧跟在 `"Authorization": f"Bearer {api_key}"` 之后,而同文件 `:41` 就有
    `_urlopen_model_catalog_request` 这个安全包装器。**需要普查全仓 60+ 个裸 `urlopen` 里
-   还有哪些带凭据**(本轮只逐点确认了 `models.py:4612` 与 `copilot_auth.py:553` 两处;
+   还有哪些带凭据**(本轮只逐点确认了 `models.py:4612` 与 `hermes_cli/copilot_auth.py:553` 两处;
    `hermes_cli/nous_billing.py:413`、`hermes_cli/dashboard_register.py:141`、
    `gateway/relay/__init__.py:472` 等看起来也带认证头,**未逐一取证**)。
 

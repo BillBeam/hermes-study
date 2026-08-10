@@ -665,11 +665,11 @@ R1 报告断言:**浏览器自动化架构 = CDP supervisor + 对话框桥 + raw
 
 | 断言组件 | 代码证据 | 文档证据 | 判定 |
 |---|---|---|---|
-| CDP supervisor(长连 WS + frame 观察) | `browser_supervisor.py:289` `CDPSupervisor` | `developer-guide/browser-supervisor.md` 整篇 + `browser.md:574` | ✓ 证实 |
-| 对话框桥(注入 XHR + Fetch 拦截) | `browser_supervisor.py:95,785,1182` | `browser-supervisor.md:32-44`;`browser.md:584` | ✓ 证实,机制描述与代码逐字对应 |
-| raw CDP 逃生舱 | `browser_cdp_tool.py:394` | `browser.md:523-563` | ✓ 证实 |
-| Camofox 后端(REST,反检测) | `browser_camofox.py:1-24,115` | `browser.md:123-305` | ✓ 证实 |
-| 云后端矩阵(3 家 + hybrid) | `browser_tool.py:669`;`browser_registry.py` | `browser.md:12-121` | ✓ 证实 |
+| CDP supervisor(长连 WS + frame 观察) | `tools/browser_supervisor.py:289` `CDPSupervisor` | `developer-guide/browser-supervisor.md` 整篇 + `browser.md:574` | ✓ 证实 |
+| 对话框桥(注入 XHR + Fetch 拦截) | `tools/browser_supervisor.py:95,785,1182` | `browser-supervisor.md:32-44`;`browser.md:584` | ✓ 证实,机制描述与代码逐字对应 |
+| raw CDP 逃生舱 | `tools/browser_cdp_tool.py:394` | `browser.md:523-563` | ✓ 证实 |
+| Camofox 后端(REST,反检测) | `tools/browser_camofox.py:1-24,115` | `browser.md:123-305` | ✓ 证实 |
+| 云后端矩阵(3 家 + hybrid) | `tools/browser_tool.py:669`;`browser_registry.py` | `browser.md:12-121` | ✓ 证实 |
 
 **▲ 结构性文档亮点(证实且超预期)**:`browser-supervisor.md` 的后端支持矩阵(line 26-30)与代码后端能力完全吻合:Local Chrome/Browserbase 全支持对话框检测+应答,Camofox `✗ no CDP (REST-only)`——与 `is_camofox_mode`/`_browser_cdp_check` 的门禁一致。文档甚至写明 Browserbase 桥的 ~10ms auto-dismiss 竞态成因,与 `_DIALOG_BRIDGE_SCRIPT` 注释同源。
 

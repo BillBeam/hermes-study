@@ -403,9 +403,9 @@ form body)、MiniMax(`/oauth/code`)三家的端点形状都不一样,所以各�
 
 | 落点 | 内容 | 权限 | 谁写 |
 |---|---|---|---|
-| `~/.hermes/auth.json` | OAuth token(access/refresh/expires)、`active_provider`、`credential_pool`、`suppressed_sources` | 文件 `0o600`,父目录 `0o700` | `_save_auth_store` (`auth.py:1284`) |
-| `~/.hermes/.env` | **API key 形状的键**(见 §4) | 新建 `0o600`;已存在则**保留原权限** | `save_env_value` (`config.py:3865`) |
-| `~/.hermes/config.yaml` | `model.provider` / `model.base_url` / `model.default` —— **只有路由信息,不含密钥** | 未特殊设限 | `_update_config_for_provider` (`auth.py:7270`) |
+| `~/.hermes/auth.json` | OAuth token(access/refresh/expires)、`active_provider`、`credential_pool`、`suppressed_sources` | 文件 `0o600`,父目录 `0o700` | `_save_auth_store` (`hermes_cli/auth.py:1284`) |
+| `~/.hermes/.env` | **API key 形状的键**(见 §4) | 新建 `0o600`;已存在则**保留原权限** | `save_env_value` (`hermes_cli/config.py:3865`) |
+| `~/.hermes/config.yaml` | `model.provider` / `model.base_url` / `model.default` —— **只有路由信息,不含密钥** | 未特殊设限 | `_update_config_for_provider` (`hermes_cli/auth.py:7270`) |
 | ~~系统钥匙串~~ | **不作为落点** | — | 见 §3.5 |
 
 另有两个"外部借用"的读取点(Hermes **读**、原则上不写):
@@ -905,9 +905,9 @@ OAuth refresh_token 是**单次使用**的,连续刷新把它烧光 ⇒ 并发�
 ### 5.2 续失败怎么办:分"暂时"与"终局"两类
 
 三个 provider 各有一个终局判定器:
-`_is_terminal_nous_refresh_error`(`auth.py:5474`)、
-`_is_terminal_xai_oauth_refresh_error`(`auth.py:5484`)、
-`_is_terminal_codex_oauth_refresh_error`(`auth.py:5501`)。
+`_is_terminal_nous_refresh_error`(`hermes_cli/auth.py:5474`)、
+`_is_terminal_xai_oauth_refresh_error`(`hermes_cli/auth.py:5484`)、
+`_is_terminal_codex_oauth_refresh_error`(`hermes_cli/auth.py:5501`)。
 
 - **暂时失败**(网络超时、429 配额):原样抛出,**不动磁盘上的 token**。
   下一次调用还会再试。
@@ -1794,7 +1794,7 @@ blocks to clear a gate, which is worse than the disease"。本轮据此把比例
 
 6. **`suppressed_sources` 的完整生命周期未追**
    —— 锚点 `hermes_cli/auth.py:1717` 的 `suppress_credential_source`;现象:
-   本轮只看到"谁清除抑制"(`auth_commands.py:185`、`credential_lifecycle.py:234`),
+   本轮只看到"谁清除抑制"(`hermes_cli/auth_commands.py:185`、`hermes_cli/credential_lifecycle.py:234`),
    没有系统追查"谁**设置**抑制"以及抑制状态如何影响 `credential_pool` 的自动播种。
 
 7. **`get_auth_status` 一族 700 行(6524–7265)只扫未读**

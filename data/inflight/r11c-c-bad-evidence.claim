@@ -1,0 +1,37 @@
+agent: 片 C · 55 块可判定的坏证据
+dispatched: R11C 派发批次二
+signal: RELEASED 片 C 完成信号(任务完成通知,含 515 行底稿 + 31 文件改动 + 逐类对账);主线已独立重跑全语料普查得 bad=0、独立在 b419bc1 worktree 里验证 EVIDENCE-DIFF 为既有
+path: notes/r11c-raw-bad-evidence.md
+path: data/r11c/c-bad-evidence-*
+path: reports/round-8-fix-review-1.md
+path: notes/r10-raw-native-vendor.md
+path: notes/r10-raw-ui-tui-components.md
+path: notes/r10-raw-ui-tui-core.md
+path: notes/r10b-raw-build-package.md
+path: notes/r10b-raw-capability-panels.md
+path: notes/r10b-raw-chat-composer.md
+path: notes/r10b-raw-i18n-l3.md
+path: notes/r10b-raw-lib-themes.md
+path: notes/r10b-raw-message-render.md
+path: notes/r10b-raw-pane-shell-ui.md
+path: notes/r10b-raw-settings-billing.md
+path: notes/r10b-raw-shell-overlays.md
+path: notes/r10b-raw-store-state.md
+path: notes/r11b-raw-notes-citation-cleanup.md
+path: notes/r3-90-doc-conflict-rulings.md
+path: notes/r7b-90-doc-conflict-rulings.md
+path: notes/r8b-90-handover-rulings.md
+path: notes/r8c-raw-boot-authchain.md
+path: notes/r8c-raw-config-endpoints.md
+path: notes/r8c-raw-platform-readiness.md
+path: notes/r8c-raw-sessions-cron-mcp.md
+path: notes/r8d-raw-update-pipeline.md
+path: notes/r9a-h-r8d-c-env-loader-lock.md
+path: notes/r9a-raw-curator.md
+path: notes/r9a-raw-egress.md
+path: notes/r9a-raw-research-pipeline.md
+path: notes/r9a-raw-skills-agent-side.md
+path: notes/r9a-raw-skills-sync.md
+path: notes/r9a-raw-verification.md
+path: notes/r9b-raw-video.md
+path: reports/round-8-fix-review-1.md

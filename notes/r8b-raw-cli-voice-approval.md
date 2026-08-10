@@ -1034,8 +1034,8 @@ def set_approval_callback(cb):
         return _hardline_block_result(hardline_desc, command)
 ```
 
-后面依次是 sudo-stdin guard(`approval.py:3771`)、用户自定义 deny 规则(`approval.py:3780`),
-然后才是 yolo / `mode: off` 的旁路(`approval.py:3789`)。
+后面依次是 sudo-stdin guard(`tools/approval.py:3771`)、用户自定义 deny 规则(`tools/approval.py:3780`),
+然后才是 yolo / `mode: off` 的旁路(`tools/approval.py:3789`)。
 
 **cli.py 被信任的到底是什么**——就是这段映射。`tools/approval.py:3382 @ 863e313`:
 

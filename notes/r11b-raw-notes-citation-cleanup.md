@@ -254,13 +254,22 @@ MISSING-FILE 只会变成 MISMATCH——净失败数不变。所以必须对块�
 
 把这些块的行号栏当作可校验的断言,逐行比对基线:
 
+**R11C 片 C 改:脚本里原本写着字面的三反引号(`startswith('```')`),
+而关卡识别 ```verify 块用的是 `NOFENCE = (?:(?!```).)*?` —— **正文里任何一个字面
+三反引号都会被当成块的结尾**。于是这一块被截成半截脚本喂给 bash,报
+`SyntaxError: unterminated string literal`;而它偏偏是一个「检查围栏块」的自查脚本,
+非提到围栏不可。改法:不写字面反引号,改用 `chr(96) * 3` 构造,**语义完全相同**。
+这是**关卡自身的形状缺陷**,不是作者写错 —— 见移交 `H-R11C-C-a`。**
+*(本块下方本来就配了 ```text 块;正因为命令被截断,那次配对**从未成立过** ——
+关卡把它记成一个未配对块,然后拿半截脚本去跑。改完之后它才第一次真的被比对。)*
+
 ```verify
 cd /home/user/hermes-study && python3 - <<'PY'
 import re
 from pathlib import Path
 REPO = Path("/home/user/hermes-agent")
 GUT = re.compile(r"^(\d{1,6})\s+(.*)$")
-FENCE = re.compile(r"^\s*```")
+FENCE = re.compile("^\\s*" + chr(96) * 3)   # R11C:不写字面围栏,见块前说明
 note = Path("notes/r3-10-approval-security.md")
 lines = note.read_text(encoding="utf-8").splitlines()
 cur, tot, ok, diff = None, 0, 0, []

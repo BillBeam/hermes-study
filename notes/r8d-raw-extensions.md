@@ -1995,7 +1995,7 @@ def _prompt_env_vars(specs: List[EnvVarSpec]) -> Dict[str, str]:
 规矩很正:**密钥只进 `.env`,不进 `config.yaml`**(`.env` 是唯一凭据存放处),
 非密钥也一起放 `.env` 以保持"一个凭据仓库"。已存在的值不覆盖。
 `transport.env` 那个静态 env 字典明确注明"NOT for secrets"
-(`mcp_catalog.py:85-88`),两条通道分得干净。
+(`hermes_cli/mcp_catalog.py:85-88`),两条通道分得干净。
 
 还有一处很好的**解析期契约检查**:
 
@@ -2769,7 +2769,7 @@ cd /home/user/hermes-agent && git status --porcelain && git check-ignore -v test
    就是同一个变量在两个模块里两种真值判定,导致"设成 0 反而打开"(§2.9)。
 
 4. **拼路径之后必须重新验证结果仍在允许的根之下。** `Path('safe') / '/abs' == Path('/abs')`。
-   `profile_distribution.py:610` 做对了,`web_server` 曾经做错(§2.9 / §5.5)。
+   `hermes_cli/profile_distribution.py:610` 做对了,`web_server` 曾经做错(§2.9 / §5.5)。
 
 5. **观察者和改写者要在类型上分开。** Hermes 用 hook vs middleware 分开(§4.1),
    并把审批钩子明确定义为只读且在注释里说明"要否决请用 pre_tool_call"(§2.10)。

@@ -6,7 +6,7 @@
 ## 0. 形态与来历
 
 从 `conversation_loop` 尾部逐字搬出(god-file 拆解 Phase 1 step 4),行为中性、单一 return
-(`turn_finalizer.py:1-21`)。logger 从 `agent.conversation_loop` 惰性导入以避免环并保留日志名(17-20)。
+(`agent/turn_finalizer.py:1-21`)。logger 从 `agent.conversation_loop` 惰性导入以避免环并保留日志名(17-20)。
 
 ## 1. 预算耗尽兜底:三分支(94-142)
 
@@ -20,14 +20,14 @@
         and str(_turn_exit_reason) in {"unknown", "budget_exhausted"}
     )
 ```
-(`turn_finalizer.py:94-103 @ 863e313`,原文压缩空行)
+(`agent/turn_finalizer.py:94-103 @ 863e313`,原文压缩空行)
 
 - **分支 A 验证候选保留**(112-126):`final_response is None` 且有 `_pending_verification_response`
   且 eligible → 直接用被验证门扣下的那个答案,不再发模型调用("Preserve that exact answer instead
   of replacing it with another fallible model call",115-117)。`previewed` 标志只在候选真被复用时
   置位(#65919 response-loss blocker)。
 - **分支 B summary 兜底**(127-142):没有候选 → `agent._handle_max_iterations(messages, api_call_count)`
-  注入 user 消息并发**一次剥离 tools 的 summary 调用**(`turn_finalizer.py:141`)。
+  注入 user 消息并发**一次剥离 tools 的 summary 调用**(`agent/turn_finalizer.py:141`)。
 - **exit_reason 收敛**:两分支都改写为 `max_iterations_reached(used/max)`。
 - **kanban 联动**(144-191):任一预算兜底若在 kanban worker 内(`HERMES_KANBAN_TASK`),
   经 `_record_task_failure(outcome="timed_out", release_claim=True)` 上报——走失败断路器

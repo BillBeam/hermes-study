@@ -90,7 +90,7 @@ all_threads=True, chain=True)`),Windows 无 SIGUSR2 则跳过。设计理由:服
 自装的 SIGUSR2 处理器。
 
 10714-10719:记录 `self._gateway_loop = asyncio.get_running_loop()` 并调用
-`_start_loop_liveness_guards`(run.py:10624,armed 两件套:loop floor timer +
+`_start_loop_liveness_guards`(gateway/run.py:10624,armed 两件套:loop floor timer +
 线程外 watchdog;`gateway.loop_watchdog: false` 可整体关闭,#69089)。取舍:守卫在
 **适配器之前**armed,使适配器 connect 阶段的循环冻结也可被侦测。
 
@@ -118,7 +118,7 @@ all_threads=True, chain=True)`),Windows 无 SIGUSR2 则跳过。设计理由:服
    `hermes_cli.security_advisories.detect_compromised()` 命中则 WARN(不拦启动、不进用户
    消息——注释:能处置的是运维,不是聊天对端)。
 
-10822-10823:第一处 `_abort_startup_if_shutdown_requested()`(run.py:10598)——启动全程
+10822-10823:第一处 `_abort_startup_if_shutdown_requested()`(gateway/run.py:10598)——启动全程
 反复插入该检查点,收到 /restart 或 SIGTERM 时就地收尾(等 `_stop_task` 或自己调 `stop()`)
 后 `return True`,避免"启动与停机赛跑"。
 
@@ -135,8 +135,8 @@ env 名单(10826-10859),再从 `gateway.platform_registry.platform_registry.plug
 陌生人"。
 
 **拒启闸**(10893-10913):`_own_policy_open_startup_violation(self.config)`
-(run.py:2428)检查五个"自有协议"平台(WECOM/WEIXIN/YUANBAO/QQBOT/WHATSAPP,
-`_OWN_POLICY_OPEN_ENV` run.py:2419):`dm_policy/group_policy: open` 却没有
+(gateway/run.py:2428)检查五个"自有协议"平台(WECOM/WEIXIN/YUANBAO/QQBOT/WHATSAPP,
+`_OWN_POLICY_OPEN_ENV` gateway/run.py:2419):`dm_policy/group_policy: open` 却没有
 `GATEWAY_ALLOW_ALL_USERS` 或平台级 allow-all 双确认 → 返回违规原因。
 
 gateway/run.py:10901-10913 @ 863e313
@@ -207,8 +207,8 @@ gateway/run.py:11008-11021 @ 863e313
    干净退出时把"最近活跃"(默认 120s 内,gateway/session.py:2850)的会话标记 suspended,
    下一条用户消息触发干净重置。`.clean_shutdown` 标记文件由优雅停机路径写入并在此消费
    (读后即删,一次性),使 `hermes update`/`/restart` 后不会误伤正常会话。
-3. **stuck-loop 检测**(11023-11032 调 run.py:9725):`.restart_failure_counts` 里
-   计数 ≥ `_STUCK_LOOP_THRESHOLD = 3`(run.py:9695)的会话直接 `entry.suspended = True`
+3. **stuck-loop 检测**(11023-11032 调 gateway/run.py:9725):`.restart_failure_counts` 里
+   计数 ≥ `_STUCK_LOOP_THRESHOLD = 3`(gateway/run.py:9695)的会话直接 `entry.suspended = True`
    ——"连续 3 次重启时都在活跃"判定为同一历史反复弄死 agent,自动给用户清白开局;
    随后删计数文件重新起算。
 4. **startup-restore 闸门声明**(11034-11041):
@@ -227,7 +227,7 @@ gateway/run.py:11034-11041 @ 863e313
 
    设计理由:适配器连上即可能收消息,而重启中断会话的自动续跑要等全部布线完成;不设闸
    会出现"用户新消息与合成 resume 轮抢同一会话"的竞态。闸门由阶段 11 的
-   `_finish_startup_restore()`(run.py:10271)释放——**有界等待**(超时释放闸门、慢
+   `_finish_startup_restore()`(gateway/run.py:10271)释放——**有界等待**(超时释放闸门、慢
    resume 轮继续后台跑不取消;防重复 agent 的真正机制是 resume 预先同步占
    `_running_agents` 槽,见其 docstring)。
 
@@ -243,7 +243,7 @@ gateway/run.py:11034-11041 @ 863e313
 1. **multiplex 空凭据跳过**(11049-11071,#64674):`multiplex_profiles` 开启时,
    default profile 的 config.yaml 启用了平台但 token 在别的 profile 的 .env 里——
    空 token 起主适配器必失败且进入"永不能好"的重连死循环。故
-   `_platform_has_bot_credential(platform, platform_config)`(run.py:2009,只对
+   `_platform_has_bot_credential(platform, platform_config)`(gateway/run.py:2009,只对
    `PLATFORM_TOKEN_ENV_NAMES` 内平台检查 token/api_key 非空)不过即 skip,记入
    `_multiplex_skipped_platforms` 供阶段 7 复核。
 2. **建 adapter**(11074-11087):`self._create_adapter` 返回 None 时区分两种告警
@@ -267,11 +267,11 @@ gateway/run.py:11093-11102 @ 863e313
    注释(11089-11092)强调 multiplex 下 default profile 也要拿到"整 handler 级"运行时
    scope:授权与 prompt 渲染都发生在更窄的 agent-turn scope 安装之前。
 4. **带超时连接 + takeover 窗口**(11112-11115):`_connect_initial_adapter_with_timeout`
-   (run.py:6647)在 await 期间临时置 `adapter._platform_lock_takeover_allowed =
+   (gateway/run.py:6647)在 await 期间临时置 `adapter._platform_lock_takeover_allowed =
    bool(self._platform_lock_takeover_on_start)`,finally 归 False。该 flag 由 CLI
-   `--replace` 设置(run.py:26595)。设计理由(6648-6654 docstring):"驱逐同 token
+   `--replace` 设置(gateway/run.py:26595)。设计理由(6648-6654 docstring):"驱逐同 token
    旧持有者"的能力只在**冷启动初连**窗口可见;重连路径直接走
-   `_connect_adapter_with_timeout`(run.py:6609)且默认 deny——网络恢复后的重连永远
+   `_connect_adapter_with_timeout`(gateway/run.py:6609)且默认 deny——网络恢复后的重连永远
    不能驱逐健康的 token 持有者。底层超时用 detach-on-timeout 模式(6623-6645):
    `asyncio.wait` 而非 `wait_for`,超时后 cancel 但**不等**其退出——吞掉 CancelledError
    的 connect() 不能永远堵死 watcher(#70344)。
@@ -302,9 +302,9 @@ gateway/run.py:13632-13639 @ 863e313
         return (platform, fingerprint)
 ```
 
-credential claim = (platform, 盐化哈希指纹)(指纹提取见 run.py:13664,遍历
+credential claim = (platform, 盐化哈希指纹)(指纹提取见 gateway/run.py:13664,遍历
 token/bot_token/_token 等属性,**绝不落原文**);listener claim 目前仅 photon 平台
-(run.py:13642-13661:sidecar 是 per-profile 进程,即便两 profile 凭据不同也不能共享
+(gateway/run.py:13642-13661:sidecar 是 per-profile 进程,即便两 profile 凭据不同也不能共享
 bind+port,表达为 `("listener","photon",bind,port)` 四元组)。用途:multiplex 启动时
 secondary profile 的适配器与已入队/已连接者比对 claim,冲突即拒——**在 connect()/
 disconnect() 能碰到第一个 profile 之前**就拦下(13647-13649 docstring)。
@@ -317,7 +317,7 @@ disconnect() 能碰到第一个 profile 之前**就拦下(13647-13649 docstring)
 ### 1.7 阶段 6:secondary profiles 与 takeover 窗口关闭(11222–11267)
 
 `_secondary_connected = await self._start_secondary_profile_adapters()`(11227,实现
-在 run.py:13180,不在本段)。两个失败面:`MultiplexConfigError` → 写 `startup_failed`
+在 gateway/run.py:13180,不在本段)。两个失败面:`MultiplexConfigError` → 写 `startup_failed`
 + `self._exit_code = GATEWAY_FATAL_CONFIG_EXIT_CODE` + 干净退出(11229-11242,理由:
 宁可让运维改 config.yaml,不跑"半布线 gateway");普通异常仅记 error 继续。
 
@@ -433,7 +433,7 @@ gateway/run.py:11442-11450 @ 863e313
 
 顺序即语义:① 投递台账重投(答案已生成只是没送到,重投严格优于重跑整轮);② 调度
 resume_pending 会话的合成续跑轮(同步占 `_running_agents` 槽);③ 有界等待后释放入站
-闸门并 drain 排队消息(run.py:10271)。之后(11451-11472)把 crash checkpoint 恢复的
+闸门并 drain 排队消息(gateway/run.py:10271)。之后(11451-11472)把 crash checkpoint 恢复的
 进程 watcher 逐个 `_spawn_supervised(..., restart=False)` 拉起,**每 100 个
 `await asyncio.sleep(0)` 让出循环**——注释:防几千个 watcher 时 O(n²) 阻塞;先把
 `pending_watchers` 整体换成新 list 再遍历,避免并发 append 被 clear() 吞掉(11454-11459)。
@@ -450,8 +450,8 @@ resume_pending 会话的合成续跑轮(同步占 `_running_agents` 槽);③ 有
 | 4 | `_kanban_dispatcher_watcher` | 11490 | kanban 任务派工(:953;`kanban.dispatch_in_gateway` 可关) |
 | 5 | `_platform_reconnect_watcher` | 11515 | 失败平台重连(见 §6;唯一带 `on_spawn` 者) |
 | 6 | `_handoff_watcher` | 11525 | CLI→gateway 会话交接(见 §3) |
-| 7 | `_async_delegation_watcher` | 11531 | 后台子代理完成事件注回原会话(run.py:22247) |
-| 8 | `_scale_to_zero_watcher` | 11545 | 条件 armed:缩容到零(`_scale_to_zero_should_arm` run.py:7494;未 armed 且已 opt-in 则打原因,11550) |
+| 7 | `_async_delegation_watcher` | 11531 | 后台子代理完成事件注回原会话(gateway/run.py:22247) |
+| 8 | `_scale_to_zero_watcher` | 11545 | 条件 armed:缩容到零(`_scale_to_zero_should_arm` gateway/run.py:7494;未 armed 且已 opt-in 则打原因,11550) |
 | 9 | `_drain_control_watcher` | 11560 | 对账外部 `.drain_request.json`(NS-570:靠 instantiation epoch 忽略前世遗留标记) |
 
 reconnect watcher 的拉起注释(11499-11519)是 #70344/#71758 的完整事故记录,见 §6。
@@ -536,7 +536,7 @@ gateway/run.py:11621-11651 @ 863e313
 - 每次 spawn 捕获 `_started = time.monotonic()`(11606),健康期判定基于本次 spawn。
 
 **调用关系**:start() 内 9 处拉起(§1.12 表);进程 watcher 恢复(11463,`restart=False`
-——单个进程的 watcher 结束即终局);`_ensure_reconnect_watcher_running`(run.py:12386)。
+——单个进程的 watcher 结束即终局);`_ensure_reconnect_watcher_running`(gateway/run.py:12386)。
 
 **重实现要点**:① 长命后台任务必须有 done-callback 层监督,内层 try/except 覆盖不了
 外层循环与 setup 段;② crash-loop 计数要带"健康期归零",否则以天计的偶发崩溃迟早耗尽
@@ -603,7 +603,7 @@ gateway/run.py:11693-11714 @ 863e313
    - **Telegram 私聊 topic**(11789-11809):TG 私聊(正 chat_id)里 handoff 建的
      topic,入站适配器会按 **DM-topic** 形状上报;若合成轮按通用 `thread` 形状绑 key,
      用户下一条真实回复会落在 `dm` 形状的**另一个** session key 上。故
-     `looks_like_telegram_private_chat_id`(delivery.py:134)命中时强制
+     `looks_like_telegram_private_chat_id`(gateway/delivery.py:134)命中时强制
      `chat_type="dm"` 且 `user_id=chat_id`(与后续真实入站同一身份)。
    - **Discord 线程 key**(11810-11827):Discord 适配器给线程内自然消息的
      `chat_id == 线程自身 id`(session key 形如 `…:thread:{thread}:{thread}`);handoff
@@ -661,7 +661,7 @@ channel;空响应→视为已投);⑤ 终态必须写回(completed/failed+error)
 2. **逐个 finalize**(11966-12042),五步:
    - `hermes_cli.lifecycle.finalize_session(...)` 钩子(reason="session_expired");
    - 找 cached agent:先 `_agent_cache`(带锁),兜底 `_running_agents`(过期时可能
-     还在轮中),`_AGENT_PENDING_SENTINEL`(run.py:2465)排除;
+     还在轮中),`_AGENT_PENDING_SENTINEL`(gateway/run.py:2465)排除;
      `_cleanup_agent_resources_off_loop`(关 memory provider、工具资源,**off-loop**
      ——阻塞型清理不占事件循环);
    - `_evict_cached_agent(key)` 释放引用链;
@@ -676,7 +676,7 @@ channel;空响应→视为已投);⑤ 终态必须写回(completed/failed+error)
      次后强行 `set_expiry_finalized(entry, clear_model_override=False)` 止损——
      "Marking as finalized to prevent infinite retry loop",宁可漏清一次资源,不做
      每 5 分钟永动重试。
-3. **闲置 agent 扫除**(12059-12071):`_sweep_idle_cached_agents()`(run.py:23650)
+3. **闲置 agent 扫除**(12059-12071):`_sweep_idle_cached_agents()`(gateway/run.py:23650)
    ——针对 reset 窗口极长 / "never" 的会话,cached AIAgent 按闲置 TTL 驱逐(不做
    finalize,只是掉缓存)。
 4. **SessionStore 陈旧条目修剪**(12073-12095):每小时一次,
@@ -704,7 +704,7 @@ await asyncio.sleep(1)`——300s 大觉拆成 1s 小觉,停机最多迟 1 秒�
 **架构分工**:run.py 持状态与 I/O,gateway/session_stall.py 是**纯函数策略层**
 (可独立单测):
 
-- `resolve_session_idle_seconds_from_activity`(session_stall.py:72):只从共享活动
+- `resolve_session_idle_seconds_from_activity`(gateway/session_stall.py:72):只从共享活动
   快照取 idle——优先 `seconds_since_activity`(有限值),否则
   `last_activity_at/last_activity_ts` 推导;都没有则 None。**契约**(#72039):进度的
   唯一来源是 `AIAgent.get_activity_summary()`,"callers must not fall back to
@@ -744,7 +744,7 @@ gateway/run.py:12243-12248 @ 863e313
      ——同一轮里前序候选的 await send 会让快照变老,发送前重读 pending + fresh idle,
      已恢复者放行且**撤 latch**(12276)。
   4. **有界发送**(12288-12304):`asyncio.wait_for(adapter.send(...),
-     timeout=_STALL_NOTIFY_SEND_TIMEOUT_SECONDS=15.0)`(常量 run.py:85)——Round-2
+     timeout=_STALL_NOTIFY_SEND_TIMEOUT_SECONDS=15.0)`(常量 gateway/run.py:85)——Round-2
      审阅点:卡死的传输不能堵死整轮扫描与后续候选;超时/`SendResult.success=False`/
      异常三路都**不落 latch**,下轮重试;仅确认送达才 `notified_map[key]=True`。
      特例:无 chat_id 无法投递时**落 latch**(12236-12242)防每轮刷日志。
@@ -764,7 +764,7 @@ latch;⑤ 通知发送必须带超时,监视器自身不可被被监视对象拖
 
 ### 6.1 `_ensure_reconnect_watcher_running`(12368–12390)
 
-被调点:`_handle_adapter_fatal_error` 入队 retryable 失败后(run.py:7345)。tracked
+被调点:`_handle_adapter_fatal_error` 入队 retryable 失败后(gateway/run.py:7345)。tracked
 task 已 done(重启预算耗尽 / 终态异常)则 WARN 并重拉;活着则直接返回。与
 `_spawn_supervised(on_spawn=...)` 配合闭环:on_spawn 保证句柄永远指向当前活 task,
 本函数因此不会把"被监督层换代过的 watcher"误判为死(否则双 watcher 并发重连,见 §2)。
@@ -772,7 +772,7 @@ task 已 done(重启预算耗尽 / 终态异常)则 WARN 并重拉;活着则直�
 ### 6.2 `_platform_reconnect_watcher`(12392–12601)
 
 **策略宣言**(docstring 12393-12405):退避 30→60→120→240→300s 封顶
-(`_reconnect_backoff` run.py:3665:`min(30 * 2**(attempt-1), 300)`);retryable 在
+(`_reconnect_backoff` gateway/run.py:3665:`min(30 * 2**(attempt-1), 300)`);retryable 在
 封顶频率**无限重试**(网络恢复即自愈,永不要求人工干预);non-retryable 立即出队;
 熔断器(`/platform pause/resume`)保留为**手动**工具——
 
@@ -794,7 +794,7 @@ gateway/run.py:12401-12405 @ 863e313
 4. **全新 adapter + 同款 handler 装配**(12456-12474,与 §1.6 清单逐行同构);
 5. **保留服务端队列的重连**(12477-12481,#46621):`_connect_adapter_with_timeout(
    adapter, platform, is_reconnect=True)`——`is_reconnect` 透传给 `adapter.connect()`,
-   区分"冷启动丢弃陈旧队列"与"断线重连保留离线期间的消息"(run.py:6613-6618
+   区分"冷启动丢弃陈旧队列"与"断线重连保留离线期间的消息"(gateway/run.py:6613-6618
    docstring);
 6. **成功路**(12482-12518):挂 `self.adapters`、同步 voice(#60623 重连也要接
    `_voice_input_callback`)、刷 delivery_router、出队、status `connected`、重建
@@ -816,7 +816,7 @@ gateway/run.py:12505-12512 @ 863e313
 7. **失败三路皆强制 dispose**(#37011,fd 泄漏事故):non-retryable(12520-12540,
    dispose 后出队)、retryable(12541-12570,dispose 后按退避重排)、异常
    (12571-12595,dispose 后按退避重排)。事故完整因果在 `_dispose_unused_adapter`
-   docstring(run.py:3606-3634):watcher 每次重试**新建** adapter,失败即弃、无人调
+   docstring(gateway/run.py:3606-3634):watcher 每次重试**新建** adapter,失败即弃、无人调
    disconnect;`APIServerAdapter.__init__` 开的 SQLite ResponseStore 持 2 fd(db+WAL),
    asyncio 绑定对象 Python 循环 GC 不及时回收 → 300s 封顶下 ≈12 fd/小时 → 默认 2560
    ulimit 约 12 小时耗尽 → 所有 open() 抛 `[Errno 24]`,gateway 成僵尸。修复:三路
@@ -861,7 +861,7 @@ gateway/run.py:12635-12649 @ 863e313
         return True
 ```
 
-- **调用时机**(run.py:26935-26940):在 run_gateway 主流程里,适配器 + cron 线程 +
+- **调用时机**(gateway/run.py:26935-26940):在 run_gateway 主流程里,适配器 + cron 线程 +
   housekeeping 线程**全部**到达 running 边界后才调——`READY=1` 的含义被严格定义为
   "全系统就绪",Type=notify 下 systemd 依赖此点判定启动完成。
 - `SystemdWatchdog`(gateway/systemd_notify.py:60)不是无脑喂狗:`record_tick`
@@ -886,10 +886,10 @@ gateway/run.py:12635-12649 @ 863e313
 
 | # | 位置 | 内容 |
 |---|---|---|
-| ▲1 | run.py:10668 | `start()` docstring "Returns True if at least one adapter connected successfully" 与实现不符:所有路径(含 0 连接降级、拒启、mid-startup 停机)皆 return True;真实信号是 `_exit_code`/`_request_clean_exit`。 |
-| ◇2 | run.py:11821-11823 | 作者自认未修:Slack 目的地 handoff 用 chat_type="thread" 而 Slack 自然线程消息用 "group",key 形状潜在不一致("a separate issue")。 |
-| ◇3 | run.py:12395 vs 3665 | reconnect docstring 写 "30s → 60s → 120s → 240s → 300s (cap)";公式第 5 次实为 480→封顶 300,序列一致但"240 之后直接 300"是封顶所致,非等比——读文档者可能误推 4 次后即封顶(实为第 5 次起)。轻微,不算冲突。 |
-| ◇4 | run.py:11577 段 | `_spawn_supervised` 是**任务级**监督,与 systemd/launchd 的**进程级**监督、以及 shutdown_watchdog 的**循环级**监督构成三层;仓库文档(website/docs)对这三层未见统一叙述,成品章值得画清。 |
+| ▲1 | gateway/run.py:10668 | `start()` docstring "Returns True if at least one adapter connected successfully" 与实现不符:所有路径(含 0 连接降级、拒启、mid-startup 停机)皆 return True;真实信号是 `_exit_code`/`_request_clean_exit`。 |
+| ◇2 | gateway/run.py:11821-11823 | 作者自认未修:Slack 目的地 handoff 用 chat_type="thread" 而 Slack 自然线程消息用 "group",key 形状潜在不一致("a separate issue")。 |
+| ◇3 | gateway/run.py:12395 vs 3665 | reconnect docstring 写 "30s → 60s → 120s → 240s → 300s (cap)";公式第 5 次实为 480→封顶 300,序列一致但"240 之后直接 300"是封顶所致,非等比——读文档者可能误推 4 次后即封顶(实为第 5 次起)。轻微,不算冲突。 |
+| ◇4 | gateway/run.py:11577 段 | `_spawn_supervised` 是**任务级**监督,与 systemd/launchd 的**进程级**监督、以及 shutdown_watchdog 的**循环级**监督构成三层;仓库文档(website/docs)对这三层未见统一叙述,成品章值得画清。 |
 
 ---
 

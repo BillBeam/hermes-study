@@ -95,7 +95,7 @@ R7 A6 把"kanban 评论 steer 注入侧"移交给 `gateway/kanban_watchers.py`�
 
 - `gateway/kanban_watchers.py` 全文 1493 行**无 `steer` 字样、不读 `task_comments`**。
 - 真正的评论 steer 在 **`tools/kanban_tools.py:350-414`**,调用点在
-  **`agent/run_agent.py:3710`** —— 运行在 **worker 进程内**,不是网关进程。
+  **`run_agent.py:3710`** —— 运行在 **worker 进程内**,不是网关进程。
   它挂在 `_touch_activity` 上(6 秒节流 + rowid 水位线 + 过滤自述),
   因此是 R7 A6「三个看门狗共用一钟」的**第四个消费者**。
 - 网关侧的 kanban → agent 注入走的是**另一条明确不 steer 的路**:
@@ -184,7 +184,7 @@ R7B 记为 "◇:五种签名方言在 `website/docs/**` 无完整枚举"。**本
 
 **裁决:◇ 成立但范围从 5/5 收窄为 1/5(Svix)。** 上一轮的措辞过宽,本轮更正。
 **新增两条 ▲**(双侧证据见 `notes/r7c-raw-webhook-signing-docgap.md`):
-- **▲**:中文镜像 `website/i18n/.../webhooks.md:452-460` 停在 V2 之前,把**有重放洞的 V1**
+- **▲**:中文镜像 `website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-guide/messaging/webhooks.md:452-460` 停在 V2 之前,把**有重放洞的 V1**
   讲成唯一通用方案 —— 英文卷补 V2 时中文卷没跟上,而 `tests/agent/test_i18n.py`
   只管 `locales/*.yaml`,**不覆盖 `website/i18n/`**。
 - **▲**:响应码表(`webhooks.md:377-388`)自称穷举却漏掉两条 403 路径(路由禁用
@@ -329,7 +329,7 @@ R7B 记为 "◇:五种签名方言在 `website/docs/**` 无完整枚举"。**本
   实际 Chronos 的 webhook 入口硬传 `adapters=None`
   (`gateway/platforms/api_server.py:5710-5712`、`hermes_cli/web_server.py:11966`)
   ⇒ E2EE 房间、可续聊 thread、in-channel 种子在 Chronos 下全部失效。
-- **▲-14** `cron-internals.md:268` 说 `[SILENT]` 是 "prefix",
+- **▲-14** `website/docs/developer-guide/cron-internals.md:268` 说 `[SILENT]` 是 "prefix",
   `website/docs/user-guide/features/cron.md:440` 说 "contains";
   代码是**位置敏感**的(整条 / 首行 / 末行 + 无括号变体,
   `cron/scheduler.py:311-325`;`gateway/response_filters.py:84-85,98-110`),
@@ -342,7 +342,7 @@ R7B 记为 "◇:五种签名方言在 `website/docs/**` 无完整枚举"。**本
   (`hermes_cli/config_defaults.py:47` → `gateway/restart.py:23-25`)。
   **差 900 倍,且方向相反(文档说慢慢排水,代码是立刻进入强制中断)。**
   同一行第二处错:它说这是 `/restart` 的排水预算,而 `/restart` 实际走的是
-  `restart_after_turn_timeout`(默认 21600s,`config_defaults.py:54`),
+  `restart_after_turn_timeout`(默认 21600s,`hermes_cli/config_defaults.py:54`),
   代码注释就在旁边明说(`:45-46`)。
 - **▲-16** `gateway/shutdown_watchdog.py:15-17` 的 docstring 称心跳供 "external
   supervision" 消费;全仓无任何 healthcheck / 监控 / systemd 单元读它,
@@ -377,8 +377,8 @@ R7B 记为 "◇:五种签名方言在 `website/docs/**` 无完整枚举"。**本
   `any(not t.done() for t in self._background_tasks)`(`gateway/run.py:7437`),
   而 `_background_tasks` **不是"后台工作集合",是 `_spawn_supervised` 的
   "常驻守护任务注册表"**(`gateway/run.py:11611` 处入集)。网关启动时至少塞进 8 个
-  **永不结束**的 watcher(`run.py:11475-11560`),**而 scale-to-zero watcher 自己也是
-  用 `_spawn_supervised` 起的**(`run.py:11545`)⇒ 一旦 arm 成功,它自身就让条件恒真,
+  **永不结束**的 watcher(`gateway/run.py:11475-11560`),**而 scale-to-zero watcher 自己也是
+  用 `_spawn_supervised` 起的**(`gateway/run.py:11545`)⇒ 一旦 arm 成功,它自身就让条件恒真,
   `is_idle()` 恒 False。
   讽刺的是,同一函数的 docstring(`:7430-7436`)说得很清楚,它想数的是
   "backgrounded delegate_task / kanban / terminal(background=true)",
@@ -393,7 +393,7 @@ R7B 记为 "◇:五种签名方言在 `website/docs/**` 无完整枚举"。**本
   profile 绑定以防枚举** —— 同一处的取舍不自洽。
 - **■-6 pairing 无跨进程锁**:见 §1.1。同型问题也出现在 `cron/suggestions.py:53`
   (只有 `threading.Lock()`,而 `cron/jobs.py:104-108` 早已因 #60703 升级为跨进程 flock,
-  且 `suggestions.py:24-25` 的 docstring 还写着 "Storage mirrors cron/jobs.py")。
+  且 `cron/suggestions.py:24-25` 的 docstring 还写着 "Storage mirrors cron/jobs.py")。
 
 **三个休眠机制(与 R7 的 `memory_monitor.py` 同型,合并记为本轮的接线核查结论)**:
 
@@ -479,7 +479,7 @@ R7 的三条("机制方向大体对、分支图谱与精确值系统性滞后;�
 
 ## 7. 向后续轮次移交
 
-- **`tools/kanban_tools.py:350-414` + `agent/run_agent.py:3710`**(kanban 评论 steer 本体):
+- **`tools/kanban_tools.py:350-414` + `run_agent.py:3710`**(kanban 评论 steer 本体):
   R7 A6 原定位在 `kanban_watchers.py`,本轮更正后其锚点落在 R2/R3 域。
   本轮已给出完整链路与判据(§1.3),**机制本身已讲清,不需要另开轮次**;
   若 R12 蓝图要写"带外注入"一章,直接引用本轮结论即可。

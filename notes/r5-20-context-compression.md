@@ -239,7 +239,7 @@ _SMALL_CTX_THRESHOLD_PERCENT = 0.75
 ```
 
 - 最小回收闸(默认 4096 tokens):不够本就不提交,避免"每新增一个 tool pair 就把一个老 pair 挤出尾部→每轮重写→每轮破缓存";
-- 复位跑道(rearm runway):提交后记录 `after + runway` 为下次允许点(§入口闸 `before < self._proactive_prune_rearm_tokens` 即返回,:3116-3117),即 prompt 必须**重新长回刚回收的量级**才允许下一次破缓存的重写——这就是滞回。跑道值经 `archive_and_compact(..., model_config_patch=...)` 与剪枝结果**同事务**落库(:3160-3166),重启后 `_load_proactive_prune_rearm_tokens` 恢复(:1729-1745);换模型时同时清内存值与持久值(:2126-2128);一次完整压缩边界把跑道清零(:6858 及宿主层 `model_config_patch={KEY: None}`,conversation_compression.py:3203-3205)。
+- 复位跑道(rearm runway):提交后记录 `after + runway` 为下次允许点(§入口闸 `before < self._proactive_prune_rearm_tokens` 即返回,:3116-3117),即 prompt 必须**重新长回刚回收的量级**才允许下一次破缓存的重写——这就是滞回。跑道值经 `archive_and_compact(..., model_config_patch=...)` 与剪枝结果**同事务**落库(:3160-3166),重启后 `_load_proactive_prune_rearm_tokens` 恢复(:1729-1745);换模型时同时清内存值与持久值(:2126-2128);一次完整压缩边界把跑道清零(:6858 及宿主层 `model_config_patch={KEY: None}`,agent/conversation_compression.py:3203-3205)。
 - 能力闸:绑定的 session store 没有 `archive_and_compact`(无法原子提交)则直接不扫(:3122-3129);DB 提交失败则整体放弃、返回原列表(:3167-3173)。
 
 **定案**:▲4 证实。两问都有明确代码答案:独立路径是因为大窗口下主阈值失效 + 尾预算派生失真;滞回 = 最小回收闸 + 持久化复位跑道,把破缓存从"每轮"摊薄成"episodic"。
@@ -342,7 +342,7 @@ input verbatim — the exact words they used. This includes:
     )
 ```
 
-`force=True` **故意无视** `security.redact_secrets: false` 的全局关闭:那个开关面向实时工具输出,而摘要是持久化边界,泄露的凭据会被每次迭代更新 prompt 无限重注入。红线覆盖:序列化输入(:3243)、tool 参数(:3276)、focus_topic 与旧摘要(:3597-3600)、**摘要输出本身**(摘要模型可能无视指令回显密钥,:3957-3959)、fallback 摘要(:3319-3324,外加 GitHub token 正则双保险)、manual feedback 的失败原因文案(manual_compression_feedback.py:110)。另有 `MEDIA:` 投递指令消毒(泄进摘要会被下游模型当作活指令重发附件,#14665,:673 + :3244)、memory provider 上下文 JSON 编码 + `<>&` 转义装入 `<memory-provider-context>` 标签并声明"只当素材不当指令"(:3621-3640)。
+`force=True` **故意无视** `security.redact_secrets: false` 的全局关闭:那个开关面向实时工具输出,而摘要是持久化边界,泄露的凭据会被每次迭代更新 prompt 无限重注入。红线覆盖:序列化输入(:3243)、tool 参数(:3276)、focus_topic 与旧摘要(:3597-3600)、**摘要输出本身**(摘要模型可能无视指令回显密钥,:3957-3959)、fallback 摘要(:3319-3324,外加 GitHub token 正则双保险)、manual feedback 的失败原因文案(agent/manual_compression_feedback.py:110)。另有 `MEDIA:` 投递指令消毒(泄进摘要会被下游模型当作活指令重发附件,#14665,:673 + :3244)、memory provider 上下文 JSON 编码 + `<>&` 转义装入 `<memory-provider-context>` 标签并声明"只当素材不当指令"(:3621-3640)。
 
 ### 4.5 Ghost-skill 防护(#32106)
 
@@ -474,7 +474,7 @@ Mistral 系模板(Devstral/Mistral Small 3.x/Magistral)渲染时强制 user/assi
         )
 ```
 
-排队会让任务在预算内根本不启动、又在 worker 恢复时作为陈旧作业跑起来。陈旧作业启动前也先查栅栏(:909-919)。超时后宿主调 `ContextCompressor.record_timeout_failure`(context_compressor.py:1975-1991)进入 60/300/900s cooldown 梯子;fence 取消后 worker 迟到成功的摘要**不得**清掉宿主刚记的 cooldown(`_compression_cancelled_check` 钩子,context_compressor.py:1993-2011 + conversation_compression.py:2819-2825)。取消赢时,压缩尝试期间被变异的一切可回滚状态按显式 allow-list 快照/恢复(`_COMPRESSOR_ATTEMPT_STATE_FIELDS`,:248-302),持久 cooldown 行在租约内先取权威快照、回滚时精确还原(:387-442、:305-384)。
+排队会让任务在预算内根本不启动、又在 worker 恢复时作为陈旧作业跑起来。陈旧作业启动前也先查栅栏(:909-919)。超时后宿主调 `ContextCompressor.record_timeout_failure`(agent/context_compressor.py:1975-1991)进入 60/300/900s cooldown 梯子;fence 取消后 worker 迟到成功的摘要**不得**清掉宿主刚记的 cooldown(`_compression_cancelled_check` 钩子,agent/context_compressor.py:1993-2011 + agent/conversation_compression.py:2819-2825)。取消赢时,压缩尝试期间被变异的一切可回滚状态按显式 allow-list 快照/恢复(`_COMPRESSOR_ATTEMPT_STATE_FIELDS`,:248-302),持久 cooldown 行在租约内先取权威快照、回滚时精确还原(:387-442、:305-384)。
 
 ### 6.3 in-place 落库(压缩结果怎么写回持久层)
 
@@ -498,7 +498,7 @@ Mistral 系模板(Devstral/Mistral Small 3.x/Magistral)渲染时强制 user/assi
                     )
 ```
 
-同一 session_id、旧行软归档(active=0, compacted=1,仍可 FTS 搜索/恢复)、新压缩集原子插入;随后 `update_system_prompt` + 清 flush 身份集合(:3213-3217、:3323-3327),下一轮按身份 diff 只追加真正的新消息。这消灭了整个"会话轮转 bug 簇"(/goal 丢失、孤儿会话、跨界搜索断裂)。legacy 轮转路径(:3219-3319):先把未持久化的当前轮 flush 进旧会话(以 `_persist_user_message_idx` 锚定已持久前缀防整段重插,#68196/#47202),再 `publish_compression_child` **单事务**发布父关闭 + 子行 + 压缩 handoff(读者不可能观察到"父已结束、子为空"的中间态;`require_compression_lease` 使发布依赖仍持有的租约),然后迁移 /goal(#33618)、heartbeat、标题续号,失败则回滚到父会话防孤儿(:3337-3383,含 proactive 跑道的精准恢复)。flush 基线由 `conversation_history_after_compression`(:1846-1882)按 in-place/rotation/abort 三态给出——in-place 之后**必须**把压缩集当已持久历史,否则同轮 flush 会把它们再插一遍、上下文翻倍再触发压缩。压缩器侧配套不变式:任何消息不得带 `_db_persisted` 标记离开 `compress()`(`_strip_persistence_markers` 终扫,context_compressor.py:214-231 + 6819-6823,#57491——带标记的复制会让轮转 flush 跳过所有行,压缩转录从 state.db 消失)。
+同一 session_id、旧行软归档(active=0, compacted=1,仍可 FTS 搜索/恢复)、新压缩集原子插入;随后 `update_system_prompt` + 清 flush 身份集合(:3213-3217、:3323-3327),下一轮按身份 diff 只追加真正的新消息。这消灭了整个"会话轮转 bug 簇"(/goal 丢失、孤儿会话、跨界搜索断裂)。legacy 轮转路径(:3219-3319):先把未持久化的当前轮 flush 进旧会话(以 `_persist_user_message_idx` 锚定已持久前缀防整段重插,#68196/#47202),再 `publish_compression_child` **单事务**发布父关闭 + 子行 + 压缩 handoff(读者不可能观察到"父已结束、子为空"的中间态;`require_compression_lease` 使发布依赖仍持有的租约),然后迁移 /goal(#33618)、heartbeat、标题续号,失败则回滚到父会话防孤儿(:3337-3383,含 proactive 跑道的精准恢复)。flush 基线由 `conversation_history_after_compression`(:1846-1882)按 in-place/rotation/abort 三态给出——in-place 之后**必须**把压缩集当已持久历史,否则同轮 flush 会把它们再插一遍、上下文翻倍再触发压缩。压缩器侧配套不变式:任何消息不得带 `_db_persisted` 标记离开 `compress()`(`_strip_persistence_markers` 终扫,agent/context_compressor.py:214-231 + 6819-6823,#57491——带标记的复制会让轮转 flush 跳过所有行,压缩转录从 state.db 消失)。
 
 ### 6.4 keep-prompt(保 KV-cache 前缀)
 
@@ -524,7 +524,7 @@ Mistral 系模板(Devstral/Mistral Small 3.x/Magistral)渲染时强制 user/assi
 
 ### 6.5 边界后记账(摘录)
 
-真实用量哨兵(§1.2);`record_completed_compaction` 只在 `_last_compression_made_progress` 为真时武装裁决(:3512-3525);文件读/skill_view 去重缓存清空(压缩后原文已被摘掉,重读必须返回全文,:3527-3541);memory provider `on_session_switch(reason="compression", reset=False)` 与 context engine `on_session_start(boundary_reason="compression")` 双模式都触发(:3421-3456);压缩 ≥2 次警告质量退化(:3464-3471);`session:compress` 事件带 `in_place` 标志(:3477-3487);压缩后调 `trim_memory` 归还分配器页(context_compressor.py:6826-6844)。Codex app-server 会话整条路由改走 `thread/compact`(本地转录只是镜像,Hermes 摘要器压不到真实线程,#36801,:2217-2242 + :3574-3716)。
+真实用量哨兵(§1.2);`record_completed_compaction` 只在 `_last_compression_made_progress` 为真时武装裁决(:3512-3525);文件读/skill_view 去重缓存清空(压缩后原文已被摘掉,重读必须返回全文,:3527-3541);memory provider `on_session_switch(reason="compression", reset=False)` 与 context engine `on_session_start(boundary_reason="compression")` 双模式都触发(:3421-3456);压缩 ≥2 次警告质量退化(:3464-3471);`session:compress` 事件带 `in_place` 标志(:3477-3487);压缩后调 `trim_memory` 归还分配器页(agent/context_compressor.py:6826-6844)。Codex app-server 会话整条路由改走 `thread/compact`(本地转录只是镜像,Hermes 摘要器压不到真实线程,#36801,:2217-2242 + :3574-3716)。
 
 **定案**:▲5 证实。三问对应:孤儿分叉 = 共享 session_id 的兄弟 agent 双轮转,靠 state.db 持久锁 + 迟到者收敛;挂死超时 = fence + inactivity 预算 + 提交不可弃置 + 有界池准入 + cooldown 梯子;写回 = in-place `archive_and_compact` 软归档原子换活集(默认),rotation 单事务发布子会话为遗留路径。
 
@@ -564,8 +564,8 @@ Mistral 系模板(Devstral/Mistral Small 3.x/Magistral)渲染时强制 user/assi
 _COMPRESSION_TIMEOUT_FLOOR_SECONDS = 300.0
 ```
 
-- 可行性探测(懒执行于首次压缩尝试,省 ~400ms 冷启动,conversation_compression.py:2260-2274):aux 模型窗口 <64K 硬拒(ValueError 阻止会话启动,:1676-1686);aux 窗口 < 主模型阈值时**自动下调本会话阈值到 aux 窗口**并同步 tail 预算与 threshold_percent,给出含可行性验算的 config 修改建议(:1688-1805,#67422:建议值先按压缩器自己的地板/预留数学重算,不可行的建议不给)。
-- 失败回退链(接口侧):独立 summary_model 失败 → `_fallback_to_main_for_compression` 清空 `summary_model` 立即用主模型重试一次(context_compressor.py:3531-3560);`call_llm` 内部对 task="compression" 的超时还有同 provider 重试特判(auxiliary_client.py:8875-8880)。中断保护:摘要调用包在 `aux_interrupt_protection()` 里,压缩是原子的,途中来消息不得把摘要撕成两半(#23975,:3899-3906);宿主层再套 `aux_progress_hook` 把流式 token 喂给栅栏心跳(conversation_compression.py:2787-2813)。
+- 可行性探测(懒执行于首次压缩尝试,省 ~400ms 冷启动,agent/conversation_compression.py:2260-2274):aux 模型窗口 <64K 硬拒(ValueError 阻止会话启动,:1676-1686);aux 窗口 < 主模型阈值时**自动下调本会话阈值到 aux 窗口**并同步 tail 预算与 threshold_percent,给出含可行性验算的 config 修改建议(:1688-1805,#67422:建议值先按压缩器自己的地板/预留数学重算,不可行的建议不给)。
+- 失败回退链(接口侧):独立 summary_model 失败 → `_fallback_to_main_for_compression` 清空 `summary_model` 立即用主模型重试一次(agent/context_compressor.py:3531-3560);`call_llm` 内部对 task="compression" 的超时还有同 provider 重试特判(agent/auxiliary_client.py:8875-8880)。中断保护:摘要调用包在 `aux_interrupt_protection()` 里,压缩是原子的,途中来消息不得把摘要撕成两半(#23975,:3899-3906);宿主层再套 `aux_progress_hook` 把流式 token 喂给栅栏心跳(agent/conversation_compression.py:2787-2813)。
 
 ---
 
@@ -573,7 +573,7 @@ _COMPRESSION_TIMEOUT_FLOOR_SECONDS = 300.0
 
 按发生顺序:
 
-1. **摘要模型失败,可归类**(404/503/model_not_found/超时/429/502/504/JSON 解码失败(#22244)/流提前关闭(#18458)):若配置了独立 summary_model 且未回退过 → 立即改用**主模型**重试(context_compressor.py:4058-4077);未归类的未知错误也给一次主模型重试("丢 N 轮上下文几乎总比多试一次糟",:4088-4098)。
+1. **摘要模型失败,可归类**(404/503/model_not_found/超时/429/502/504/JSON 解码失败(#22244)/流提前关闭(#18458)):若配置了独立 summary_model 且未回退过 → 立即改用**主模型**重试(agent/context_compressor.py:4058-4077);未归类的未知错误也给一次主模型重试("丢 N 轮上下文几乎总比多试一次糟",:4088-4098)。
 2. **重试后仍失败** → 记 cooldown:超时类走 60/300/900s 递增梯子(#62452,同一结构性超时每 60s 重烧一次全额超时会把每轮变成分钟级卡顿,:4114-4126);JSON/流断 30s;其它 60s;无 provider 配置 600s(:628, 3985-3996)。返回 None。
 3. **compress() 分流**(:6447-6495):`abort_on_summary_failure=True`(配置)或**终态访问/配额错误**(401/402/403、无 key、确认性配额耗尽——`_is_summary_access_or_quota_error`,:73-94)或**瞬时网络错误**(#29559/#25585)→ **整体中止**:消息原样返回、`_last_compress_aborted=True`、不轮转、rehydration 回滚(#57835)。理由:凭据坏了/网络闪断时,为一个占位摘要毁掉中间窗口是零收益的降级。
 4. **默认路径(非中止)** → 插入**确定性 fallback 摘要** `_build_static_fallback_summary`(:3296-3496):本地提取用户请求/工具动作/文件路径/错误文本 + 旧摘要快照 + 最后被丢轮次,红线后限 8000 字符,丢弃中间窗口;记 `_last_summary_fallback_used` / `_last_summary_dropped_count` 供 gateway/CLI 显式警告。
@@ -586,7 +586,7 @@ _COMPRESSION_TIMEOUT_FLOOR_SECONDS = 300.0
 
 ## 9. micro-compaction(滚动微压缩,默认关)
 
-配置 `compression.micro_compact`(默认 False——每 pass 重写已发送历史 = 每轮破一次 prompt-cache 前缀,`hermes_cli/config_defaults.py:617-628 @ 863e313`)。机制:每(第 N)个完成轮,在空闲期把**最老的未吸收 exchange**(一个完整 agent turn:assistant + tools 直到下一个 user,user 轮**永不**被吸收——"用户的原话是唯一无法从上下文重建的东西",context_compressor.py:5347-5356)经 aux LLM 合并进滚动摘要,拼接为 assistant 角色 marker(`user → marker(assistant) → user` 天然合法交替,:5897-5911);滚动摘要是累积的,supersede 掉旧 micro marker(两道包含性闸:本 pass 起点非空 + 候选带 `MICRO_COMPACT_MARKER_KEY`——batch marker 含有滚动摘要没有的历史,绝不误删,:5939-5960);摘要自身超 2000 tokens 时 defrag(对摘要文本本身再 aux 压一遍、原位改写 marker、不动转录形状,:5522-5584);每次 splice 后 `archive_and_compact` 原子落库(否则 resume 双载摘要+原文,:5851-5881);同位置连续 3 次失败跳过该 exchange(:5689-5701);batch 压缩完成即作废 micro 状态,下次从 batch marker rehydrate(:6846-6857)。与 batch 路径共用序列化器与 `task="compression"` 路由(micro 调用带 `max_tokens=min(1500,...)`、`temperature=0.1`,:5477-5482)。
+配置 `compression.micro_compact`(默认 False——每 pass 重写已发送历史 = 每轮破一次 prompt-cache 前缀,`hermes_cli/config_defaults.py:617-628 @ 863e313`)。机制:每(第 N)个完成轮,在空闲期把**最老的未吸收 exchange**(一个完整 agent turn:assistant + tools 直到下一个 user,user 轮**永不**被吸收——"用户的原话是唯一无法从上下文重建的东西",agent/context_compressor.py:5347-5356)经 aux LLM 合并进滚动摘要,拼接为 assistant 角色 marker(`user → marker(assistant) → user` 天然合法交替,:5897-5911);滚动摘要是累积的,supersede 掉旧 micro marker(两道包含性闸:本 pass 起点非空 + 候选带 `MICRO_COMPACT_MARKER_KEY`——batch marker 含有滚动摘要没有的历史,绝不误删,:5939-5960);摘要自身超 2000 tokens 时 defrag(对摘要文本本身再 aux 压一遍、原位改写 marker、不动转录形状,:5522-5584);每次 splice 后 `archive_and_compact` 原子落库(否则 resume 双载摘要+原文,:5851-5881);同位置连续 3 次失败跳过该 exchange(:5689-5701);batch 压缩完成即作废 micro 状态,下次从 batch marker rehydrate(:6846-6857)。与 batch 路径共用序列化器与 `task="compression"` 路由(micro 调用带 `max_tokens=min(1500,...)`、`temperature=0.1`,:5477-5482)。
 
 ---
 
@@ -616,7 +616,7 @@ _COMPRESSION_TIMEOUT_FLOOR_SECONDS = 300.0
 > [Old tool output cleared to save context space]
 > ```
 
-代码:替换文本是 `_summarize_tool_result` 生成的工具语义一行摘要(context_compressor.py:1129-1141);常量 `_PRUNED_TOOL_PLACEHOLDER`(:399)只作幂等跳过判据(:2925),从不被写入。测试 pin 死了这一点(`test_proactive_tool_result_pruning.py:87`:`assert m["content"] != _PRUNED_TOOL_PLACEHOLDER  # informative, not a blank placeholder`)。**文档过时。**
+代码:替换文本是 `_summarize_tool_result` 生成的工具语义一行摘要(agent/context_compressor.py:1129-1141);常量 `_PRUNED_TOOL_PLACEHOLDER`(:399)只作幂等跳过判据(:2925),从不被写入。测试 pin 死了这一点(`tests/agent/test_proactive_tool_result_pruning.py:87`:`assert m["content"] != _PRUNED_TOOL_PLACEHOLDER  # informative, not a blank placeholder`)。**文档过时。**
 
 2. **摘要模板结构**。文档 :276-302 给出 `## Progress / ### Done / ### In Progress / ## Next Steps` 模板;代码模板(:3762-3811)是 `## Historical Task Snapshot / ## Completed Actions / ## Active State / ## Resolved Questions / ## Pruned Skills` 等,且模块 docstring 明说旧标题已被替换,`agent/context_compressor.py:10 @ 863e313`:
 
@@ -628,15 +628,15 @@ _COMPRESSION_TIMEOUT_FLOOR_SECONDS = 300.0
 
 3. **摘要 token 上限常数**。文档 :306-307:`Maximum: min(context_length × 0.05, 12,000) tokens`;代码 `_SUMMARY_TOKENS_CEILING = 10_000`(:377,:1580-1582)。文档 :217 的算例 `min(200,000 × 0.05, 12,000) = 10,000` 数值碰巧对(10K=5%×200K),常数错。**文档过时。**
 
-4. **孤儿 tool_call 处理**。文档 :318:`Tool calls whose results were removed → stub result injected`;代码明确剥离而非插桩,并记录了插桩方案被废除的原因(context_compressor.py:4650-4657,Codex Responses `call_id != id` 时桩被下游修复器丢弃)。**文档过时。**
+4. **孤儿 tool_call 处理**。文档 :318:`Tool calls whose results were removed → stub result injected`;代码明确剥离而非插桩,并记录了插桩方案被废除的原因(agent/context_compressor.py:4650-4657,Codex Responses `call_id != id` 时桩被下游修复器丢弃)。**文档过时。**
 
-5. **摘要模型窗口要求与失败行为**。文档 :269-271 警告框:"summary model must have a context window at least as large as the main agent model's / entire middle section is sent in a single call / drops the middle turns without a summary, silently losing context"。代码三点相反:(a) 摘要输入有 160K 字符聚合上限 + 逐消息截断(:396,:3498-3529),不是无界整段;(b) aux 窗口不足时启动探测**自动下调阈值**使压缩可行(conversation_compression.py:1688-1722),硬要求只是 64K 下限;(c) 失败不再"静默丢弃":终态错误中止保原文,其余插入结构化确定性 fallback 且 gateway/CLI 显式警告(§8)。**文档过时/失真。**
+5. **摘要模型窗口要求与失败行为**。文档 :269-271 警告框:"summary model must have a context window at least as large as the main agent model's / entire middle section is sent in a single call / drops the middle turns without a summary, silently losing context"。代码三点相反:(a) 摘要输入有 160K 字符聚合上限 + 逐消息截断(:396,:3498-3529),不是无界整段;(b) aux 窗口不足时启动探测**自动下调阈值**使压缩可行(agent/conversation_compression.py:1688-1722),硬要求只是 64K 下限;(c) 失败不再"静默丢弃":终态错误中止保原文,其余插入结构化确定性 fallback 且 gateway/CLI 显式警告(§8)。**文档过时/失真。**
 
-6. **protect_first_n"硬编码、永远保留"**。文档 :113:`protect_first_n | 3 | (hardcoded) | System prompt + first exchange always preserved`。代码:是配置键(`hermes_cli/config_defaults.py:664`),且首压后衰减为 0(context_compressor.py:4759-4773,#11996)。**文档两点皆误。**
+6. **protect_first_n"硬编码、永远保留"**。文档 :113:`protect_first_n | 3 | (hardcoded) | System prompt + first exchange always preserved`。代码:是配置键(`hermes_cli/config_defaults.py:664`),且首压后衰减为 0(agent/context_compressor.py:4759-4773,#11996)。**文档两点皆误。**
 
 7. **触发点表述**。文档开头示意图 :49 写死 "Fires at 50% of context (default)";代码对 <512K 窗口地板到 75%(:2206-2208)。文档在 per-model overrides 一节(:154-157)有正确的地板描述,但首屏示意与参数表(:108)未提。**部分过时(内部不一致)。**
 
-另:文档未覆盖但代码已有的机制(非冲突,记为缺口):`threshold_tokens` 绝对 cap、`max_attempts`、`proactive_prune_*`、`micro_compact_*`、`abort_on_summary_failure`、`context_timeout_seconds` 族(以上都在 `config_defaults.py:560-700` 有注释)、feasibility 自动降阈、断路器/cooldown 族、Historical prefix 代际。
+另:文档未覆盖但代码已有的机制(非冲突,记为缺口):`threshold_tokens` 绝对 cap、`max_attempts`、`proactive_prune_*`、`micro_compact_*`、`abort_on_summary_failure`、`context_timeout_seconds` 族(以上都在 `hermes_cli/config_defaults.py:560-700` 有注释)、feasibility 自动降阈、断路器/cooldown 族、Historical prefix 代际。
 
 ---
 

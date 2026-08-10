@@ -727,7 +727,7 @@ status 用 `bool("false")` == True，直接报 ✓。同样的 bug 也存在于
 ### 3.3 「显示未就绪但实际能跑」
 
 **Z.AI / GLM**：只设 `ZAI_API_KEY` 或 `Z_AI_API_KEY` 时，◆ API Keys 节报 `✗ (not set)`
-（第 158 行只查 `GLM_API_KEY`），但运行时按 `providers.py:107` 的三元组是能取到 key 的。
+（第 158 行只查 `GLM_API_KEY`），但运行时按 `hermes_cli/providers.py:107` 的三元组是能取到 key 的。
 §2.2(1) 的实测输出已证。
 
 ### 3.4 唯一一份「读真值」的实现，可以当反例参照
@@ -1304,7 +1304,7 @@ status 的输出还带 Box-drawing 与 `◆ / ✓ / ✗` 符号（120–122、12
 | `--all` | Show all details in a shareable redacted format. |
 ```
 
-parser 的 help 也写着 "Show all details (redacted for sharing)"（`subcommands/status.py:23`）。
+parser 的 help 也写着 "Show all details (redacted for sharing)"（`hermes_cli/subcommands/status.py:23`）。
 更有意思的是，测试第 1 例的函数名叫 `test_show_status_all_does_not_print_tavily_key_value`，
 并且传的是 `all=True`：
 

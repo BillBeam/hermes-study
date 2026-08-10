@@ -74,6 +74,9 @@ for n in tree.body:
         t = n.targets[0] if isinstance(n, ast.Assign) else n.target
         print(f"{n.lineno:4d}  {getattr(t,'id','?')}")
 PY
+```
+
+```text
   20  _CREDENTIAL_SUFFIXES
   25  _WARNED_KEYS
   31  _WARNED_UTF32_PATHS
@@ -490,7 +493,9 @@ cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python \
 
 自证:
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text(探针输出,非命令;探针脚本未进版本控制,理由与 §5.1 同)。块正文一字未动。**
+
+```text
 [自证] 桩生效:get_secret_source -> 'bitwarden';快照 -> {'SELFTEST_API_KEY': 'vault-value'}
 ```
 
@@ -500,7 +505,13 @@ cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python \
 就等于在**整个进程**范围内把「`NOTION_TOKEN` 允许进 MCP 子进程」这个开关打开了 ——
 包括那些从没配过任何 secret source、`NOTION_TOKEN` 只是用户 shell 里 `export` 出来的档位。
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 块里是探针的**输出**,不是命令。**
+R9A 这几个场景的探针脚本**从未进过版本控制**(全仓没有 `data/r9a/` 目录,
+搜索面:`find . -path ./.git -prune -o -name "*.py" -print | grep -i r9a`,
+只命中 `data/r9d/probes/` 下三个 R9D 自己的文件),所以这些读数在新容器里**无法重跑**。
+如实声明为不可重跑输出,不伪造。块正文一字未动;详见移交 `H-R11C-C-c`。
+
+```text
 [场景1] 只 hydrate 了 homeB;_SECRET_SOURCES = {'NOTION_TOKEN': 'bitwarden'}(没有 home 维度)
 [场景1] MCP stdio 子进程 env = {'PATH': '/usr/bin', 'NOTION_TOKEN': 'shell-exported-token'}
 [场景1] NOTION_TOKEN 进了子进程:True;同样是 shell 导出的 OTHER_API_KEY 仍被过滤:True
@@ -526,7 +537,9 @@ cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python \
 这是在模拟「两个档位配不同后端、快慢不同」这个再正常不过的情况;
 **sleep 只在桩里,被测函数一行没动**。
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text(探针输出,非命令;探针脚本未进版本控制,理由与 §5.1 同)。块正文一字未动。**
+
+```text
 [场景2/无锁 _apply_external_secret_sources] homeA 快照 = {'EXPB1_API_KEY': 'B-value', 'EXPB2_API_KEY': 'B-value', 'EXPB3_API_KEY': 'B-value'}
 [场景2/无锁 _apply_external_secret_sources] homeA 快照被 homeB 的值污染:True
 ```
@@ -537,7 +550,9 @@ cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python \
 
 同一套时序,换成**有锁**的孪生函数,污染消失:
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text(探针输出,非命令;探针脚本未进版本控制,理由与 §5.1 同)。块正文一字未动。**
+
+```text
 [场景2/有锁 hydrate_profile_secret_sources] homeA 快照 = {'EXPB1_API_KEY': 'A-value', 'EXPB2_API_KEY': 'A-value', 'EXPB3_API_KEY': 'A-value'}
 [场景2/有锁 hydrate_profile_secret_sources] homeA 快照被 homeB 的值污染:False
 ```
@@ -554,7 +569,9 @@ cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python \
 于是 §3.1 那道过滤器认为「没有任何变量是 vault 注入的」,把它们全部挡在 MCP 子进程之外 ——
 尽管这些凭据此刻**就在 `os.environ` 里**(reset 只清 provenance,不清环境变量)。
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text(探针输出,非命令;探针脚本未进版本控制,理由与 §5.1 同)。块正文一字未动。**
+
+```text
 [场景3] 稳态自证:safe_env 含 ['EXPW1_API_KEY', 'EXPW2_API_KEY']
 [场景3] 单次 cron 作业(vault 往返桩 50 ms):探针取 114 次 safe_env,vault 凭据缺席 39 次,缺席窗口宽度 49.3 ms
 ```
@@ -579,7 +596,9 @@ stdio MCP 服务器。cron 作业启动的那一瞬间,若该 MCP 服务器恰�
 而 `_SECRET_SOURCES` 被清空 —— 这会是**粘滞**的,进程生命期内不自愈。
 我按最有利于复现的方式试了(3000 个 provenance 键把写循环拉长,两线程用 Barrier 对齐起跑):
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text(探针输出,非命令;探针脚本未进版本控制,理由与 §5.1 同)。块正文一字未动。**
+
+```text
 [场景4] 300 轮 x 3000 键(reset ‖ apply,默认 GIL 切换间隔 0.005s):provenance 残缺 0 轮,粘滞 0 轮,最少剩 3000/3000
 ```
 
@@ -618,12 +637,23 @@ stdio MCP 服务器。cron 作业启动的那一瞬间,若该 MCP 服务器恰�
 
 本轮实跑 4 个相关测试文件:
 
+**R11C 片 C 改:原块把命令与它的 Summary 行混排在一个 ```verify 围栏里。拆成命令 + 配对输出;
+并按纪律补 `HERMES_DISABLE_LAZY_INSTALLS=1`(这条命令是本底稿里唯一真正执行基线代码的)。
+输出只取 Summary 的**稳定投影** —— 原块贴的 `in 3.1s (8 workers)` 里那个耗时是机器噪声,
+本轮重跑是 2.6s;把耗时钉进配对块只会让关卡按机器快慢随机报错。
+「4 files / 124 tests passed / 0 failed」三个数与原块逐字一致。**
+
 ```verify
-cd /home/user/hermes-agent && HERMES_PYTHON=/home/user/hermes-venv/bin/python \
+cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 \
+  HERMES_PYTHON=/home/user/hermes-venv/bin/python \
   bash scripts/run_tests.sh tests/test_env_loader_secret_sources.py \
   tests/test_env_loader_applied_homes.py tests/test_command_secret_source.py \
-  tests/tools/test_mcp_tool.py
-=== Summary: 4 files, 124 tests passed, 0 failed (100% complete) in 3.1s (8 workers) ===
+  tests/tools/test_mcp_tool.py 2>/dev/null \
+  | grep -oE "Summary: [0-9]+ files, [0-9]+ tests passed, [0-9]+ failed \([0-9]+% complete\)"
+```
+
+```text
+Summary: 4 files, 124 tests passed, 0 failed (100% complete)
 ```
 
 **124 个用例全过、0 失败**(venv 87 包)。其中 `tests/tools/test_mcp_tool.py` 里那个

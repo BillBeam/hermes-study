@@ -146,7 +146,7 @@ def generate_bind_key() -> str:
 Meta 规定:用户最后一次发言 24 小时后,商业账号只能发**预审模板**,不能发自由文本。
 这不是技术限制,是**商业策略被编码进 API**。适配器要么在窗内自由发,要么回落模板。
 
-同类的时间窗约束在 `ADDING_A_PLATFORM.md:44-55 @ 863e313` 被抽象成了一条通用建议
+同类的时间窗约束在 `gateway/platforms/ADDING_A_PLATFORM.md:44-55 @ 863e313` 被抽象成了一条通用建议
 (LINE 的 60 秒一次性 reply token、WhatsApp 24h),给出的接法是**覆盖 `_keep_typing`**
 并 `await super()._keep_typing(...)` 保住心跳。
 
@@ -335,14 +335,14 @@ See #18451.
 
 | 适配器 | `enforces_own_access_policy` | 交互 UX | 特有能力 |
 |---|---|---|---|
-| WhatsApp Cloud | ✔(mixin 提供 dm/group policy) | `send_exec_approval`(`whatsapp_cloud.py:845`) | 24h 窗、模板回落 |
-| QQBot | ✔ | `send_exec_approval`(`qqbot/adapter.py:2701`) | 分片上传、按钮键盘 |
+| WhatsApp Cloud | ✔(mixin 提供 dm/group policy) | `send_exec_approval`(`gateway/platforms/whatsapp_cloud.py:845`) | 24h 窗、模板回落 |
+| QQBot | ✔ | `send_exec_approval`(`gateway/platforms/qqbot/adapter.py:2701`) | 分片上传、按钮键盘 |
 | Weixin | ✔ | — | context_token、AES CDN |
 | Yuanbao | ✔ | — | WS + 心跳 + AUTH_BIND |
 | Signal | — | — | bodyRanges 样式、附件速率桶 |
 | BlueBubbles | — | — | tapback 反应、纯文本 |
 | Webhook | — | — | 动态路由、五方言验签 |
-| Relay | `authorization_is_upstream=True` | `send_exec_approval`(`relay/adapter.py:1702`) | 一对多 |
+| Relay | `authorization_is_upstream=True` | `send_exec_approval`(`gateway/relay/adapter.py:1702`) | 一对多 |
 | api_server | — | HTTP 审批端点 | OpenAI 兼容 |
 
 `WhatsAppBehaviorMixin` 的契约声明得非常显式(`gateway/platforms/whatsapp_common.py:16-28 @ 863e313`):
@@ -362,7 +362,7 @@ mixin's methods are called (typically in ``__init__``):
 ```
 
 Python 的 mixin 没有接口检查,所以**把"宿主必须提供什么"写成 docstring 契约**
-是唯一的防线。MRO 顺序也必须约束(`ADDING_A_PLATFORM.md:71-74 @ 863e313`):
+是唯一的防线。MRO 顺序也必须约束(`gateway/platforms/ADDING_A_PLATFORM.md:71-74 @ 863e313`):
 mixin 必须排在 `BasePlatformAdapter` **之前**,否则基类的 `format_message` 会赢。
 
 ## 6. 双栈绑定:一次真实的"可达性"事故

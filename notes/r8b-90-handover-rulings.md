@@ -139,15 +139,25 @@ R8A 移交时问的是"是否存在第三个直接 `read_raw_config()` 后落盘
 把问题扩成"**全仓有哪些绕过 `atomic_config_write` 直接对 config 路径落盘的点,各自怎么处理解析失败**",
 答案更硬:
 
+**R11C 片 C 改:原块是一段 `$` 提示符**转录**(命令与输出混排在同一个 ```verify 围栏里),原样重跑等于把输出行也当命令执行。下面拆成「可重跑命令 + 逐字输出」两块;转录里的旁注移到块后正文。**读数与原块一致,结论未变。**
+
 ```verify
-$ grep -rn "atomic_yaml_write(config_path\|atomic_yaml_write(get_config_path" --include=*.py . | grep -v "^./tests/"
+cd /home/user/hermes-agent && grep -rn "atomic_yaml_write(config_path\|atomic_yaml_write(get_config_path" \
+  --include=*.py . | grep -v "^./tests/" | cut -d: -f1,2 | sort
+```
+
+```text
 ./hermes_cli/auth.py:7329
 ./hermes_cli/auth.py:7397
-./hermes_cli/config.py:3112          # ← 这是 atomic_config_write 自己的函数体,不算绕行
+./hermes_cli/config.py:3112
 ./hermes_cli/config.py:4995
 ./hermes_cli/config.py:5123
 ./hermes_cli/credential_lifecycle.py:174
 ```
+
+原块给 `./hermes_cli/config.py:3112` 挂了一句旁注:**那是 `atomic_config_write` 自己的函数体,
+不算绕行**。旁注移到这里;`cut -d: -f1,2 | sort` 是为了把命中行的正文裁掉、
+并让输出顺序可稳定比对(原块只列了「文件:行号」,本就没打算展示行正文)。
 
 逐个读过之后:
 

@@ -396,7 +396,7 @@ cd /home/user/hermes-study && python3 scripts/verify_citations.py /home/user/her
 **两处异常,已在本文件点名:**
 
 1. **H-R8C-e 的 `cron.py:143` 漂 5 行**(真实位置 `:148`),见 §2.1。
-2. **H-R8C-f 的 `web_server.py:12801` 指向注释而非代码**(簇首个端点在 `:12812`),见 §2.2。
+2. **H-R8C-f 的 `hermes_cli/web_server.py:12801` 指向注释而非代码**(簇首个端点在 `:12812`),见 §2.2。
 
 两处都是**写在表格里且没有紧跟反引号摘录**的锚点,因而 `verify_citations.py`
 在 R9B 引入表格锚点检查之前对它们恒记 UNCHECKED,之后也因为"未声明摘录"继续记 UNCHECKED。

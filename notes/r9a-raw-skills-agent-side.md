@@ -2590,7 +2590,15 @@ webhook 那一路只处理单 skill,且只装**第一个**匹配上的:
 
 **复现**(注册一个插件 skill,再分别走 `skill_view` 与 bundle 两条路):
 
-```verify
+**R11C 片 C 判「不修,如实声明」:围栏由 ```verify 改为 ```text。**
+这两块用 `HERMES_HOME=$SC/hN` 指向 R9A 会话 scratchpad 下**手搭的 skill 脚手架**
+(本节末尾自己写着「所有 `HERMES_HOME=$SC/hN` 的实测环境都建在会话 scratchpad 下」)。
+`$SC` 与那批脚手架已随会话消失,**而脚手架的内容——`plugskill/SKILL.md` 正文、
+`/pbundle` / `/combo` / `/alpha` / `/beta` 这几个 bundle 的定义——底稿里从未写下来**。
+重建它就必须凭空造一份 SKILL.md,而造出来的输出「看起来合理」正是 CLAUDE.md 禁止的伪造。
+故如实声明为不可重跑,块正文一字未动。详见移交 `H-R11C-C-d`。
+
+```text
 cd /home/user/hermes-agent && HERMES_HOME=$SC/h4 /home/user/hermes-venv/bin/python - <<'PY'
 import sys, json, os; sys.path.insert(0,'.')
 from pathlib import Path
@@ -2632,7 +2640,15 @@ stacked 的投影是 `/alpha /beta do Y`,第一个 token 只能还原 `alpha`。
 
 **复现**:
 
-```verify
+**R11C 片 C 判「不修,如实声明」:围栏由 ```verify 改为 ```text。**
+这两块用 `HERMES_HOME=$SC/hN` 指向 R9A 会话 scratchpad 下**手搭的 skill 脚手架**
+(本节末尾自己写着「所有 `HERMES_HOME=$SC/hN` 的实测环境都建在会话 scratchpad 下」)。
+`$SC` 与那批脚手架已随会话消失,**而脚手架的内容——`plugskill/SKILL.md` 正文、
+`/pbundle` / `/combo` / `/alpha` / `/beta` 这几个 bundle 的定义——底稿里从未写下来**。
+重建它就必须凭空造一份 SKILL.md,而造出来的输出「看起来合理」正是 CLAUDE.md 禁止的伪造。
+故如实声明为不可重跑,块正文一字未动。详见移交 `H-R11C-C-d`。
+
+```text
 cd /home/user/hermes-agent && HERMES_HOME=$SC/h5 /home/user/hermes-venv/bin/python - <<'PY'
 import sys; sys.path.insert(0,'.')
 from agent.skill_commands import build_stacked_skill_invocation_message

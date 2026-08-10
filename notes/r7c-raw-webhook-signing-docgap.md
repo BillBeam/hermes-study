@@ -34,11 +34,11 @@ Route all five comparisons through a small _hmac_str_equal() helper ...
 
 | # | 方言 | 厂商/来源 | 触发头 | 签名算法 | 被签内容 | 时间窗 | 常数时间比较 | 代码 |
 |---|------|-----------|--------|----------|----------|--------|--------------|------|
-| 1 | Svix | Svix(AgentMail 等 SaaS 用它做投递) | `svix-id` / `svix-timestamp` / `svix-signature` | HMAC-SHA256 → **base64**,头值格式 `v1,<b64>`,空格分隔可多条 | `"{svix-id}.{svix-timestamp}.{raw_body}"` | **±300s**(`tolerance_seconds` 默认参数) | 是(`_hmac_str_equal`) | `webhook.py:1039-1055`、`:1143-1191` |
-| 2 | GitHub | GitHub(Gitea/Forgejo 同格式) | `X-Hub-Signature-256` | HMAC-SHA256 → **hex**,带 `sha256=` 前缀 | **raw body** | **无** | 是 | `webhook.py:1057-1063` |
-| 3 | GitLab | GitLab | `X-Gitlab-Token` | **不是 HMAC**,明文 token 全等比较 | 不签任何内容 | **无** | 是(仍走 `_hmac_str_equal`) | `webhook.py:1065-1068` |
-| 4 | 自有 V2 | Hermes 自定义(推荐) | `X-Webhook-Signature-V2` + `X-Webhook-Timestamp` | HMAC-SHA256 → **hex**,无前缀 | `"<timestamp>.<raw_body>"` | **±300s**(硬编码字面量 `300`) | 是 | `webhook.py:1070-1111` |
-| 5 | 自有 V1 | Hermes 自定义(遗留,已废弃) | `X-Webhook-Signature` | HMAC-SHA256 → **hex**,无前缀 | **raw body** | **无**(已知重放洞,首次命中打一次警告) | 是 | `webhook.py:1113-1135` |
+| 1 | Svix | Svix(AgentMail 等 SaaS 用它做投递) | `svix-id` / `svix-timestamp` / `svix-signature` | HMAC-SHA256 → **base64**,头值格式 `v1,<b64>`,空格分隔可多条 | `"{svix-id}.{svix-timestamp}.{raw_body}"` | **±300s**(`tolerance_seconds` 默认参数) | 是(`_hmac_str_equal`) | `gateway/platforms/webhook.py:1039-1055`、`:1143-1191` |
+| 2 | GitHub | GitHub(Gitea/Forgejo 同格式) | `X-Hub-Signature-256` | HMAC-SHA256 → **hex**,带 `sha256=` 前缀 | **raw body** | **无** | 是 | `gateway/platforms/webhook.py:1057-1063` |
+| 3 | GitLab | GitLab | `X-Gitlab-Token` | **不是 HMAC**,明文 token 全等比较 | 不签任何内容 | **无** | 是(仍走 `_hmac_str_equal`) | `gateway/platforms/webhook.py:1065-1068` |
+| 4 | 自有 V2 | Hermes 自定义(推荐) | `X-Webhook-Signature-V2` + `X-Webhook-Timestamp` | HMAC-SHA256 → **hex**,无前缀 | `"<timestamp>.<raw_body>"` | **±300s**(硬编码字面量 `300`) | 是 | `gateway/platforms/webhook.py:1070-1111` |
+| 5 | 自有 V1 | Hermes 自定义(遗留,已废弃) | `X-Webhook-Signature` | HMAC-SHA256 → **hex**,无前缀 | **raw body** | **无**(已知重放洞,首次命中打一次警告) | 是 | `gateway/platforms/webhook.py:1113-1135` |
 
 **优先级是"谁先出现谁生效",顺序固定为 Svix → GitHub → GitLab → V2 → V1**,每个分支一旦进入就
 `return`,不会回退到下一个。也就是说:**方言由请求头挑选,而不是由路由配置钉死** —— 见 §1.8。
@@ -666,8 +666,8 @@ Brex 等用 Svix 做投递的服务)不可能通。**
 
 | 运营必答问题 | 文档出处 |
 |---|---|
-| secret 配哪个 key | 路由级 `secret`,`webhooks.md:82`;全局 `WEBHOOK_SECRET`,`webhooks.md:566` |
-| 端口/路径 | `WEBHOOK_PORT` 默认 8644,`webhooks.md:565`;路径 `/webhooks/<route>`,`webhooks.md:269` |
+| secret 配哪个 key | 路由级 `secret`,`webhooks.md:82`;全局 `WEBHOOK_SECRET`,`website/docs/user-guide/messaging/webhooks.md:566` |
+| 端口/路径 | `WEBHOOK_PORT` 默认 8644,`website/docs/user-guide/messaging/webhooks.md:565`;路径 `/webhooks/<route>`,`webhooks.md:269` |
 | 头名字(4/5 种) | `webhooks.md:457-460` |
 | V2 容忍窗口 | `webhooks.md:459` "±300 seconds" |
 | 验签失败返回什么 | `webhooks.md:383` `401 Unauthorized` |
@@ -897,15 +897,15 @@ $ for kw in "X-Hub-Signature-256" "X-Gitlab-Token" "X-Webhook-Signature-V2" \
 | 方言 | 正例(有效签名通过) | 反例 | 时间窗 | 文档 |
 |---|---|---|---|---|
 | Svix | ✅ `test_validate_svix_signature_raw_secret_valid`(`:264-279`) | ✅ 非 ASCII(`:158-168`) | ❌ **无超窗用例** | **零** |
-| GitHub | ✅ 端到端 `test_webhook_integration.py:113-126`(断言 202) | ✅ 非 ASCII(`:148-155`)、`sha256=invalid` → 401(`test_webhook_signature_rate_limit.py:99-110`) | n/a | 有 |
+| GitHub | ✅ 端到端 `tests/gateway/test_webhook_integration.py:113-126`(断言 202) | ✅ 非 ASCII(`:148-155`)、`sha256=invalid` → 401(`tests/gateway/test_webhook_signature_rate_limit.py:99-110`) | n/a | 有 |
 | GitLab | ✅ 非 ASCII secret 仍匹配(`:170-176`) | ✅ 非 ASCII(`:148-155`) | n/a | 有 |
 | 自有 V2 | ✅ 隐含于 `_generic_v2_signature` helper(`:107-110`) | ✅ 伪造 timestamp(`:196-213`)、✅ 剥离 timestamp 不降级(`:216-242`) | ✅ 伪造 timestamp 即验窗 | 英文有 / 中文无 |
 | 自有 V1 | ✅ `test_v1_replay_attack_...`(`:257`) | ✅ 非 ASCII | n/a(明知无窗) | 英文有 / 中文弱 |
 | —— | 无签名头 → False(`:134-138`) | | | 有 |
 
 **测试侧唯二缺口**:
-1. **Svix 超窗**:`whsec_` 分支(`webhook.py:1164-1170`)与 Svix 的 ±300s 拒绝(`:1160-1162`)
-   都没有对应用例。测试 helper 支持 `whsec_`(`test_webhook_adapter.py:115-119`)但没有任何
+1. **Svix 超窗**:`whsec_` 分支(`gateway/platforms/webhook.py:1164-1170`)与 Svix 的 ±300s 拒绝(`:1160-1162`)
+   都没有对应用例。测试 helper 支持 `whsec_`(`tests/gateway/test_webhook_adapter.py:115-119`)但没有任何
    测试真的传一个 `whsec_` 开头的 secret —— 三处命中里两处是 helper 分支、一处是 docstring。
    ```
    $ grep -n "whsec_" tests/gateway/test_webhook_adapter.py
@@ -1032,7 +1032,7 @@ V2 那次幸运地在 2 小时内被 teknium1 顺手补了英文,但**中文镜�
 
 ### C-02 ▲(文档与代码冲突)—— zh-Hans 镜像把废弃的 V1 讲成唯一通用方案 **[R7B 未记]**
 
-- **事实**:`website/i18n/zh-Hans/.../messaging/webhooks.md:452-460 @ 863e313` 只列三种方言,
+- **事实**:`website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-guide/messaging/webhooks.md:452-460 @ 863e313` 只列三种方言,
   通用一栏写的是 `X-Webhook-Signature`(即代码里已废弃、有重放洞、命中即打 warning 的 V1),
   V2 整段缺失;英文同段(`website/docs/user-guide/messaging/webhooks.md:453-462`)在 2026-07-04
   由 `708b57e00` 补齐,中文镜像 2026-07-08 被动过(`aabfedcac` #60983)却没带上。
@@ -1123,7 +1123,7 @@ $ grep -n "#[0-9]\{4,6\}" gateway/platforms/webhook.py
    混发请求 → **只删掉 `X-Webhook-Timestamp` 一个头** → 仍然存在的 V1 签名照样验过 →
    V2 想堵的重放洞被一键还原。修法:`X-Webhook-Signature-V2` 一出现就**锁定** V2 模式,
    缺 timestamp / 非整数 / 超窗一律 return False(`webhook.py:1086-1106`),绝不回退。
-   注释固化在 `:1076-1085`,回归测试固化在 `test_webhook_adapter.py:216-242`。
+   注释固化在 `:1076-1085`,回归测试固化在 `tests/gateway/test_webhook_adapter.py:216-242`。
 
 `#58461` 在仓库源码与文档中**无任何其他引用**:
 ```
@@ -1160,7 +1160,7 @@ closed with a rejection instead of raising.
 而这个 `str` 是公网未鉴权端点上的原始客户端输入。
 **怎么修**:统一走 `_hmac_str_equal`(`webhook.py:158-169`),两边先 `.encode()` 成 bytes 再比,
 `compare_digest` 对 bytes 无 ASCII 限制,常数时间保证不变。
-**回归测试**:`test_webhook_adapter.py:140-155`(GitHub/GitLab/generic 三个头)
+**回归测试**:`tests/gateway/test_webhook_adapter.py:140-155`(GitHub/GitLab/generic 三个头)
 与 `:158-168`(Svix)与 `:170-176`(非 ASCII secret 仍要能匹配)。
 
 这条 commit 也是 §1.0 里"五方言"口径的原始出处。

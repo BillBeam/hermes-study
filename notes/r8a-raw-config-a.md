@@ -1469,7 +1469,7 @@ def clear_model_endpoint_credentials(
 
 | 键 | 默认 | 读/写点 @ 863e313 | 说明 |
 |---|---|---|---|
-| 全树默认 | `DEFAULT_CONFIG` | `hermes_cli/config.py:943` 导入 / `config_defaults.py:7` 定义 | 默认值的唯一来源 |
+| 全树默认 | `DEFAULT_CONFIG` | `hermes_cli/config.py:943` 导入 / `hermes_cli/config_defaults.py:7` 定义 | 默认值的唯一来源 |
 | `max_turns`(根级) | — | `hermes_cli/config.py:3340` | 合并前被提升到 `agent.max_turns`,且仅当后者为 None |
 | `agent.max_turns` | `500` | `hermes_cli/config_defaults.py:32` | 提升目标 |
 | `skills.config.<key>` | — | `hermes_cli/config.py:1247` | skill 声明的配置变量存储位置(`SKILL_CONFIG_PREFIX="skills.config"`) |

@@ -203,7 +203,7 @@ prompt_toolkit 和各 executor 的依赖树。
         adapter = self.adapters.get(platform) if getattr(self, "adapters", None) else None
         return getattr(adapter, "typed_command_prefix", "/") if adapter is not None else "/"
   ```
-- **大小写**:命令名 `.lower()`(`base.py:2141`),参数**原样保留大小写**。
+- **大小写**:命令名 `.lower()`(`gateway/platforms/base.py:2141`),参数**原样保留大小写**。
 - **`@botname` 后缀**:只在 `get_command()` 里被切掉(`base.py:2142-2143`)。
   `event.text` **不改**。所以任何自己重新解析 `event.text` 的 handler 会看到 `@bot` —— 见 §4 的 kanban 缺陷。
 - **多行**:`split(maxsplit=1)` 按任意空白切,`\n` 也算。所以 `/new\nMy title` 的
@@ -211,7 +211,7 @@ prompt_toolkit 和各 executor 的依赖树。
 - **引号**:`get_command_args()` **不做**引号处理,返回原始剩余串。需要引号语义的
   handler 自己上 `shlex`,例如 `gateway/slash_commands.py:458`
   `tokens = shlex.split(text) if text else []`。
-- **反直觉的一条**:`raw` 里含 `/` 直接返回 `None`(`base.py:2144-2146`)。
+- **反直觉的一条**:`raw` 里含 `/` 直接返回 `None`(`gateway/platforms/base.py:2144-2146`)。
   这是为了让 `/home/user/x.txt` 这种粘贴的路径不被当成命令。
 - **iOS 破折号纠正**:`base.py:2156-2157` 把 `——`/`—` 还原成 `--`、`–` 还原成 `-`。
   这是个纯 UX 补丁,直接决定了 `/model x —global` 也能工作。
@@ -1072,7 +1072,7 @@ markdown 方言 / emoji / i18n"。`execute` 字段存字符串 key 而非 callab
 | `tests/gateway/test_model_command_custom_providers.py` / `test_model_command_expensive_confirm.py` / `test_model_command_flat_string_config.py` / `test_model_switch_persistence.py` | `/model` 的自定义 provider、贵模型二次确认、config 里 `model:` 写成字符串的兼容、持久化。 |
 | `tests/gateway/test_destructive_slash_always_persist_report.py` | `/new` 确认弹窗 "Always Approve" 的持久化成败上报(:82/:96/:107/:120/:128)。fixture 里 `obj._typed_command_prefix_for = lambda platform: "/"`(:35)—— 说明这个 helper 是确认文案的必需依赖。 |
 | `tests/gateway/test_matrix_project_context_isolation.py` | `:291` 用 `/status` 验证 Matrix 跨房间隔离。 |
-| `tests/gateway/test_max_concurrent_sessions.py` / `tests/e2e/test_platform_commands.py` / `tests/gateway/test_update_streaming.py` | 把 handler mock 掉,钉的是**分发是否到达**(如 `runner._handle_reset_command.assert_awaited_once_with(event)`,test_update_streaming.py:358)。 |
+| `tests/gateway/test_max_concurrent_sessions.py` / `tests/e2e/test_platform_commands.py` / `tests/gateway/test_update_streaming.py` | 把 handler mock 掉,钉的是**分发是否到达**(如 `runner._handle_reset_command.assert_awaited_once_with(event)`,tests/gateway/test_update_streaming.py:358)。 |
 | `tests/gateway/test_unknown_command.py` | `:126` 注释说明未知命令的兜底路径。 |
 | `tests/hermes_cli/test_kanban_notify.py` | `/kanban create` 自动订阅。 |
 

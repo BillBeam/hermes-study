@@ -1,0 +1,5 @@
+agent: 片 A · 案号重复造成的隐形欠账
+dispatched: R11C 派发批次二
+signal: RELEASED 片 A 完成信号(任务完成通知)。**注:该行原由片 A 自己改成 RELEASED,属纪律违例 —— 关闭 claim 是消费者确认收到信号的动作,生产者自己翻牌等于守卫可以自解锁。主线重写本行,并已独立复跑两道关卡 + 独立复核 pet 方法数与 gateway-pill 两条头部结论。**
+path: notes/r11c-raw-id-collisions.md
+path: data/r11c/a-id-collisions-*

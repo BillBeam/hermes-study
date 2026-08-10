@@ -11,7 +11,7 @@
 - **单段** → 按 kind 走 concurrent 或 sequential(7619-7627);
 - **多段** → `execute_tool_calls_segmented`(7629-7633),按发出顺序逐段跑。
 
-## 1. 分段规划(tool_dispatch_helpers.py:116-235)
+## 1. 分段规划(agent/tool_dispatch_helpers.py:116-235)
 
 把批次切成有序 `(kind, calls)` 段,kind ∈ {parallel, sequential},**保持模型原始顺序**——
 后一个调用永不越过前一个 barrier,故工具结果顺序与副作用边界和全顺序执行完全一致(117-127 docstring)。
@@ -24,7 +24,7 @@
 
 这是 R1 ▲ 定案(agent-loop.md:133 "多工具并发 via ThreadPoolExecutor")的精确反例:真实调度是分段的,不是无脑并发。
 
-## 2. 并发执行器的两道门(tool_executor.py:751-1170)
+## 2. 并发执行器的两道门(agent/tool_executor.py:751-1170)
 
 `execute_tool_calls_concurrent` 用 `DaemonThreadPoolExecutor`(1166-1167,daemon 线程,`shutdown(wait=False)`
 后不阻塞进程退出)。两道有界门:
@@ -45,7 +45,7 @@ CLI 提示与 gateway 审批轮询各自标记阻塞窗口),**不是**用门内�
 `batch_abandoned` Event(885-892):批次超时后 `_abandon_batch` 置位并 notify_all 释放所有 gate-parked worker,
 使其不再在 abandon 后 dispatch——回合已合成该工具结果并继续。
 
-## 3. 分段执行器(tool_executor.py:2339+)
+## 3. 分段执行器(agent/tool_executor.py:2339+)
 
 `execute_tool_calls_segmented` 按段:parallel 段走并发路径、sequential 段走顺序路径,
 保持发出顺序、无调用越过前 barrier(2344-2347)。各段 `finalize=False` 调用,由 segmented 统一收尾。

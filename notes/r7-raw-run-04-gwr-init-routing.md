@@ -294,7 +294,7 @@ gateway/run.py:6258-6281 @ 863e313
 ```
 
 - 双重开关:msgraph_webhook adapter 在跑 **且** 插件在 `plugins.enabled` 列表(`_teams_pipeline_plugin_enabled`,gateway/run.py:3128-3134 @ 863e313,接受 `teams_pipeline`/`teams-pipeline` 两种写法)。
-- `bind_gateway_runtime`(plugins/teams_pipeline/runtime.py:98 @ 863e313)把 runtime 挂到 `gateway._teams_pipeline_runtime`,失败原因写 `_teams_pipeline_runtime_error`(runtime.py:112/133-134),本方法在 bound 为假时把该错误 WARN 出来(6282-6286)。
+- `bind_gateway_runtime`(plugins/teams_pipeline/runtime.py:98 @ 863e313)把 runtime 挂到 `gateway._teams_pipeline_runtime`,失败原因写 `_teams_pipeline_runtime_error`(plugins/teams_pipeline/runtime.py:112/133-134),本方法在 bound 为假时把该错误 WARN 出来(6282-6286)。
 - 调用点:start 流程 gateway/run.py:11349 @ 863e313(adapter 全部连接后)。
 - 重实现要点:插件接线全程 try/except 降级为日志——可选组件的 import/绑定失败绝不能拦核心启动;错误原因存字段供后续诊断而非只打日志。
 
@@ -402,7 +402,7 @@ gateway/run.py:6477-6494 @ 863e313
 - `_bounded_adapter_teardown`(6525-6575):关机路径,对 `cancel_background_tasks()` 与 `disconnect()` 各给一份超时预算,超时 WARN "forcing continue",**永不 raise**。
 - `_connect_adapter_with_timeout`(6609-6645):连接侧同模式;`is_reconnect` 透传给 `adapter.connect()`——冷启丢弃服务端 stale 队列 vs 断网重连保留队列补投(#46621);超时 raise `TimeoutError`。
 
-超时配置:断连 `HERMES_GATEWAY_ADAPTER_DISCONNECT_TIMEOUT`(默认 5.0s,run.py:81);连接 `HERMES_GATEWAY_PLATFORM_CONNECT_TIMEOUT`(默认 30s,Telegram 特判 180s——run.py:76/80,6605-6607)。非法值 WARN 后用默认;负值 clamp 到 0(0 = 无限等)。
+超时配置:断连 `HERMES_GATEWAY_ADAPTER_DISCONNECT_TIMEOUT`(默认 5.0s,gateway/run.py:81);连接 `HERMES_GATEWAY_PLATFORM_CONNECT_TIMEOUT`(默认 30s,Telegram 特判 180s——gateway/run.py:76/80,6605-6607)。非法值 WARN 后用默认;负值 clamp 到 0(0 = 无限等)。
 
 ### 6.4 `_connect_initial_adapter_with_timeout`(6647-6661)
 
@@ -522,7 +522,7 @@ gateway/run.py:6709-6729 @ 863e313(节选)
         return raw is True
 ```
 
-三个细节:①走同步 `_db` 句柄——调用方保证在 `asyncio.to_thread` 里(见 15635-15637、slash_commands.py:1761 等全部 to_thread 包裹);②`raw is True` 严格判等——防测试 MagicMock 之类 truthy 值误开;③一切异常回 False(fail-safe:读不到 = 没开)。DB 方法:hermes_state.py:9033(is_enabled)/9071(list_bindings)/9193(bind)@ 863e313。
+三个细节:①走同步 `_db` 句柄——调用方保证在 `asyncio.to_thread` 里(见 15635-15637、gateway/slash_commands.py:1761 等全部 to_thread 包裹);②`raw is True` 严格判等——防测试 MagicMock 之类 truthy 值误开;③一切异常回 False(fail-safe:读不到 = 没开)。DB 方法:hermes_state.py:9033(is_enabled)/9071(list_bindings)/9193(bind)@ 863e313。
 
 ### 9.3 lobby/lane 判定(6731-6754)
 
@@ -547,7 +547,7 @@ lane 判定(6745-6754)= topic 模式开 且 thread_id 非空且非 General。Gen
 
 ### 9.4 lobby 提醒限频(6756-6776)
 
-`_TELEGRAM_LOBBY_REMINDER_COOLDOWN_S = 30.0`;`_should_send_telegram_lobby_reminder` 用惰性建的 `_telegram_lobby_reminder_ts`(monotonic,按 chat_id)做 30s 防抖——忘了模式已开、连打十条 prompt 的用户只收到一条提醒。消费点:消息主线 gateway/run.py:15635-15642 @ 863e313——命中 root lobby 时,防抖通过则回 `_telegram_topic_root_lobby_message()`(6778-6785 文案),否则**回 None 静默丢弃**。`/new` 在 root 则回 `_telegram_topic_root_new_message()`(6787-6794;消费点 15063);lane 内 `/new` 的头部文案 `_telegram_topic_new_header`(6796-6804;消费点 slash_commands.py:262/266 @ 863e313,`asyncio.to_thread` 调用,空时退 i18n 默认)。
+`_TELEGRAM_LOBBY_REMINDER_COOLDOWN_S = 30.0`;`_should_send_telegram_lobby_reminder` 用惰性建的 `_telegram_lobby_reminder_ts`(monotonic,按 chat_id)做 30s 防抖——忘了模式已开、连打十条 prompt 的用户只收到一条提醒。消费点:消息主线 gateway/run.py:15635-15642 @ 863e313——命中 root lobby 时,防抖通过则回 `_telegram_topic_root_lobby_message()`(6778-6785 文案),否则**回 None 静默丢弃**。`/new` 在 root 则回 `_telegram_topic_root_new_message()`(6787-6794;消费点 15063);lane 内 `/new` 的头部文案 `_telegram_topic_new_header`(6796-6804;消费点 gateway/slash_commands.py:262/266 @ 863e313,`asyncio.to_thread` 调用,空时退 i18n 默认)。
 
 ### 9.5 绑定记录与压缩轮转同步(6806-6849)
 
@@ -617,7 +617,7 @@ gateway/run.py:6921-6931 @ 863e313
         return dataclasses.replace(source, thread_id=recovered)
 ```
 
-不可变改写(`dataclasses.replace`)。消费点:slash_commands.py:1761(/model)、3502(/reasoning)、4500、4689 @ 863e313,全部 `asyncio.to_thread` 包裹(内部有同步 DB 读)。
+不可变改写(`dataclasses.replace`)。消费点:gateway/slash_commands.py:1761(/model)、3502(/reasoning)、4500、4689 @ 863e313,全部 `asyncio.to_thread` 包裹(内部有同步 DB 读)。
 
 ### 9.8 重实现要点
 
@@ -715,7 +715,7 @@ gateway/run.py:7052-7062、7072-7097 @ 863e313(节选)
 
 ①provider 有但 model 空 → provider 目录首个默认(`hermes auth add openai-codex` 未跑 `hermes model` 的场景);②仍空 → 本会话 last_resolved_model,再退 `"*"` 会话(进程级 last-known-good,给首见会话用);③解析成功则双写缓存(会话 + `"*"`)。
 
-**调用点**:turn pipeline gateway/run.py:4445;/model 命令 slash_commands.py:4055;消息路径 15906、16112;hygiene 压缩 16714、16858;cron 19506;其他 21459 @ 863e313。
+**调用点**:turn pipeline gateway/run.py:4445;/model 命令 gateway/slash_commands.py:4055;消息路径 15906、16112;hygiene 压缩 16714、16858;cron 19506;其他 21459 @ 863e313。
 
 ### 10.4 重实现要点
 
@@ -754,7 +754,7 @@ gateway/run.py:7196-7210 @ 863e313(节选)
             logger.debug("[Gateway] reaction hook emit failed", exc_info=True)
 ```
 
-adapter 经 `set_reaction_handler`(gateway/platforms/base.py:3349 @ 863e313)注册本方法(接线点 run.py:11097-11099、12469-12471、13411-13413);adapter 提供的 `event_name`("reaction:added"/"reaction:removed")直接作为 hook 事件名,与 `agent:*` 家族同一命名面;异常吞掉——hook 契约是非阻塞,绝不拖垮 adapter 事件循环。重实现要点:平台事件进用户 hook 的桥要"归一化命名 + 永不 raise + 默认值兜底"。
+adapter 经 `set_reaction_handler`(gateway/platforms/base.py:3349 @ 863e313)注册本方法(接线点 gateway/run.py:11097-11099、12469-12471、13411-13413);adapter 提供的 `event_name`("reaction:added"/"reaction:removed")直接作为 hook 事件名,与 `agent:*` 家族同一命名面;异常吞掉——hook 契约是非阻塞,绝不拖垮 adapter 事件循环。重实现要点:平台事件进用户 hook 的桥要"归一化命名 + 永不 raise + 默认值兜底"。
 
 ---
 
@@ -790,7 +790,7 @@ impl 跑完(或炸了)后 finally 检查:retryable 且 platform 既不在 `self.
 
 顺序:
 1. **stale 通知丢弃**(7284-7291):槽位现任 adapter 既非本 adapter 亦非空 ⇒ 是输给了已成功重连的延迟通知,不动现任的状态,直接 return。
-2. **runtime status**(7299-7314):`relay_disabled` → "disabled"(用户主动 opt-out,不是红色 fatal);retryable → "retrying";否则 "fatal"(经 `_update_platform_runtime_status`,run.py:7913)。
+2. **runtime status**(7299-7314):`relay_disabled` → "disabled"(用户主动 opt-out,不是红色 fatal);retryable → "retrying";否则 "fatal"(经 `_update_platform_runtime_status`,gateway/run.py:7913)。
 3. **claim-then-disconnect**(7316-7327):先 `adapters.pop` 声明接管、同步 `delivery_router.adapters`,**再** await disconnect——否则并发的第二个 fatal 通知在 await 期间仍见 "existing",同一对象被 disconnect 两次。断连走 §6 的限时防御路径。
 4. **重连入队**(7329-7345):retryable 且有 platform_config 且未入队 ⇒ `_failed_platforms[platform] = {"config":…, "attempts":0, "next_retry":monotonic()}`,并 `_ensure_reconnect_watcher_running()`(gateway/run.py:12368-12390 @ 863e313:watcher task 死了就重生,#70344;watcher 本体 `_platform_reconnect_watcher` 12392 起,30→300s 指数退避、retryable 无限重试、经 `_spawn_supervised` 带 on_spawn 回写句柄,11515-11519,#71758 曾 17.5h 静默停机)。
 5. **末平台策略**(7347-7371):无 adapter 且无排队 ⇒ 停机(retryable 则 failure 退出让 systemd 重启);无 adapter 但**有**排队 ⇒ **保活**——注释明言旧行为(exit-with-failure 触发重启)把瞬时断网变成重启循环、每次杀光进程内状态,现在让 cron 继续跑、watcher 后台恢复。
@@ -891,7 +891,7 @@ gateway/run.py:7628-7662 @ 863e313(节选)
                 self._scale_to_zero_cooldown_until = time.time() + max(interval, 60.0)
 ```
 
-dormant 序列要点:①status 标 `draining`(与既有状态机复用词,但**不**置 `_running=False`);②relay `adapter.go_dormant()`(gateway/relay/adapter.py:872、ws_transport.py:634 @ 863e313)= going_idle 握手 + **保留重连 supervisor 的**套接字关闭——刻意不是 `disconnect()`、不是 stop 路径(F12/F14);③**不**调 mark_resume_pending(D13:suspend 保 RAM,无须恢复标记);④设 ≥60s 再武装冷却——否则唤醒后 backlog 还没来得及刷新入站时钟,又被同一读数打回休眠。进程保活,由 Fly `autostop:"suspend"` 冻结、autostart 收到 wakeUrl poke 解冻,保留的 supervisor 重拨、connector 排空缓冲 backlog。watcher 每轮 try/except 永不崩 gateway。启动点:gateway/run.py:11539-11552 @ 863e313(`_spawn_supervised`,arm 失败不拦启动)。
+dormant 序列要点:①status 标 `draining`(与既有状态机复用词,但**不**置 `_running=False`);②relay `adapter.go_dormant()`(gateway/relay/adapter.py:872、gateway/relay/ws_transport.py:634 @ 863e313)= going_idle 握手 + **保留重连 supervisor 的**套接字关闭——刻意不是 `disconnect()`、不是 stop 路径(F12/F14);③**不**调 mark_resume_pending(D13:suspend 保 RAM,无须恢复标记);④设 ≥60s 再武装冷却——否则唤醒后 backlog 还没来得及刷新入站时钟,又被同一读数打回休眠。进程保活,由 Fly `autostop:"suspend"` 冻结、autostart 收到 wakeUrl poke 解冻,保留的 supervisor 重拨、connector 排空缓冲 backlog。watcher 每轮 try/except 永不崩 gateway。启动点:gateway/run.py:11539-11552 @ 863e313(`_spawn_supervised`,arm 失败不拦启动)。
 
 夹在中间的 `_restart_loop_guard_config`(7471-7492):auto-resume 重启循环断路器(#30719 defense-3)的 `(max_restarts, window_seconds)` 配置读取,`max_restarts<=0` 关断路器——消费者在别处(gateway.restart_loop_guard)。
 
@@ -935,23 +935,23 @@ gateway/run.py:7668-7678 @ 863e313
 
 | 本段成员 | 被谁调 / 调谁 |
 |---|---|
-| `_session_state`/`_peek_session_state` | 全 run.py + 三 mixin 通用;legacy 视图 setter 也走它(session_state.py:252) |
-| legacy 视图 | 测试面 + mixin/adapter 少量现场;定义 session_state.py:419/453 |
-| `__init__` | start_gateway 入口构造;`SessionStore`/`AsyncSessionStore`(session.py:1206/1189)、`SessionTurnLeaseRegistry`(turn_lease.py:115)、`PairingStore`(gateway/pairing.py)、`HookRegistry`(gateway/hooks.py)、`AsyncSessionDB/SessionDB`(hermes_state.py) |
-| `_wire_teams_pipeline_runtime` | run.py:11349;→ plugins/teams_pipeline/runtime.py:98 |
-| `_sync_voice_mode_state_to_adapter` | run.py:11120 / 12484 / 13457 |
-| `_connect_initial_adapter_with_timeout` | run.py:11113 / 13379 |
+| `_session_state`/`_peek_session_state` | 全 run.py + 三 mixin 通用;legacy 视图 setter 也走它(gateway/session_state.py:252) |
+| legacy 视图 | 测试面 + mixin/adapter 少量现场;定义 gateway/session_state.py:419/453 |
+| `__init__` | start_gateway 入口构造;`SessionStore`/`AsyncSessionStore`(session.py:1206/1189)、`SessionTurnLeaseRegistry`(gateway/turn_lease.py:115)、`PairingStore`(gateway/pairing.py)、`HookRegistry`(gateway/hooks.py)、`AsyncSessionDB/SessionDB`(hermes_state.py) |
+| `_wire_teams_pipeline_runtime` | gateway/run.py:11349;→ plugins/teams_pipeline/runtime.py:98 |
+| `_sync_voice_mode_state_to_adapter` | gateway/run.py:11120 / 12484 / 13457 |
+| `_connect_initial_adapter_with_timeout` | gateway/run.py:11113 / 13379 |
 | `_bounded_adapter_teardown`/`_safe_adapter_disconnect` | stop 路径与 fatal impl(7327) |
-| `_session_key_for_source` | slash_commands.py:124/741/1203/1762/3503/3592/3640/3692/3789/4039/4502/4691/4746/4964/5195/5329/5398/5447/5585;run.py:8175/8214/14521/15811/18864/18951/20322/20521/20619/25704 |
-| topic 模式家族 | 消费:run.py:15635-15642(lobby 门)、15063(/new root)、5559(压缩轮转同步)、5684(lane 判定)、20142(topic 标题改名)、20225(/topic status);slash_commands.py:262/266(new header);DB:hermes_state.py:9033/9071/9193 |
-| `_normalize_source_for_session_key` | slash_commands.py:1761/3502/4500/4689(均 to_thread) |
-| `_resolve_session_agent_runtime` | run.py:4445/15906/16112/16714/16858/19506/21459;slash_commands.py:4055;→ run.py:2511/2582/2604/3256/3296/22681/22743 |
-| `_resolve_turn_agent_config` | run.py:4567/19532 |
-| `_sync_session_model_from_agent` | run.py:5564(run_sync 闭包,executor 线程) |
-| `_handle_reaction_event` | 接线 run.py:11097-11099/12469-12471/13411-13413;→ base.py:3349 `set_reaction_handler` |
-| `_handle_adapter_fatal_error` | 接线 run.py:11094/12466;→ base.py:3154 `set_fatal_error_handler`;→ `_ensure_reconnect_watcher_running`(12368)→ `_platform_reconnect_watcher`(12392,spawn 于 11515-11519) |
-| `_active_work_count` | run.py:7800/7823/7850/10090/10118/10126/10133;→ cron/scheduler.py `get_running_job_ids` |
-| scale-to-zero 家族 | arm:run.py:11539-11552;时钟:14391-14397;→ gateway/scale_to_zero.py 全部纯函数、gateway/relay/__init__.py:228、relay/adapter.py:872、relay/ws_transport.py:634;→ tools/async_delegation `active_count`、tools/process_registry |
+| `_session_key_for_source` | gateway/slash_commands.py:124/741/1203/1762/3503/3592/3640/3692/3789/4039/4502/4691/4746/4964/5195/5329/5398/5447/5585;gateway/run.py:8175/8214/14521/15811/18864/18951/20322/20521/20619/25704 |
+| topic 模式家族 | 消费:gateway/run.py:15635-15642(lobby 门)、15063(/new root)、5559(压缩轮转同步)、5684(lane 判定)、20142(topic 标题改名)、20225(/topic status);gateway/slash_commands.py:262/266(new header);DB:hermes_state.py:9033/9071/9193 |
+| `_normalize_source_for_session_key` | gateway/slash_commands.py:1761/3502/4500/4689(均 to_thread) |
+| `_resolve_session_agent_runtime` | gateway/run.py:4445/15906/16112/16714/16858/19506/21459;gateway/slash_commands.py:4055;→ gateway/run.py:2511/2582/2604/3256/3296/22681/22743 |
+| `_resolve_turn_agent_config` | gateway/run.py:4567/19532 |
+| `_sync_session_model_from_agent` | gateway/run.py:5564(run_sync 闭包,executor 线程) |
+| `_handle_reaction_event` | 接线 gateway/run.py:11097-11099/12469-12471/13411-13413;→ gateway/platforms/base.py:3349 `set_reaction_handler` |
+| `_handle_adapter_fatal_error` | 接线 gateway/run.py:11094/12466;→ gateway/platforms/base.py:3154 `set_fatal_error_handler`;→ `_ensure_reconnect_watcher_running`(12368)→ `_platform_reconnect_watcher`(12392,spawn 于 11515-11519) |
+| `_active_work_count` | gateway/run.py:7800/7823/7850/10090/10118/10126/10133;→ cron/scheduler.py `get_running_job_ids` |
+| scale-to-zero 家族 | arm:gateway/run.py:11539-11552;时钟:14391-14397;→ gateway/scale_to_zero.py 全部纯函数、gateway/relay/__init__.py:228、gateway/relay/adapter.py:872、gateway/relay/ws_transport.py:634;→ tools/async_delegation `active_count`、tools/process_registry |
 | detach 原语 | → agent/async_utils.py:71 `consume_detached_task_result` |
 
 ---
@@ -960,7 +960,7 @@ gateway/run.py:7668-7678 @ 863e313
 
 1. **代码注释引用仓库外私有规范**:scale-to-zero 段注释指向 `~/nous/specs/scale-to-zero (decisions.md)`(gateway/run.py:7426-7427 @ 863e313:"See ~/nous/specs/ scale-to-zero (decisions.md) for the design + the F12/F14 distinctions"),该路径不在仓库内、website/docs 也无 gateway scale-to-zero 用户文档(全站仅 cron-internals.md:132 提及 Chronos 面向 scale-to-zero 部署)——D1-D13/F6-F14/§3.4 等编号体系在仓库内不可解引用。属"作者自绘地图不可得",读者只能以代码注释为准。
 2. **`/voice` 文档模式名与代码内部三态不同名**:website/docs/reference/slash-commands.md:246 记 `/voice [on|off|tts|join|channel|leave|status]`,代码持久化三态为 `{"off","voice_only","all"}`(gateway/run.py:6365 @ 863e313)。是用户命令面→内部模式的映射差异而非行为矛盾,具体映射(on/tts 各落到哪个内部态)待 slash_commands 段核实后定案。
-3. **一致性验证(非冲突,记录以闭环)**:telegram.md:838 "root-lobby 提醒 30 秒每 chat 限一条"与 `_TELEGRAM_LOBBY_REMINDER_COOLDOWN_S = 30.0`(run.py:6756)一致;telegram.md:857 降级行为描述与 `build_session_key` DM+thread_id 规则(session.py:1103-1115)一致;telegram.md:830 的 `telegram_dm_topic_mode(chat_id, user_id, …)` 表结构与 hermes_state.py:9033 读取参数一致。
+3. **一致性验证(非冲突,记录以闭环)**:telegram.md:838 "root-lobby 提醒 30 秒每 chat 限一条"与 `_TELEGRAM_LOBBY_REMINDER_COOLDOWN_S = 30.0`(gateway/run.py:6756)一致;telegram.md:857 降级行为描述与 `build_session_key` DM+thread_id 规则(session.py:1103-1115)一致;telegram.md:830 的 `telegram_dm_topic_mode(chat_id, user_id, …)` 表结构与 hermes_state.py:9033 读取参数一致。
 
 ---
 
@@ -968,4 +968,4 @@ gateway/run.py:7668-7678 @ 863e313
 
 - 7691 行 `_enqueue_fifo` 起的 /queue FIFO 三方法主体、`_update_runtime_status`(7793)/`_update_platform_runtime_status`(7913)归下一段。
 - `_load_prefill_messages` 等 11 个 ephemeral loader 与 `_active_profile_name`、`_enforce_agent_cache_cap`、`_session_expiry_watcher`、`_spawn_supervised`、`_release_turn_lease`、startup restore 排队/排空,均为本段引用、他段定义。
-- SessionState 无驱逐(session_state.py:30-33 自认遗留);`hygiene_failure_streak` 进程内不持久(#79624 计划 schema 跟进)。
+- SessionState 无驱逐(gateway/session_state.py:30-33 自认遗留);`hygiene_failure_streak` 进程内不持久(#79624 计划 schema 跟进)。

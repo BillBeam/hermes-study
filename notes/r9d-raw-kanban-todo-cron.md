@@ -555,7 +555,7 @@ kanban.db (kanban.db): linked SQLite 3.45.1 is vulnerable to the WAL-reset corru
 ```
 
 判定机制在 `hermes_state.py:826` 一带(`_should_avoid_wal` 类逻辑)。
-**这是「有意的安全降级」而非 bug,但它意味着 `kanban_db.py:61` 那句
+**这是「有意的安全降级」而非 bug,但它意味着 `hermes_cli/kanban_db.py:61` 那句
 "Concurrency strategy: WAL mode" 在一部分部署上字面不成立** —— 记为 ◎(见 §4)。
 降级的实际代价:DELETE 日志模式下读者会阻塞写者,踩踏时更依赖那 120 秒 busy_timeout。
 

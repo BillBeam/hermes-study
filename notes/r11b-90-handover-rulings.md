@@ -105,7 +105,7 @@ R11B 口径: 扫描文件 45 份;总计 80 条,未结清 26 条
 
 修复后的现状(本轮改的就是这一处,行号已随之移动):
 
-`scripts/verify_evidence_commands.py:59 @ 863e313`
+`scripts/verify_evidence_commands.py:93 @ 863e313`
 
 ```python
 TIMEOUT = int(os.environ.get("HERMES_EVIDENCE_TIMEOUT", "900"))

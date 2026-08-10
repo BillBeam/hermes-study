@@ -1,0 +1,38 @@
+语料:277 份 .md(chapters/notes/reports/reviews),剔除本轮 r11c-*
+甲′ 关卡正则命中 = 25531
+乙  宽正则命中   = 25558   (差 27 个 = 关卡看不见的)
+乙 中不可解析 = 3080 / 25558 = 12.1%
+
+分类(互斥,RESOLVED* 与不可解析各类加总 = 乙):
+  RESOLVED-BASELINE     22199   其中关卡看不见 15
+  RESOLVED-STUDY          242   其中关卡看不见 1
+  RESOLVED-EXTLESS         37   其中关卡看不见 0
+  ABSPATH                  12   其中关卡看不见 1
+  UNIQUE-SUFFIX          2099   其中关卡看不见 3
+  AMBIGUOUS               934   其中关卡看不见 0
+  NOT-IN-TREE              35   其中关卡看不见 7
+  (NONPATH 非锚点)            69   不进分母
+
+不可解析锚点 TOP 20(路径串 -> 出现次数):
+    386  run.py   (基线 1 个同名候选)
+    156  __init__.py   (基线 171 个同名候选)
+    114  base.py   (基线 9 个同名候选)
+     87  web_server.py   (基线 1 个同名候选)
+     73  slash_commands.py   (基线 1 个同名候选)
+     70  config_defaults.py   (基线 1 个同名候选)
+     57  approval.py   (基线 1 个同名候选)
+     56  conversation_loop.py   (基线 1 个同名候选)
+     45  url_safety.py   (基线 1 个同名候选)
+     40  config.py   (基线 4 个同名候选)
+     40  pairing.py   (基线 3 个同名候选)
+     38  session.py   (基线 3 个同名候选)
+     37  tools_config.py   (基线 1 个同名候选)
+     37  config_migrations.py   (基线 1 个同名候选)
+     31  cua_backend.py   (基线 1 个同名候选)
+     30  prompt_builder.py   (基线 1 个同名候选)
+     30  authz_mixin.py   (基线 1 个同名候选)
+     30  env_loader.py   (基线 1 个同名候选)
+     28  client.py   (基线 4 个同名候选)
+     27  tool.py   (基线 1 个同名候选)
+
+明细 -> data/r11c/d-anchor-resolution-census.tsv  (3100 行)

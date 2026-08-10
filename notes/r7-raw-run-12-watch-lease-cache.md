@@ -380,10 +380,10 @@ gateway/run.py:22170-22177 @ 863e313
 ```
 
 **状态转移**:注入 True → 标 delivered + `complete_completion_delivery`
-(async_delegation.py:472-484:`delivery_state='delivered'`);注入 False/异常 →
-finally 释放 inflight + `release_completion_delivery`(async_delegation.py:414-448:
+(tools/async_delegation.py:472-484:`delivery_state='delivered'`);注入 False/异常 →
+finally 释放 inflight + `release_completion_delivery`(tools/async_delegation.py:414-448:
 attempts 达 `_MAX_DELIVERY_ATTEMPTS` 则收敛为 terminal `dropped`,否则回 pending);
-预检 terminal → `drop_completion_delivery`(async_delegation.py:450-470:标 dropped,
+预检 terminal → `drop_completion_delivery`(tools/async_delegation.py:450-470:标 dropped,
 "keeps the ack honest"且防重启重放)。
 
 gateway/run.py:22127-22134 @ 863e313

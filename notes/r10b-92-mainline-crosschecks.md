@@ -111,7 +111,7 @@ export const zh: Translations = {
 主线初看运行时数据时,把 `zh` 的 19 个 extra(`messaging.platformIntro.*`)
 和 `ar` 的 6 个 extra 也当成了可疑项——「翻译包凭空多出 en 没有的键」。
 **片 I 已经查过并否掉了**(`platformIntro` 是覆盖表,多出的键是合法的),
-主线复核后同意:那一段类型就是 `Record<string, string>`(`types.ts:1239`),
+主线复核后同意:那一段类型就是 `Record<string, string>`(`apps/desktop/src/i18n/types.ts:1239`),
 **多键是这个设计允许的,不是缺陷**。记在这里是因为——
 如果主线没读片 I 就自己下判断,会多报一条不成立的 ■。
 

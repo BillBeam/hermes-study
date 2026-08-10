@@ -2349,11 +2349,18 @@ def feature_missing(feature: str) -> tuple[str, ...]:
 fal = ["fal-client==0.13.1"]
 ```
 
+**R11C 片 C 改:`pip show` 对未安装的包**退出 1 并把提示写到 stderr**,
+于是这条「证明它没装」的命令被可跑性关卡判成 `EVIDENCE-RUNFAIL`。
+改法:把 stderr 并进 stdout 取末行,命令本身退出 0,而**结论(没装)由输出内容承载**,
+并配对逐字比对。**未改结论。**
+
 ```verify
-/home/user/hermes-venv/bin/pip show fal-client
+/home/user/hermes-venv/bin/pip show fal-client 2>&1 | tail -1
 ```
 
-实测:`WARNING: Package(s) not found: fal-client`。
+```text
+WARNING: Package(s) not found: fal-client
+```
 
 **判定**:与 CLAUDE.md 里 `aiohttp` 那条同型 —— 平台/可选 extra 缺失导致的失败,**不是代码缺陷、不是容器缺陷**。
 但和 aiohttp 那条有一处不同值得记:aiohttp 缺失表现为**收集期 ImportError**(一眼可辨),

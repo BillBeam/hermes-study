@@ -1,0 +1,5 @@
+agent: 片 F · 装订前状态盘点(只报不改)
+dispatched: R11C 派发批次二
+signal: RELEASED 片 F 完成信号(任务完成通知,含 580 行底稿 + 六张表 + 自校验读数;主线已独立复跑两道关卡并独立复核章号重号与 r1 章过期表)
+path: notes/r11c-raw-pre-binding-inventory.md
+path: data/r11c/f-pre-binding-inventory-*

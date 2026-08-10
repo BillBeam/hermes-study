@@ -108,7 +108,7 @@ def _load_config() -> dict:
     # it and reads as falsy at routing time.
     provider_config["host"] = ""
 ```
-json 清不掉环境变量,所以紧接着对 `MEM0_HOST` 只能打印警告(`_setup.py:318-324`)。
+json 清不掉环境变量,所以紧接着对 `MEM0_HOST` 只能打印警告(`plugins/memory/mem0/_setup.py:318-324`)。
 
 `is_available` 按形态分叉,`plugins/memory/mem0/__init__.py:227-234 @ 863e313`:
 
@@ -246,9 +246,9 @@ def _is_client_error(exc: Exception) -> bool:
 
 ### 1.3 _backend.py:一个 4 方法 ABC,三个实现
 
-内部 ABC `Mem0Backend`:`search/add/update/delete` 四个抽象方法 + 可选 `close`(`_backend.py:9-37 @ 863e313`)。`_unwrap_results` 统一"dict 带 results 键 / 裸 list"两种响应形状(`_backend.py:40-46`)。
+内部 ABC `Mem0Backend`:`search/add/update/delete` 四个抽象方法 + 可选 `close`(`plugins/memory/mem0/_backend.py:9-37 @ 863e313`)。`_unwrap_results` 统一"dict 带 results 键 / 裸 list"两种响应形状(`plugins/memory/mem0/_backend.py:40-46`)。
 
-**PlatformBackend**(`_backend.py:49-80`):`mem0.MemoryClient(api_key=...)` 的薄封装,search 直传 `filters/top_k/rerank`。
+**PlatformBackend**(`plugins/memory/mem0/_backend.py:49-80`):`mem0.MemoryClient(api_key=...)` 的薄封装,search 直传 `filters/top_k/rerank`。
 
 **SelfHostedBackend**(`plugins/memory/mem0/_backend.py:83-153`):为什么不能复用官方 SDK,docstring 说得很清楚,`plugins/memory/mem0/_backend.py:84-92 @ 863e313`:
 
@@ -263,15 +263,15 @@ def _is_client_error(exc: Exception) -> bool:
     ``/search`` routes.
     """
 ```
-实现细节:`X-API-Key` 头(AUTH_DISABLED 的服务器可不带,`_backend.py:98-99`);httpx.Client,`timeout=30.0`,**连接层重试 2 次**——单个丢包不该计入 provider 熔断,transport 可注入供测试 mock(`_backend.py:100-108`);rerank 被自建服务器忽略、user_id 放 filters(顶层已废弃)(`_backend.py:115-119`)。
+实现细节:`X-API-Key` 头(AUTH_DISABLED 的服务器可不带,`plugins/memory/mem0/_backend.py:98-99`);httpx.Client,`timeout=30.0`,**连接层重试 2 次**——单个丢包不该计入 provider 熔断,transport 可注入供测试 mock(`plugins/memory/mem0/_backend.py:100-108`);rerank 被自建服务器忽略、user_id 放 filters(顶层已废弃)(`plugins/memory/mem0/_backend.py:115-119`)。
 
-**OSSBackend**(`_backend.py:156-315`):把 mem0.json 的 `oss` 块翻译成 `mem0.Memory.from_config` 的配置。三个值得记的机制:
+**OSSBackend**(`plugins/memory/mem0/_backend.py:156-315`):把 mem0.json 的 `oss` 块翻译成 `mem0.Memory.from_config` 的配置。三个值得记的机制:
 
-1. **legacy `api_base` 键归一化**:老配置里的 `api_base` 被 pop 出来映射到各 provider 的规范键(`openai_base_url`/`ollama_base_url`),`_backend.py:163-178`;
-2. **嵌入维度自动推断**:embedder 配置没写 `embedding_dims` 时按模型名查 `KNOWN_DIMS`,并塞进向量库配置的 `embedding_model_dims`(`_backend.py:186-193`);
-3. **维度变更时自动重建集合**:`_recreate_collection_if_dims_changed`(`_backend.py:208-270`)——换嵌入模型导致维度变化时,qdrant 分支读 collection 的向量 size(区分 named/unnamed 两种返回形状,`_backend.py:228-233`)不等则 `delete_collection`;pgvector 分支查 `pg_attribute.atttypmod` 不等则 `DROP TABLE`(`_backend.py:255-264`)。整段 best-effort,全部裹 `except Exception: pass`。
+1. **legacy `api_base` 键归一化**:老配置里的 `api_base` 被 pop 出来映射到各 provider 的规范键(`openai_base_url`/`ollama_base_url`),`plugins/memory/mem0/_backend.py:163-178`;
+2. **嵌入维度自动推断**:embedder 配置没写 `embedding_dims` 时按模型名查 `KNOWN_DIMS`,并塞进向量库配置的 `embedding_model_dims`(`plugins/memory/mem0/_backend.py:186-193`);
+3. **维度变更时自动重建集合**:`_recreate_collection_if_dims_changed`(`plugins/memory/mem0/_backend.py:208-270`)——换嵌入模型导致维度变化时,qdrant 分支读 collection 的向量 size(区分 named/unnamed 两种返回形状,`plugins/memory/mem0/_backend.py:228-233`)不等则 `delete_collection`;pgvector 分支查 `pg_attribute.atttypmod` 不等则 `DROP TABLE`(`plugins/memory/mem0/_backend.py:255-264`)。整段 best-effort,全部裹 `except Exception: pass`。
 
-OSS 的 `close()` 逐层礼貌关闭:posthog 遥测、Memory 自身、vector_store、底层 client(`_backend.py:298-315`)。
+OSS 的 `close()` 逐层礼貌关闭:posthog 遥测、Memory 自身、vector_store、底层 client(`plugins/memory/mem0/_backend.py:298-315`)。
 
 **重实现要点(1.3)**
 - 同一服务的"云 SDK"经常硬编码云契约(auth 头、ping 端点),自建形态宁可手写一个 100 行 HTTP client 也别硬掰 SDK;
@@ -313,7 +313,7 @@ KNOWN_DIMS: dict[str, int] = {
 回答任务问题:**既是交互式配置,也做依赖安装,还负责把外部服务(Docker pgvector、Ollama)拉起来**。入口是 ABC 可选钩子 `post_setup`(`__init__.py:263-265` 转发到这里),由 `hermes memory setup` 框架调用(`hermes_cli/memory_setup.py:325-329 @ 863e313`:"If the provider has a post_setup hook, delegate entirely to it.")。结构分六块:
 
 1. **flag 解析(64-125)**:手写 while 循环解析 20 个 `--oss-*` / `--mode` / `--api-key` / `--dry-run` 等 flag,不用 argparse——因为它接的是 `hermes memory setup mem0 ...` 之后的残余 argv。这让**agent 自己也能非交互地配置记忆**(README 称 "Agent-Driven Setup")。
-2. **三模式路由(964-1001)**:`--mode oss` → `_setup_oss`;`--mode selfhosted|self-hosted` → `_setup_selfhosted`;`--mode platform` → `_setup_platform`;无 flag → curses 单选(三项,`_setup.py:989-993`)。入口先 `_check_min_dep_version()`(945-961)提示 mem0ai 过旧。
+2. **三模式路由(964-1001)**:`--mode oss` → `_setup_oss`;`--mode selfhosted|self-hosted` → `_setup_selfhosted`;`--mode platform` → `_setup_platform`;无 flag → curses 单选(三项,`plugins/memory/mem0/_setup.py:989-993`)。入口先 `_check_min_dep_version()`(945-961)提示 mem0ai 过旧。
 3. **platform 流(234-342)**:按 schema 逐字段问(choices 走 curses、secret 走 getpass 掩码显示尾 4 位),secret 写 `.env`、行为配置写 mem0.json、`config["memory"]["provider"]="mem0"` 写 config.yaml,并做 §1.1 说的 host 清空 + MEM0_HOST 警告。
 4. **selfhosted 流(361-438)**:问 URL / 可选 API key / user_id / agent_id,存 `mode: "platform"` + host(见 §1.1),`_check_selfhosted_server`(345-358)GET `/docs` 做 best-effort 可达性检查——**任何 HTTP 状态码(含 401/404)都算"有东西在听"**。
 5. **OSS 流(441-852)**:flag 版(451-494)直接 build+validate+落盘;交互版(734-852)三个 curses 选择器(LLM/Embedder/向量库)加上两台"自动装机器":
@@ -331,7 +331,7 @@ KNOWN_DIMS: dict[str, int] = {
         # first line would fail the key match and get duplicated.
 ```
 
-另一处细节:embedder 与 LLM 同为 openai 时**自动复用 LLM 的 key**(`build_oss_config`,`_setup.py:183-186`;交互版 763-765)。`--dry-run` 全程只打印、跑连通性检查、不写文件(299-304、407-413、464-473)。
+另一处细节:embedder 与 LLM 同为 openai 时**自动复用 LLM 的 key**(`build_oss_config`,`plugins/memory/mem0/_setup.py:183-186`;交互版 763-765)。`--dry-run` 全程只打印、跑连通性检查、不写文件(299-304、407-413、464-473)。
 
 **内部矛盾(定案 ▲)**:`_check_min_dep_version` 注释称"minimum version from plugin.yaml"但硬编码 `(2, 0, 7)`,而 plugin.yaml 声明 `mem0ai>=2.0.10,<3`,`plugins/memory/mem0/_setup.py:952-953 @ 863e313`:
 
@@ -357,7 +357,7 @@ KNOWN_DIMS: dict[str, int] = {
 | initialize | 加载配置、三级 user_id、rerank 默认、建后端、注册 atexit | 337-370 |
 | system_prompt_block | 模式标签 + 强搜索指令(多跳多搜) | 385-412 |
 | prefetch | 缓存消费 + 3s 限时等待,超时返 "" | 463-477 |
-| queue_prefetch | 未覆写(ABC 默认 no-op;测试断言不发搜索,test_mem0_v3.py:234-240) | — |
+| queue_prefetch | 未覆写(ABC 默认 no-op;测试断言不发搜索,tests/plugins/memory/test_mem0_v3.py:234-240) | — |
 | sync_turn | 后台线程 add(infer=True),串行防重 | 479-512 |
 | get_tool_schemas | 4 工具 | 514-515 |
 | handle_tool_call | search/add/update/delete + 熔断/未初始化护栏 | 517-609 |
@@ -380,18 +380,18 @@ KNOWN_DIMS: dict[str, int] = {
 
 | # | README 断言 | 代码事实 | 判定 |
 |---|---|---|---|
-| 1 | `README.md:28`:`mode` 默认 `platform` | `__init__.py:88` `os.environ.get("MEM0_MODE", "platform")` | 一致 |
-| 2 | `README.md:30`:`user_id` 默认 `hermes-user` | `__init__.py:56-62、353-356`:该值是**哨兵**,被视为未配置,实际回落网关原生 id | ▲ 有误导:写着"默认值"的字符串在代码里等于"没配",按 README 填 hermes-user 会得到与预期不同(其实是更合理)的 per-gateway 隔离 |
-| 3 | `README.md:65`:"authenticates with X-API-Key ... /search and /memories routes. api_key is optional — omit it only for AUTH_DISABLED" | `_backend.py:97-99、115-147` 完全一致 | 一致 |
-| 4 | `README.md:67`:"Don't set mode: oss — OSS takes precedence and ignores host" | `_create_backend` 280-288 优先级 oss>host;测试 test_mem0_v3.py:384-391 锁死 | 一致 |
-| 5 | `README.md:101` Flags 表:`--mode` 取值 "platform or oss" | `_setup.py:980` 还接受 `selfhosted`/`self-hosted`(README 自己 49 行也用了) | ▲ 表格漏了第三个取值,README 内部自相矛盾 |
-| 6 | `README.md:7`:Requirements "pip install mem0ai"(无版本) | plugin.yaml 要求 `mem0ai>=2.0.10,<3`;且 `__init__.py:274` 会懒安装,手动装并非必须 | ◇ 不完整:无版本约束,也未提及懒安装 |
-| 7 | `README.md:32`:rerank "platform mode only" | `__init__.py:396-397` 提示词只在 platform 提 rerank;`_backend.py:115-117` selfhosted 忽略;OSS `search` 直接不传 | 一致 |
-| 8 | `README.md:146`:mem0_add "Store a fact verbatim (no LLM extraction)" | `__init__.py:566` `infer=False` | 一致 |
-| 9 | `README.md:154`:"Circuit breaker tripped after 5 consecutive failures. Resets after 2 minutes." | `__init__.py:51-52` 阈值 5、冷却 120s | 一致 |
-| 10 | `README.md:185`:"Use sync_turn for LLM extraction" | `__init__.py:497` sync_turn `infer=True` | 一致 |
-| 11 | `README.md:3`:"hybrid multi-signal retrieval via the Mem0 Platform v3 API" | 代码只见 MemoryClient.search 透传;"v3 API"是 SDK/服务端行为,本仓库内不可证 | ◇ 本仓不可验证的宣传句,存疑不判 |
-| 12 | `_setup.py:954` 最低版本 (2,0,7) vs plugin.yaml `>=2.0.10` | 见 §1.5 | ▲ 代码内部漂移(非 README,但属文档-代码类冲突,记录) |
+| 1 | `plugins/memory/mem0/README.md:28`:`mode` 默认 `platform` | `__init__.py:88` `os.environ.get("MEM0_MODE", "platform")` | 一致 |
+| 2 | `plugins/memory/mem0/README.md:30`:`user_id` 默认 `hermes-user` | `__init__.py:56-62、353-356`:该值是**哨兵**,被视为未配置,实际回落网关原生 id | ▲ 有误导:写着"默认值"的字符串在代码里等于"没配",按 README 填 hermes-user 会得到与预期不同(其实是更合理)的 per-gateway 隔离 |
+| 3 | `README.md:65`:"authenticates with X-API-Key ... /search and /memories routes. api_key is optional — omit it only for AUTH_DISABLED" | `plugins/memory/mem0/_backend.py:97-99、115-147` 完全一致 | 一致 |
+| 4 | `plugins/memory/mem0/README.md:67`:"Don't set mode: oss — OSS takes precedence and ignores host" | `_create_backend` 280-288 优先级 oss>host;测试 tests/plugins/memory/test_mem0_v3.py:384-391 锁死 | 一致 |
+| 5 | `plugins/memory/mem0/README.md:101` Flags 表:`--mode` 取值 "platform or oss" | `plugins/memory/mem0/_setup.py:980` 还接受 `selfhosted`/`self-hosted`(README 自己 49 行也用了) | ▲ 表格漏了第三个取值,README 内部自相矛盾 |
+| 6 | `plugins/memory/mem0/README.md:7`:Requirements "pip install mem0ai"(无版本) | plugin.yaml 要求 `mem0ai>=2.0.10,<3`;且 `__init__.py:274` 会懒安装,手动装并非必须 | ◇ 不完整:无版本约束,也未提及懒安装 |
+| 7 | `plugins/memory/mem0/README.md:32`:rerank "platform mode only" | `__init__.py:396-397` 提示词只在 platform 提 rerank;`plugins/memory/mem0/_backend.py:115-117` selfhosted 忽略;OSS `search` 直接不传 | 一致 |
+| 8 | `plugins/memory/mem0/README.md:146`:mem0_add "Store a fact verbatim (no LLM extraction)" | `__init__.py:566` `infer=False` | 一致 |
+| 9 | `plugins/memory/mem0/README.md:154`:"Circuit breaker tripped after 5 consecutive failures. Resets after 2 minutes." | `__init__.py:51-52` 阈值 5、冷却 120s | 一致 |
+| 10 | `plugins/memory/mem0/README.md:185`:"Use sync_turn for LLM extraction" | `__init__.py:497` sync_turn `infer=True` | 一致 |
+| 11 | `plugins/memory/mem0/README.md:3`:"hybrid multi-signal retrieval via the Mem0 Platform v3 API" | 代码只见 MemoryClient.search 透传;"v3 API"是 SDK/服务端行为,本仓库内不可证 | ◇ 本仓不可验证的宣传句,存疑不判 |
+| 12 | `plugins/memory/mem0/_setup.py:954` 最低版本 (2,0,7) vs plugin.yaml `>=2.0.10` | 见 §1.5 | ▲ 代码内部漂移(非 README,但属文档-代码类冲突,记录) |
 
 ### 1.9 配套测试与行为规格(mem0)
 
@@ -399,7 +399,7 @@ KNOWN_DIMS: dict[str, int] = {
 
 **行为规格 1:prefetch 永不阻塞在慢后端上**。`tests/plugins/memory/test_mem0_v3.py:189-231 @ 863e313`——把后端 search 用 Event 停住,断言 `provider.prefetch(...) == ""` 且此时后端 search **仍停着**(`assert not search_returned.is_set()`);释放后 join 线程,再次 prefetch 拿到 "lives in Berlin"。注释明确说这是把老的 `assert elapsed < 0.1` 壁钟断言改成确定性见证,消除调度器抖动导致的假失败。这就是"超时放弃注入、结果不丢、下次消费"的完整规格。
 
-**行为规格 2:路由优先级与提示词一致性**。`test_mem0_v3.py:384-401`——`mode=oss` 且 `host` 同时设置时,`_create_backend()` 必须返回 OSSBackend,且 `system_prompt_block()` 必须含 "OSS"、不含 "HTTP API"("Guards the prompt-vs-routing lie")。
+**行为规格 2:路由优先级与提示词一致性**。`tests/plugins/memory/test_mem0_v3.py:384-401`——`mode=oss` 且 `host` 同时设置时,`_create_backend()` 必须返回 OSSBackend,且 `system_prompt_block()` 必须含 "OSS"、不含 "HTTP API"("Guards the prompt-vs-routing lie")。
 
 ---
 
@@ -421,7 +421,7 @@ def bind(a: "np.ndarray", b: "np.ndarray") -> "np.ndarray":
     _require_numpy()
     return (a + b) % _TWO_PI
 ```
-- **unbind(解绑)= 相位相减**(循环相关),`unbind(bind(a,b), a) ≈ b` 至叠加噪声(`holographic.py:87-94`);
+- **unbind(解绑)= 相位相减**(循环相关),`unbind(bind(a,b), a) ≈ b` 至叠加噪声(`plugins/memory/holographic/holographic.py:87-94`);
 - **bundle(叠加)= 复指数求和取辐角**(圆均值),结果与每个输入相似,容量 O(√dim),`plugins/memory/holographic/holographic.py:97-105 @ 863e313`:
 
 ```python
@@ -435,9 +435,9 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
     complex_sum = np.sum([np.exp(1j * v) for v in vectors], axis=0)
     return np.angle(complex_sum) % _TWO_PI
 ```
-- **similarity = 相位差余弦均值**,`float(np.mean(np.cos(a - b)))`,范围 [-1,1],随机向量≈0(`holographic.py:108-115`)。
+- **similarity = 相位差余弦均值**,`float(np.mean(np.cos(a - b)))`,范围 [-1,1],随机向量≈0(`plugins/memory/holographic/holographic.py:108-115`)。
 
-选相位编码的理由写在模块头(`holographic.py:12-14`):数值稳定、避免传统复数 HRR 的模长坍缩、天然映射到余弦相似度。
+选相位编码的理由写在模块头(`plugins/memory/holographic/holographic.py:12-14`):数值稳定、避免传统复数 HRR 的模长坍缩、天然映射到余弦相似度。
 
 **atom(原子向量)是确定性的**:SHA-256 计数器块生成——`f"{word}:{i}"` 逐块哈希,digest 按 uint16 小端解包,缩放到 [0,2π),`plugins/memory/holographic/holographic.py:68-73 @ 863e313`:
 
@@ -465,9 +465,9 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
 ```
 即一条事实 = bundle( content⊗ROLE_CONTENT, entity₁⊗ROLE_ENTITY, entity₂⊗ROLE_ENTITY, … )。检索时用 `bind(entity, ROLE_ENTITY)` 当钥匙解绑,残差与内容信号比相似度——这就是 probe/reason 的数学基础。
 
-**序列化**:float32 blob 带 `b"HRR1"` 前缀(dim=1024 时 4KB+4B,比 legacy float64 的 8KB 省一半),读侧兼容无前缀 float64 老格式;dim=1 时两种格式同为 8 字节会歧义,写侧退回 float64、读侧优先按 legacy 解释(`holographic.py:170-263`,详尽的碰撞窗口注释在 196-211)。
+**序列化**:float32 blob 带 `b"HRR1"` 前缀(dim=1024 时 4KB+4B,比 legacy float64 的 8KB 省一半),读侧兼容无前缀 float64 老格式;dim=1 时两种格式同为 8 字节会歧义,写侧退回 float64、读侧优先按 legacy 解释(`plugins/memory/holographic/holographic.py:170-263`,详尽的碰撞窗口注释在 196-211)。
 
-**容量守卫**:`snr_estimate(dim, n_items) = sqrt(dim/n_items)`,SNR<2(即 n_items > dim/4,默认 1024 维 ≈ 256 条/类别)时 log warning "HRR storage near capacity"(`holographic.py:266-290`)。
+**容量守卫**:`snr_estimate(dim, n_items) = sqrt(dim/n_items)`,SNR<2(即 n_items > dim/4,默认 1024 维 ≈ 256 条/类别)时 log warning "HRR storage near capacity"(`plugins/memory/holographic/holographic.py:266-290`)。
 
 **重实现要点(2.1)**
 - 相位 HRR 三件套:bind=模 2π 加、unbind=模 2π 减、bundle=复指数和取角;相似度 = mean(cos(Δ));
@@ -500,7 +500,7 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
 ```
 实现三根支柱:(a) 键是 `Path.resolve()` 后的真实路径,符号链接/相对路径归并到同一连接(`store.py:132-138`);(b) 连接以 `isolation_level=None`(autocommit)打开——每条语句自成事务,**中途抛异常不可能留下悬挂写事务钉死写锁**,显式 commit 全部变成无害 no-op(`store.py:142-151`);(c) 引用计数 close:最后一个引用才真正关连接(`store.py:619-638`)。WAL 开启走共享的 `apply_wal_with_fallback`,NFS/SMB/FUSE 上优雅降级(`store.py:170-177`)。
 
-**add_fact 写路径**(`store.py:188-231`):strip→INSERT(UNIQUE 冲突则返回既有 id,不改行)→正则实体抽取(四条规则:连续大写词组 / 双引号 / 单引号 / "X aka Y",去重保序,`store.py:85-91、447-480`)→实体解析(名字 LIKE 大小写不敏感精确匹配→别名逗号边界 LIKE→新建,`store.py:482-510`)→连接表→`_compute_hrr_vector`(拉实体列表,encode_fact 落 blob,`store.py:523-545`)→`_rebuild_bank(category)`——**每次写都全量重建该类别的叠加向量**并跑 SNR 告警(`store.py:547-583`)。
+**add_fact 写路径**(`store.py:188-231`):strip→INSERT(UNIQUE 冲突则返回既有 id,不改行)→正则实体抽取(四条规则:连续大写词组 / 双引号 / 单引号 / "X aka Y",去重保序,`store.py:85-91、447-480`)→实体解析(名字 LIKE 大小写不敏感精确匹配→别名逗号边界 LIKE→新建,`store.py:482-510`)→连接表→`_compute_hrr_vector`(拉实体列表,encode_fact 落 blob,`plugins/memory/holographic/store.py:523-545`)→`_rebuild_bank(category)`——**每次写都全量重建该类别的叠加向量**并跑 SNR 告警(`store.py:547-583`)。
 
 **trust 机制**:`record_feedback` 不对称调整——helpful +0.05、unhelpful −0.10,钳制 [0,1](`store.py:79-82、402-441`)。坏事实沉底比好事实上浮快一倍。
 
@@ -526,13 +526,13 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
             # Trust weighting
             score = relevance * fact["trust_score"]
 ```
-默认权重 0.4/0.3/0.3;numpy 缺席时自动重分配为 0.6/0.4/0(`retrieval.py:29-46`)。可选时间衰减 `0.5^(age_days/half_life)`(`retrieval.py:110-111、644-668`),默认关闭(half_life=0)。查询向量惰性 hoist:只在第一个真带向量的候选出现时才编码一次(`retrieval.py:81-96`,注释说明迁移库可能整批候选无向量,不该白付编码)。
+默认权重 0.4/0.3/0.3;numpy 缺席时自动重分配为 0.6/0.4/0(`plugins/memory/holographic/retrieval.py:29-46`)。可选时间衰减 `0.5^(age_days/half_life)`(`plugins/memory/holographic/retrieval.py:110-111、644-668`),默认关闭(half_life=0)。查询向量惰性 hoist:只在第一个真带向量的候选出现时才编码一次(`plugins/memory/holographic/retrieval.py:81-96`,注释说明迁移库可能整批候选无向量,不该白付编码)。
 
-**FTS5 查询消毒**(召回正确性的命门):FTS5 对多词 MATCH 默认 AND 连接,自然语言查询召回归零。`_sanitize_fts_query`(`retrieval.py:599-633`)分词→去停用词(120 词表,581-597)与 <2 字符 token→逐 token 剥 FTS5 算子字符 `"()*^:-+`→**短语字面量化后 OR 连接**;全被过滤则回退原始查询(宁可 0 结果不可 SQL 错)。`_fts_candidates` 把 FTS5 的负 rank 归一化到 [0,1],MATCH 异常吞掉返回空(`retrieval.py:538-560`)。
+**FTS5 查询消毒**(召回正确性的命门):FTS5 对多词 MATCH 默认 AND 连接,自然语言查询召回归零。`_sanitize_fts_query`(`plugins/memory/holographic/retrieval.py:599-633`)分词→去停用词(120 词表,581-597)与 <2 字符 token→逐 token 剥 FTS5 算子字符 `"()*^:-+`→**短语字面量化后 OR 连接**;全被过滤则回退原始查询(宁可 0 结果不可 SQL 错)。`_fts_candidates` 把 FTS5 的负 rank 归一化到 [0,1],MATCH 异常吞掉返回空(`plugins/memory/holographic/retrieval.py:538-560`)。
 
-**probe(实体探针)**:构造钥匙 `bind(entity, ROLE_ENTITY)`;指定 category 且有 bank 时,**先从类别叠加向量整体解绑**得到"这个实体在该类别中关联的内容信号",再拿它给逐条事实打分(`retrieval.py:145-162`);否则逐事实解绑:`residual = unbind(fact_vec, probe_key)`,与 `bind(encode_text(content), ROLE_CONTENT)` 比相似度——实体真在事实里扮演结构角色时,解绑会"抵消"实体分量、残差与内容信号对齐(`retrieval.py:188-202`)。无 numpy / 无向量行时回退 FTS 搜索。
+**probe(实体探针)**:构造钥匙 `bind(entity, ROLE_ENTITY)`;指定 category 且有 bank 时,**先从类别叠加向量整体解绑**得到"这个实体在该类别中关联的内容信号",再拿它给逐条事实打分(`plugins/memory/holographic/retrieval.py:145-162`);否则逐事实解绑:`residual = unbind(fact_vec, probe_key)`,与 `bind(encode_text(content), ROLE_CONTENT)` 比相似度——实体真在事实里扮演结构角色时,解绑会"抵消"实体分量、残差与内容信号对齐(`plugins/memory/holographic/retrieval.py:188-202`)。无 numpy / 无向量行时回退 FTS 搜索。
 
-**related(结构邻接)**:用**裸实体原子**(不绑角色)解绑,看残差与两个角色原子哪个更像取 max——实体无论以实体角色还是内容词身份出现都能命中(`retrieval.py:222-272`)。
+**related(结构邻接)**:用**裸实体原子**(不绑角色)解绑,看残差与两个角色原子哪个更像取 max——实体无论以实体角色还是内容词身份出现都能命中(`plugins/memory/holographic/retrieval.py:222-272`)。
 
 **reason(多实体合取,向量空间 JOIN)**:对每个实体各造钥匙,逐事实分别解绑打分,**取 min**——AND 语义,所有实体都结构性在场才高分,`plugins/memory/holographic/retrieval.py:329-346 @ 863e313`:
 
@@ -552,7 +552,7 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
             fact["score"] = (min_sim + 1.0) / 2.0 * fact["trust_score"]
 ```
 
-**contradict(矛盾检测)**:定义"同主体不同说法"= 实体集 Jaccard 重叠 ≥0.3 **且** 内容向量相似度低;分数 = `entity_overlap * (1 - (content_sim+1)/2)`,≥0.3 报出成对结果附共享实体(`retrieval.py:414-453`)。O(n²) 护栏:超过 500 条只比对最近更新的 500 条(~125K 次比较,`retrieval.py:392-398`)。工具层未暴露 threshold 参数(provider `__init__.py:321-326` 只传 category/limit)。
+**contradict(矛盾检测)**:定义"同主体不同说法"= 实体集 Jaccard 重叠 ≥0.3 **且** 内容向量相似度低;分数 = `entity_overlap * (1 - (content_sim+1)/2)`,≥0.3 报出成对结果附共享实体(`plugins/memory/holographic/retrieval.py:414-453`)。O(n²) 护栏:超过 500 条只比对最近更新的 500 条(~125K 次比较,`plugins/memory/holographic/retrieval.py:392-398`)。工具层未暴露 threshold 参数(provider `__init__.py:321-326` 只传 category/limit)。
 
 **重实现要点(2.3)**
 - 词法(FTS5)+ 集合(Jaccard)+ 结构(HRR)三信号互补,乘 trust 做最终排序;任一信号缺席可降级重分配权重;
@@ -604,8 +604,8 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
 ### 2.5 无外部服务下的性能/精度取舍
 
 - **精度上限**:encode_text 是词袋——无词序、无语义。"cat chases dog" 与 "dog chases cat" 同向量;同义词零相似(SHA-256 原子间准正交)。HRR 信号擅长的是**结构**(哪个实体跟哪条内容绑在一起),语义泛化整体靠 FTS5+Jaccard 的词面匹配打底,这是不调用嵌入模型的根本代价。
-- **容量**:bundle 容量 O(√dim);SNR=√(dim/n) < 2 即告警,默认 1024 维时每类别 ~256 条以上 bank 探针开始不可靠(`holographic.py:266-290`)。逐事实打分路径不受 bank 容量限制,但是全表扫描。
-- **计算复杂度**:probe/related/reason/`_score_facts_by_vector` 全部 `SELECT ... WHERE hrr_vector IS NOT NULL` 全表拉取逐行解码打分(如 `retrieval.py:171-180`)——没有 ANN 索引。dim=1024 的逐元素 cos 均值极便宜,千条级毫秒档,但 O(N) 天花板明确;contradict 另有 500 条硬顶。
+- **容量**:bundle 容量 O(√dim);SNR=√(dim/n) < 2 即告警,默认 1024 维时每类别 ~256 条以上 bank 探针开始不可靠(`plugins/memory/holographic/holographic.py:266-290`)。逐事实打分路径不受 bank 容量限制,但是全表扫描。
+- **计算复杂度**:probe/related/reason/`_score_facts_by_vector` 全部 `SELECT ... WHERE hrr_vector IS NOT NULL` 全表拉取逐行解码打分(如 `plugins/memory/holographic/retrieval.py:171-180`)——没有 ANN 索引。dim=1024 的逐元素 cos 均值极便宜,千条级毫秒档,但 O(N) 天花板明确;contradict 另有 500 条硬顶。
 - **存储**:每事实 4KB(float32)向量;bank 每类别一条 4KB。全库单文件 SQLite,`backup_paths` 天然友好。
 - **换来的东西**:零网络、零凭据、零服务进程、隐私完全本地、毫秒级延迟、跨机器确定性可复现(SHA-256 原子)、以及嵌入库给不了的两个查询原语——reason 的代数 AND 与 contradict 的矛盾对(代价见上)。
 
@@ -614,11 +614,11 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
 | # | README 断言 | 代码事实 | 判定 |
 |---|---|---|---|
 | 1 | `README.md:3`:"Local SQLite fact store with FTS5 search, trust scoring, entity resolution, and HRR-based compositional retrieval" | store.py schema + retrieval.py 五算法俱全 | 一致 |
-| 2 | `README.md:7`:"Requirements: None — uses SQLite (always available). NumPy optional" | `__init__.py:126-127` is_available 恒 True;`holographic.py:27-31` numpy try/except;`retrieval.py:39-42` 无 numpy 重分配权重 | 一致 |
+| 2 | `plugins/memory/holographic/README.md:7`:"Requirements: None — uses SQLite (always available). NumPy optional" | `__init__.py:126-127` is_available 恒 True;`plugins/memory/holographic/holographic.py:27-31` numpy try/except;`plugins/memory/holographic/retrieval.py:39-42` 无 numpy 重分配权重 | 一致 |
 | 3 | `README.md:24-29` 配置表:db_path/auto_extract/default_trust/hrr_dim 四键 | initialize 还读 `min_trust_threshold`(`__init__.py:120`)、`hrr_weight`(169)、`temporal_decay_half_life`(170);模块 docstring(8-16)列了 min_trust_threshold/temporal_decay 却没列 hrr_dim/hrr_weight | ▲ README 与 docstring 各漏一半:实际可配 7 键,任一处文档都不全 |
 | 4 | `README.md:35`:"fact_store | 9 actions: add, search, probe, related, reason, contradict, update, remove, list" | schema enum(`__init__.py:58-61`)正是这 9 个 | 一致 |
-| 5 | `README.md:22`:"Config in config.yaml under plugins.hermes-memory-store" | `_load_plugin_config`(104)一致;但 plugin.yaml `name: holographic`、provider name "holographic" | ◇ 一致但暗坑:插件名与配置键不同名(历史名 hermes-memory-store 残留),README 未解释 |
-| 6 | `README.md:36`:fact_feedback "trains trust scores" | `store.py:402-441` +0.05/−0.10 不对称调整 | 一致("trains"是修辞,实为固定步长) |
+| 5 | `plugins/memory/holographic/README.md:22`:"Config in config.yaml under plugins.hermes-memory-store" | `_load_plugin_config`(104)一致;但 plugin.yaml `name: holographic`、provider name "holographic" | ◇ 一致但暗坑:插件名与配置键不同名(历史名 hermes-memory-store 残留),README 未解释 |
+| 6 | `plugins/memory/holographic/README.md:36`:fact_feedback "trains trust scores" | `store.py:402-441` +0.05/−0.10 不对称调整 | 一致("trains"是修辞,实为固定步长) |
 
 ### 2.7 配套测试与行为规格(holographic)
 
@@ -637,7 +637,7 @@ def bundle(*vectors: "np.ndarray") -> "np.ndarray":
 | 轴 | mem0(platform 形态) | holographic |
 |---|---|---|
 | 智能所在 | 服务端:LLM 抽取、语义嵌入、去重、rerank 全在 Mem0 云上 | 本地:SHA-256 原子 + 相位代数 + FTS5,全程无一次模型调用 |
-| 依赖面 | API key、网络、mem0ai SDK(还要懒安装);OSS 形态更要 LLM+嵌入+向量库三件套 | 标准库 sqlite3;numpy 可选(缺了自动降为 FTS+Jaccard,`retrieval.py:39-42`) |
+| 依赖面 | API key、网络、mem0ai SDK(还要懒安装);OSS 形态更要 LLM+嵌入+向量库三件套 | 标准库 sqlite3;numpy 可选(缺了自动降为 FTS+Jaccard,`plugins/memory/holographic/retrieval.py:39-42`) |
 | 摄入 | sync_turn 每 turn 推给服务端 `infer=True` 自动抽取 | sync_turn 刻意 pass;靠工具显式 add、会末正则收割、内置 memory 镜像 |
 | 语义泛化 | 有(嵌入 + 可选 rerank):换措辞也能召回 | 无:同义词准正交,靠 OR 化 FTS 和词面重叠兜底 |
 | 结构查询 | 无原语:多跳靠提示词逼模型多次搜索(`__init__.py:406-409`) | 有原语:probe/related/reason(代数 AND)/contradict 直接一次调用 |

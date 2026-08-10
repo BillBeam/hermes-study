@@ -414,9 +414,9 @@ def _apply_profile_override() -> None:
 
 | 消费点 | 锚点 | 为什么安全 |
 |---|---|---|
-| 鼠标残留抑制 | `main.py:352` | 自带独立 TTY 判断 `if not os.isatty(1): return`(`main.py:357`),非 TTY 直接不写 |
-| Termux 快速 CLI 路径 | `main.py:10886` | 返回 True 只是**放弃快速路径**、回落完整分发,分发里再判 |
-| Termux 快速 TUI 路径 | `main.py:10958` | 紧接着在 `main.py:10977` 用 `_resolve_use_tui(args)` **重判一次**,不通过就返回 |
+| 鼠标残留抑制 | `hermes_cli/main.py:352` | 自带独立 TTY 判断 `if not os.isatty(1): return`(`hermes_cli/main.py:357`),非 TTY 直接不写 |
+| Termux 快速 CLI 路径 | `hermes_cli/main.py:10886` | 返回 True 只是**放弃快速路径**、回落完整分发,分发里再判 |
+| Termux 快速 TUI 路径 | `hermes_cli/main.py:10958` | 紧接着在 `hermes_cli/main.py:10977` 用 `_resolve_use_tui(args)` **重判一次**,不通过就返回 |
 
 且两条 Termux 路径都被 `_is_termux_startup_environment()` 门控,非 Termux 根本进不去。
 

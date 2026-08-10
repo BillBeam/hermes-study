@@ -2036,17 +2036,17 @@ _inject_profile_env_vars()
 | 语义 | 份数 | 位置 | 状态 |
 |---|---|---|---|
 | **"配好没配好"(某平台是否就绪)** | **8** | `gateway/config.py` / `cron/scheduler.py` / `hermes_cli/gateway.py` / `setup.py` / `web_server.py` / `dump.py` / `tools_config.py` / `status.py` | 只有 `cli.py:9789` 那一份读运行时真值,其余各抄一张 env 表 → ■-31 / ■-35 |
-| **`.env` 解析** | **4+** | python-dotenv(`env_loader.py:588`)/ `config._parse_env_value` / `secret_scope.load_env_file` / `managed_scope._parse_env:180` | `secret_scope` 是刻意复用的,`managed_scope` 那份没跟上 → ■-27 |
+| **`.env` 解析** | **4+** | python-dotenv(`hermes_cli/env_loader.py:588`)/ `config._parse_env_value` / `secret_scope.load_env_file` / `managed_scope._parse_env:180` | `secret_scope` 是刻意复用的,`managed_scope` 那份没跟上 → ■-27 |
 | **默认值字典** | **2** | `hermes_cli/config_defaults.py:DEFAULT_CONFIG` / `cli.py:441` | 头条:第二份击穿了"单一真源" → ■-10 / ■-11 / ■-12 |
 | **配置装载(合并语义)** | **2** | `load_config` 深合并 / `cli.py:599` 一层 `dict.update` | 头条:同一份文件,两种合并 → ■-3 |
-| **配对批准入口** | **2 层薄壳 + 1 份核心** | `hermes_cli/pairing.py` / `web_server.py:12335+` → 同一个 `PairingStore` | **核心共用是对的**;分叉只在壳里,而壳零覆盖 → ■-8 / ■-22 |
-| **moa 配置写入** | **2** | `web_server.py:6520`(已修)/ `moa_cmd.py:127,147`(未修) | 回归测试只 import 了已修那侧 → ■-21 |
-| **单键写入的闸门** | **2** | `config.py:4837+`(三道闸)/ `web_server.py:6921`(一道) | managed 那道是有意分叉;API-key 路由那道无解释 → 移交 H-10 |
-| **密钥按键读取** | **2 个平台适配器** | `secret_prompt.py:95`(Windows,对)/ `:116`(POSIX,错) | 核心与适配器之间的契约没写下来 → ■-26 |
-| **"Hermes 认识哪些 env 键"** | **2** | `config.py:4095`(活)/ `env_loader.py:55`(死) | 第六例死副本 → ■-29 |
+| **配对批准入口** | **2 层薄壳 + 1 份核心** | `hermes_cli/pairing.py` / `hermes_cli/web_server.py:12335+` → 同一个 `PairingStore` | **核心共用是对的**;分叉只在壳里,而壳零覆盖 → ■-8 / ■-22 |
+| **moa 配置写入** | **2** | `hermes_cli/web_server.py:6520`(已修)/ `hermes_cli/moa_cmd.py:127,147`(未修) | 回归测试只 import 了已修那侧 → ■-21 |
+| **单键写入的闸门** | **2** | `config.py:4837+`(三道闸)/ `hermes_cli/web_server.py:6921`(一道) | managed 那道是有意分叉;API-key 路由那道无解释 → 移交 H-10 |
+| **密钥按键读取** | **2 个平台适配器** | `hermes_cli/secret_prompt.py:95`(Windows,对)/ `:116`(POSIX,错) | 核心与适配器之间的契约没写下来 → ■-26 |
+| **"Hermes 认识哪些 env 键"** | **2** | `config.py:4095`(活)/ `hermes_cli/env_loader.py:55`(死) | 第六例死副本 → ■-29 |
 | **注释模板 / 配置文件文案** | **2** | `_SECURITY_COMMENT`/`_FALLBACK_COMMENT`(活)/ `_COMMENTED_SECTIONS`(死且已漂移) | → ■-9 |
 | **clarify 超时** | **2 个键 + 2 份默认值** | `clarify.timeout`(遗留)/ `agent.clarify_timeout`(规范) | 自称"单一真源"的函数,实测两面差 780 秒 → ■-11 |
-| **cua-driver 装好没有** | **2** | `tools_config.py:1585`(裸 `which`)/ `:3273`(走解析器) | 同一进程两个界面给相反答案 → ■-15 |
+| **cua-driver 装好没有** | **2** | `hermes_cli/tools_config.py:1585`(裸 `which`)/ `:3273`(走解析器) | 同一进程两个界面给相反答案 → ■-15 |
 | **弃用变量的正名表** | **3** | `doctor.py:258` / `status.py:483` / `gateway/config.py:2432` | 两个诊断命令互相拆台 → ■-32 |
 | **skill 禁用名单** | **2** | CLI 侧吃 `load_config()` / 运行时侧读裸 YAML | 配置来源不同(managed 是否叠加) → 存疑,移交 H-12 |
 | **"HERMES_HOME 在哪"** | **2** | `hermes_constants.py:71`(正版,strip + 判空 + 平台默认)/ `hermes_cli/env_loader.py:477`(副本,三样都没有) | **地基也有两份**:空串 → 装载 `./.env`;Windows → 找错目录 → ■-43 |
@@ -2123,4 +2123,4 @@ R7C 这条附了锚点文件(`hermes_cli/status.py`),所以本轮没有走偏,�
 | H-15 | **R8D** | `hermes_cli/skills_config.py:78`(`skip_disabled=True` 的形参)与其 docstring | 子代理报"docstring 与 `skip_disabled` 语义相反",**主线未确证,不记 ■**。若参数真是"过滤掉已禁用的",则已禁用的技能不会出现在勾选界面 → **无法重新启用**。R8D 读 skill 子系统时跑一次真实菜单即可定案 |
 | H-16 | **R8B** | `hermes_cli/config_migrations.py:250-266`(v16 搬完不删 `display.tool_progress_overrides`) | 旧键永久留在用户的 `config.yaml`,与 v12 / v17 / v29 / v33 的"搬完就删"风格不一致;**是否有意未确证**。若无意,它就是又一个"旧键恒存在"的种子——■-11 那条 780 秒漂移正是这么来的 |
 | H-17 | **R8B/R8C** | `hermes_cli/env_loader.py:614-669`(无锁)vs `:184`(有 `_SECRET_SOURCE_CACHE_LOCK`) | 两条写同一批全局字典的路径只有一条加锁;子代理判为并发风险,**主线未复现**。网关热重载线程与首轮路由线程并发时可能出现同一 home 双份 fetch,或缓存被空 dict 覆盖。需要一个能触发热重载的实测场景才能定案 |
-| H-18 | **R11 复盘 / 任何一轮的空档** | 11 份 workflow 底稿的「可疑缺陷清单」小节(`notes/r8a-raw-config-a.md:1525` 起、`raw-config-b.md:1227` 起、`raw-config-c.md`、`raw-tools-config-b/c.md`、`raw-commands.md`、`raw-defaults-a/b.md`、`raw-mcp-moa-config.md`) | **本轮定稿时统计:这 11 份底稿的清单里合计约 104 条候选条目,主线逐条挖过的约占一半;剩下约 50 条未逐条复核**(多为重复、风格类或已被其他条覆盖,但**没有逐条确认过**)。本轮已从中补挖出 ▲-10 与 ■-50…■-55 六条,说明残余里仍有真货。**不谎报覆盖**:这是本轮已知的、有明确锚点的最大一块未尽事项 |
+| H-18 | **R11 复盘 / 任何一轮的空档** | 11 份 workflow 底稿的「可疑缺陷清单」小节(`notes/r8a-raw-config-a.md:1525` 起、`notes/r8a-raw-config-b.md:1227` 起、`raw-config-c.md`、`raw-tools-config-b/c.md`、`raw-commands.md`、`raw-defaults-a/b.md`、`raw-mcp-moa-config.md`) | **本轮定稿时统计:这 11 份底稿的清单里合计约 104 条候选条目,主线逐条挖过的约占一半;剩下约 50 条未逐条复核**(多为重复、风格类或已被其他条覆盖,但**没有逐条确认过**)。本轮已从中补挖出 ▲-10 与 ■-50…■-55 六条,说明残余里仍有真货。**不谎报覆盖**:这是本轮已知的、有明确锚点的最大一块未尽事项 |

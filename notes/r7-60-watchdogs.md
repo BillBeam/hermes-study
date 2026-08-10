@@ -5,7 +5,7 @@
 > `_session_expiry_watcher`(11926-12102)、memory_monitor.py(230 行,全文)。
 > 四条看护线各管一类"没人看着就会烂掉"的问题,边界刻意分开。
 
-## 机制 1:session_stall 通知策略(session_stall.py + run.py:12104-12353)
+## 机制 1:session_stall 通知策略(session_stall.py + gateway/run.py:12104-12353)
 
 ### 场景/问题(#72016 item 2)
 用户发消息进来排队(pending inbound),而占着会话的回合卡住不动。用户看到的是"已读不回"。
@@ -58,7 +58,7 @@ Boundaries (keep separate):
 3. 策略写成纯函数、观测与执行留在宿主——测试与复用都容易。
 4. "通知""超时杀""投递义务""进程活性"四件事分四个组件,别揉在一起。
 
-## 机制 2:回合级不活跃看门狗(run.py:2841-2985)
+## 机制 2:回合级不活跃看门狗(gateway/run.py:2841-2985)
 
 ### 场景/问题
 回合可能因 provider 挂死、工具死循环等停止进展;gateway 的 asyncio 循环本身也可能被饿死。
@@ -66,7 +66,7 @@ Boundaries (keep separate):
 
 ### 实现
 - 看门狗是**线程**,明说原因:"Thread watchdog that remains runnable when gateway asyncio
-  is starved"(run.py:2963)。每 5s 轮询 `agent.get_activity_summary()['seconds_since_activity']`
+  is starved"(gateway/run.py:2963)。每 5s 轮询 `agent.get_activity_summary()['seconds_since_activity']`
   (2964-2971,同一进度契约),`idle ≥ timeout` 触发 `_abandon_timed_out_gateway_turn`(2976)。
 - `_abandon_timed_out_gateway_turn`(2912-2948):cleanup_lock 下检查 worker_done/timeout_fired
   双事件,先到先得(2923-2926);对 agent `request_hard_interrupt(..., TIMEOUT)`;再收割进程。
@@ -103,7 +103,7 @@ Boundaries (keep separate):
 2. 自动清理的匹配谓词要做成"归属 + 时间基线 + 代数"三元组,宁可漏收不可误杀。
 3. 超时打断与正常完成之间用双事件 + 锁裁决,恰好一方胜出。
 
-## 机制 3:会话过期与缓存治理(run.py:11926-12102)
+## 机制 3:会话过期与缓存治理(gateway/run.py:11926-12102)
 
 ### 场景/问题
 网关长驻,会话按重置策略过期(idle/daily)后,缓存的 AIAgent(LLM 客户端、工具 schema、

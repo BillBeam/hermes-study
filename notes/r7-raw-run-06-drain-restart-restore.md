@@ -13,7 +13,7 @@
 
 停机侧(`_stop_impl`,不在本段但为本段所有方法的宿主):
 
-1. `stop()` 先拆活性护栏(run.py:12669-12671)→ `_stop_impl` 置 `_running=False, _draining=True`(12801-12802);
+1. `stop()` 先拆活性护栏(gateway/run.py:12669-12671)→ `_stop_impl` 置 `_running=False, _draining=True`(12801-12802);
 2. `_notify_active_sessions_of_shutdown()`(12812)——适配器还在线,先把「要重启了」发出去;
 3. 预标记 resume_pending(12824-12835,#27856:drain 期间被 SIGKILL 也有耐久标记);
 4. `_drain_active_agents(timeout)`(12840)等 agent+cron+api 三类工作归零;
@@ -63,13 +63,13 @@
 `_finalize_shutdown_agents` 用它兜底(见 §4)。`timed_out` 判定同样三合一(9235-9239)。
 
 计数来源(调用关系):
-- `_running_agent_count` = `len(self._running_agents)`(run.py:7378-7379);
-- `_active_cron_job_count` → `cron.scheduler.get_running_job_ids()`(run.py:7389-7407,导入失败返回 0——测试替身友好);
-- `_active_api_run_count` → `adapters[Platform.API_SERVER].active_agent_work_count()`(run.py:7409-7421);
-- 三者之和即 `_active_work_count()`(run.py:7381-7387),被 §10 的 after-turn 等待复用。
+- `_running_agent_count` = `len(self._running_agents)`(gateway/run.py:7378-7379);
+- `_active_cron_job_count` → `cron.scheduler.get_running_job_ids()`(gateway/run.py:7389-7407,导入失败返回 0——测试替身友好);
+- `_active_api_run_count` → `adapters[Platform.API_SERVER].active_agent_work_count()`(gateway/run.py:7409-7421);
+- 三者之和即 `_active_work_count()`(gateway/run.py:7381-7387),被 §10 的 after-turn 等待复用。
 
 内部闭包 `_maybe_update_status`(9191-9208)只在计数变化或距上次 ≥1s 时重写
-`_update_runtime_status("draining")`(run.py:7793)——runtime-status 文件是给外部监督
+`_update_runtime_status("draining")`(gateway/run.py:7793)——runtime-status 文件是给外部监督
 进程看的心跳,drain 期间必须持续跳动,但不能每 0.1s 写盘。
 
 **设计理由与取舍**:
@@ -107,11 +107,11 @@ test_api_server_active_work_drain.py、test_cron_shutdown_drain.py、test_restar
                 logger.debug("Failed interrupting agent during shutdown: %s", e)
 ```
 
-- `_AGENT_PENDING_SENTINEL`(run.py:2465,`object()` 哨兵)代表「槽位已占、真 agent 未建」——
+- `_AGENT_PENDING_SENTINEL`(gateway/run.py:2465,`object()` 哨兵)代表「槽位已占、真 agent 未建」——
   没东西可中断,跳过;
 - `request_hard_interrupt`(agent/interrupt_compat.py:9-35)优先走新 ABI `hard_interrupt(message)`,
   用 `inspect.getattr_static` 防 MagicMock/`__getattr__` 代理伪装实现,退回旧 `interrupt(message)`;
-- 调用点:`_stop_impl` drain 超时后(run.py:12915-12917),reason 取
+- 调用点:`_stop_impl` drain 超时后(gateway/run.py:12915-12917),reason 取
   `_INTERRUPT_REASON_GATEWAY_RESTART/_SHUTDOWN`,随后 5s 宽限轮询(12918-12921)。
 
 **重实现要点**:1) 中断循环对快照 `list(...)` 迭代,防回调改字典;2) 哨兵占位者必须跳过;
@@ -124,11 +124,11 @@ test_api_server_active_work_drain.py、test_cron_shutdown_drain.py、test_restar
 **问题**:重启会掐断进行中的任务。若不提前告知,用户只看到 bot 沉默;而通知本身又有三个反面问题:
 重复轰炸(同一 chat 多 session)、云端例行自动更新每次都广播扰民、发送路径自身可能让停机卡死。
 
-**实现**(在 stop() 最开头调用,适配器仍在线,run.py:12812):
+**实现**(在 stop() 最开头调用,适配器仍在线,gateway/run.py:12812):
 
 (a) 对每个活跃会话解析投递目标:优先 session store 里持久化的 `origin`,退回运行时缓存
-`_get_cached_session_source`(run.py:16262),最后解析 session_key(`_parse_session_key`,
-run.py:3352)。按 `(platform, chat_id, thread_id)` 三元组去重(9307-9309)——注释明确:
+`_get_cached_session_source`(gateway/run.py:16262),最后解析 session_key(`_parse_session_key`,
+gateway/run.py:3352)。按 `(platform, chat_id, thread_id)` 三元组去重(9307-9309)——注释明确:
 线程化平台同父 chat 仍是不同投递目标,不能只按 chat 去重。
 
 (b) 文案区分重启/停机,重启附「重启后发任意消息即可续跑」提示:
@@ -147,7 +147,7 @@ run.py:3352)。按 `(platform, chat_id, thread_id)` 三元组去重(9307-9309)�
 
 (c) 逐平台配置开关 `gateway_restart_notification=false` 可整体禁掉(9317-9323 会话侧、
 9406-9412 home 侧);in-chat `/restart` 发起者所在 chat 的通知会 reply 到触发消息
-(9325-9334,`_restart_command_source` 于 run.py:5971 初始化)。
+(9325-9334,`_restart_command_source` 于 gateway/run.py:5971 初始化)。
 
 (d) in-chat 重启时跳过 home-channel 广播(9366-9368)——发起人自己知道,不用再广播。
 
@@ -174,8 +174,8 @@ run.py:3352)。按 `(platform, chat_id, thread_id)` 三元组去重(9307-9309)�
 但**逐会话中断 ping 故意不受抑制**——排干净的停机里它天然为空集,强中断场景里它承载
 「你的任务被掐、发消息可续」的真信息。`drain_notification_suppressed`
 (gateway/drain_control.py:229-251)只认**当前实例纪元**的标记:标记体带 `epoch`
-(进程实例化纪元,drain_control.py:68),纪元不匹配视为陈旧标记直接忽略
-(drain_control.py:189-207 的 `_marker_epoch_is_stale`,宽松判定:算不出当前纪元或标记无纪元
+(进程实例化纪元,gateway/drain_control.py:68),纪元不匹配视为陈旧标记直接忽略
+(gateway/drain_control.py:189-207 的 `_marker_epoch_is_stale`,宽松判定:算不出当前纪元或标记无纪元
 都按「有效」处理)——防止耐久卷上残留的孤儿标记压掉新 gateway 的合法广播。
 
 (f) home 广播迭代 `list(self.adapters.items())`(9401):
@@ -283,7 +283,7 @@ session 槽位被新 agent 接管,旧心跳还在替已死的 run 报「running:
 ```
 
 三重校验:agent 还在、executor future 未完成、session 槽位里的 agent **身份**(`is`)仍是自己。
-调用点:心跳循环每拍醒来先查(run.py:25003-25006),失败即 break。
+调用点:心跳循环每拍醒来先查(gateway/run.py:25003-25006),失败即 break。
 
 **重实现要点**:1) 派生的周期性任务每拍都要验「我服务的 run 还活着且还拥有槽位」;
 2) 所有权比对用身份(is)不用键相等——键会被新 run 复用;3) 判定做成纯函数(读三个输入),
@@ -323,7 +323,7 @@ bot 沉默、runtime-status 心跳冻结、SIGTERM 无法被服务。/new 重置
                 "on its own). (#53175)",
 ```
 
-- 工作线程执行(`_run_in_executor_with_context`,run.py:21375)+ `_CLEANUP_TIMEOUT_S=30.0`
+- 工作线程执行(`_run_in_executor_with_context`,gateway/run.py:21375)+ `_CLEANUP_TIMEOUT_S=30.0`
   上界(9556);超时只取消 await,**工作线程放任自流**(完成或泄漏)——调用方照常前进。
   取舍:接受偶发线程泄漏,换取 loop 永不被清理挂死。
 - shutdown/过期场景先置 `_end_session_on_close=False`:会话还要被续跑,close 不许终结会话。
@@ -357,7 +357,7 @@ bot 沉默、runtime-status 心跳冻结、SIGTERM 无法被服务。/new 重置
   ——宁可泄漏也不在 worker 还活着时拆资源;
 - task 存进 `self._deferred_agent_cleanup_tasks` 集合持强引用 + done_callback 自摘
   (9588-9594)——裸 create_task 只有弱引用,pending task 可能被 GC。
-- 调用点:hygiene 压缩超时(run.py:17033-17037)与非超时 unwind(17105-17109)。
+- 调用点:hygiene 压缩超时(gateway/run.py:17033-17037)与非超时 unwind(17105-17109)。
 
 ### 6c. `_cleanup_agent_resources`(9636-9693)—— 真正的清理序
 
@@ -394,10 +394,10 @@ test_shutdown_memory_provider_messages.py、test_shutdown_cache_cleanup.py。
 阈值 `_STUCK_LOOP_THRESHOLD = 3`(9695-9696)。
 
 - **停机侧计数**:`_increment_restart_failure_counts(active_session_keys)`(9698-9723),
-  `_stop_impl` 在有活跃 agent 时调用(run.py:13099-13100)。活跃会话计数 +1,写回原子
+  `_stop_impl` 在有活跃 agent 时调用(gateway/run.py:13099-13100)。活跃会话计数 +1,写回原子
   (`atomic_json_write`);
 - **启动侧熔断**:`_suspend_stuck_loop_sessions()`(9725-9772),start() 在
-  `suspend_recently_active()` **之后**调用(run.py:11028):
+  `suspend_recently_active()` **之后**调用(gateway/run.py:11028):
 
 ```python
 # gateway/run.py:9743-9756 @ 863e313
@@ -420,7 +420,7 @@ test_shutdown_memory_provider_messages.py、test_shutdown_cache_cleanup.py。
   `suspended=True` 压过 resume_pending(见 §14 候选过滤 10481),会话下次消息拿到干净新会话;
   随后整个文件删除,计数清零重来(9766-9770)。
 - **成功侧清零**:`_clear_restart_failure_count(session_key)`(9774-9793),
-  成功 turn 后与 `clear_resume_pending` 一起调用(run.py:17655-17663)——计数只累积
+  成功 turn 后与 `clear_resume_pending` 一起调用(gateway/run.py:17655-17663)——计数只累积
   **连续**「重启时仍在跑」的轮次。
 
 **文档-代码冲突候选(代码内注释自相矛盾)**:`_increment_restart_failure_counts` 里:
@@ -533,7 +533,7 @@ gateway 之外,但环境继承会让护栏误伤——不洗掉则 watcher 静�
 `--user` 曾害死 system-unit 部署(MainPID 查空 → helper 不派生 → gateway 死到手工重启,
 注释 10013-10020)。整体 best-effort:调用方 `_stop_impl` 在其后**无条件**以退出码 75
 (TEMPFAIL)退出,配合 `RestartForceExitStatus=75` 让 systemd 把计划重启当受控失败拉起
-(run.py:13116-13129 的注释交代:非 root 单元 `systemd-run --system` 常被 Polkit 拒、
+(gateway/run.py:13116-13129 的注释交代:非 root 单元 `systemd-run --system` 常被 Polkit 拒、
 headless 无 user bus、operator 可能用 `Restart=on-failure`)——helper 只是锦上添花的
 「立即」通道,75 才是兜底通道。
 
@@ -550,7 +550,7 @@ headless 无 user bus、operator 可能用 `Restart=on-failure`)——helper 只
 自己正在收的回答被拦腰砍断。
 
 **实现**:重启序列在 stop() 之前插入一个独立等待段:拒收新 turn(`_draining=True`,由
-request_restart 置),然后等 `_active_work_count()`(agent+cron+api 三合一,run.py:7381)
+request_restart 置),然后等 `_active_work_count()`(agent+cron+api 三合一,gateway/run.py:7381)
 归零,上限 `_restart_after_turn_timeout`:
 
 ```python
@@ -609,13 +609,13 @@ request_restart 置),然后等 `_active_work_count()`(agent+cron+api 三合一,r
   (`_stop_impl` 会取消该集合全部成员,而 `_run_restart` 正 await `_stop_task`,取消会把
   CancelledError 传进 `_stop_impl`,`_shutdown_event.set()`/退出码 75 都到不了);
   又必须存 `self._restart_task` 持强引用(裸 create_task 弱引用可被 GC);
-  `_stop_impl` 的取消循环显式跳过它(run.py:12987)。
+  `_stop_impl` 的取消循环显式跳过它(gateway/run.py:12987)。
 
 **调用者**(三个入口,统一汇到此):
 - in-chat `/restart`:gateway/slash_commands.py:1624-1629——supervisor/容器环境
   `via_service=True`,裸进程 `detached=True`(setsid 链在 systemd KillMode=mixed / Docker tini
   下都活不下来,注释 1610-1618);
-- SIGUSR1:run.py:26699-26700(`request_restart(detached=False, via_service=True)`;
+- SIGUSR1:gateway/run.py:26699-26700(`request_restart(detached=False, via_service=True)`;
   hermes_cli/gateway.py:258 文档化此约定);
 - `hermes update` 自更新流程(hermes_cli/update_cmd.py:4960 注释链)。
 
@@ -659,7 +659,7 @@ request_restart 置),然后等 `_active_work_count()`(agent+cron+api 三合一,r
 ### 12b. 排队门:`_queue_startup_restore_event`(10229-10243)+ `_drain_startup_restore_queue`(10245-10269)
 
 `_handle_message` 在门开着时把**非 internal、非重放**的入站消息全部入队直接返回
-(run.py:14383-14389);排空时给事件打 `_hermes_startup_restore_replay=True` 标记重放
+(gateway/run.py:14383-14389);排空时给事件打 `_hermes_startup_restore_replay=True` 标记重放
 (10263-10266),防止门还没关时重放消息又被入队成死循环。
 
 ### 12c. `_finish_startup_restore`(10271-10327)—— 有界门闩
@@ -684,8 +684,8 @@ request_restart 置),然后等 `_active_work_count()`(agent+cron+api 三合一,r
                         "background.",
 ```
 
-- 上界 `HERMES_STARTUP_RESTORE_DRAIN_TIMEOUT`(默认 30s,run.py:912;桥接自 config
-  `agent.gateway_startup_restore_drain_timeout`,run.py:967-993);非正值 = 旧「无限等」;
+- 上界 `HERMES_STARTUP_RESTORE_DRAIN_TIMEOUT`(默认 30s,gateway/run.py:912;桥接自 config
+  `agent.gateway_startup_restore_drain_timeout`,gateway/run.py:967-993);非正值 = 旧「无限等」;
 - 选 `asyncio.wait` 而非 `wait_for/gather`:超时**不取消** pending——慢 turn 继续跑;
 - 提前放行安全的根据:§14 在 spawn 前**同步**预占了 `_running_agents` 槽位,排空的消息会
   排在槽位后面而不是再起一个 agent(docstring 10277-10283);
@@ -709,17 +709,17 @@ request_restart 置),然后等 `_active_work_count()`(agent+cron+api 三合一,r
 合同评审毙掉(#61790),本机制的核心改进是「歧义必须可见」。
 
 **实现**:gateway/delivery_ledger.py 在 state.db 里按发送三检查点记账
-(pending→attempting→delivered/failed,delivery_ledger.py:12-17);启动时本方法
-(调用点 run.py:11447,**先于** `_schedule_resume_pending_sessions`,注释 11442-11446:
+(pending→attempting→delivered/failed,gateway/delivery_ledger.py:12-17);启动时本方法
+(调用点 gateway/run.py:11447,**先于** `_schedule_resume_pending_sessions`,注释 11442-11446:
 补投已有答案严格便宜且更正确于重跑整个 turn):
 
-1. `ledger_enabled()`(delivery_ledger.py:339,默认开,`gateway.delivery_ledger: false` 关)
+1. `ledger_enabled()`(gateway/delivery_ledger.py:339,默认开,`gateway.delivery_ledger: false` 关)
    与 `sweep_recoverable(deliverable_platforms=…)` 都套 `asyncio.to_thread`(10369-10379)
    ——SQLite IO 不上事件循环;
 2. **只认领本 boot 能发的平台**:`self.adapters` 只含 connect() 成功者;每次认领消耗该行
    3 次重投预算之一,连不上的平台若也认领,就会「每 boot 烧一次预算、一次没真发过就到顶」
-   (delivery_ledger.py:250-255;sweep 内 10379 与 delivery_ledger.py:279-285);
-   认领本身是 owner-stamp 守卫的原子 UPDATE,双 gateway 竞扫不会双认领(delivery_ledger.py:286-292);
+   (gateway/delivery_ledger.py:250-255;sweep 内 10379 与 gateway/delivery_ledger.py:279-285);
+   认领本身是 owner-stamp 守卫的原子 UPDATE,双 gateway 竞扫不会双认领(gateway/delivery_ledger.py:286-292);
 3. 歧义标记:
 
 ```python
@@ -729,17 +729,17 @@ request_restart 置),然后等 `_active_work_count()`(agent+cron+api 三合一,r
                 content = RECOVERED_MARKER + content
 ```
 
-   `needs_marker = state != "pending"`(delivery_ledger.py:301-303):send 从未开始的行
+   `needs_marker = state != "pending"`(gateway/delivery_ledger.py:301-303):send 从未开始的行
    原样补投;mid-send(attempting)与曾被拒(failed)的行前缀
-   「♻️ Recovered reply — … may be a duplicate」(delivery_ledger.py:68-71)——诚实的
+   「♻️ Recovered reply — … may be a duplicate」(gateway/delivery_ledger.py:68-71)——诚实的
    at-least-once,可能重复但绝不静默重复;
 4. 成功 `mark_delivered`、失败 `mark_failed`(10419-10434);无论成败,**只要行被认领**就
    `clear_resume_pending(session_key)`(10440-10448)——答案已到(或已欠付),不能再让
    恢复路径重跑重付一遍;
-5. 毒行界:3 次尝试上限 + 24h 陈旧线 → abandoned,7 天保留后剪除(delivery_ledger.py:61-64)。
+5. 毒行界:3 次尝试上限 + 24h 陈旧线 → abandoned,7 天保留后剪除(gateway/delivery_ledger.py:61-64)。
 
 **文档-代码冲突候选**:docstring 说 "Returns the number of redeliveries **attempted**"
-(run.py:10358),但 `redelivered` 只在 `mark_delivered` 成功分支自增(10420-10422)——
+(gateway/run.py:10358),但 `redelivered` 只在 `mark_delivered` 成功分支自增(10420-10422)——
 实际返回的是**成功数**。仅返回值语义注释失准,调用方(11447)不消费返回值,无行为影响。
 
 **重实现要点**:1) 「产出但未确认送达」是独立于转录的资产,要单独记账,检查点必须夹住 await;
@@ -756,7 +756,7 @@ test_restart_redelivery_dedup.py。
 
 **机制**:枚举 session store 中 `resume_pending` 且 `resume_reason ∈ _AUTO_RESUME_REASONS`
 的会话,为每个合成一个**空文本 internal 事件**,交 §12a 跑一遍完整消息管线。空文本是关键:
-`_handle_message_with_agent` 的 `_is_resume_pending` 分支(run.py:5307-5335)负责注入
+`_handle_message_with_agent` 的 `_is_resume_pending` 分支(gateway/run.py:5307-5335)负责注入
 reason-aware 恢复系统提示(交互平台报告恢复并询问,webhook/API 等无人平台直接续做任务,
 #57056),本方法不写文案,单一来源不重复。
 
@@ -767,7 +767,7 @@ gateway/session.py:2877-2881)。三者共义「mid-turn 被杀」。
 
 候选过滤(10478-10485):`resume_pending and not suspended and origin is not None and
 reason ∈ AUTO_RESUME and (platform is None or 匹配)`——`suspended` 在此压过恢复标记
-(§7 熔断的执行点);`platform` 参数供重连路径定向重试(run.py:12512:启动时适配器离线的
+(§7 熔断的执行点);`platform` 参数供重连路径定向重试(gateway/run.py:12512:启动时适配器离线的
 平台重连后,只补自己平台的会话,不碰别家在飞恢复)。
 
 五重闸门(逐条):
@@ -777,7 +777,7 @@ reason ∈ AUTO_RESUME and (platform is None or 匹配)`——`suspended` 在此
    「带恢复候选的 boot」即跳过本 boot 的全部 auto-resume;干净 boot 不计数;失败 fail-OPEN)。
    会话保持 resume_pending,真人消息仍可续——「把人放回环里」;
 2. **新鲜度窗**(10513-10515):`last_resume_marked_at`(退回 `updated_at`)超过
-   `_auto_continue_freshness_window()`(run.py:949-964,委托 gateway/session.py 的
+   `_auto_continue_freshness_window()`(gateway/run.py:949-964,委托 gateway/session.py 的
    单一真源,配置 `agent.gateway_auto_continue_freshness`)即跳过——太久前的中断不该突然诈尸;
 3. **已在跑**(10517-10519):`_is_session_running` 防启动 pass 与重连 pass 重复续;
 4. **适配器就绪**(10522-10530):不就绪静默跳过,留给重连 pass 或下条真消息;
@@ -816,7 +816,7 @@ tests/gateway/test_stuck_loop.py(loop guard 部分)。
 ## 15. `_startup_should_abort` / `_abort_startup_if_shutdown_requested` —— 启动中途弃航(10591-10622)
 
 启动是长流程(逐平台 connect),期间可能收到 SIGTERM/`/restart`。`start()` 在每个平台循环
-头部查询(run.py:11052-11053):
+头部查询(gateway/run.py:11052-11053):
 
 ```python
 # gateway/run.py:10591-10596 @ 863e313
@@ -845,15 +845,15 @@ tests/gateway/test_stuck_loop.py(loop guard 部分)。
 gateway 是要手工 SIGKILL 的僵尸。
 
 **实现**(实现体在 gateway/shutdown_watchdog.py,本段是装配点):
-- `_arm_loop_floor_timer(loop)`(shutdown_watchdog.py:96-107):自续期 5s 定时器,
+- `_arm_loop_floor_timer(loop)`(gateway/shutdown_watchdog.py:96-107):自续期 5s 定时器,
   保证 selector 永远有一个有限超时——loop 若还能跑 timer,现存 async 恢复任务就有机会复位;
-- `start_loop_liveness_watchdog(loop)`(shutdown_watchdog.py:110+):**OS 线程**周期探测
+- `start_loop_liveness_watchdog(loop)`(gateway/shutdown_watchdog.py:110+):**OS 线程**周期探测
   (30s 一探、10s 应答窗、3 击出局),连续失败即 dump 全线程栈 + `os._exit(75)` 让
   supervisor 拉起——「循环外」是本质:诊断与自杀不能依赖被诊断的循环;
 - 开关:`gateway.loop_watchdog: false`,**config-only、无环境变量覆盖**(#69089,
   10627-10632 docstring 明示);两个句柄各自幂等装配(is None / not is_alive 才建,
   10633-10644);
-- 拆除(10646-10662):`stop()` 第一步调用(run.py:12669-12671)——停机本身会重载 loop
+- 拆除(10646-10662):`stop()` 第一步调用(gateway/run.py:12669-12671)——停机本身会重载 loop
   (drain 轮询、executor 等待),不先拆护栏会被 watchdog 误判冻死而 `os._exit`,
   docstring:「Disarm lifetime liveness guards before shutdown can load the loop」。
   拆除函数把属性先置 None 再操作旧句柄,幂等且异常全吞。
@@ -872,9 +872,9 @@ test_shutdown_forensics.py。
 
 | # | 位置 | 内容 | 判定 |
 |---|------|------|------|
-| 1 | run.py:9717-9718 vs 9713-9716 | 行内注释称「保留不活跃但 >0 的旧计数条目」,代码实际只保留活跃键、丢弃其余(与 docstring 9702-9704 一致) | 注释残留,行为以 docstring 为准;候选 ▲ |
-| 2 | run.py:10358 | docstring 称返回「redeliveries **attempted**」,实际 `redelivered` 只计 `mark_delivered` 成功分支(10420-10422),是成功数 | 返回值语义注释失准,无调用方受影响;候选 ◇ |
-| 3 | website/docs/user-guide/messaging/index.md:235-252 | 送达账本文档(3 次/24h/7 天/标记语义/默认开) | 与 delivery_ledger.py:61-71、339-350 逐条核对**一致**,非冲突,记录为已验证 |
+| 1 | gateway/run.py:9717-9718 vs 9713-9716 | 行内注释称「保留不活跃但 >0 的旧计数条目」,代码实际只保留活跃键、丢弃其余(与 docstring 9702-9704 一致) | 注释残留,行为以 docstring 为准;候选 ▲ |
+| 2 | gateway/run.py:10358 | docstring 称返回「redeliveries **attempted**」,实际 `redelivered` 只计 `mark_delivered` 成功分支(10420-10422),是成功数 | 返回值语义注释失准,无调用方受影响;候选 ◇ |
+| 3 | website/docs/user-guide/messaging/index.md:235-252 | 送达账本文档(3 次/24h/7 天/标记语义/默认开) | 与 gateway/delivery_ledger.py:61-71、339-350 逐条核对**一致**,非冲突,记录为已验证 |
 
 ---
 

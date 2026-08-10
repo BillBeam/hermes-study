@@ -3059,7 +3059,7 @@ erase + reset。
   测试因此大量使用 `bare_cli` 夹具（见 `tests/cli/test_cli_force_redraw.py:21`）。
 - **渲染回调 → `run()` 里的布局定义（16600–17400）**：本段只定义"画什么"，
   "挂在哪"全在 `run()` 里。两段必须一起读才能理解一个部件。已建立的对应表见 §1.2 + §2.4.1。
-- **`_stream_delta` ← agent**：由 `cli_agent_setup_mixin.py:514` 绑定，且只在
+- **`_stream_delta` ← agent**：由 `hermes_cli/cli_agent_setup_mixin.py:514` 绑定，且只在
   `streaming_enabled` 为真时绑定。
 - **`_turn_summary_record` ← `_on_tool_progress`(12080)**：跨段。
 

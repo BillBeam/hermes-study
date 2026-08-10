@@ -1402,7 +1402,13 @@ export function sshFailureMessage(
 
 命令(可复现):
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 它不是可重跑命令。**
+vitest 要 `apps/desktop/node_modules`,而基线是只读 checkout、**没有 `apps/desktop/node_modules`**;补它只能在基线里 `npm ci`,
+那会弄脏全项目的引用基准(CLAUDE.md 边界第一条)。R10B 跑它用的是基线之外一份
+**会话专属副本**,该目录已随会话消失 —— 所以这条命令在新容器里**原理上跑不出原值**。
+按派工书如实声明,不伪造输出;块正文一字未动。
+
+```text
 cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project ui \
   src/app/artifacts/index.test.ts src/app/cron/blueprints.test.ts src/app/cron/cron-job-model.test.ts \
   src/app/messaging/index.test.tsx src/app/overlays/panel.test.tsx src/components/onboarding/index.test.tsx \

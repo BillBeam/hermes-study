@@ -14,7 +14,7 @@
 - 注意:`gateway/run.py:3145 @ 863e313` 另有一个**同名不同物**的 `_load_gateway_config() -> dict`,
   它只是裸读 config.yaml 返回 dict(带 managed 覆盖),与本文件的 `load_gateway_config() -> GatewayConfig` 是两条路径。
   run.py 内 90+ 处 `_load_gateway_config()` 调用都是 dict 版;结构化版只在 Runner 构造、
-  multiplex 二级 profile 启动(run.py:13272-13275)等处使用。
+  multiplex 二级 profile 启动(gateway/run.py:13272-13275)等处使用。
 
 ---
 
@@ -163,7 +163,7 @@ scope 存在时 os.environ 完全不可见。单 profile 场景 scope 为 None,�
 `_getenv_str`(252-254)/`_getenv_int`(257-264)是薄封装;`_apply_env_overrides` 全程用它们
 (1817-1818 局部别名 `getenv = _getenv_str`),所以整个平台 env 发现天然 scope 感知。
 **调用关系**:scope 由 `gateway/run.py:1938-1971 @ 863e313` `_profile_runtime_scope` 安装
-(`set_hermes_home_override` + `set_secret_scope`);`run.py:2345-2348` 还把 `_getenv` 导入 run.py 使用。
+(`set_hermes_home_override` + `set_secret_scope`);`gateway/run.py:2345-2348` 还把 `_getenv` 导入 run.py 使用。
 **重实现要点**:①多租户进程的凭据读取必须走可插拔 scope 且 scope 存在时 fail-closed;
 ②scope 用 contextvar 使其能随 `copy_context()` 传进 worker 线程。
 
@@ -310,9 +310,9 @@ def platform_binds_port(platform_value: str, extra: Optional[dict] = None) -> bo
 ```
 
 **两处执法点**:
-1. `gateway/run.py:1919-1920 @ 863e313` import 后,`run.py:13285-13300` 在
+1. `gateway/run.py:1919-1920 @ 863e313` import 后,`gateway/run.py:13285-13300` 在
    `_start_one_profile_adapters` 里对二级 profile 扫描 `enabled and _platform_binds_port(...)`,
-   命中即抛 `SecondaryPortBindingConfigError`(run.py:1933 定义,MultiplexConfigError 子类),
+   命中即抛 `SecondaryPortBindingConfigError`(gateway/run.py:1933 定义,MultiplexConfigError 子类),
    错误文案直接给修复指令("Remove these platform entries … or configure them only on the default profile")。
 2. `hermes_cli/web_server.py:9340-9342 @ 863e313`:dashboard 在**写入配置前**校验
    (`if platform_id not in PORT_BINDING_PLATFORM_VALUES: return None`),
@@ -573,7 +573,7 @@ DEFAULT_STREAMING_CURSOR: str = " ▉"
 ```
 与 stream_consumer 的关系:`gateway/stream_consumer.py:31-33 @ 863e313` 直接
 `from gateway.config import DEFAULT_STREAMING_* as _DEFAULT_...`,其
-`StreamConsumerConfig`(stream_consumer.py:128-132)的默认值就是这三个常量。
+`StreamConsumerConfig`(gateway/stream_consumer.py:128-132)的默认值就是这三个常量。
 即:**配置对象(StreamingConfig,用户面)与执行对象(StreamConsumerConfig,消费 token 流的机器)
 共享同一组默认值常量**,任何一侧单改默认会破坏"未配置=一致节奏"的不变量。
 运行时桥接在 `gateway/run.py:23759-23826 @ 863e313` `_build_stream_consumer_config`:
@@ -688,7 +688,7 @@ def _has_usable_api_server_key(key: object) -> bool:
 | `reset_by_type`(884) | `{}` | 按会话类型(dm/group/thread)覆盖 |
 | `reset_by_platform`(885) | `{}` | 按平台覆盖 |
 | `reset_triggers`(888) | `["/new","/reset"]` | 触发重置的斜杠命令 |
-| `quick_commands`(891) | `{}` | 用户自定义、**绕过 agent 循环**的斜杠命令;消费 run.py:14979-14983, 15408-15424 |
+| `quick_commands`(891) | `{}` | 用户自定义、**绕过 agent 循环**的斜杠命令;消费 gateway/run.py:14979-14983, 15408-15424 |
 | `sessions_dir`(894) | `~/.hermes/sessions` | 会话存储路径 |
 | `write_sessions_json`(901) | True | 是否继续写 legacy sessions.json 镜像;主副本在 state.db gateway_routing 表(#9006);默认 True 为外部工具/降级兼容;消费 session.py:1251-1253, 1532, 1563 |
 | `always_log_local`(904) | True | cron 输出总是落本地文件 |
@@ -700,7 +700,7 @@ def _has_usable_api_server_key(key: object) -> bool:
 | `max_concurrent_sessions`(920) | None | 正整数=并发活跃会话上限 |
 | `multiplex_profiles`(927) | False | 多 profile 复用开关;开=默认 profile 的 gateway 服务全主机 profile(session key 打 profile 戳、按 profile 解析凭据);关=严格旧行为 |
 | `systemd_watchdog_seconds`(931) | 0 | 0=Type=simple、不发 sd_notify;见 §1.5 |
-| `loop_watchdog`(938) | True | 进程内事件循环活性看门狗(#69089):daemon 线程 call_soon_threadsafe 探测,连续失败即 dump 全线程栈并以 service-restart 码硬退,供 supervisor 拉起;消费 run.py:10627-10631 |
+| `loop_watchdog`(938) | True | 进程内事件循环活性看门狗(#69089):daemon 线程 call_soon_threadsafe 探测,连续失败即 dump 全线程栈并以 service-restart 码硬退,供 supervisor 拉起;消费 gateway/run.py:10627-10631 |
 | `unauthorized_dm_behavior`(941) | "pair" | 未授权 DM:发配对流程 or 无视 |
 | `streaming`(944) | StreamingConfig() | 见 §8 |
 | `session_store_max_age_days`(951) | 90 | SessionEntry 超龄剪枝(内存 dict+sessions.json);0=关;用户无感——回来即如 reset 后新会话(946-950 注释) |
@@ -768,7 +768,7 @@ dict 插入序不稳定,重启/中途注册导致重排 → 前缀字节变化 �
 ```
 分辨率:platform > session_type > default,**首个命中即返回整个策略对象**(不做字段级合并)。
 消费:`gateway/session.py:2096, 2146, 2197, 2444 @ 863e313`(idle/daily 判定与 GC),
-`gateway/run.py:16478`。get_home_channel 消费:run.py:9402, 11752, 17406。
+`gateway/run.py:16478`。get_home_channel 消费:gateway/run.py:9402, 11752, 17406。
 
 ### 10.4 to_dict / from_dict(1049-1217)
 
@@ -822,7 +822,7 @@ from_dict 要点(按行):
 陌生来信是常态(垃圾邮件),对每封未授权邮件发"配对邀请"等于给 spammer 自动回执;
 **全局 default 不能把 email 拉进 pair**,只有 email 平台块显式写了才行。
 get_notice_delivery(1237-1246):平台 extra 显式值 > "public",无全局字段(公告默认公开发)。
-消费:run.py:14460(_get_unauthorized_dm_behavior 包装)、run.py:13905-13906、
+消费:gateway/run.py:14460(_get_unauthorized_dm_behavior 包装)、gateway/run.py:13905-13906、
 `gateway/authz_mixin.py`、telegram adapter。
 
 **重实现要点(GatewayConfig 层)**:①渲染进 prompt 的任何列表必须字节稳定(排序);
@@ -1168,7 +1168,7 @@ start_gateway() 的连接循环拉起。
 
 ---
 
-## 14. 与 gateway/run.py load_gateway_config_for_runner 的关系(run.py:1974-2006)
+## 14. 与 gateway/run.py load_gateway_config_for_runner 的关系(gateway/run.py:1974-2006)
 
 `gateway/run.py:1974-2006 @ 863e313`
 ```python
@@ -1207,7 +1207,7 @@ def load_gateway_config_for_runner() -> "GatewayConfig":
         return cfg
 ```
 **两阶段装载**:第一遍无 scope 装载,只为读出 `multiplex_profiles` 开关(开关本身在 config.yaml/
-进程 env,不需要 scope);若开,则进 `_profile_runtime_scope`(run.py:1937-1971:
+进程 env,不需要 scope);若开,则进 `_profile_runtime_scope`(gateway/run.py:1937-1971:
 `set_hermes_home_override` + `hydrate_profile_secret_sources` + `set_secret_scope`,见 §1.7)
 **重装一遍**——这次 `_getenv` 走 profile 的 `.env` secret scope,主 profile 的 bot token 才解析得到
 (#64674:token 只在 `profiles/<name>/.env` 时,unscoped 装载读 os.environ 落空,平台被
@@ -1218,7 +1218,7 @@ credential gate 跳过)。失败任何一步都回落第一遍结果(fail-open)�
 ```
 测试注入 `config=` 时完全绕过。随后 5886 `set_multiplex_active(...)` 把进程标成 multiplexer,
 使 `agent.secret_scope.get_secret` 对**无 scope 的凭据读取 fail-closed**(漏迁移的读法大声崩,
-不静默跨 profile 泄漏)。二级 profile 的对称路径:run.py:13272-13275
+不静默跨 profile 泄漏)。二级 profile 的对称路径:gateway/run.py:13272-13275
 (`_start_one_profile_adapters` 在各自 `_profile_runtime_scope(profile_home)` 里调
 `load_gateway_config()`)。
 **设计理由**:config.py 保持"scope 在则用 scope"的被动感知,**由调用方决定 scope**;

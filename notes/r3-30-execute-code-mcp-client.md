@@ -53,7 +53,7 @@ In both cases, only the script's stdout is returned to the LLM; intermediate
 tool results never enter the context window.
 ```
 
-入口 `execute_code()` 的顶层链条(`code_execution_tool.py:1266-1332`):
+入口 `execute_code()` 的顶层链条(`tools/code_execution_tool.py:1266-1332`):
 1. 可用性/空码检查 → 2. 读 `env_type`(terminal 后端类型) → 3. **审批守卫** `check_execute_code_guard`(A5) → 4. 清中断位 → 5. 若 `env_type != "local"` 走 `_execute_remote`(文件 RPC),否则走本地 UDS/TCP 路径。
 
 工具白名单只有 7 个,是**沙箱可调工具的全集**,与会话已启用工具取交集:
@@ -71,7 +71,7 @@ SANDBOX_ALLOWED_TOOLS = frozenset([
 ])
 ```
 
-资源上限(`code_execution_tool.py:74-77`):`DEFAULT_TIMEOUT=300`s、`DEFAULT_MAX_TOOL_CALLS=50`、`MAX_STDOUT_BYTES=50_000`、`MAX_STDERR_BYTES=10_000`。
+资源上限(`tools/code_execution_tool.py:74-77`):`DEFAULT_TIMEOUT=300`s、`DEFAULT_MAX_TOOL_CALLS=50`、`MAX_STDOUT_BYTES=50_000`、`MAX_STDERR_BYTES=10_000`。
 
 ---
 
@@ -218,7 +218,7 @@ if _is_hermes_provider_credential(name):
 
 判定 `_is_hermes_provider_credential`(`:50-90`)靠静态 `_HERMES_PROVIDER_ENV_BLOCKLIST` + 动态 `_is_hermes_internal_secret`(枚举不出的 `AUXILIARY_*_API_KEY / GATEWAY_RELAY_*`),且 **import 失败也 fail-closed**(`:75-82` 返回 `True` = 视为受保护、拒放行)。config.yaml 路径同样过这道过滤(`:147-157`)。非 Hermes 第三方 key(`TENOR_API_KEY/NOTION_TOKEN`)不在黑名单,正常可注册。
 
-**secret_scope 联动(profile 多路复用)**:passthrough 值的解析走 `resolve_passthrough_value`(`env_passthrough.py:182-218`)→ `agent/secret_scope.py`。多路复用网关一个进程服务多 profile,不能把各 profile 的 `.env` union 进 `os.environ`(会串号)。`get_secret`(`secret_scope.py:132-186`)语义:
+**secret_scope 联动(profile 多路复用)**:passthrough 值的解析走 `resolve_passthrough_value`(`tools/env_passthrough.py:182-218`)→ `agent/secret_scope.py`。多路复用网关一个进程服务多 profile,不能把各 profile 的 `.env` union 进 `os.environ`(会串号)。`get_secret`(`agent/secret_scope.py:132-186`)语义:
 
 `agent/secret_scope.py:159-183 @ 863e313`
 ```python
@@ -251,7 +251,7 @@ if _MULTIPLEX_ACTIVE:
 
 即:多路复用开启且**无 scope** 的凭证读会**抛 `UnscopedSecretError`**,而不是静默回落到 `os.environ`(可能是别的 profile 的值)。`_is_global_env`(`:125-129`)对真正进程级变量(`HERMES_HOME/PATH/TZ/HERMES_KANBAN_*/TERMINAL_*` 等)例外,始终读 `os.environ`。
 
-**设计理由**:注释直指 GHSA-rhgp-j443-p4rf 的隧道 bypass;fail-closed 抛错的理由是"un-migrated or newly-added call site fails loud at that exact line instead of leaking another profile's value"(`secret_scope.py:16-19`)。
+**设计理由**:注释直指 GHSA-rhgp-j443-p4rf 的隧道 bypass;fail-closed 抛错的理由是"un-migrated or newly-added call site fails loud at that exact line instead of leaking another profile's value"(`agent/secret_scope.py:16-19`)。
 
 **取舍**:单 profile 部署下 scope 只是覆盖层,scope miss 回落 os.environ,否则 cron 任务(每个 job 都套 `set_secret_scope`)会看不到进程注入的凭证而 401(`:166-171`)。
 
@@ -300,7 +300,7 @@ if _MULTIPLEX_ACTIVE:
 
 **设计理由**:注释 `#33057`(CLI 交互下 per-call terminal 守卫靠上下文传播恢复)、`#30882`(网关沙箱工具调用曾静默自动批准危险命令)。
 
-**取舍**:整脚本审批是 one-shot(整段一次批,不逐调用弹);CLI 交互下不走整脚本审批(否则每次 execute_code 都弹),靠 per-call terminal 守卫(上下文已传播)兜底(`approval.py:4292-4298`)。
+**取舍**:整脚本审批是 one-shot(整段一次批,不逐调用弹);CLI 交互下不走整脚本审批(否则每次 execute_code 都弹),靠 per-call terminal 守卫(上下文已传播)兜底(`tools/approval.py:4292-4298`)。
 
 **重实现要点**:任何"工具派发发生在非请求线程"的架构,都必须把审批/权限回调随 ContextVar 一起 `copy_context()` 搬进 worker,且装载失败 fail-closed(无回调=拒);对不过工具层的任意代码执行,要在派生前加一道整体审批门,cron 无人场景默认 deny。
 
@@ -400,7 +400,7 @@ stderr_text = redact_sensitive_text(stderr_text, code_file=True)
 
 Hermes 作为 MCP **客户端**连接外部 server(stdio 子进程 / HTTP)。外部 server 的**工具名、工具描述、schema、甚至它是不是恶意包**都不可信。防线自外向内:配置加载期过滤(B4)→ 生成期命名撞车 fail-closed(B1)→ 描述注入扫描(B2)→ spawn 前 OSV 恶意包预检(B3)→ spawn 后 watchdog+孤儿清理(B5)→ schema 缓存懒注册也复用扫描(B6)→ 运行期 list_changed 动态注册(B7)→ OAuth(B8)。
 
-`MCPServerTask`(`mcp_tool.py:1821`)是每 server 一个的长生命周期任务,`run()`(`:3052`)是连接/重连/退避主循环。
+`MCPServerTask`(`tools/mcp_tool.py:1821`)是每 server 一个的长生命周期任务,`run()`(`:3052`)是连接/重连/退避主循环。
 
 ---
 
@@ -501,7 +501,7 @@ def mcp_prefixed_tool_name(server_name: str, tool_name: str) -> str:
             raise ValueError(
 ```
 
-`check_package_for_malware`(`tools/osv_check.py:66-111`)从 `command` 推生态(`npx→npm`,`uvx/pipx→PyPI`,其它跳过)、从 args 解析包名版本、查 `https://api.osv.dev/v1/query`,命中 `MAL-*` 返回 `BLOCKED: ...`。**fail-open**:网络错/超时/解析失败一律放行(`:93-97`)。结果缓存 1h(clean 和 blocked 都缓存,失败不缓存)——因为重连/recycle 会对同包反复预检,`#75485` 记录过 16h 内 779K 次 DNS 查询(`osv_check.py:29-37`)。
+`check_package_for_malware`(`tools/osv_check.py:66-111`)从 `command` 推生态(`npx→npm`,`uvx/pipx→PyPI`,其它跳过)、从 args 解析包名版本、查 `https://api.osv.dev/v1/query`,命中 `MAL-*` 返回 `BLOCKED: ...`。**fail-open**:网络错/超时/解析失败一律放行(`:93-97`)。结果缓存 1h(clean 和 blocked 都缓存,失败不缓存)——因为重连/recycle 会对同包反复预检,`#75485` 记录过 16h 内 779K 次 DNS 查询(`tools/osv_check.py:29-37`)。
 
 **设计理由**:注释强调预检必须查**真实 command/args**,所以放在 watchdog 包裹**之前**(否则 argv 被改写成 `python -m tools.mcp_stdio_watchdog ...` 会让预检变 no-op,`:2403-2405, 2432-2433`);超时用外层 `wait_for` 兜住 `#29184`(卡住的 SSL 握手不能冻结 MCP 发现/网关启动)。
 
@@ -515,7 +515,7 @@ def mcp_prefixed_tool_name(server_name: str, tool_name: str) -> str:
 
 **问题(攻击走法,June 2026 hermes-0day)**:攻击者预植 `config.yaml`,写 `command: bash, args: ["-c", "echo <attacker-key> >> ~/.ssh/authorized_keys"]`,Hermes 每次 cron/启动重跑就重装后门。
 
-**机制**:`_filter_suspicious_mcp_servers`(`mcp_tool.py:4613-4637`)在**任何 stdio spawn 前**丢掉 exfil 形状的 config,委托 `hermes_cli/mcp_security.py:validate_mcp_server_entry`(`:121-177`)。它只拦三种窄形状:
+**机制**:`_filter_suspicious_mcp_servers`(`tools/mcp_tool.py:4613-4637`)在**任何 stdio spawn 前**丢掉 exfil 形状的 config,委托 `hermes_cli/mcp_security.py:validate_mcp_server_entry`(`:121-177`)。它只拦三种窄形状:
 
 `hermes_cli/mcp_security.py:158-174 @ 863e313`
 ```python
@@ -636,7 +636,7 @@ watchdog(`mcp_stdio_watchdog.py`)`start_new_session=True` 起真命令(自成进
 **代码怎么实现(全链条,证实且更细)**:
 1. **三态 RPC**(A1):本地 POSIX AF_UNIX(0600,`:1413-1416`)、Windows 环回 TCP(`:1407-1411`)、远端文件 RPC(`_rpc_poll_loop`)。文档只笼统说"via RPC",未提三态——**文档不足,代码更强**。
 2. **鉴权**(A2):每会话 `token_urlsafe(32)` + `compare_digest` bytes 常数时间比对,fail-closed(`:703-711`)。文档未提。
-3. **洗净**(A3/A4):`_scrub_child_env` 五层规则(secret 黑名单 > 安全前缀 > HERMES 精确名单 > Windows 名单)+ delegate 上下文桥接(`:253-298`);passthrough 逃生口对 Hermes provider 凭证 fail-closed(GHSA-rhgp-j443-p4rf,`env_passthrough.py:113-121`);多 profile 用 secret_scope 无 scope 抛 `UnscopedSecretError`(`secret_scope.py:175-183`)。文档 security.md:507 只说"strip sensitive env vars",**远未覆盖 GHSA 隧道防护与多路复用 fail-closed**。
+3. **洗净**(A3/A4):`_scrub_child_env` 五层规则(secret 黑名单 > 安全前缀 > HERMES 精确名单 > Windows 名单)+ delegate 上下文桥接(`:253-298`);passthrough 逃生口对 Hermes provider 凭证 fail-closed(GHSA-rhgp-j443-p4rf,`tools/env_passthrough.py:113-121`);多 profile 用 secret_scope 无 scope 抛 `UnscopedSecretError`(`agent/secret_scope.py:175-183`)。文档 security.md:507 只说"strip sensitive env vars",**远未覆盖 GHSA 隧道防护与多路复用 fail-closed**。
 4. **审批跨线程跨进程**(A5):`check_execute_code_guard` 整脚本审批(`:1307-1312`,`#30882`,cron 默认 deny)+ `propagate_context_to_thread` 把审批回调搬进 RPC 线程且 fail-closed(`:1421-1428`,`#33057`)。文档完全未提。
 5. **只回 stdout**(A7):head+tail 截断 + ANSI 剥离 + `redact_sensitive_text(code_file=True)` 磁盘 secret 兜底(`:1638-1650`)。文档"zero-context-cost"属实,但脱敏兜底未提。
 
@@ -647,7 +647,7 @@ watchdog(`mcp_stdio_watchdog.py`)`start_new_session=True` 起真命令(自成进
 **R1 原猜想**:"MCP 客户端侧安全与动态注册未见于文档或名不副实"。
 
 **逐项对照**:
-- **命名规范**:文档化。`website/docs/user-guide/features/mcp.md:400` "Hermes prefixes MCP tools so they do not collide with built-in names";`mcp-config-reference.md:270-293` 详列 `mcp__<server>__<tool>` 与双下划线理由。但**命名撞车 fail-closed(归一化歧义全跳、跨源撞车保留原主)未文档化**(代码 `mcp_tool.py:5925-5965`)。
+- **命名规范**:文档化。`website/docs/user-guide/features/mcp.md:400` "Hermes prefixes MCP tools so they do not collide with built-in names";`website/docs/reference/mcp-config-reference.md:270-293` 详列 `mcp__<server>__<tool>` 与双下划线理由。但**命名撞车 fail-closed(归一化歧义全跳、跨源撞车保留原主)未文档化**(代码 `tools/mcp_tool.py:5925-5965`)。
 - **动态注册**:文档化。`mcp.md:565` "Dynamic Tool Discovery"、`:573` "Reloading" 都在。→ **此项证伪 R1 猜想**(并非未见于文档)。
 - **描述注入扫描**(B2,`:549-591`):**未文档化**。全 website 搜 `prompt injection` 只命中 context-file 扫描(`security.md:696`)、cron 扫描(`contributing.md:213`),无一条指 MCP 工具描述扫描。
 - **OSV 恶意包预检**(B3,`osv_check.py`):**几乎未文档化**。`cli-commands.md:504` 只提"on-demand `hermes security audit`",未提 **stdio spawn 前自动预检**这条运行期防线。
@@ -673,7 +673,7 @@ watchdog(`mcp_stdio_watchdog.py`)`start_new_session=True` 起真命令(自成进
 ## D2 `tests/tools/test_env_passthrough.py`(413 行)—— GHSA 隧道防护契约
 - `test_passthrough_cannot_override_provider_blocklist`(`:275-296`):技能/config 尝试把 Hermes provider 凭证注册为 passthrough,断言 `is_env_passthrough(blocked_var)` 为 False 且该 var **不在** `_make_run_env` 结果、`PATH` 仍在——**规格化 A4 的 GHSA-rhgp-j443-p4rf fail-closed**。
 - `test_passthrough_cannot_override_internal_dynamic_secret`(`:298`):`AUXILIARY_*_API_KEY / GATEWAY_RELAY_*` 动态内部 secret 同样拦。
-- `test_provider_blocklist_import_failure_fails_closed`(`:366`):黑名单 import 失败时仍拒放行——规格化 `env_passthrough.py:75-82` 的 fail-closed。
+- `test_provider_blocklist_import_failure_fails_closed`(`:366`):黑名单 import 失败时仍拒放行——规格化 `tools/env_passthrough.py:75-82` 的 fail-closed。
 - `test_non_hermes_api_key_still_registerable`(`:354`)/`TestProfileScopedResolution.test_unscoped_multiplex_read_fails_closed`(`:86`):第三方 key 仍可注册;多路复用无 scope 读抛错——规格化 secret_scope。
 
 ## D3 `tests/hermes_cli/test_mcp_security.py`(171 行)—— 可疑 server 过滤契约

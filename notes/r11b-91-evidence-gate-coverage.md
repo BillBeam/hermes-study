@@ -145,7 +145,7 @@ C 那 27 块本轮**不判**:`grep` 零命中退出 1 是正当的,而把它们�
 
    **本轮已修**,那一行现在是(修复带来的行号移动一并写出):
 
-   `scripts/verify_evidence_commands.py:59 @ 863e313`
+   `scripts/verify_evidence_commands.py:93 @ 863e313`
 
    ```python
    TIMEOUT = int(os.environ.get("HERMES_EVIDENCE_TIMEOUT", "900"))
@@ -178,5 +178,5 @@ C 那 27 块本轮**不判**:`grep` 零命中退出 1 是正当的,而把它们�
 | 移交项 | 去向 | 锚点 | 现象 |
 |---|---|---|---|
 | **H-R11B-b** | 清理历史底稿的那一轮 | `notes/r10-96-ts-suites.md:1`:`# r10-96 · TypeScript 测试套件的真实执行(主线)` | 63 块可判定的坏证据(A 22 / B 29 / E 12)逐条明细在 `data/r11b/evidence-runnability-failures.txt`,本轮只测量未逐条修 |
-| **H-R11B-c** | 落地可跑性检查的那一轮 | `scripts/verify_evidence_commands.py:59`:`TIMEOUT = int(os.environ.get("HERMES_EVIDENCE_TIMEOUT", "900"))` | §5 第 2 条的「只断言跑得通、不比对输出」检查本轮未落地;落地时须先确认 §6 的超时修复在册 |
+| **H-R11B-c** | 落地可跑性检查的那一轮 | `scripts/verify_evidence_commands.py:93`:`TIMEOUT = int(os.environ.get("HERMES_EVIDENCE_TIMEOUT", "900"))` | §5 第 2 条的「只断言跑得通、不比对输出」检查本轮未落地;落地时须先确认 §6 的超时修复在册。**R11C 已落地并结清本条**;此处行号由 `:59` 改为 `:93`,是 R11C 落地时给该文件加了说明段所致的漂移,只改行号,原判不动 |
 | **H-R11B-d** | 任一轮 | `data/r11b/evidence-runnability-failures.txt:1`:`[1] notes/r10-raw-acp-adapter.md` | C 类 27 块(stderr 空 + exit 1)的正当性**未经确认**,本轮既未判正当也未判坏 |

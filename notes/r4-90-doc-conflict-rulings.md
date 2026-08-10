@@ -9,10 +9,10 @@
 **文档**:`website/docs/user-guide/features/tools.md:88 @ 863e313`:
 > The container is stopped and removed on shutdown.
 
-**代码**:Docker 后端默认 `persist_across_processes=True`(docker.py:871),cleanup 在 persist 模式下
-**对容器 no-op**(docker.py:1958-1966),容器跨 Hermes 进程存活,下次按 `(task,profile)` 标签复用;
+**代码**:Docker 后端默认 `persist_across_processes=True`(tools/environments/docker.py:871),cleanup 在 persist 模式下
+**对容器 no-op**(tools/environments/docker.py:1958-1966),容器跨 Hermes 进程存活,下次按 `(task,profile)` 标签复用;
 只有孤儿回收器(exited 且 FinishedAt 早于 600s)或 `force_remove`/`persist=False` 才真删。这是
-issue #20561 的契约(docker.py:1953-1957)。见 r4-02 §1。
+issue #20561 的契约(tools/environments/docker.py:1953-1957)。见 r4-02 §1。
 
 **判定:证伪(默认态)。** ":88 关机即删" 默认不成立;默认是关机**不**删。
 要让它成立,得设 **`terminal.docker_persist_across_processes: false`**(或走 `force_remove=True`)。
@@ -99,14 +99,14 @@ issue #20561 的契约(docker.py:1953-1957)。见 r4-02 §1。
 三点定案(证据见 r4-20 §2、§5):
 
 - **"Seven terminal backends" —— 证实**。工厂 `_create_environment` 的 `env_type` 分支恰好 7 个:
-  local/docker/singularity/modal/daytona/vercel_sandbox/ssh(terminal_tool.py:1633-1760)。managed Modal
+  local/docker/singularity/modal/daytona/vercel_sandbox/ssh(tools/terminal_tool.py:1633-1760)。managed Modal
   不是第 8 个后端,是 `modal` 这一 env_type 下的传输子模式,不改变数目。
-- **持久化名单不全 —— 修正**。Vercel **同样**提供 snapshot 持久化(vercel_sandbox.py:448-475),文档
+- **持久化名单不全 —— 修正**。Vercel **同样**提供 snapshot 持久化(tools/environments/vercel_sandbox.py:448-475),文档
   `tools.md:68` "snapshot-backed filesystem persistence" 与 `:148` 亦承认,但 README 只点名 Daytona+Modal。
   应为 **Modal + Daytona + Vercel**。
 - **"hibernates when idle" 触发时机 —— 修正**。Modal direct 是 **cleanup 拍快照 + terminate**(会话结束触发,
-  非后台空闲探测);Daytona `auto_stop_interval=0`(daytona.py:125)**显式关掉**平台空闲自停,靠 cleanup
-  主动 `stop()`。**只有 managed Modal** 有真 `idleTimeoutMs`(managed_modal.py:189)那种"服务端 idle 到点休眠"。
+  非后台空闲探测);Daytona `auto_stop_interval=0`(tools/environments/daytona.py:125)**显式关掉**平台空闲自停,靠 cleanup
+  主动 `stop()`。**只有 managed Modal** 有真 `idleTimeoutMs`(tools/environments/managed_modal.py:189)那种"服务端 idle 到点休眠"。
   即:README 的"idle 自动休眠"在 direct/Daytona 上其实是"会话结束即休眠"。
 
 ## 定案 3 ◇ tools.md:148 Vercel 快照语义——证实(且比 README 精确)
@@ -115,7 +115,7 @@ issue #20561 的契约(docker.py:1953-1957)。见 r4-02 §1。
 > Snapshots do not preserve live processes, PID space, or the same live sandbox identity.
 
 **代码**:完全吻合——`snapshot()` + 重建时 `source=snapshot`,换沙箱身份,活进程/PID 不保
-(vercel_sandbox.py:448-511)。**证实**,此处 docs 比 README 那句笼统的"hibernate"精确得多。
+(tools/environments/vercel_sandbox.py:448-511)。**证实**,此处 docs 比 README 那句笼统的"hibernate"精确得多。
 
 ## 定案 4 ◇ browser `browser_state` vs `recent_dialogs`——证伪文档命名,以 `recent_dialogs` 为准
 
@@ -124,7 +124,7 @@ issue #20561 的契约(docker.py:1953-1957)。见 r4-02 §1。
 - `website/docs/user-guide/features/browser.md:591`:"Agent still sees the dialog in `browser_state` history"。
 
 但**同一 developer-guide 的别处**又用新名:`browser-supervisor.md:120,139` 的 JSON 示例与字段说明是
-`recent_dialogs`;`configuration.md:2110` 也写 `browser_snapshot.recent_dialogs`。
+`recent_dialogs`;`website/docs/user-guide/configuration.md:2110` 也写 `browser_snapshot.recent_dialogs`。
 
 **代码**:实际字段/键是 `recent_dialogs`(browser_supervisor.py,`recent_dialogs` ring buffer;`browser_state`
 在代码中不作此字段名出现)。见 r4-30。
@@ -150,7 +150,7 @@ issue #20561 的契约(docker.py:1953-1957)。见 r4-02 §1。
 (SOM / vision / AX)",但**从未说**这些截图在 text-only 主模型上会回退到 `auxiliary.vision`。也就是说,
 `vision_analyze`/`browser_vision` 的同类回退都写了,唯独 `computer_use` 的 `capture` 路径没写。
 
-**代码**:`vision_routing.py:1-20` docstring 明说 issue #24015 的回归正是"配了 `auxiliary.vision` 却被
+**代码**:`tools/computer_use/vision_routing.py:1-20` docstring 明说 issue #24015 的回归正是"配了 `auxiliary.vision` 却被
 **静默忽略**",截图仍走主模型、报 HTTP 404 no image input。这条 204 行的策略模块 + 9 个测试(见 r4-95)
 就是修这个洞的。
 

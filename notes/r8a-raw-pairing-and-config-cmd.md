@@ -583,7 +583,7 @@ whatever earlier cases in this class approved」，见 `tests/hermes_cli/test_da
 ### 2.7 两侧共同缺失的：审计
 
 两个入口都**没有把「谁在什么时候批准了谁」写进任何日志或审计文件**。
-CLI 只 `print` 到终端（`hermes_cli/pairing.py:79`），GUI 只返回 JSON（`web_server.py:12342`）。
+CLI 只 `print` 到终端（`hermes_cli/pairing.py:79`），GUI 只返回 JSON（`hermes_cli/web_server.py:12342`）。
 落盘的 `approved.json` 只有 `approved_at`（§1.9），**没有 approver 字段**。
 唯一被 `print` 到 stdout 的 pairing 事件是锁定：
 
@@ -718,7 +718,7 @@ def _sync_live_adapter_allowlist_remove(platform: str, user_id: str) -> None:
 
 ### 3.5 `clear-pending` 的一个易踩点
 
-CLI 和 GUI 都不传 platform：`hermes_cli/pairing.py:116`、`web_server.py:12374`。
+CLI 和 GUI 都不传 platform：`hermes_cli/pairing.py:116`、`hermes_cli/web_server.py:12374`。
 
 **`gateway/pairing.py:803 @ 863e313`**
 
@@ -908,7 +908,7 @@ PUBLIC_API_PATHS: frozenset[str] = frozenset({
             "~/.hermes/platforms/pairing/_rate_limits.json\n".format(platform)
 ```
 
-**GUI 的 429 响应不给这个恢复提示**（`web_server.py:12347-12350` 只有一句 detail）——
+**GUI 的 429 响应不给这个恢复提示**（`hermes_cli/web_server.py:12347-12350` 只有一句 detail）——
 又一处「同语义两份实现，一份带信息一份不带」。
 另外这句提示**硬编码了 `~/.hermes/platforms/pairing/`**，而 §1.3 说明老装会落在
 `~/.hermes/pairing/`，此时提示路径是错的。
@@ -1327,7 +1327,7 @@ store 层那条 `test_stale_request_id_never_locks_out_the_code_path`
   （profile 模式下 `get_default_hermes_root()` 返回根）、
   `hermes_cli/web_server.py:12303-12309`（空/`current` → `PairingStore()`，其余 → 带 profile）；
   测试注释 `tests/hermes_cli/test_dashboard_admin_endpoints.py:307-310` 自己点出了 import 期绑定。
-- **复核结论**：**存疑**——`_pairing_store` docstring（`web_server.py:12296`）明说
+- **复核结论**：**存疑**——`_pairing_store` docstring（`hermes_cli/web_server.py:12296`）明说
   「`default` maps back to the global store」，可能是有意；但对操作员而言
   「不填」与「填 default」应当同义，此处不同义。未运行验证。
 - **严重度**：低（不放宽授权；最坏是批准写错库，用户仍进不来——这正是

@@ -342,11 +342,16 @@ to a "bump the pinned version" loop.
 `urllib.request` 只出现在**下载二进制**(`_http_download`)与**打管理 API**(`reload_proxy`)。
 没有任何转发/中继代码。
 
+**R11C 片 C 改:原块是一段 `$` 提示符**转录**(命令、输出、逐条判读混排在同一个 ```verify 围栏里),原样重跑等于把输出行也当命令执行。下面拆成「可重跑命令 + 逐字输出」两块,
+逐条判读移到块后正文。**命中集合与原块一致,结论未变。**
+
 ```verify
-# 搜索面:本模块内所有网络相关调用点(实跑输出,逐字粘贴)
-$ cd /home/user/hermes-agent
-$ grep -nE "socket\.|urllib\.request\.|http\.client|asyncio|aiohttp|requests\." \
+# 搜索面:本模块内所有网络相关调用点
+cd /home/user/hermes-agent && grep -nE "socket\.|urllib\.request\.|http\.client|asyncio|aiohttp|requests\." \
       agent/proxy_sources/iron_proxy.py
+```
+
+```text
 217:    # AWS Bedrock / SageMaker: SigV4-signed requests.
 550:    req = urllib.request.Request(url, headers={"User-Agent": "hermes-agent"})
 552:        with urllib.request.urlopen(req, timeout=_DOWNLOAD_TIMEOUT) as resp:  # noqa: S310
@@ -354,14 +359,13 @@ $ grep -nE "socket\.|urllib\.request\.|http\.client|asyncio|aiohttp|requests\." 
 959:        with urllib.request.urlopen(req, timeout=_MGMT_RELOAD_TIMEOUT) as resp:
 1483:        # each other's requests.  The canonical env name is what
 2431:        with socket.create_connection((host, port), timeout=0.5):
-# 逐条判读:
-#   217 / 1483 是散文里的 "requests." 被 `requests\.` 匹到 —— 误命中,与 §4.2 记的
-#                "regress 含 egress" 同类,保留在这里正是为了让读者看见它、不必猜。
-#   550 / 552   _http_download(下载二进制)
-#   952 / 959   reload_proxy(打 loopback 管理 API)
-#   2431        _port_listening(TCP 存活探测)
-# 没有任何转发/中继代码 —— 代理逻辑 100% 在第三方 Go 二进制里。
 ```
+
+逐条判读:**217 / 1483 是散文里的 "requests." 被 `requests\.` 匹到** —— 误命中,
+与 §4.2 记的 "regress 含 egress" 同类,保留在这里正是为了让读者看见它、不必猜;
+550 / 552 是 `_http_download`(下载二进制);952 / 959 是 `reload_proxy`(打 loopback 管理 API);
+2431 是 `_port_listening`(TCP 存活探测)。
+**没有任何转发/中继代码 —— 代理逻辑 100% 在第三方 Go 二进制里。**
 
 **所以"出网约束"在这里是安全机制还是转发机制?——两者都是,但主体是"本机安全机制"**:
 真凭据从不离开本机(宿主机 env → iron-proxy 子进程 env → 直连 provider),
@@ -502,28 +506,37 @@ agent 启动、gateway 启动、容器创建这三条路径**都不会**把它�
 
 搜索面(逐条给出,可零成本重跑):
 
+**R11C 片 C 改:原块是一段 `$` 提示符**转录**(命令、输出、逐条判读混排在同一个 ```verify 围栏里),原样重跑等于把输出行也当命令执行。下面拆成「可重跑命令 + 逐字输出」两块,
+逐条判读移到块后正文。**命中集合与原块一致,结论未变。**
+
 ```verify
-$ cd /home/user/hermes-agent
+cd /home/user/hermes-agent
 # (A) 谁 import 了这个包 —— 全仓 *.py,排除包自身
-$ grep -rn "proxy_sources" --include=*.py . | grep -v '^\./agent/proxy_sources/'
+grep -rn "proxy_sources" --include=*.py . | grep -v '^\./agent/proxy_sources/' | sort
+# (B) 逐个后端文件查 egress 接线(词边界!见下方陷阱说明)
+grep -rlnE "\begress\b|iron-proxy|iron_proxy|HTTPS_PROXY|hermes-egress-ca" tools/environments/*.py
+# (C) 非 Python 面(前端/桌面/脚本/Dockerfile)
+grep -rlniE "iron.?proxy|hermes-egress-ca|HERMES_EGRESS_PROXY" \
+      --include=*.ts --include=*.tsx --include=*.js --include=*.mjs \
+      --include=*.rs --include=*.go --include=*.sh --include=Dockerfile . | sort
+```
+
+```text
 ./hermes_cli/proxy_cli.py:27:from agent.proxy_sources import iron_proxy as ip
-./tests/test_iron_proxy_e2e.py:25:from agent.proxy_sources import iron_proxy as ip
 ./tests/test_iron_proxy.py:25:from agent.proxy_sources import iron_proxy as ip
 ./tests/test_iron_proxy_cli.py:19:from agent.proxy_sources import iron_proxy as ip
-./tools/environments/docker.py:421:        from agent.proxy_sources import iron_proxy as ip
+./tests/test_iron_proxy_e2e.py:25:from agent.proxy_sources import iron_proxy as ip
 ./tools/environments/docker.py:1154:                from agent.proxy_sources import iron_proxy as _ip_for_mappings
-
-# (B) 逐个后端文件查 egress 接线(词边界!见下方陷阱说明)
-$ grep -rlnE "\begress\b|iron-proxy|iron_proxy|HTTPS_PROXY|hermes-egress-ca" tools/environments/*.py
+./tools/environments/docker.py:421:        from agent.proxy_sources import iron_proxy as ip
 tools/environments/docker.py
-
-# (C) 非 Python 面(前端/桌面/脚本/Dockerfile)
-$ grep -rlniE "iron.?proxy|hermes-egress-ca|HERMES_EGRESS_PROXY" \
-      --include=*.ts --include=*.tsx --include=*.js --include=*.mjs \
-      --include=*.rs --include=*.go --include=*.sh --include=Dockerfile .
-./apps/desktop/src/app/command-palette/index.tsx     # 只是命令面板关键词
-./website/sidebars.ts                                # 只是文档侧边栏条目
+./apps/desktop/src/app/command-palette/index.tsx
+./website/sidebars.ts
 ```
+
+(A) 六处 import,其中三处在 `tests/`;(B) 后端文件里**只有 `docker.py` 接了 egress**;
+(C) 非 Python 面两处命中都不是接线:`command-palette/index.tsx` **只是命令面板关键词**,
+`website/sidebars.ts` **只是文档侧边栏条目**。
+(原块 (A)(C) 两段按目录遍历序,这里补 `| sort` 让输出可稳定比对,集合一致。)
 
 `tools/environments/` 下现有 11 个后端实现文件(`base.py` `local.py` `docker.py` `modal.py`
 `managed_modal.py` `ssh.py` `daytona.py` `singularity.py` `vercel_sandbox.py` `file_sync.py`
@@ -1181,9 +1194,14 @@ def _redact_token(token: str) -> str:
 **(b) 模块自身的 `logger.*` 调用不打印任何凭据值。**
 搜索面:
 
+**R11C 片 C 改:原块是一段 `$` 提示符**转录**(命令、输出、逐条判读混排在同一个 ```verify 围栏里),原样重跑等于把输出行也当命令执行。下面拆成「可重跑命令 + 逐字输出」两块,
+逐条判读移到块后正文。**命中集合与原块一致,结论未变。**
+
 ```verify
-$ cd /home/user/hermes-agent
-$ grep -nE "logger\.(debug|info|warning|error)" agent/proxy_sources/iron_proxy.py
+cd /home/user/hermes-agent && grep -nE "logger\.(debug|info|warning|error)" agent/proxy_sources/iron_proxy.py
+```
+
+```text
 459:            logger.warning("iron-proxy auto-install failed: %s", exc)
 489:        logger.info("Downloading %s", asset_url)
 545:    logger.info("Installed iron-proxy %s at %s", _IRON_PROXY_VERSION, target)
@@ -1202,14 +1220,13 @@ $ grep -nE "logger\.(debug|info|warning|error)" agent/proxy_sources/iron_proxy.p
 2248:            logger.warning(
 2319:            logger.warning(
 2331:    logger.info("Stopped iron-proxy pid=%s", pid)
-# 18 处逐条看过,参数依次是:
-#   459 异常对象 / 489 URL / 545 版本号+路径 / 579 无参 / 594 异常对象 /
-#   610 gpg stderr 片段(截 200 字符) / 628 无参 / 819 路径 /
-#   1028 无参 / 1094 候选 IP 字符串 / 1432 异常对象 / 1999 pid+配置路径 /
-#   2196 缺失的**变量名**列表 / 2207 警告**条数** / 2227 无参 /
-#   2248 异常对象 / 2319 pid / 2331 pid
-# 没有任何一处传入 token 或 key 的**值**;2227 更是连变量**名**都不打(理由见下)。
 ```
+
+**18 处逐条看过**,参数依次是:459 异常对象 / 489 URL / 545 版本号+路径 / 579 无参 /
+594 异常对象 / 610 gpg stderr 片段(截 200 字符) / 628 无参 / 819 路径 / 1028 无参 /
+1094 候选 IP 字符串 / 1432 异常对象 / 1999 pid+配置路径 / 2196 缺失的**变量名**列表 /
+2207 警告**条数** / 2227 无参 / 2248 异常对象 / 2319 pid / 2331 pid。
+**没有任何一处传入 token 或 key 的**值**;2227 更是连变量**名**都不打**(理由见下)。
 
 其中 BWS 那两条尤其小心——**连"环境变量名"都不打**,因为 CodeQL 的污点分析分不清名和值:
 
@@ -1563,14 +1580,20 @@ E2E 是**行为规格的最强证据**——它跑真二进制、真 curl,断言
 
 **可复现判据**:
 
+**R11C 片 C 改:命令与它的输出混排在一个 ```verify 围栏里。拆成命令 + 配对输出,
+并按纪律补 `HERMES_DISABLE_LAZY_INSTALLS=1`(这条命令 import 基线模块)。**四个键与原块一致。**
+
 ```verify
-$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/home/user/hermes-agent \
+HERMES_DISABLE_LAZY_INSTALLS=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/home/user/hermes-agent \
   /home/user/hermes-venv/bin/python -c "
 from agent.proxy_sources import iron_proxy as ip
 known  = set(ip._BEARER_PROVIDERS) | set(ip._NON_BEARER_PROVIDERS)
 header = set(ip._HEADER_AUTH_PROVIDERS)
 alias  = {a for s in ip._HEADER_AUTH_PROVIDERS.values() for a in (s.get('aliases') or ())}
 print('MISSING from .env backfill =', sorted((header|alias) - known))"
+```
+
+```text
 MISSING from .env backfill = ['ANTHROPIC_API_KEY', 'AZURE_OPENAI_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY']
 ```
 
@@ -1675,8 +1698,15 @@ def _critical_egress_env_names(env_overrides: dict[str, str]) -> set[str]:
 
 **可复现判据**(不需要真二进制):
 
+**R11C 片 C 改:命令与输出混排,而且末行那个 `OverflowError` 是**故意触发**的
+(要证明 `management` 算出来的 65536 越界)—— 未捕获的异常让整块被判 `EVIDENCE-RUNFAIL`。
+改法:把那次 `bind` 包进 `try/except` 打印异常本身,命令因此退出 0,
+**而「越界」这个结论仍由输出内容承载**;输出配对逐字比对。
+注意末行与原块有一处**逐字差异**:本容器 CPython 的消息带句点
+(`port must be 0-65535.`),原块抄的没有句点。以本次实跑为准,已如实贴出。**
+
 ```verify
-$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/home/user/hermes-agent \
+HERMES_DISABLE_LAZY_INSTALLS=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/home/user/hermes-agent \
   /home/user/hermes-venv/bin/python -c "
 from pathlib import Path
 from agent.proxy_sources import iron_proxy as ip
@@ -1685,11 +1715,18 @@ c = ip.build_proxy_config(mappings=[], ca_cert=Path('/x/ca.crt'), ca_key=Path('/
 print('tunnel_listen :', c['proxy']['tunnel_listen'])
 print('http_listen   :', c['proxy']['http_listen'])
 print('management    :', c['management']['listen'])
-import socket; socket.socket().bind(('127.0.0.1', 65536))"
+import socket
+try:
+    socket.socket().bind(('127.0.0.1', 65536))
+except OverflowError as e:
+    print('bind(65536)   :', type(e).__name__ + ':', e)"
+```
+
+```text
 tunnel_listen : 127.0.0.1:65534
 http_listen   : 127.0.0.1:65535
 management    : 127.0.0.1:65536
-OverflowError: bind(): port must be 0-65535
+bind(65536)   : OverflowError: bind(): port must be 0-65535.
 ```
 
 **影响面**:窄(要显式挑一个 65534/65533 附近的端口),但症状是**配置写成功、start 必失败**,

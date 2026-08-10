@@ -37,9 +37,9 @@ R9C 移交表原文(`reports/round-9c-external-interfaces.md` 第 410 行,**下�
 
 | 移交项给的锚点 | 核对结果 | 当前准确锚点(声明式) |
 |---|---|---|
-| `nous_billing.py:179` 的 `resolve_portal_base_url` | **指向函数体首行,不是函数头**。`def` 在 `:173`,`:179` 是读环境变量那一行 | 函数头 `hermes_cli/nous_billing.py:173`:`def resolve_portal_base_url(state: Optional[dict[str, Any]] = None) -> str:`;环境变量行 `hermes_cli/nous_billing.py:179`:`env = os.getenv("HERMES_PORTAL_BASE_URL") or os.getenv("NOUS_PORTAL_BASE_URL")` |
-| `nous_billing.py:399-402` | **准确**。`:399` 拼 URL,`:401` 拼 Bearer 头 | `hermes_cli/nous_billing.py:399`:`url = f"{base}{path}"`;`hermes_cli/nous_billing.py:401`:`"Authorization": f"Bearer {token}",` |
-| `auth.py:5900` | **准确**,就是白名单判定那一行 | `hermes_cli/auth.py:5900`:`if parsed_portal_url.hostname and parsed_portal_url.hostname not in _NOUS_PORTAL_ALLOWED_HOSTS:` |
+| `hermes_cli/nous_billing.py:179` 的 `resolve_portal_base_url` | **指向函数体首行,不是函数头**。`def` 在 `:173`,`:179` 是读环境变量那一行 | 函数头 `hermes_cli/nous_billing.py:173`:`def resolve_portal_base_url(state: Optional[dict[str, Any]] = None) -> str:`;环境变量行 `hermes_cli/nous_billing.py:179`:`env = os.getenv("HERMES_PORTAL_BASE_URL") or os.getenv("NOUS_PORTAL_BASE_URL")` |
+| `hermes_cli/nous_billing.py:399-402` | **准确**。`:399` 拼 URL,`:401` 拼 Bearer 头 | `hermes_cli/nous_billing.py:399`:`url = f"{base}{path}"`;`hermes_cli/nous_billing.py:401`:`"Authorization": f"Bearer {token}",` |
+| `hermes_cli/auth.py:5900` | **准确**,就是白名单判定那一行 | `hermes_cli/auth.py:5900`:`if parsed_portal_url.hostname and parsed_portal_url.hostname not in _NOUS_PORTAL_ALLOWED_HOSTS:` |
 
 被质疑的函数全文:
 

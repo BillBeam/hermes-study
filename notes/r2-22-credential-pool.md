@@ -170,7 +170,7 @@ STRATEGY_LEAST_USED = "least_used"
     # carries no key at all.
 ```
 
-稳定 id 的绑定由 `sync_credential_pool_entry_id`(`agent_runtime_helpers.py:897-913`)在每次换 key 后重算,防 OAuth 刷新导致 api_key 值漂移后归因失败。
+稳定 id 的绑定由 `sync_credential_pool_entry_id`(`agent/agent_runtime_helpers.py:897-913`)在每次换 key 后重算,防 OAuth 刷新导致 api_key 值漂移后归因失败。
 
 **身份匹配不上任何条目时的有界回退(#70401)**:提供了身份但匹配不到条目时,绝不标记任何 key(避免误伤),但轮换次数以"可用条目一圈"为上限,`agent/credential_pool.py:2077-2080 @ 863e313`:
 
@@ -211,7 +211,7 @@ STRATEGY_LEAST_USED = "least_used"
 
 **空池日志节流**:池空/全冷却时每次选择都会打 INFO,Windows 上多进程共享轮转日志锁被打爆(`RuntimeError: Cannot acquire lock after 20 attempts`,137-151 行注释,引 #58265 的同类修法),故 60s 窗口内只打一次(`NO_AVAILABLE_ENTRIES_LOG_THROTTLE_SECONDS = 60.0`,151 行;`_log_no_available_entries` 1964-1976;成功选择后重置窗口 1990-1993)。
 
-**为什么**:#70401 的注释解释了无界轮换的实际灾难(`credential_pool.py:2063-2071`:"the caller retries the same dead token forever (~6/sec, starving the event loop so chat interrupts are never processed)")。
+**为什么**:#70401 的注释解释了无界轮换的实际灾难(`agent/credential_pool.py:2063-2071`:"the caller retries the same dead token forever (~6/sec, starving the event loop so chat interrupts are never processed)")。
 
 **取舍**:归因优先精确性(宁可不标记也不误标);lease 是"软"上限(超载时不阻塞,退化为最少租约),牺牲隔离性换活性。
 
@@ -271,7 +271,7 @@ reset 时间来源有三:错误上下文里的 `reset_at/resets_at/retry_until` 
 
 sole_credential 判定用"非 DEAD 条目 ≤1"(1831-1833),且 `next_available_at()` 也必须用同一口径(700-702),否则 fallback 回切闸会为 60s 冷却等一小时(697-699 注释)。
 
-**为什么**:`credential_pool.py:127-131` 注释直接给出理由:"a 1-hour bench means an hour of hard failures with nothing to fall back to. Throttles (429/403/5xx) are transient and reset in seconds"。
+**为什么**:`agent/credential_pool.py:127-131` 注释直接给出理由:"a 1-hour bench means an hour of hard failures with nothing to fall back to. Throttles (429/403/5xx) are transient and reset in seconds"。
 
 **取舍**:TTL 是启发式,信任 provider 的 reset_at 优先;billing 永远满冷却(quick retry 无意义);sole-credential 缩短只适用于瞬时类——这是"活性 vs 无谓重试"的双向裁剪。
 
@@ -467,7 +467,7 @@ _PERSISTABLE_PROVIDER_SOURCES = frozenset({
 })
 ```
 
-borrowed 条目落盘时剥掉所有秘密值字段(键名匹配 `_SECRET_VALUE_KEYS` + 后缀表,含 camelCase 归一),只留元数据 + SHA-256 前 16 位指纹(`sanitize_borrowed_credential_payload`,151-174)。脱敏在两处执行:`PooledCredential.to_dict()`(261)和最终写边界 `write_credential_pool`(auth.py:1681-1685)——双保险,因为 caller 可能传裸 dict。运行时侧,未 hydrate 的空 key 条目永不被选中(`credential_pool.py:1838-1839`:`if entry.auth_type == AUTH_TYPE_API_KEY and not entry.runtime_api_key: continue`)。
+borrowed 条目落盘时剥掉所有秘密值字段(键名匹配 `_SECRET_VALUE_KEYS` + 后缀表,含 camelCase 归一),只留元数据 + SHA-256 前 16 位指纹(`sanitize_borrowed_credential_payload`,151-174)。脱敏在两处执行:`PooledCredential.to_dict()`(261)和最终写边界 `write_credential_pool`(hermes_cli/auth.py:1681-1685)——双保险,因为 caller 可能传裸 dict。运行时侧,未 hydrate 的空 key 条目永不被选中(`agent/credential_pool.py:1838-1839`:`if entry.auth_type == AUTH_TYPE_API_KEY and not entry.runtime_api_key: continue`)。
 
 **取舍**:"播种是幂等 upsert + suppression 门"的组合把"自动发现"与"用户移除意志"这对矛盾拆开;脱敏采用默认拒绝(fail closed)的白名单——新来源不改白名单就自动只存指纹。
 
@@ -507,7 +507,7 @@ it before subsequent attempts, we eliminate the amplification effect.
 
 判据两路:429 响应自身 headers 里有 `remaining == 0` 且 reset ≥ 60s 的桶(`_MIN_RESET_FOR_BREAKER_SECONDS = 60.0`,189 行;`_has_exhausted_bucket` 286-297);或上一次成功响应捕获的 last-known-good 状态里已有耗尽桶(300-325)。两路都不命中 → 判为上游容量问题,不 trip 断路器。
 
-**rate_limit_tracker 的角色**:纯解析/展示层。12 个 `x-ratelimit-*` 头(rate_limit_tracker.py:8-21 schema 注释)解析成 `RateLimitState`(四桶:requests/tokens × min/hour),`RateLimitBucket.remaining_seconds_now` 按捕获时刻校正(50-53)。捕获点:流式响应建立时 `agent/chat_completion_helpers.py:3106-3109 @ 863e313`:
+**rate_limit_tracker 的角色**:纯解析/展示层。12 个 `x-ratelimit-*` 头(agent/rate_limit_tracker.py:8-21 schema 注释)解析成 `RateLimitState`(四桶:requests/tokens × min/hour),`RateLimitBucket.remaining_seconds_now` 按捕获时刻校正(50-53)。捕获点:流式响应建立时 `agent/chat_completion_helpers.py:3106-3109 @ 863e313`:
 
 ```python
         def _stream_created(raw_stream: Any) -> None:
@@ -607,7 +607,7 @@ reason → scope 映射:`"auth error"` 与 `"payment error"` 归 CREDENTIAL,未�
         entry = pool.select()
 ```
 
-池经构造参数进入 agent(`agent/agent_init.py:625`:`agent._credential_pool = credential_pool`),并在 provider 自动探测**之后**做归属校验、不匹配即卸下(`agent_init.py:673-684`,经 `credential_pool_matches_provider`;#63048→#63425 的顺序回归修复)。
+池经构造参数进入 agent(`agent/agent_init.py:625`:`agent._credential_pool = credential_pool`),并在 provider 自动探测**之后**做归属校验、不匹配即卸下(`agent/agent_init.py:673-684`,经 `credential_pool_matches_provider`;#63048→#63425 的顺序回归修复)。
 
 **错误恢复主路**:内层重试循环捕获 API 错误分类后调用,`agent/conversation_loop.py:3861-3866 @ 863e313`:
 
@@ -620,7 +620,7 @@ reason → scope 映射:`"auth error"` 与 `"payment error"` 归 CREDENTIAL,未�
                 )
 ```
 
-转发到 `run_agent.py:5953-5963` 再到实现 `agent/agent_runtime_helpers.py:916-1244`。策略矩阵:`upstream_rate_limit` 完全不动池(1041-1058);`billing` 立即轮换(1060-1074);`rate_limit` 首次 429 只置 `has_retried_429=True` 重试同 key、第二次才轮换(1124-1127),但条目已是 EXHAUSTED 或报文含 `usage_limit_reached` 时跳过重试直接轮换(1097/1114-1123);`auth` 先判 entitlement 型 403 跳过刷新(1160-1194),否则 `try_refresh_matching` 定向刷新失败方(1195-1202),同条目连刷超限(#26080)放行 fallback(1211-1227),刷新失败则轮换(1231-1242)。`has_retried_429` 在成功后复位(`conversation_loop.py:3459`:`_retry.has_retried_429 = False  # Reset on success`)。恢复前有 provider 失配护栏(#33088/#33163)与 custom:`<name>` 双命名豁免(agent_runtime_helpers.py:942-986)。
+转发到 `run_agent.py:5953-5963` 再到实现 `agent/agent_runtime_helpers.py:916-1244`。策略矩阵:`upstream_rate_limit` 完全不动池(1041-1058);`billing` 立即轮换(1060-1074);`rate_limit` 首次 429 只置 `has_retried_429=True` 重试同 key、第二次才轮换(1124-1127),但条目已是 EXHAUSTED 或报文含 `usage_limit_reached` 时跳过重试直接轮换(1097/1114-1123);`auth` 先判 entitlement 型 403 跳过刷新(1160-1194),否则 `try_refresh_matching` 定向刷新失败方(1195-1202),同条目连刷超限(#26080)放行 fallback(1211-1227),刷新失败则轮换(1231-1242)。`has_retried_429` 在成功后复位(`agent/conversation_loop.py:3459`:`_retry.has_retried_429 = False  # Reset on success`)。恢复前有 provider 失配护栏(#33088/#33163)与 custom:`<name>` 双命名豁免(agent/agent_runtime_helpers.py:942-986)。
 
 **换 key 的落地**:`_swap_credential`(`run_agent.py:5883-5917`)把 entry 的 runtime key/base_url 写回 agent、重建 OpenAI/Anthropic client、重算路由级 TLS/headers。
 
@@ -634,7 +634,7 @@ reason → scope 映射:`"auth error"` 与 `"payment error"` 归 CREDENTIAL,未�
     return len(pool.entries()) > 1
 ```
 
-(#11314/#13636:单 key 池 429 后无处可转,等冷却=烧光重试预算,应立刻 fallback。)调用点 `conversation_loop.py:4461-4467`。fallback 换 provider 时卸下主池、装上 fallback provider 自己的池(`agent/chat_completion_helpers.py:1943-1960`,#33163),随后 `sync_credential_pool_entry_id(agent)`(2016-2017)。
+(#11314/#13636:单 key 池 429 后无处可转,等冷却=烧光重试预算,应立刻 fallback。)调用点 `agent/conversation_loop.py:4461-4467`。fallback 换 provider 时卸下主池、装上 fallback provider 自己的池(`agent/chat_completion_helpers.py:1943-1960`,#33163),随后 `sync_credential_pool_entry_id(agent)`(2016-2017)。
 
 **Delegate 子代理**:`tools/delegate_tool.py:1995-2003 @ 863e313`:
 
@@ -650,9 +650,9 @@ reason → scope 映射:`"auth error"` 与 `"payment error"` 归 CREDENTIAL,未�
                     child._swap_credential(leased_entry)
 ```
 
-结束时 `release_lease`(2578)。子池构建在 delegate_tool.py:3469/3486。
+结束时 `release_lease`(2578)。子池构建在 tools/delegate_tool.py:3469/3486。
 
-**其它消费者**(结构级):auxiliary_client.py:1043/1059/2148/2243/4225/4460(副 LLM 任务)、account_usage.py:503(`/usage` 账户额度)、anthropic_adapter.py:1332、cron/scheduler.py:3492、hermes_cli/nous_auth_keepalive.py:59、hermes_cli/proxy/adapters/xai.py:111-113(订阅代理按请求建池)、tools/xai_http.py:280、hermes_cli/auth_commands.py:178 起(CLI 管理面)。
+**其它消费者**(结构级):agent/auxiliary_client.py:1043/1059/2148/2243/4225/4460(副 LLM 任务)、agent/account_usage.py:503(`/usage` 账户额度)、agent/anthropic_adapter.py:1332、cron/scheduler.py:3492、hermes_cli/nous_auth_keepalive.py:59、hermes_cli/proxy/adapters/xai.py:111-113(订阅代理按请求建池)、tools/xai_http.py:280、hermes_cli/auth_commands.py:178 起(CLI 管理面)。
 
 ---
 
@@ -668,7 +668,7 @@ reason → scope 映射:`"auth error"` 与 `"payment error"` 归 CREDENTIAL,未�
 The credential pool uses a threading lock for all state mutations (`select()`, `mark_exhausted_and_rotate()`, `try_refresh_current()`, `mark_used()`). This ensures safe concurrent access when the gateway handles multiple chat sessions simultaneously.
 ```
 
-代码里全仓 `grep mark_used` 零命中(`Grep pattern=mark_used glob=*.py` → No matches)。该方法不存在;`request_count` 自增实际发生在 least_used 策略的 `_select_unlocked` 里(credential_pool.py:2000-2006)。**证伪文档**。
+代码里全仓 `grep mark_used` 零命中(`Grep pattern=mark_used glob=*.py` → No matches)。该方法不存在;`request_count` 自增实际发生在 least_used 策略的 `_select_unlocked` 里(agent/credential_pool.py:2000-2006)。**证伪文档**。
 
 **不符 ②(env 剪枝语义已反转)**:`website/docs/user-guide/features/credential-pools.md:193 @ 863e313`:
 
@@ -676,15 +676,15 @@ The credential pool uses a threading lock for all state mutations (`select()`, `
 Auto-seeded entries are updated on each pool load — if you remove an env var, its pool entry is automatically pruned. Manual entries (added via `hermes auth add`) are never auto-pruned.
 ```
 
-代码自 #9331 起 `load_pool` 显式**不**剪 env 条目(credential_pool.py:3129-3137,`prune_env_sources=False`,摘录见 §6)。env 条目只在 `hermes auth` 命令确认来源消失时才剪。**证伪文档**(文档描述的是 #9331 之前的旧行为)。
+代码自 #9331 起 `load_pool` 显式**不**剪 env 条目(agent/credential_pool.py:3129-3137,`prune_env_sources=False`,摘录见 §6)。env 条目只在 `hermes auth` 命令确认来源消失时才剪。**证伪文档**(文档描述的是 #9331 之前的旧行为)。
 
-**不符 ③(冷却表不完整/被代码超越)**:`credential-pools.md:143-145` 的表格给 429→1h、402→1h、401→5min。基线 TTL 与代码常量一致(credential_pool.py:124-126),但代码还有三层文档未提的行为:sole-credential 60s 短冷却(132 行)、`failure_reason=billing` 覆盖状态码(332-342)、终态 401 进 DEAD 而非任何 TTL(810-813)。**文档部分过时/不完整**。
+**不符 ③(冷却表不完整/被代码超越)**:`credential-pools.md:143-145` 的表格给 429→1h、402→1h、401→5min。基线 TTL 与代码常量一致(agent/credential_pool.py:124-126),但代码还有三层文档未提的行为:sole-credential 60s 短冷却(132 行)、`failure_reason=billing` 覆盖状态码(332-342)、终态 401 进 DEAD 而非任何 TTL(810-813)。**文档部分过时/不完整**。
 
 **不符 ④("池先于 fallback"有单 key 例外)**:`credential-pools.md:12` 称 "Pools are tried first — if all pool keys are exhausted, *then* the fallback provider activates";代码在单条目池 429 时直接 fallback、不等冷却(`run_agent.py:328-332`,`return len(pool.entries()) > 1`,#11314)。**文档缺关键例外**。
 
 **不符 ⑤(引用的架构图不在仓库)**:`credential-pools.md:213` 称 "see [`docs/credential-pool-flow.excalidraw`](…) in the repository";`find docs -iname '*credential*' -o -iname '*pool*'` 与全仓 `*excalidraw*` 检索均无此文件。**文档指向不存在的仓内文件**(外链 excalidraw.com 或仍有效,未验证网络资源)。
 
-**同时确认文档正确的部分**(避免过度证伪):429 先重试一次再轮换 + usage-limit 立即轮换与 `agent_runtime_helpers.py:1114-1126` 一致;`reset_at` 覆盖默认冷却与 `credential_pool.py:426-428` 一致;borrowed 凭据只存指纹的 Storage 说明(credential-pools.md:195、257)与 `credential_persistence.py` 完全一致——这一段文档甚至比多数段落更新。
+**同时确认文档正确的部分**(避免过度证伪):429 先重试一次再轮换 + usage-limit 立即轮换与 `agent/agent_runtime_helpers.py:1114-1126` 一致;`reset_at` 覆盖默认冷却与 `agent/credential_pool.py:426-428` 一致;borrowed 凭据只存指纹的 Storage 说明(credential-pools.md:195、257)与 `credential_persistence.py` 完全一致——这一段文档甚至比多数段落更新。
 
 **结论:▲ 成立。credential-pools.md 主干正确,但含 1 处虚构 API、1 处已反转语义、1 处失效文件引用,冷却/fallback 语义落后于 #9331/#11314/#32849 之后的代码。以代码为准。**
 

@@ -12,7 +12,7 @@
 能力天差地别——Telegram 能主动 push,API server 是无状态请求/响应,连"往哪推"都不存在。
 
 ### 实现
-- 按适配器能力位 `supports_async_delivery` 二分策略(wake.py:3-24):
+- 按适配器能力位 `supports_async_delivery` 二分策略(gateway/wake.py:3-24):
   - **push 型**(telegram/discord/插件平台…):构造合成事件
     `MessageEvent(text, TEXT, source, internal=True)` 走 `adapter.handle_message`
     ——与真实消息同管道(73-87);`internal=True` 是后续所有护栏的标记。
@@ -61,7 +61,7 @@
 3. 唤醒失败必须让持游标者感知;重试只对可恢复错误(429/连接类)。
 4. 认证缺失时宁可硬失败,不要让事件落进没人能看到的会话。
 
-## 机制 2:internal 事件护栏(run.py:8867-8879)
+## 机制 2:internal 事件护栏(gateway/run.py:8867-8879)
 
 ### 场景/问题
 唤醒/完成类合成事件如果被当成用户文本,在 busy 会话上会按 busy_text_mode 默认打断正在跑的
@@ -92,7 +92,7 @@
 1. 合成事件必须带可判别标记,并在**每个**会打断用户工作的分支前挡下。
 2. "完成通知只在空闲时浮出"要写成不变量并配测试,否则每加一种带外事件就回归一次。
 
-## 机制 3:忙时输入策略与 steer 注入(run.py:8884-9003)
+## 机制 3:忙时输入策略与 steer 注入(gateway/run.py:8884-9003)
 
 ### 场景/问题
 agent 正跑长任务,用户又发来消息。四种合理处置:打断(interrupt)、排队(queue)、

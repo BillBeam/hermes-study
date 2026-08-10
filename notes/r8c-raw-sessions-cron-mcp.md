@@ -1273,7 +1273,23 @@ async def create_hook(body: HookCreate):
 
 ### 5.5 ◇ 两个端点在全仓 1,492 个 md 里 0 提及
 
+**R11C 片 C 改:原块把「命令 + 箭头 + 结果」混排在 ```verify 里(重跑得
+`bash: line 6: 没有提: command not found`)。下面先给两条真正可重跑的命令并配对输出,
+再把原块改标 ```text 保留(它是搜索面与文档现状的说明,不是命令)。两个数都与原块一致。**
+
 ```verify
+cd /home/user/hermes-agent && grep -rn "import-upload\|backup/download" --include=*.md . ; \
+  echo "hits_exit=$?"; find . -name "*.md" -not -path "*/node_modules/*" | wc -l
+```
+
+```text
+hits_exit=1
+1492
+```
+
+`hits_exit=1` 即 grep 零命中(GNU grep 无匹配退出 1),`1492` 是全仓 md 总数。
+
+```text
 搜索面:grep -rn "import-upload\|backup/download" --include=*.md .   → 0 命中
         find . -name "*.md" -not -path "*/node_modules/*" | wc -l   → 1492
 文档现状:website/docs/user-guide/features/web-dashboard.md:541 只写

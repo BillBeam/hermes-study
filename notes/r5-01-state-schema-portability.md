@@ -169,8 +169,8 @@ optimize(残留 demoted 垃圾表/回搬标记/空外部索引对非空 messages
 ## 4. 会话活动契约(session_activity.py)与消息文本拍平(message_content.py)
 
 **session_activity.py**(#72016/#72039)是"活动心跳"的**观测侧契约**:只有时间戳 + 限长描述
-(120 字符,session_activity.py:19, 42-47)+ 小闭集 provenance 枚举(UNKNOWN + 三个压缩写者,
-session_activity.py:32-39);通知/超时/杀会话策略都不在这里。关键常量
+(120 字符,agent/session_activity.py:19, 42-47)+ 小闭集 provenance 枚举(UNKNOWN + 三个压缩写者,
+agent/session_activity.py:32-39);通知/超时/杀会话策略都不在这里。关键常量
 (agent/session_activity.py:29-37 注释 + :29):
 
 ```python
@@ -181,10 +181,10 @@ SESSION_ACTIVITY_HEARTBEAT_MIN_INTERVAL_SECONDS = 60.0
 constant, independent of any compression.* or agent.* config, so no configuration can turn the
 heartbeat into a high-frequency writer"。**心跳频率是代码常量、不给配置**——防任何配置把观测心跳
 变成高频写者压垮争用的写路径。唯一旁路是终端戳的 force_persist;`reset_session_activity_persist_window`
-(session_activity.py:63-74)给 /compress 后"卡在压缩中标签"的场景强制下一次写穿。
+(agent/session_activity.py:63-74)给 /compress 后"卡在压缩中标签"的场景强制下一次写穿。
 
 **message_content.py**:`flatten_message_text` 从各种 provider 消息形状(str / parts 列表 /
-Responses 对象)拍平出可见文本,图像/音频 part 归空(message_content.py:7-8, 34-50)——
+Responses 对象)拍平出可见文本,图像/音频 part 归空(agent/message_content.py:7-8, 34-50)——
 是 FTS 索引与预览的文本源头小工具。
 
 ## 5. 重实现要点

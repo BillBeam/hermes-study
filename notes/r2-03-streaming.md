@@ -4,7 +4,7 @@
 > `agent/conversation_loop.py:2329-2416`、`agent/stream_diag.py`(概览)。
 > interruptible_streaming_api_call 本体(chat_completion_helpers.py:2528)细节见 r2-10(故障转移簇)。
 
-## 1. 无消费者也强制流式(conversation_loop.py:2329-2381)
+## 1. 无消费者也强制流式(agent/conversation_loop.py:2329-2381)
 
 `_use_streaming = True` 是默认,理由写死在注释里(2329-2339):流式给了非流式没有的
 细粒度健康检查——陈旧流检测 + 读超时;没有它,provider 用 SSE ping 保活但永不给
@@ -14,7 +14,7 @@
 > 60s read timeout"是**注释漂移**。实测:**流式 stale 默认 180s**
 > (`agent/chat_completion_helpers.py:4063 @ 863e313` `env_float("HERMES_STREAM_STALE_TIMEOUT", 180.0)`),
 > **流式读超时默认 120s**(`chat_completion_helpers.py:3028` `env_float("HERMES_STREAM_READ_TIMEOUT", 120.0)`,
-> 与 env-variables.md:802-803 一致);**90s 是非流式 stale 基线**
+> 与 website/docs/reference/environment-variables.md:802-803 一致);**90s 是非流式 stale 基线**
 > (`run_agent.py:1426` `return 90.0, True`)。这条冲突计入 r2-90 定案与报告。
 
 四个例外:
@@ -60,7 +60,7 @@
 
 ## 4. 陈旧流检测与读超时(接口层)
 
-`interruptible_streaming_api_call`(chat_completion_helpers.py:2528)的外层主线程 0.3s 轮询做
+`interruptible_streaming_api_call`(agent/chat_completion_helpers.py:2528)的外层主线程 0.3s 轮询做
 **陈旧流检测**(默认 180s 无新 chunk,本地端点 900s,按上下文放大 240/300s,推理模型下限再抬),
 超过阈值即杀客户端、bump stale streak、让内层重连;httpx **读超时**默认 120s(本地放宽)——
 读超时必须 ≥ stale 阈值排序之下,否则 socket 读超时先于拥有重试/诊断权的 stale 检测器开火,

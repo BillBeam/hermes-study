@@ -1631,7 +1631,7 @@ cd /home/user/hermes-agent && grep -rn "never mind\|that's all\|goodbye" --inclu
 ```
 
 同一份文档在 `### Option A — sherpa` 一节自己写了 `phrase: "hey coder"  # detection key`,
-而 `config_defaults.py:1582` 的注释也是对的("for `sherpa` this IS the detected phrase")。
+而 `hermes_cli/config_defaults.py:1582` 的注释也是对的("for `sherpa` this IS the detected phrase")。
 所以是 Configuration 块这一行没跟上三引擎化。
 
 ### ▲-4 `wake-word.md` 两处"both"仍按两引擎写,该节自己的表格是三行

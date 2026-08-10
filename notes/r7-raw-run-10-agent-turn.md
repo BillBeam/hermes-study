@@ -485,7 +485,7 @@ protect-first/last 提前返回,结果什么都没压(#3854,16864–16876 注释
 - `_seed_hygiene_system_prompt`(`gateway/run.py:465 @ 863e313`):hygiene agent 跳过 memory
   provider 初始化,若让压缩顺带持久化一个重建的系统提示,会把外部 provider 块从活会话里剥掉;
   所以**seed 持久化过的原提示**,取不到就 seed 空串。
-- `_GATEWAY_HYGIENE_PLATFORM = "gateway_hygiene"`(run.py:88):万一压缩重建了提示,平台标记
+- `_GATEWAY_HYGIENE_PLATFORM = "gateway_hygiene"`(gateway/run.py:88):万一压缩重建了提示,平台标记
   让所有真实 surface 都视其为陈旧,真实回合会用完整初始化的 provider 重建。
 - `compression_in_place = True`(16924):hygiene 跑在用户回合之前、已拥有会话绑定,优先
   就地压实(同 id 下归档旧行)而不是铸继续 child 再回publish 给 SessionStore/topic 绑定。
@@ -524,11 +524,11 @@ protect-first/last 提前返回,结果什么都没压(#3854,16864–16876 注释
                                                 raise
 ```
 
-真超时后的取消协商(16999–17032):`try_cancel_before_commit`(conversation_compression.py:521)
+真超时后的取消协商(16999–17032):`try_cancel_before_commit`(agent/conversation_compression.py:521)
 在 commit 边界前抢占;`commit_in_flight`(575)是无锁相位标记,防止挂死的 commit 抱着 fence 锁
 让本循环空转(F1);取消失败=worker 恰在超时前跨过 commit 边界 → **消费完成结果**而不是把成功
 压实当超时(17018–17024);取消成功 → `release_cancelled_compression_lock`(678,holder 限定、
-无 ABA)立刻释放持久压缩锁(F4),`_defer_agent_cleanup_until_future_done`(run.py:9558)把
+无 ABA)立刻释放持久压缩锁(F4),`_defer_agent_cleanup_until_future_done`(gateway/run.py:9558)把
 agent 清理挂到脱缰 future 完成之后,记冷却、盖 provenance 戳、给用户发可见超时警告(17070–17093)。
 非超时 unwind(KeyboardInterrupt/取消)先 `revoke_commit_admission`(591)再抛,保证脱缰 worker
 永远无法事后 commit(17094–17111,F2)。
@@ -572,11 +572,11 @@ agent 清理挂到脱缰 future 完成之后,记冷却、盖 provenance 戳、�
     )
 ```
 
-(`hygiene_compaction_recovered`,run.py:187;docstring 187–221 说明 token 比较必须走共享的
+(`hygiene_compaction_recovered`,gateway/run.py:187;docstring 187–221 说明 token 比较必须走共享的
 `compression_made_progress`:approx 可能是 provider 实报而 new 永远是粗估,裸 `<` 既漏真赢也把
 噪声当赢;#39548。)恢复则 `_reset_hygiene_failure_streak`(173)。
 
-失败冷却是 **x1/x3/x9 乘数阶梯**(`_hygiene_cooldown_for_failure`,run.py:135):agent 内的
+失败冷却是 **x1/x3/x9 乘数阶梯**(`_hygiene_cooldown_for_failure`,gateway/run.py:135):agent 内的
 绝对阶梯(60→300→900)对 hygiene 结构性不可达 —— hygiene 每次新建 AIAgent、`bind_session_state`
 把内存连败计数清零,永远只record 平坦冷却(#79624);连败改存 `PersistentState` 跨 agent 存活。
 落库走 `_record_hygiene_cooldown`(231):与 agent 内路径同列
@@ -679,23 +679,23 @@ thread/workspace 定界,必须带与投递路径相同的路由 metadata),回退
 1. **hidden-reasoning 哨兵**(17602–17610,#51628):重试耗尽的哨兵文本("Codex response
    remained incomplete after 3 continuation attempts")同时充当 final_response 与 error,
    若原样投递,同频道的 peer agent 会把它当成完整助手回合摄取。
-   `_is_gateway_hidden_reasoning_incomplete_turn`(run.py:3530)判定:partial 且 error 含
+   `_is_gateway_hidden_reasoning_incomplete_turn`(gateway/run.py:3530)判定:partial 且 error 含
    "remained incomplete after" 且 final 为空或仅回声哨兵 —— **任何真正不同的 final 文本都必须投递**。
 2. **`(empty)` 哨兵**(17624–17629):模型历经 nudge/prefill/empty-retry/fallback 仍无可见
    内容的内部哨兵,转译成人话("模型处理工具结果后未返回响应……"),避免看起来像 bug。
 3. **intentional silence**(17611–17617):`is_intentional_silence_agent_result`
    (gateway/response_filters)判定 [SILENT]/NO_REPLY;它**不是**空响应,是投递决策 ——
    transcript 照常持久化助手回合以保持交替,只抑制出站投递(18115–18125)。
-4. **空响应归一**(17667–17671)`_normalize_empty_agent_response`(run.py:3445):
+4. **空响应归一**(17667–17671)`_normalize_empty_agent_response`(gateway/run.py:3445):
    - failed → 上下文类错误给 /compact 提示,否则截断 error 给重试提示(#18765);
    - interrupted 且 api_calls==0 → 消息根本没被处理(残留 /stop 中断旗,#44212),提示重发;
      interrupted 且做过工作 → 有意静默,放行;
    - api_calls>0 无文本 → partial 给"processing stopped",否则"completed but no response";
    - api_calls==0 且非 failed/interrupted/partial → post-/stop 代际竞态的静默丢弃模式(#31884),
      提示"上一回合仍在清理,请重发"。
-   随后 `_sanitize_gateway_final_response`(run.py:699)做平台级清洗。
+   随后 `_sanitize_gateway_final_response`(gateway/run.py:699)做平台级清洗。
 
-另:`_should_clear_resume_pending_after_turn`(run.py:3554)只在"真正成功完成"
+另:`_should_clear_resume_pending_after_turn`(gateway/run.py:3554)只在"真正成功完成"
 (非 interrupted/failed/partial/error 且 completed≠False)时清 `clear_resume_pending`
 (`gateway/session.py:2780`)与重启失败计数(17655–17663)—— 软中断可能伪装成正常空结果,
 清了标记 = 重启自动恢复失去信号。
@@ -710,7 +710,7 @@ thread/workspace 定界,必须带与投递路径相同的路由 metadata),回退
 **压缩后 session_id 同步**(17673–17705):agent 结果里的 session_id 与当前不同(agent 内压缩
 改名)时,**身份守卫**:只有 `session_entry.session_id == _run_start_session_id`(期间没被
 /new 等移动)才接受改名,随后 `_rebind_turn_lease` → `_save()` →
-`_record_gateway_session_peer`(session.py:1986)→ 同步 topic 绑定;否则跳过并记日志
+`_record_gateway_session_peer`(gateway/session.py:1986)→ 同步 topic 绑定;否则跳过并记日志
 (17697–17705)—— 后写者是生命周期转换,不是压缩。
 
 **reasoning 展示**(17707–17763):`_resolve_gateway_display_bool` 按平台解析 show_reasoning
@@ -725,7 +725,7 @@ thread/workspace 定界,必须带与投递路径相同的路由 metadata),回退
 **agent:end + watcher 派发**(17787–17828):emit `agent:end`;
 `process_registry.pending_watchers` **原子摘批**(整体换新 list 而不是 clear(),防 yield 间隙
 并发追加的 watcher 被 clear 吞掉,17797–17800),每个 watcher 起 task、每 100 个让出一次循环;
-watch 事件从共享 completion_queue drain(`_drain_gateway_watch_events`,run.py:3410),
+watch 事件从共享 completion_queue drain(`_drain_gateway_watch_events`,gateway/run.py:3410),
 只注入 watch 型事件 —— 异步委托完成同乘此队列但归 boot 时启动的 `_async_delegation_watcher`
 单一消费者所有(17812–17816)。
 
@@ -758,7 +758,7 @@ watch 事件从共享 completion_queue drain(`_drain_gateway_watch_events`,run.p
   误中(17856–17860 注释,与 run_agent.py 的分类器一致)。
 - **瞬态失败**(429/超时/5xx):**只写用户消息** —— 会话没超限,静默丢弃用户消息会让 agent
   重试时忘了刚才被问什么(#7100)。带 message_id 去重:Telegram 瞬态失败后重投递会造成重复
-  用户回合(#47237,`has_platform_message_id`,session.py:3338):
+  用户回合(#47237,`has_platform_message_id`,gateway/session.py:3338):
 
 ```python
 # gateway/run.py:18010-18015 @ 863e313
@@ -783,7 +783,7 @@ watch 事件从共享 completion_queue drain(`_drain_gateway_watch_events`,run.p
 
 - **deferred**:并发压缩者持锁、会话只是**暂时**不可压 —— 绝不重置,下条消息自然重试
   (#69870;salvaged from #49874)。
-- **exhausted**:会话**永久**过大 → `reset_session`(session.py:2886)+ 驱逐缓存 agent +
+- **exhausted**:会话**永久**过大 → `reset_session`(gateway/session.py:2886)+ 驱逐缓存 agent +
   `_clear_conversation_scope(reason="compression_exhausted_reset")`,并且**必须重同步 topic 绑定**:
   本回合早些时候 agent-result 同步已把绑定改写到臃肿 child,不重同步的话下条消息又被 binding-heal
   walk 切回臃肿 child、重载超大 transcript、再次 exhausted,**永远循环**(#35809 —— 对

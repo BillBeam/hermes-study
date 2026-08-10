@@ -398,7 +398,7 @@ ContextVar `_current_dashboard_flow` + `dashboard_oauth_flow(flow)` 上下文管
 
 ### 4.3 web 侧接线(三条路由 + 一个 worker 事务)
 
-- `POST /api/mcp/servers/{name}/auth`(需 dashboard token):造 `flow_id=secrets.token_urlsafe(24)` 的 flow,redirect_uri 用配置值或**公网回调 URL** `{public_url}/api/mcp/oauth/callback/<server>`(`hermes_cli/web_server.py:12148-12162 @ 863e313`);全局并发上限 8、同 (home,server) 已有未完流 409、TTL 15 分钟 GC(`hermes_cli/web_routers/mcp.py:230-250 @ 863e313`;`web_server.py:12122-12139`);起 daemon 线程跑 worker,等 30s 拿到授权 URL 即返回 snapshot。
+- `POST /api/mcp/servers/{name}/auth`(需 dashboard token):造 `flow_id=secrets.token_urlsafe(24)` 的 flow,redirect_uri 用配置值或**公网回调 URL** `{public_url}/api/mcp/oauth/callback/<server>`(`hermes_cli/web_server.py:12148-12162 @ 863e313`);全局并发上限 8、同 (home,server) 已有未完流 409、TTL 15 分钟 GC(`hermes_cli/web_routers/mcp.py:230-250 @ 863e313`;`hermes_cli/web_server.py:12122-12139`);起 daemon 线程跑 worker,等 30s 拿到授权 URL 即返回 snapshot。
 - `GET /api/mcp/oauth/flows/{flow_id}`(需 token):轮询状态。
 - `GET /api/mcp/oauth/callback/{server_name}`:**免 dashboard 鉴权**——授权服务器重定向来的浏览器请求不带 dashboard 凭据(`hermes_cli/web_server.py:664-665 @ 863e313`:`is_mcp_oauth_callback = path.startswith("/api/mcp/oauth/callback/")` 从 401 门里豁免)。因此路由层用 **state 匹配来选 flow**(在所有 `authorization_required` 状态的同名候选里 `compare_digest` 命中才投递,`hermes_cli/web_routers/mcp.py:284-304 @ 863e313`)——state 就是这条免鉴权路由的能力凭证;`deliver_callback` 内部再做一次一次性+比对双保险。
 - worker `_run_dashboard_mcp_oauth`(`hermes_cli/web_server.py:12171-12251 @ 863e313`):设 HERMES_HOME override + secret scope → `with transaction, force_interactive_oauth(), dashboard_oauth_flow(flow):` → 先 `storage.snapshot()` + `manager.remove()`(强制全新流)→ `_probe_single_server`(超时下限 315s = 300s 回调窗 + 余量)→ **校验 token 真落盘**(`_oauth_tokens_present`,防"server 无鉴权也能 tools/list"的假成功,与 CLI 同款,§4.4)→ `_save_mcp_server` + `mark_approved` + 若 `reconnect_live` 则热重连;任何异常 → `storage.restore(backup, only_if_absent=True)` + `manager.restore_entry` 回滚 + `humanize_oauth_registration_error` 翻译后 `mark_error`。
@@ -458,7 +458,7 @@ R3 台账里 `mcp_tool.py` 的七道客户端防护(命名撞车 fail-closed、�
   ```
   定案:文档滞后于 SSE OAuth 修复;若把"url-based"读宽也能圆,但"HTTP/StreamableHTTP"的字面排除了 `transport: sse`,以代码为准。
 
-**◇ 核对为一致的关键陈述**(记录避免重查):`user-guide/features/mcp.md:218`(auth: oauth 全托 SDK)、`:240`(token 落 `~/.hermes/mcp-tokens/<server>.json`、0o600——对应 `_get_token_dir`/`_write_json`)、`:221-227`(Figma client_name 白名单——对应 `_FIGMA_DCR_CLIENT_NAME`)、`:260`(`redirect_host: localhost` WAF 绕行——对应 `_resolve_redirect_uri`)、`:264`(Google Drive 假成功 + login 验 token 落盘——对应 `_oauth_tokens_present`)、`:278` 与 `oauth-over-ssh.md:74`(30s 配置重载不够跑 OAuth,用 `hermes mcp login` 的 315s 下限——对应 `mcp_config.py:834`)、`oauth-over-ssh.md:51-64`(粘贴回退,含裸 `?code=...&state=...`——对应 `_paste_callback_reader`)。
+**◇ 核对为一致的关键陈述**(记录避免重查):`user-guide/features/mcp.md:218`(auth: oauth 全托 SDK)、`:240`(token 落 `~/.hermes/mcp-tokens/<server>.json`、0o600——对应 `_get_token_dir`/`_write_json`)、`:221-227`(Figma client_name 白名单——对应 `_FIGMA_DCR_CLIENT_NAME`)、`:260`(`redirect_host: localhost` WAF 绕行——对应 `_resolve_redirect_uri`)、`:264`(Google Drive 假成功 + login 验 token 落盘——对应 `_oauth_tokens_present`)、`:278` 与 `oauth-over-ssh.md:74`(30s 配置重载不够跑 OAuth,用 `hermes mcp login` 的 315s 下限——对应 `hermes_cli/mcp_config.py:834`)、`oauth-over-ssh.md:51-64`(粘贴回退,含裸 `?code=...&state=...`——对应 `_paste_callback_reader`)。
 
 ---
 

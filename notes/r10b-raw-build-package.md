@@ -943,11 +943,20 @@ Electron(`apps/desktop/electron/update-marker.ts`)、Python(`hermes_cli/update_l
 
 搜索面:`git ls-files | grep -i dev-sandbox`,全仓已跟踪文件,**1 条命中**:`scripts/dev-sandbox.sh`。
 
+**R11C 片 C 改:原块把两条命令与它们的输出混排在一个 ```verify 围栏里
+(输出伪装成 `#` 注释),而第二条 `ls` 是**故意失败**的 —— 那正是本条 ▲ 的证据。
+改法:合成一条可重跑命令,把 `ls` 的报错并进 stdout 并显式打出退出码,输出配对逐字比对。
+**结论未变,`ls` 仍然找不到那个路径。**
+
 ```verify
-cd /home/user/hermes-agent && git ls-files | grep -i dev-sandbox
-# scripts/dev-sandbox.sh
-cd /home/user/hermes-agent && ls apps/desktop/../scripts/dev-sandbox.sh
-# ls: cannot access '...': No such file or directory
+cd /home/user/hermes-agent && git ls-files | grep -i dev-sandbox; \
+  ls apps/desktop/../scripts/dev-sandbox.sh 2>&1; echo "exit=$?"
+```
+
+```text
+scripts/dev-sandbox.sh
+ls: cannot access 'apps/desktop/../scripts/dev-sandbox.sh': No such file or directory
+exit=2
 ```
 
 ### ▲-3 capabilities 的自述「不在 HERMES_HOME 之外写用户文件」被更新流程否定
@@ -1355,7 +1364,13 @@ typecheck」—— 由于 `build` 不做类型检查,这个场景根本到不了
 
 ### 7.1 本片能跑的:`scripts/**.test.mjs`(4 文件)
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 它不是可重跑命令。**
+vitest 要 `apps/desktop/node_modules`,而基线是只读 checkout、**没有 `apps/desktop/node_modules`**;补它只能在基线里 `npm ci`,
+那会弄脏全项目的引用基准(CLAUDE.md 边界第一条)。R10B 跑它用的是基线之外一份
+**会话专属副本**,该目录已随会话消失 —— 所以这条命令在新容器里**原理上跑不出原值**。
+按派工书如实声明,不伪造输出;块正文一字未动。
+
+```text
 # 通用形式:在任意已 `npm ci`(仓库根)的 hermes-agent 检出里执行 ——
 cd apps/desktop && npx vitest run --project electron scripts/
 # 本轮实测用的是主线备好的、基线之外的副本(避免在只读基线里产生 node 侧产物):
@@ -1367,7 +1382,13 @@ cd apps/desktop && npx vitest run --project electron scripts/
 
 作为对照,整个 `electron` project(含片外的 `electron/**`,74 个文件):
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 它不是可重跑命令。**
+vitest 要 `apps/desktop/node_modules`,而基线是只读 checkout、**没有 `apps/desktop/node_modules`**;补它只能在基线里 `npm ci`,
+那会弄脏全项目的引用基准(CLAUDE.md 边界第一条)。R10B 跑它用的是基线之外一份
+**会话专属副本**,该目录已随会话消失 —— 所以这条命令在新容器里**原理上跑不出原值**。
+按派工书如实声明,不伪造输出;块正文一字未动。
+
+```text
 cd apps/desktop && npx vitest run --project electron
 # Test Files  78 passed | 1 skipped (79)
 #      Tests  938 passed | 2 skipped (940)

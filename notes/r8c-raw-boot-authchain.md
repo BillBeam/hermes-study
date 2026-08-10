@@ -915,7 +915,11 @@ def _resolve_restart_drain_timeout() -> float:
 
 取值链(优先级从高到低):
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 块里是取值链的说明,不是命令。**
+原样跑它会得到 `bash: -c: line 1: '1. 环境变量 HERMES_RESTART_DRAIN_TIMEOUT(非空即用)'`。
+内容一字未动。
+
+```text
 1. 环境变量 HERMES_RESTART_DRAIN_TIMEOUT(非空即用)
 2. config.yaml 的 agent.restart_drain_timeout
 3. DEFAULT_CONFIG["agent"]["restart_drain_timeout"] = 0
@@ -990,7 +994,10 @@ _SSH_OWNER_NONCE: Optional[str] = None
 
 两条来源、一条兜底:
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 块里是两条来源与兜底的说明,不是命令。**
+内容一字未动。
+
+```text
 桌面 App 场景:App 主进程自己造 token,通过 HERMES_DASHBOARD_SESSION_TOKEN 注入子进程,
               这样 App 主进程也能代用户调 /api/*(它拿得到 token)。
 纯 CLI 场景:  环境变量为空 → secrets.token_urlsafe(32) 现场生成。

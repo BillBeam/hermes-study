@@ -172,13 +172,22 @@ telegram / discord 迁至 `plugins/platforms/*/adapter.py`;Baileys 版 WhatsApp 
 
 **代码**:这一节的五个方法里,**两个有基类桩、三个没有**,而文档对这个分界只字未提。
 
+**R11C 片 C 改:原块是一段 `$` 提示符**转录**(命令与输出混排在同一个 ```verify 围栏里),原样重跑等于把输出行也当命令执行。下面拆成「可重跑命令 + 逐字输出」两块;转录里的旁注移到块后正文。**读数与原块一致,结论未变。**
+
 ```verify
-$ grep -nE "def (send_clarify|send_slash_confirm)" gateway/platforms/base.py
+cd /home/user/hermes-agent
+grep -nE "def (send_clarify|send_slash_confirm)" gateway/platforms/base.py
+grep -nE "def (send_exec_approval|send_model_picker|send_choice_picker)" gateway/platforms/base.py
+echo "second-grep exit=$?"
+```
+
+```text
 3745:    async def send_slash_confirm(
 3780:    async def send_clarify(
-$ grep -nE "def (send_exec_approval|send_model_picker|send_choice_picker)" gateway/platforms/base.py ; echo "exit=$?"
-exit=1                     # 零命中
+second-grep exit=1
 ```
+
+`second-grep exit=1` 即后三个方法名在该文件里**零命中**。
 
 优雅降级**真实存在**(所以 `:115` 那句话为真),但那三个的降级实现在调用点的**类型探测**:
 
@@ -304,15 +313,24 @@ $ grep -rln "HERMES_MEDIA_" website/ docs/ *.md
 - **◇ B-15**:入站媒体上限 `gateway.max_inbound_media_bytes`(默认 128 MiB,`0` 关闭,
   `gateway/platforms/base.py:709-723 @ 863e313`)全部文档零命中:
 
+**R11C 片 C 改:原块是一段 `$` 提示符**转录**(命令与输出混排在同一个 ```verify 围栏里),原样重跑等于把输出行也当命令执行。下面拆成「可重跑命令 + 逐字输出」两块;转录里的旁注移到块后正文。**读数与原块一致,结论未变。**
+
 ```verify
-$ grep -rln "max_inbound_media_bytes" website/ docs/ *.md ; echo "exit=$?"
-exit=1                     # 零命中;该键只出现在 .py 里
-$ grep -rln "max_inbound_media_bytes" --include=*.py .
+cd /home/user/hermes-agent
+grep -rln "max_inbound_media_bytes" website/ docs/ *.md; echo "doc-side exit=$?"
+grep -rln "max_inbound_media_bytes" --include=*.py . | sort
+```
+
+```text
+doc-side exit=1
 ./gateway/platforms/base.py
 ./hermes_cli/config_defaults.py
-./tests/gateway/test_platform_base.py
 ./plugins/platforms/discord/adapter.py
+./tests/gateway/test_platform_base.py
 ```
+
+`doc-side exit=1` 即文档面**零命中** —— 这个键**只出现在 `.py` 里**,四处如上。
+(原块四行未排序,是 `grep -r` 的目录遍历序;这里补了 `| sort` 让输出可稳定比对,集合一致。)
 
 ### 3.4 api_server(`r7b-40`)
 

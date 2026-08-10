@@ -6,7 +6,7 @@
 >
 > **重要发现(新增文档-代码冲突)**:conversation_loop.py:2330-2331 注释写"90s stale-stream
 > detection, 60s read timeout"是**注释漂移**——实测流式 stale 默认 180s、读超时默认 120s
-> (chat_completion_helpers.py:4063/3028;env-variables.md:802-803 与代码一致);90s 是**非流式**
+> (chat_completion_helpers.py:4063/3028;website/docs/reference/environment-variables.md:802-803 与代码一致);90s 是**非流式**
 > stale 基线(run_agent.py:1426)。据此已修正本项目 notes/r2-03 里沿用旧注释的表述。
 
 # R2 精读底稿:错误分类-重试-故障转移 + prompt cache 断点(hermes-agent @ 863e313)
@@ -58,7 +58,7 @@
 | 值 | 触发条件(分类点) | 标志位 | 恢复动作(conversation_loop.py 消费点) |
 |---|---|---|---|
 | `auth` | 401(`:1021-1032`);403 非计费(`:1052-1056`);消息含 `_AUTH_PATTERNS`(`:1642-1648`);xAI Grok 订阅错误(SSE error 帧、无状态码,`:842-850`) | retryable=False, rotate=True(401/消息路径), fallback=True | provider 专属凭据刷新(codex `:3953-3963`、vertex `:3964-3969`…)→ 池轮转 `:3861-3868` → auth failover 上链 `:4509-4525` → 终局引导 |
-| `auth_permanent` | **分类器从不产生**(仅枚举定义 `:29`、`is_auth` 属性 `:97`、context_compressor.py:79 消费)——预留给"刷新后仍失败"的上层标注 | — | abort |
+| `auth_permanent` | **分类器从不产生**(仅枚举定义 `:29`、`is_auth` 属性 `:97`、agent/context_compressor.py:79 消费)——预留给"刷新后仍失败"的上层标注 | — | abort |
 | `billing` | 402 无瞬态信号(`_classify_402` `:1253-1279`);403/404/400/消息路径命中 `_BILLING_PATTERNS`(`:104-124`);结构化码 `_BILLING_ERROR_CODES`(`:134-143`,含 xAI `personal-team-blocked:spending-limit`) | retryable=False, rotate=True, fallback=True | Nous 付费凭据刷新一次 `:3844-3859` → 池轮转 → 立即上链 `:4426-4492`;终局回 `billing_block` 结构 `:5525-5528` |
 | `rate_limit` | 429 默认分支(`:1151-1156`);402/400/无状态码 + 瞬态用量信号(`try again`/`resets at`…,`:1264-1271`, `:1429-1435`, `:1577-1583`) | retryable=True, rotate=True, fallback=True | Retry-After 优先(上限 600s,`:5531-5547`)→ 池轮转 → 立即上链(rate-limit 属 eager fallback `:4426-4430`) |
 | `upstream_rate_limit` | 429 且 body 是 OpenRouter "Provider returned error" 包裹(`_is_openrouter_upstream_error` `:1798-1825`) | retryable=True, rotate=**False**, fallback=True | 换模型不换 key:绕过池恢复直接上链(`:4460-4466`);凭据是健康的,轮转会白白封禁 key ~24min(注释 `:1135-1140`) |
@@ -71,7 +71,7 @@
 | `image_too_large` | 400/消息命中 `_IMAGE_TOO_LARGE_PATTERNS`(Anthropic 5MB/8000px,`:236-246`),在 overflow 之前检查(shrink 更便宜,`:1309-1316`) | retryable=True | 原地缩图重试一次(`:3876-3891`) |
 | `model_not_found` | 404/400 + `_MODEL_NOT_FOUND_PATTERNS`(`:322-340`,含 OpenRouter "no endpoints found that support tool use" PR#58446);裸 id 缺前缀目录核对(`_model_id_missing_known_prefix` `:343-365`,#78796);错误码表(`:1512-1517`);MoAPresetNotFoundError(`:883-884`) | retryable=False, fallback=True | 上链换模型。注意:**generic 404 归 unknown 可重试**(`:1102-1112`)——本地端点 URL 配错不该被误报成模型缺失 |
 | `provider_policy_blocked` | OpenRouter 账户隐私守卫 404/400(`_PROVIDER_POLICY_BLOCKED_PATTERNS` `:427-431`) | retryable=False, fallback=**False** | 直接展示错误体里的修复 URL——账户级设置,换 provider 无效(注释 `:420-426`) |
-| `content_policy_blocked` | 逐字 provider 安全拦截短语表(`:450-478`,OpenAI cyber/moderation、Anthropic safety、`content_filter`、MiniMax `new_sensitive` #32421),**流水线第一优先**(`:727-732`) | retryable=False, fallback=True | 立即上链;流式路径把它盖章到 partial-stub 上(`_content_filter_terminated`,chat_completion_helpers.py:4315-4338) |
+| `content_policy_blocked` | 逐字 provider 安全拦截短语表(`:450-478`,OpenAI cyber/moderation、Anthropic safety、`content_filter`、MiniMax `new_sensitive` #32421),**流水线第一优先**(`:727-732`) | retryable=False, fallback=True | 立即上链;流式路径把它盖章到 partial-stub 上(`_content_filter_terminated`,agent/chat_completion_helpers.py:4315-4338) |
 | `format_error` | 400 兜底(`:1482-1486`);4xx 兜底(`:1239-1244`);5xx 携带请求校验信号(`:1176-1185`);无效消息数组(`_INVALID_MESSAGE_BODY_PATTERNS` `:383-390`,空 stub 400 不许进压缩循环);MoA 适配器 shape bug(fallback=False,`:868-876`) | retryable=False, fallback=True(多数) | 快速失败→上链 |
 | `invalid_encrypted_content` | 400 + Responses replay blob 校验失败(码/消息,`:1323-1337`, `:1526-1531`) | retryable=True, fallback=False | 关闭本会话 reasoning replay、剥离缓存项、重试一次(`:4118-4145`) |
 | `multimodal_tool_content_unsupported` | 400/消息命中 `_MULTIMODAL_TOOL_CONTENT_PATTERNS`(`:259-272`,#27344),在 image/overflow 之前(`:1296-1307`) | retryable=True | 剥 tool 消息里的图片、给 (provider,model) 记会话级降级标记、重试一次(`:3905-3909`) |
@@ -106,8 +106,8 @@
 抖动为 `uniform(0, jitter_ratio*delay)`(默认 0.5),种子混入进程内带锁单调计数器 `time.time_ns() ^ (tick * 0x9E3779B9)`(`:124-126`)——目的写在模块 docstring:防多会话同击同一限流 provider 的 thundering-herd(`:1-6`)。
 
 **主循环参数**(conversation_loop.py):
-- 重试上限 `agent._api_max_retries`,默认 3,配置 `agent.api_max_retries`,下限钳 1(agent_init.py:1837-1843,#11616)。
-- 分类错误路径:`Retry-After` 头优先、上限 600s(Anthropic Tier-1 重置 ~171s,120s 上限会提前撞墙,#26293,`conversation_loop.py:5538-5544`),否则:
+- 重试上限 `agent._api_max_retries`,默认 3,配置 `agent.api_max_retries`,下限钳 1(agent/agent_init.py:1837-1843,#11616)。
+- 分类错误路径:`Retry-After` 头优先、上限 600s(Anthropic Tier-1 重置 ~171s,120s 上限会提前撞墙,#26293,`agent/conversation_loop.py:5538-5544`),否则:
 
 `agent/conversation_loop.py:5547 @ 863e313`
 ```python
@@ -116,24 +116,24 @@ wait_time = _retry_after if _retry_after else jittered_backoff(retry_count, base
 - 无效响应(空 choices 等)路径用更宽的 5s/120s(`:2701`)。
 - 退避睡眠切成 0.2s 片,片间查中断并保留 redirect(`:5583-5607`)。
 
-**Provider 自适应层**:Z.AI Coding GLM-5.2 的 429 code-1305 过载,先走 3 次短退避,之后走 30/60/90/120s 长表 + 0.2 抖动(`adaptive_rate_limit_backoff` `retry_utils.py:162-191`);因为默认 max_retries=3 会让长表成死代码,循环检测到该错误时把上限抬到 `short+len(table)+1=8`(`zai_coding_overload_retry_ceiling` `:194-208`;消费点 conversation_loop.py:4442-4446)。
+**Provider 自适应层**:Z.AI Coding GLM-5.2 的 429 code-1305 过载,先走 3 次短退避,之后走 30/60/90/120s 长表 + 0.2 抖动(`adaptive_rate_limit_backoff` `agent/retry_utils.py:162-191`);因为默认 max_retries=3 会让长表成死代码,循环检测到该错误时把上限抬到 `short+len(table)+1=8`(`zai_coding_overload_retry_ceiling` `:194-208`;消费点 agent/conversation_loop.py:4442-4446)。
 
-`parse_retry_after_seconds`(`retry_utils.py:38-87`)同时接受裸值和 headers 映射,支持数值与 RFC7231 HTTP-date,负值钳 0——被网关侧与测试共享。
+`parse_retry_after_seconds`(`agent/retry_utils.py:38-87`)同时接受裸值和 headers 映射,支持数值与 RFC7231 HTTP-date,负值钳 0——被网关侧与测试共享。
 
 ### 与 rate_limit_tracker 的交互(概述)
-rate_limit_tracker.py 是**纯被动观测**:解析 12 个 `x-ratelimit-*` 头(`:8-20`)为 `RateLimitState`,供 `/usage` 展示。捕获点在流建立回调:`agent._capture_rate_limits(response)`(chat_completion_helpers.py:3108),落到 `agent._rate_limit_state`(run_agent.py:3791-3806)。它进入 retry 决策的唯一路径是 Nous:429 到来时 `is_genuine_nous_rate_limit(headers=…, last_known_state=agent._rate_limit_state)` 用**上一次成功响应的桶状态**区分"账户真限流"(记入跨会话共享文件、跳过重试直接上链)与"上游容量瞬断"(正常退避)(conversation_loop.py:4547-4593)。Retry-After 等待值不从这里取,单独读错误响应头。
+rate_limit_tracker.py 是**纯被动观测**:解析 12 个 `x-ratelimit-*` 头(`:8-20`)为 `RateLimitState`,供 `/usage` 展示。捕获点在流建立回调:`agent._capture_rate_limits(response)`(agent/chat_completion_helpers.py:3108),落到 `agent._rate_limit_state`(run_agent.py:3791-3806)。它进入 retry 决策的唯一路径是 Nous:429 到来时 `is_genuine_nous_rate_limit(headers=…, last_known_state=agent._rate_limit_state)` 用**上一次成功响应的桶状态**区分"账户真限流"(记入跨会话共享文件、跳过重试直接上链)与"上游容量瞬断"(正常退避)(agent/conversation_loop.py:4547-4593)。Retry-After 等待值不从这里取,单独读错误响应头。
 
 ### 重实现要点
-指数+抖动+上限三件套是底线;Retry-After 必须裁剪上限防病态值;把 provider 特例做成 `(wait, reason_label)` 纯函数注入主循环,而不是在循环里再长 if;**重试上限与退避表长度要有共享常量防脱钩**(`_ZAI_CODING_OVERLOAD_SHORT_ATTEMPTS` 的注释就是一次脱钩事故记录,`retry_utils.py:29-35`)。
+指数+抖动+上限三件套是底线;Retry-After 必须裁剪上限防病态值;把 provider 特例做成 `(wait, reason_label)` 纯函数注入主循环,而不是在循环里再长 if;**重试上限与退避表长度要有共享常量防脱钩**(`_ZAI_CODING_OVERLOAD_SHORT_ATTEMPTS` 的注释就是一次脱钩事故记录,`agent/retry_utils.py:29-35`)。
 
 ---
 
 ## 3. Fallback 多级链(chat_completion_helpers.py: try_activate_fallback + agent_runtime_helpers.py: restore_primary_runtime)
 
 ### 链的构成
-配置 `fallback_model`(单 dict 兼容)或列表 → 过滤出 provider+model 均非空的项(agent_init.py:1403-1411)。游标 `_fallback_index` 从 0 起。
+配置 `fallback_model`(单 dict 兼容)或列表 → 过滤出 provider+model 均非空的项(agent/agent_init.py:1403-1411)。游标 `_fallback_index` 从 0 起。
 
-### 推进协议(核心,chat_completion_helpers.py:1730-2115)
+### 推进协议(核心,agent/chat_completion_helpers.py:1730-2115)
 `try_activate_fallback(agent, reason)` 每调一次消费一个链元素;跳过用**递归重入**实现:
 
 `agent/chat_completion_helpers.py:1764,1781-1782 @ 863e313`
@@ -156,9 +156,9 @@ rate_limit_tracker.py 是**纯被动观测**:解析 12 个 `x-ratelimit-*` 头(`
 api_mode 判定链(`:1871-1915`):openai-codex→codex_responses;nous 走 `nous_api_mode(model)` 双线;anthropic 名称/`/anthropic` 后缀/api.anthropic.com 主机→anthropic_messages(#32243/#49247);Azure 强制 chat_completions;直连 OpenAI 或 GPT-5.x 需求→codex_responses;bedrock 主机→bedrock_converse。
 
 ### 身份重写与缓存温度
-`rewrite_prompt_model_identity`(`:1672-1698`)只改缓存提示词里**最后一次出现**的 `Model:`/`Provider:` 行且不落库——failover 后新后端反正冷缓存,而 primary 恢复时把行改回去,提示词与存储副本字节一致、前缀缓存继续命中(restore 侧回写:agent_runtime_helpers.py:1722-1723)。进行中的请求由 `_sync_failover_system_message`(conversation_loop.py:969-993)刷新 `api_messages[0]`,且 `_rewrite_system_content_blocks`(`:934-966`)在系统消息已被拆成 [static, volatile] 两块时只改尾块文本,保住两个断点。
+`rewrite_prompt_model_identity`(`:1672-1698`)只改缓存提示词里**最后一次出现**的 `Model:`/`Provider:` 行且不落库——failover 后新后端反正冷缓存,而 primary 恢复时把行改回去,提示词与存储副本字节一致、前缀缓存继续命中(restore 侧回写:agent/agent_runtime_helpers.py:1722-1723)。进行中的请求由 `_sync_failover_system_message`(agent/conversation_loop.py:969-993)刷新 `api_messages[0]`,且 `_rewrite_system_content_blocks`(`:934-966`)在系统消息已被拆成 [static, volatile] 两块时只改尾块文本,保住两个断点。
 
-### Turn-scoped:restore_primary_runtime(agent_runtime_helpers.py:1449-1729)
+### Turn-scoped:restore_primary_runtime(agent/agent_runtime_helpers.py:1449-1729)
 每个新 turn 顶部调用,fallback 因此是**回合作用域**。要点:
 - `_fallback_activated=False` 时也要重置 `_fallback_index=0`(链耗尽但未激活会永久卡死游标,#20465,`:1460-1469`);
 - 门 1:`_rate_limited_until > time.monotonic()` → 留在 fallback(`:1471-1472`);
@@ -195,7 +195,7 @@ Nous 跨会话限流守卫(`:2163`)、空/畸形响应 eager(`:2605`)、无效�
 基线 `_compute_non_stream_stale_timeout`:配置 → env `HERMES_API_CALL_STALE_TIMEOUT` → 推理模型下限 → **默认 90s**(2026-05 从 300s 降下来,让 fallback 更快接管),按上下文放大(>100k→≥240s,>50k→≥150s),隐式默认 + 本地端点 → `inf`(run_agent.py:1387-1447)。超时即陌生线程杀连接、`_bump_stale_streak`、合成 `TimeoutError`(`:1071-1125`)。Codex 另有三层:TTFB 无首字节 120s 默认(大请求放宽/可 strict)、事件空闲 12–180s 按体量、硬顶 `HERMES_CODEX_HARD_TIMEOUT_SECONDS=1500s`(#64507,`:814-920`)。
 
 ### 跨回合熔断(#58962)
-`_consecutive_stale_streams`:每次 stale 击杀 +1,成功完成/换 provider/restore 清零;达 `HERMES_STREAM_STALE_GIVEUP=5` 时**入口即抛**、零网络等待(`:334-345`);分类器把该 RuntimeError 判成 `timeout, retryable=False, should_fallback=True`(error_classifier.py:983-992),第一击就上链——否则每次重试都瞬间撞熔断、烧光 max_retries 才 failover(实测 494 连败 3 天,注释 `:302-311`)。
+`_consecutive_stale_streams`:每次 stale 击杀 +1,成功完成/换 provider/restore 清零;达 `HERMES_STREAM_STALE_GIVEUP=5` 时**入口即抛**、零网络等待(`:334-345`);分类器把该 RuntimeError 判成 `timeout, retryable=False, should_fallback=True`(agent/error_classifier.py:983-992),第一击就上链——否则每次重试都瞬间撞熔断、烧光 max_retries 才 failover(实测 494 连败 3 天,注释 `:302-311`)。
 
 ### 内联直呼路径
 `should_use_direct_api_call`(`:514-555`):cron 回合(#62151)与委派子代理(#60203)处于嵌套线程池,再压一层 interrupt worker 会在 socket 打开前死锁 → `direct_api_call`(`:566-660`)在会话线程内联执行,注册 `_active_request_abort` 保持跨线程可中断,15s 心跳防 stall monitor 误杀(`:558-563`)。
@@ -209,7 +209,7 @@ Nous 跨会话限流守卫(`:2163`)、空/畸形响应 eager(`:2605`)、无效�
 - **httpx 读超时**:`HERMES_STREAM_READ_TIMEOUT` 默认 **120s**;本地端点抬到总超时;云端若 stale 阈值更大则抬平——否则 socket 读超时先于拥有重试与诊断权的 stale 检测器开火,杀掉健康的思考长停顿(`:3023-3058`)。connect/pool 钳 30/60s(握手不该吃推理预算,`:3059-3061`)。
 - 错误后若已有部分投递:返回 `PARTIAL_STREAM_STUB_ID` + `finish_reason=length` 的 stub 让续写机制接管,`tool_calls=None` 防执行半截调用;吞掉前先用分类器盖 content-filter 章(`:4245-4343`)。
 
-**⚠ 数字定案**:任务书沿用第一轮标注"90s 陈旧流检测/60s 读超时"。实测:**流式 stale 默认 180s、读超时默认 120s**(上引 `:4063`, `:3028`;website/docs/reference/environment-variables.md:802-803 与代码一致);**90s 是非流式 stale 基线**(run_agent.py:1426)。"90s/60s"仅存于 conversation_loop.py:2330-2331 的旧注释——这是一处**代码内注释漂移**,记录如下:
+**⚠ 数字定案**:任务书沿用第一轮标注"90s 陈旧流检测/60s 读超时"。实测:**流式 stale 默认 180s、读超时默认 120s**(上引 `:4063`, `:3028`;website/docs/reference/environment-variables.md:802-803 与代码一致);**90s 是非流式 stale 基线**(run_agent.py:1426)。"90s/60s"仅存于 agent/conversation_loop.py:2330-2331 的旧注释——这是一处**代码内注释漂移**,记录如下:
 
 `agent/conversation_loop.py:2329-2331 @ 863e313`
 ```python
@@ -258,12 +258,12 @@ breakpoint plus the last 3 messages.
 `_apply_cache_marker`(`:35-69`)是写入端镜像:str→包成单 text part;list→标最后一个 dict part;tool 消息原生放顶层、envelope 空则跳过(OpenRouter 顶层 tool marker 会**静默挂死**,`:47-52`)。谓词与写入端必须逐条一致(`:88-92` 注释明说)。
 
 ### direct_native_tool_cache 布局(`build_prompt_cache_plan` `:299-345`)
-仅当目的地是 api.anthropic.com 原生 Messages 线(`_direct_native_anthropic_tool_cache_capability`,agent_runtime_helpers.py:1922-1936)且有工具时启用:断点分配改为——静态前缀 1 个(`mark_suffix=False, fallback_to_whole=False`,易变尾不标,`:330-337`)+ `planned_tools[-1]` 1 个(工具数组自成缓存段,`:338`)+ `_completed_transaction_endpoint_indexes(...)[-2:]` 2 个(`:339-343`)。端点选择算法(`:247-296`):只在**完整事务的合法末端**放断点——assistant(tool_calls) 后连续 tool 结果串的最后一条、非最末的 user 跳过、空 assistant 跳过、普通完结消息;半截事务(tool_calls 无结果)不设点,防止把必然要变的位置缓存住。plan 是 `PromptCachePlan(messages, tools)` 请求局部深拷贝,canonical 注册表永不带 marker(`:308-311`)。
+仅当目的地是 api.anthropic.com 原生 Messages 线(`_direct_native_anthropic_tool_cache_capability`,agent/agent_runtime_helpers.py:1922-1936)且有工具时启用:断点分配改为——静态前缀 1 个(`mark_suffix=False, fallback_to_whole=False`,易变尾不标,`:330-337`)+ `planned_tools[-1]` 1 个(工具数组自成缓存段,`:338`)+ `_completed_transaction_endpoint_indexes(...)[-2:]` 2 个(`:339-343`)。端点选择算法(`:247-296`):只在**完整事务的合法末端**放断点——assistant(tool_calls) 后连续 tool 结果串的最后一条、非最末的 user 跳过、空 assistant 跳过、普通完结消息;半截事务(tool_calls 无结果)不设点,防止把必然要变的位置缓存住。plan 是 `PromptCachePlan(messages, tools)` 请求局部深拷贝,canonical 注册表永不带 marker(`:308-311`)。
 
 ### 剥离与 failover 重贴(#72626)
 `strip_anthropic_cache_control`(`:166-216`):去顶层与 part 级 marker;**只把"装饰产物形状"**(单 text part,或 system 的两段拆分,且 part 键 ⊆ {type,text})拍回字符串——`""`-join 可证字节还原;有 `citations` 等额外键或天然多 part 的内容保结构只摘 marker;part 字典 copy-on-write,因为 content 可能别名持久历史(`:180-186`)。工具侧 `strip_anthropic_tool_cache_control` 深拷贝后 pop(`:219-225`)。
 
-贴点时机:初次装饰在**所有转录变换之后、retry 循环之前**(conversation_loop.py:1838-1870,注释解释:早贴会把 str 变 list,躲过空白规范化,同一消息在滚动窗内外字节不同,精确破坏断点要保护的前缀)。**每次重试尝试顶部重贴**:
+贴点时机:初次装饰在**所有转录变换之后、retry 循环之前**(agent/conversation_loop.py:1838-1870,注释解释:早贴会把 str 变 list,躲过空白规范化,同一消息在滚动窗内外字节不同,精确破坏断点要保护的前缀)。**每次重试尝试顶部重贴**:
 
 `agent/conversation_loop.py:2202-2208 @ 863e313`
 ```python
@@ -274,9 +274,9 @@ breakpoint plus the last 3 messages.
                 api_messages, _moa_prepared_request, tools_for_api = (
                     _redecorate_prompt_cache_for_provider(
 ```
-`_redecorate_prompt_cache_for_provider`(`:1030-1100`)以**变异后的在飞请求**为源(保留缩图/ASCII 清洗等恢复成果)strip→按当前 `_use_prompt_caching/_use_native_cache_layout` 重建 plan;还兜住 cache-off primary 恢复的会话 failover 到 cache-on provider 时静态前缀缺失的情况(`_ensure_cached_system_prompt_static`→`reconstruct_static_prefix`,重建的 stable 层必须是存储提示词的字面前缀才启用,失败按存储串 memoize 防热路径反复 I/O,system_prompt.py:602-653)。
+`_redecorate_prompt_cache_for_provider`(`:1030-1100`)以**变异后的在飞请求**为源(保留缩图/ASCII 清洗等恢复成果)strip→按当前 `_use_prompt_caching/_use_native_cache_layout` 重建 plan;还兜住 cache-off primary 恢复的会话 failover 到 cache-on provider 时静态前缀缺失的情况(`_ensure_cached_system_prompt_static`→`reconstruct_static_prefix`,重建的 stable 层必须是存储提示词的字面前缀才启用,失败按存储串 memoize 防热路径反复 I/O,agent/system_prompt.py:602-653)。
 
-静态前缀来源:`build_system_prompt` 按 stable/context/volatile 三层拼装,`agent._cached_system_prompt_static = parts["stable"]`(system_prompt.py:578-580);策略函数 `anthropic_prompt_cache_policy`(agent_runtime_helpers.py:2059-2178+)决定 `(should_cache, native_layout)`:原生 Anthropic→(True,True);OpenRouter/Nous Claude、Kimi(#25970)、Qwen 家族→envelope;MoA 解析到真实聚合器再递归;`_cache_disabled` 一票否决(#33555/#76085)。
+静态前缀来源:`build_system_prompt` 按 stable/context/volatile 三层拼装,`agent._cached_system_prompt_static = parts["stable"]`(agent/system_prompt.py:578-580);策略函数 `anthropic_prompt_cache_policy`(agent/agent_runtime_helpers.py:2059-2178+)决定 `(should_cache, native_layout)`:原生 Anthropic→(True,True);OpenRouter/Nous Claude、Kimi(#25970)、Qwen 家族→envelope;MoA 解析到真实聚合器再递归;`_cache_disabled` 一票否决(#33555/#76085)。
 
 ### 取舍与重实现要点
 存储层永远是单一字符串/干净结构,缓存形状只存在于请求局部拷贝——代价是每次请求 deepcopy+重贴,换来 failover/压缩/持久化互不污染。重实现:1) 断点是稀缺预算,先写"哪里的 marker 会被忽略"的谓词,写入端与谓词共用判定;2) 静态前缀用"字面 startswith"校验而非信任重建;3) strip 必须可证字节还原,否则前缀缓存反被 strip 破坏;4) 空 text block、顶层 tool marker 等 provider 地雷要写成测试。
@@ -290,17 +290,17 @@ breakpoint plus the last 3 messages.
 ```
    - Returns `False` immediately if already activated or not configured
 ```
-实际代码里 `_fallback_activated` **从不作为提前返回条件**(它只在成功时置 True,`chat_completion_helpers.py:1931`);返回 False 的唯一条件是链耗尽 `_fallback_index >= len(_fallback_chain)`(`:1764`),同一回合可多次调用逐级推进(第 3 节已引原文)。文档同页 `:173` 称触发点在 "run_agent.py 的主循环",实际主循环在 agent/conversation_loop.py(触发点全集见第 3 节)。测试佐证:tests/run_agent/test_provider_fallback.py:76 `test_advances_index`、`:91` `test_skips_unconfigured_provider_to_next`。
+实际代码里 `_fallback_activated` **从不作为提前返回条件**(它只在成功时置 True,`agent/chat_completion_helpers.py:1931`);返回 False 的唯一条件是链耗尽 `_fallback_index >= len(_fallback_chain)`(`:1764`),同一回合可多次调用逐级推进(第 3 节已引原文)。文档同页 `:173` 称触发点在 "run_agent.py 的主循环",实际主循环在 agent/conversation_loop.py(触发点全集见第 3 节)。测试佐证:tests/run_agent/test_provider_fallback.py:76 `test_advances_index`、`:91` `test_skips_unconfigured_provider_to_next`。
 
 **b) ▲ context-compression-and-caching.md:396 —— 证伪其"默认"地位,修正为回退布局。**
-文档 `:396-406` 把 "system_and_3"(system + 末 3 条)当作唯一策略。实际默认(有静态前缀时)是 **静态前缀 + system 尾 + 末 2 条**(prompt_caching.py:1-8 模块 docstring 即规格,第一轮认定正确);system_and_3 仅在 `static_system_prefix` 缺失/不匹配时回退(`:382-389`:`remaining = 4 - breakpoints_used`,前缀命中时 used=2)。文档还完全未提第三种 direct_native_tool_cache 布局(前缀+tools[-1]+末 2 事务端点,`:322-343`)。
+文档 `:396-406` 把 "system_and_3"(system + 末 3 条)当作唯一策略。实际默认(有静态前缀时)是 **静态前缀 + system 尾 + 末 2 条**(agent/prompt_caching.py:1-8 模块 docstring 即规格,第一轮认定正确);system_and_3 仅在 `static_system_prefix` 缺失/不匹配时回退(`:382-389`:`remaining = 4 - breakpoints_used`,前缀命中时 used=2)。文档还完全未提第三种 direct_native_tool_cache 布局(前缀+tools[-1]+末 2 事务端点,`:322-343`)。
 
 **c) ▲ agent-loop.md:108 —— 证伪;第一轮认定成立。**
 文档:`website/docs/developer-guide/agent-loop.md:108`:"API requests are wrapped in `_interruptible_api_call()`"。实际选择点 `agent/conversation_loop.py:2348 @ 863e313`:
 ```python
                 _use_streaming = True
 ```
-默认永远优先流式(注释 `:2329-2339`:"Always prefer the streaming path — even without stream consumers…for health checking"),分发在 `:2391-2394` → `agent._interruptible_streaming_api_call(...)`;非流式仅四个豁免:`_disable_streaming` 会话标记(`:2352-2353`)、copilot-acp(`:2358-2363`)、MoA 无消费者(`:2373-2374`)、测试 Mock 客户端(`:2375-2381`)。两函数关系:`interruptible_streaming_api_call`(chat_completion_helpers.py:2528)在 codex/直呼上下文**委派回** `_interruptible_api_call`(`:2553-2565`),后者对 codex 内部仍是流(`_run_codex_stream`)。附加发现:该选择点注释里的 "90s stale-stream detection, 60s read timeout"(`:2330-2331`)与代码实际默认 180s/120s 不符(见第 4 节定案),属注释漂移,应记入文档-代码冲突台账。
+默认永远优先流式(注释 `:2329-2339`:"Always prefer the streaming path — even without stream consumers…for health checking"),分发在 `:2391-2394` → `agent._interruptible_streaming_api_call(...)`;非流式仅四个豁免:`_disable_streaming` 会话标记(`:2352-2353`)、copilot-acp(`:2358-2363`)、MoA 无消费者(`:2373-2374`)、测试 Mock 客户端(`:2375-2381`)。两函数关系:`interruptible_streaming_api_call`(agent/chat_completion_helpers.py:2528)在 codex/直呼上下文**委派回** `_interruptible_api_call`(`:2553-2565`),后者对 codex 内部仍是流(`_run_codex_stream`)。附加发现:该选择点注释里的 "90s stale-stream detection, 60s read timeout"(`:2330-2331`)与代码实际默认 180s/120s 不符(见第 4 节定案),属注释漂移,应记入文档-代码冲突台账。
 
 **d) ◇ FailoverReason 枚举驱动恢复未见于文档 —— 证实。**
 `grep -rn "FailoverReason\|error_classifier\|classify_api_error" website/docs README.md AGENTS.md` 零命中。整个"分类→恢复位→主循环分派"机制(本簇的中枢)只存在于代码与测试中;provider-runtime.md 的 fallback 叙述停留在无分类器时代(触发点列的是裸 HTTP 状态码,`provider-runtime.md:173-176`)。
