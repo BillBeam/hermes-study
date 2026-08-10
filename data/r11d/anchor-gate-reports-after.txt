@@ -1,0 +1,19 @@
+
+HINT: 疑似锚点排版不合规 —— 以下文件 UNCHECKED 占比 >= 90%
+      按制度锚点 `路径:行号 @ 863e313` 应单独成行、置于代码块/引用块**之前**;
+      写在块后会让每一条引用都配不上块,于是全部记 UNCHECKED —— 关卡看起来是绿的,
+      实际一条都没校验。请逐条确认是真散文引用,还是锚点放错了位置。
+      - reports/round-1-survey.md: UNCHECKED 239/253 = 94.5%
+      - reports/round-11a-ops-and-delivery.md: UNCHECKED 6/6 = 100.0%
+      - reports/round-11b-review-and-reconciliation.md: UNCHECKED 5/5 = 100.0%
+      - reports/round-11c-pre-binding-cleanup.md: UNCHECKED 7/7 = 100.0%
+      - reports/round-7c-gateway-periphery-and-scheduling.md: UNCHECKED 5/5 = 100.0%
+      - reports/round-8a-configuration-surface.md: UNCHECKED 19/19 = 100.0%
+      - reports/round-8b-cli-trunk-and-interaction.md: UNCHECKED 24/24 = 100.0%
+      - reports/round-9d-l1-completion.md: UNCHECKED 5/5 = 100.0%
+      (提示不影响退出码。)
+
+citations=742  OK=204  UNCHECKED=538
+可校验比例 OK/742 = 27.5%  << 低于 70% 下限
+table_anchors=117  OK=46  UNCHECKED=71   (表格行内锚点,单独计数;DRIFT/OUT-OF-RANGE **阻断**,见 H-R9A-h)
+OK: every code-block-backed citation matches the baseline

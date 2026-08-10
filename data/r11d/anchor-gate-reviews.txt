@@ -1,0 +1,19 @@
+[BLOCK-DRIFT] review-1-full-corpus.md:281  gateway/platforms/base.py:3991
+      块内第 2 行与 3992 行不符  (共 4 行不符)
+      引用: async def send_voice(
+      基线: self,
+[MISMATCH] review-1-full-corpus.md:577  chapters/r7b-platform-integration.md:473 -> actually at [474] [fixable: chapters/r7b-platform-integration.md:473-482 -> chapters/r7b-platform-integration.md:474-483]
+      cited: 1. 清洗引号/尾标点
+      found: ```
+[MISMATCH] review-1-full-corpus.md:643  scripts/verify_citations.py:141 -> not found within +/-40
+      cited: # A prose line may carry several citations (the call site AND the callee).
+      found: 
+[MISMATCH] review-1-full-corpus.md:777  tools/approval.py:3767 -> actually at [3766] [fixable: tools/approval.py:3767-3775 -> tools/approval.py:3766-3774]
+      cited: # == Sudo stdin guard ==
+      found: # Like the hardline floor above, this is unconditional: there is never a
+
+citations=96  MISMATCH=3  OK=30  UNCHECKED=63
+可校验比例 OK/96 = 31.2%  << 低于 70% 下限
+BLOCK-DRIFT=1  (代码块首行之后的行与基线不符;**阻断**,见脚本 block_drift() 的说明)
+table_anchors=31  UNCHECKED=31   (表格行内锚点,单独计数;DRIFT/OUT-OF-RANGE **阻断**,见 H-R9A-h)
+FAIL: 4 citation(s) need fixing

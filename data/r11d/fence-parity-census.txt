@@ -1,0 +1,10 @@
+命中文件 3 份,散文误判为围栏的行 3 处;盲区正文行 966 行,其中锚点 69 处
+
+notes/r7-raw-stream-consumer.md  盲区 624 行 / 锚点 34 处
+  :121  ``` 区域,避免代码块内部的 ` 污染计数。
+
+reports/round-8-fix-review-1.md  盲区 50 行 / 锚点 2 处
+  :414  ```` ```verify ```` 块会被真跑一遍,「非零退出 + 有 stderr」判 `EVIDENCE-RUNFAIL` 并**阻断*
+
+reviews/review-1-full-corpus.md  盲区 292 行 / 锚点 33 处
+  :1313  ```mermaid 围栏(围栏语言标记全部正确),其中 **224 个节点标签**,剥去 `<br/>` 后

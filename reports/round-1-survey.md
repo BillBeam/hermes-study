@@ -122,15 +122,15 @@ AGENTS.md 画的依赖链(`tools/registry ← tools/* ← model_tools ← run_ag
 
 1. **迭代预算与预算耗尽收尾(IterationBudget + grace-call 死标志 + 无工具 summary 兜底)** ▲ — agent 循环可能无限打转烧钱。证据:`agent/conversation_loop.py:1415` 等4处;规模:约 200 LOC(iteration_budget.py 62 行 + 循环判定 + finalizer 兜底 + c…;价值:高。
 2. **三级用户介入:interrupt(硬停)/ steer(不打断注入)/ redirect(只取消模型请求)**★ — 用户在 agent 干活时说话有三种意图:彻底停下、顺带补充指示、纠正方向但不作废已完成的工作。证据:`run_agent.py:3121` 等4处;规模:约 400 LOC(run_agent.py:3028-3392 + runtime_helpers steer 注入 …;价值:高。
-3. **Redirect 活转重建:_apply_active_turn_redirect + restart_with_redirected_messages 预算退款重试** ◇ ▲ — 取消一个进行中的模型请求后,不完整的 provider reasoning 块不能回放(Anthropic 签名/Responses 配对要求),而把已流式展示的思维链写回转录…。证据:`agent/conversation_loop.py:1416` 等4处;规模:约 150 LOC 核心(conversation_loop.py:122-201 + 循环内 5 处 preserve…;价值:高。
+3. **Redirect 活转重建:_apply_active_turn_redirect + restart_with_redirected_messages 预算退款重试** ◇ ▲ — 取消一个进行中的模型请求后,不完整的 provider reasoning 块不能回放(Anthropic 签名/Responses 配对要求),而把已流式展示的思维链写回转录…。证据:`agent/conversation_loop.py:1416` 等4处;规模:约 150 LOC 核心(agent/conversation_loop.py:122-201 + 循环内 5 处 preserve…;价值:高。
 4. **TurnRetryState:单次 API 尝试的一次性恢复守卫矩阵** ◇ — 内层重试循环对同一次模型调用要做十几种截然不同的恢复(按提供商 OAuth 刷新、429 凭据池、压缩重启、续写重启、思维签名剥离、图片缩放、llama.cpp 语法回退等),…。证据:`agent/turn_retry_state.py:43` 等3处;规模:92 LOC dataclass 本体;价值:中。
 5. **无消费者也强制流式 + 流单写者令牌栅栏(#65991)** ◇ ▲ — 非流式调用无法区分'provider 还在生成'与'连接挂死用 SSE ping 续命',子 agent 等安静模式调用者会无限悬挂。证据:`agent/conversation_loop.py:2329` 等3处;规模:约 400 LOC(run_agent.py:6026-6434 流状态管理 + 循环内 _use_streaming …;价值:高。
-6. **空响应六级恢复阶梯** ◇ — 弱模型/劣化 provider 常在工具结果后返回空内容、只输出 reasoning、或流中断只送出一半——直接判失败会浪费整回合已完成的工具工作,盲目重试又会无限烧预算。证据:`agent/conversation_loop.py:6597` 等4处;规模:约 320 LOC(conversation_loop.py:6588-6903)+ 分散的计数器复位点;价值:高。
+6. **空响应六级恢复阶梯** ◇ — 弱模型/劣化 provider 常在工具结果后返回空内容、只输出 reasoning、或流中断只送出一半——直接判失败会浪费整回合已完成的工具工作,盲目重试又会无限烧预算。证据:`agent/conversation_loop.py:6597` 等4处;规模:约 320 LOC(agent/conversation_loop.py:6588-6903)+ 分散的计数器复位点;价值:高。
 7. **截断续写(指数放大输出预算)与 dropped tool-call 再提示** ◇ — 输出被 max_tokens 截断或流中途断线时,直接返回半截答案不可接受。证据:`agent/conversation_loop.py:3106` 等4处;规模:约 300 LOC(3020-3160 截断分类 + 5667-5682 预算放大 + 6962-7018 droppe…;价值:中。
 8. **工具批次分段调度(segment planner)+ 并发执行的中断/超时/授权栅栏** ▲ — 整批并发会让有副作用的工具乱序执行,整批串行又浪费只读工具的并行机会。证据:`run_agent.py:7614` 等4处;规模:约 1700 LOC(tool_executor.py 并发+分段执行器 + tool_dispatch_helpers…;价值:高。
-9. **验证门劫持终局:verify-on-stop / pre_verify 钩子 / kanban 终态工具守卫 + 候选答案保底** — 模型想停(finish_reason=stop)不等于任务完成:改了代码没验证、kanban worker 没调 kanban_complete 就叙述性收尾。证据:`agent/conversation_loop.py:7089` 等4处;规模:约 230 LOC(conversation_loop.py:7037-7206 + finalizer 保底分支);价值:高。
+9. **验证门劫持终局:verify-on-stop / pre_verify 钩子 / kanban 终态工具守卫 + 候选答案保底** — 模型想停(finish_reason=stop)不等于任务完成:改了代码没验证、kanban worker 没调 kanban_complete 就叙述性收尾。证据:`agent/conversation_loop.py:7089` 等4处;规模:约 230 LOC(agent/conversation_loop.py:7037-7206 + finalizer 保底分支);价值:高。
 10. **TurnContext 回合前奏 + api_content『persist-what-you-send』侧车** ◇★ — 每回合的一次性设置(系统提示恢复、preflight 压缩、插件/记忆注入)与循环体纠缠会让 6000 行循环不可维护。证据:`agent/turn_context.py:309` 等4处;规模:turn_context.py 1275 行 + 循环内约 60 行回放逻辑;价值:高。
-11. **阶段感知错误分诊:本地处理 bug 与 API 错误按 traceback 模块集区分** ◇ — 循环的大 try/except 同时罩住 API 请求和响应后处理。证据:`agent/conversation_loop.py:7234` 等3处;规模:约 95 LOC(conversation_loop.py:7215-7308);价值:中。
+11. **阶段感知错误分诊:本地处理 bug 与 API 错误按 traceback 模块集区分** ◇ — 循环的大 try/except 同时罩住 API 请求和响应后处理。证据:`agent/conversation_loop.py:7234` 等3处;规模:约 95 LOC(agent/conversation_loop.py:7215-7308);价值:中。
 12. **活动心跳与 kanban 带外 steer 注入(_touch_activity)** ◇ — 网关按不活跃超时(默认 1800s)杀会话,长退避/长工具间隙会被误杀且死因不可知。证据:`run_agent.py:3707` 等3处;规模:约 160 LOC(run_agent.py:3666-3790)+ 循环内十余个 touch 调用点;价值:中。
 
 ### 2.2 模型提供商与 API 适配层 (Model Providers & API Adapter Layer)
@@ -447,7 +447,7 @@ Hermes 的界面层围绕一个中心事实组织:tui_gateway 是唯一的 UI �
   ```
 - 规模:394 行,纯函数无状态
 - 学习价值:高 — prompt cache 断点预算的精细分配(静态前缀 vs 滚动窗口 vs tools)+ 跨 provider 信封差异处理,是省 75% 输入成本的关键工程,细节极多值得深挖。
-- ▲ 文档不符:context-compression-and-caching.md 只描述旧的 "system_and_3" 布局(断点1=system + 最后3条),没有描述代码里默认的 静态前缀切分 + 末尾2条 的新布局(prompt_caching.py:1-8 与 348-364 明确说明静态前缀存在时用 前缀+system尾+末2条)。
+- ▲ 文档不符:context-compression-and-caching.md 只描述旧的 "system_and_3" 布局(断点1=system + 最后3条),没有描述代码里默认的 静态前缀切分 + 末尾2条 的新布局(agent/prompt_caching.py:1-8 与 348-364 明确说明静态前缀存在时用 前缀+system尾+末2条)。
 
 **三段式批量压缩管线(头保护衰减/token 预算尾部/边界对齐)**
 
@@ -490,7 +490,7 @@ Hermes 的界面层围绕一个中心事实组织:tui_gateway 是唯一的 UI �
   ```
 - 规模:hermes_state_search.py 2230 + session_search_tool.py 1161 行;高复杂度(三索引、查询路由、重建状态机)
 - 学习价值:高 — 纯 SQLite 零 LLM 的跨会话记忆检索完整实现:三索引路由、FTS5 查询消毒、lineage 去重、自动化会话降权、bookends 低成本预览,是 agent 长期记忆检索层的高质量参照。
-- ▲ 文档不符:README.md:26 与 website/docs/index.mdx:123 宣称 'FTS5 session search with LLM summarization for cross-session recall',但代码明确 'No LLM calls anywhere'(session_search_tool.py:23,模块史注明 summary LLM 路径已在合并重构时移除);website/docs/user-guide/sessions.md:551 也写明 'No LLM calls, no summarization' —— README/index 的 LLM summarization 属过期宣称。
+- ▲ 文档不符:README.md:26 与 website/docs/index.mdx:123 宣称 'FTS5 session search with LLM summarization for cross-session recall',但代码明确 'No LLM calls anywhere'(tools/session_search_tool.py:23,模块史注明 summary LLM 路径已在合并重构时移除);website/docs/user-guide/sessions.md:551 也写明 'No LLM calls, no summarization' —— README/index 的 LLM summarization 属过期宣称。
 
 **自注册工具注册表:AST 自动发现 + check_fn 可用性 TTL 缓存与瞬断宽限**  **[▲文档不符]**
 
@@ -585,7 +585,7 @@ Hermes 的界面层围绕一个中心事实组织:tui_gateway 是唯一的 UI �
 
 1. AGENTS.md:351-353:'The core loop is inside run_conversation() — entirely synchronous, with interrupt checks, budget tracking, and … → **实际**:_budget_grace_call 仅在 agent/agent_init.py:892 被初始化为 False,全仓库(含 _budget_exhausted_injected)没有任何将其置 True 的代码——grace-call 分支永远不可达,是死…(`agent/agent_init.py:892`)
 2. AGENTS.md:328:'max_iterations: int = 500, # tool-calling iterations (shared with subagents)' → **实际**:AIAgent.__init__(run_agent.py:446)与 init_agent(agent/agent_init.py:470)的默认值都是 90(`run_agent.py:446`)
-3. website/docs/developer-guide/agent-loop.md:124:中断时'No partial response is injected into conversation history' → **实际**:redirect 路径显式把已展示的部分响应降级为 checkpoint 注入 messages(api_content 侧车,conversation_loop.py:164-197)(`agent/conversation_loop.py:183`)
+3. website/docs/developer-guide/agent-loop.md:124:中断时'No partial response is injected into conversation history' → **实际**:redirect 路径显式把已展示的部分响应降级为 checkpoint 注入 messages(api_content 侧车,agent/conversation_loop.py:164-197)(`agent/conversation_loop.py:183`)
 4. website/docs/developer-guide/agent-loop.md:108:'API requests are wrapped in _interruptible_api_call() which runs the actual HTTP c… → **实际**:主循环默认永远优先流式路径 _interruptible_streaming_api_call——即使没有任何流式消费者——以获得 90s 陈旧流检测/60s 读超时(`agent/conversation_loop.py:2348`)
 5. website/docs/developer-guide/agent-loop.md:133-134:'Multiple tool calls → executed concurrently via ThreadPoolExecutor → **实际**:实际调度由 _plan_tool_batch_segments 决定:按只读工具、文件目标不重叠、MCP opt-in 把批次切成 parallel/sequential 段,混合批按发出顺序逐段执行(execute_tool_calls_segmented)…(`run_agent.py:7617`)
 6. context-compression-and-caching.md:396 描述 prompt cache 用 "system_and_3" 布局:断点1=system prompt,断点2-4=最后3条非 system 消息的滚动窗口 → **实际**:prompt_caching.py 默认布局是 静态 system 前缀 + system 尾 + 最后2条消息(4 断点),仅在无静态前缀时才回退到 system+末3条(`agent/prompt_caching.py:1`)
@@ -756,3 +756,28 @@ R2 建议打法:
    **"`run_conversation` 只是转发器"这一结论不受影响**:它由 7772 那行 docstring
    `"""Forwarder — see ``agent.conversation_loop.run_conversation``."""` 独立支撑,
    import 行只是佐证。改的是摘录的完整性,不是判断。
+
+---
+
+## 勘误(R11D:锚点寻址补全)
+
+本节记录 **7 处锚点寻址补全**,依据是 CLAUDE.md「**锚点寻址修正是第四类改动,
+与『行号漂移』同级**」(R11D 裁定,结清 H-R11C-D-f)。这些锚点原写作**裸文件名**
+(即只有文件名、没有目录部分),在基线 `863e313` 里**恰好一个**文件的路径以该串结尾(按目录边界匹配),
+故就地补成全路径。
+
+**改的只是「地址怎么写出来」,不是「它指向谁」**:所指的那一段源码一个字没变,
+候选唯一因此不存在猜测空间。多候选的锚点(`__init__.py` 171 个、`base.py` 9 个)**一处未动**。
+**补全之外,本报告正文一个字未改。**
+
+下表左为原样、右为补全后(行号为本报告行号,列表本身是声明式非源码块,不作断言):
+
+```text
+:125   conversation_loop.py:122-201    ->  agent/conversation_loop.py:122-201
+:128   conversation_loop.py:6588-6903  ->  agent/conversation_loop.py:6588-6903
+:131   conversation_loop.py:7037-7206  ->  agent/conversation_loop.py:7037-7206
+:133   conversation_loop.py:7215-7308  ->  agent/conversation_loop.py:7215-7308
+:450   prompt_caching.py:1-8           ->  agent/prompt_caching.py:1-8
+:493   session_search_tool.py:23       ->  tools/session_search_tool.py:23
+:588   conversation_loop.py:164-197    ->  agent/conversation_loop.py:164-197
+```

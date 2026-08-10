@@ -28,8 +28,15 @@ CITE = re.compile(
 )
 FENCE = re.compile(r"^\s*```")
 
-# 本仓库自己的顶层目录(= 自引);其余视作指向基线或外部。
+# 本仓库自己的顶层目录(候选);**但 `scripts/` 与 `data/` 两个目录名在两棵树上都有**,
+# 只看前缀会把 `scripts/run_tests.sh` 这种基线路径算成自引 —— R11D 片 B 实测本探针第一版
+# 因此虚高 138(615 -> 477)。判据必须是**解析结果**:本仓库解析得到、且基线解析不到。
 SELF_DIRS = ("chapters/", "notes/", "reports/", "reviews/", "scripts/", "data/")
+REPO = Path("/home/user/hermes-agent")
+
+
+def is_self_path(p: str) -> bool:
+    return (STUDY / p).is_file() and not (REPO / p).is_file()
 
 
 def corpus():
@@ -60,7 +67,7 @@ def main():
             for m in CITE.finditer(line):
                 p = m.group("path")
                 top = next((d for d in SELF_DIRS if p.startswith(d)), None)
-                if not top:
+                if not top or not is_self_path(p):
                     continue
                 by_target[top] += 1
                 if top == "chapters/":
