@@ -290,7 +290,7 @@ cd /home/user/hermes-study && awk -F'\t' 'NR>1 && $6=="GATE-BLIND"{n=split($3,p,
 | **被 ccTLD 守卫挡下的真锚点** | 3 | `build.sh:4-6` ×2、`node-bootstrap.sh:50`;三个都是**裸文件名**,既无 `/` 又无 `_`,又不在仓库根,于是 `is_path_citation` 判它更像 Saint-Helena 域名 | **守卫没错,错在锚点是裸名**;补成全路径后自动可见,已在任务二修掉(§3.1) |
 | **守卫正确挡下的非锚点** | 8 | `n.lineno:4` ×3、`example.rs:443` ×2、`192.168.x.x:9119`、`4.5:1`、`1.2:87` —— 属性访问、散文举例、IP、版本号 | **不动**。这 8 个正是 CLAUDE.md 说白名单「是有效的分界,不是懒惰」的那一类 |
 
-`scripts/verify_citations.py:201 @ 863e313`(本仓库脚本,非基线)
+`scripts/verify_citations.py:208 @ 863e313`(本仓库脚本,非基线)
 
 ```
 TLD_LIKE_EXTS = {"sh", "js", "rs"}

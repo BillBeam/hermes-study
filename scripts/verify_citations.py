@@ -135,6 +135,7 @@ Usage:
     python3 scripts/verify_citations.py --fix /home/user/hermes-agent notes/r7c-*.md
 """
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -166,7 +167,13 @@ VERIFIABLE_FLOOR = 0.70  # R8A's reporting floor for OK / all citations
 #
 # Ordering is longest-first (`mdx` before `md`, `tsx` before `ts`, `mjs` before
 # `js`) so the alternation cannot settle on a prefix.
-CITE_EXTS = "py|mdx|md|yaml|yml|toml|c|h|sh|json|tsx|ts|mjs|js|nix|rs|txt"
+# R11D adds ps1|css|tsv (closes H-R11C-D-a). R11C's full-corpus resolution census
+# found 16 anchors that resolve from the repo root yet were not treated as anchors
+# at all — 14 `scripts/install.ps1`, 1 `apps/desktop/src/styles.css`, 1 self-citing
+# `data/ledger.tsv` — i.e. the state R10B named as strictly more hidden than
+# UNCHECKED: they never even entered the denominator. None of the three is a ccTLD,
+# so none needs the `sh|js|rs` guard below.
+CITE_EXTS = "py|mdx|md|yaml|yml|toml|c|h|sh|json|tsx|ts|mjs|js|nix|rs|txt|ps1|css|tsv"
 
 # `gateway/run.py:1234 @ 863e313`  /  **`cron/jobs.py:10-20`**  /  path:1234
 #
@@ -325,6 +332,50 @@ LOCATOR = re.compile(
 )
 
 _SRC_CACHE: dict = {}
+
+# --- 自引锚点的 commit 钉子(R11D 立) ---------------------------------------
+#
+# 基线锚点写作 `路径:行号 @ 863e313`,后面那个 sha 把它**钉死**了:基线只读且永不移动,
+# 所以锚点永远有效。而**指向本学习仓库自己的锚点没有任何钉子** —— 它浮在一棵会动的树上。
+# 实测规模:全语料 615 处自引锚点,其中 **101 处指向 `chapters/`**
+# (`data/r11d/probes/self_citation_census.py`)。R11D 只改了 `chapters/r1` 的几个数,
+# 当场打断 7 处;R12 装订要重排全部 21 章,那 101 处会一起断。
+#
+# 于是给自引锚点开同一个语法:`chapters/r1-what-is-hermes-agent.md:103 @ 82069d6`
+# 表示「这一段引的是 82069d6 那一版」,校验器用 `git show` 取那一版来比对。
+# 引用一段**后来被有意改掉**的文字时,这是唯一能同时做到两件事的写法:
+# 保住原始证据(不把过去改写成对的),又保住可校验性(不退回 UNCHECKED)。
+#
+# 只对**本仓库路径**生效:`@ 863e313` 指的是基线仓库,在本仓库里 rev-parse 不出来,
+# 于是自动退回原行为 —— 存量语料一行都不用改。
+_PIN_CACHE: dict = {}
+PIN = re.compile(r"\A[\s,]*@\s*(?P<sha>[0-9a-f]{7,40})")
+
+
+def _pin_exists(sha: str) -> bool:
+    if sha not in _PIN_CACHE:
+        r = subprocess.run(["git", "-C", str(STUDY_ROOT), "rev-parse", "--verify",
+                            f"{sha}^{{commit}}"], capture_output=True, text=True)
+        _PIN_CACHE[sha] = r.returncode == 0
+    return _PIN_CACHE[sha]
+
+
+def pinned_source(pth: str, sha: str):
+    """`git show sha:pth` 的行;取不到返回 None(调用方退回工作树)。"""
+    key = (pth, sha)
+    if key not in _SRC_CACHE:
+        r = subprocess.run(["git", "-C", str(STUDY_ROOT), "show", f"{sha}:{pth}"],
+                           capture_output=True, text=True)
+        _SRC_CACHE[key] = r.stdout.splitlines() if r.returncode == 0 else None
+    return _SRC_CACHE[key]
+
+
+def pin_after(text: str, cite) -> str:
+    """紧跟锚点的 ` @ <sha>`(本仓库里存在的 commit 才算钉子)。"""
+    m = PIN.match(text[cite.end():])
+    if m and _pin_exists(m.group("sha")):
+        return m.group("sha")
+    return ""
 
 
 def norm(s: str) -> str:
@@ -545,10 +596,20 @@ def check_table_row(repo, note, lineno: int, line: str, resolve):
             tokens = declared_excerpt(cell, cm)
             if not tokens:
                 continue
-            target = resolve(cm.group("path"))
-            if not target.is_file():
+            # 顺序即优先级:基线 -> commit 钉子 -> 本仓库工作树。
+            # 钉子必须**优先于工作树**,否则一个仍存在于树上的自引目标(`chapters/r1` 就是)
+            # 永远读的是最新版,钉子等于没写 —— 而钉子存在的全部意义正是「引旧版」。
+            pth = cm.group("path")
+            target = resolve(pth)
+            if (repo / pth).is_file():
+                src = source_lines(repo / pth)
+            else:
+                sha = pin_after(cell, cm)      # 自引锚点的 commit 钉子(R11D)
+                src = pinned_source(pth, sha) if sha else None
+                if src is None and target.is_file():
+                    src = source_lines(target)
+            if src is None:
                 continue  # bare filenames are legal in notes; chapters have their own rule
-            src = source_lines(target)
             start = int(cm.group("start"))
             end = int(cm.group("end") or start)
             if not 1 <= start <= len(src):
@@ -657,6 +718,24 @@ def check_note(repo: Path, note: Path, fix: bool = False):
             t = STUDY_ROOT / pth
         return t
 
+    def source_for(pth, cite, text):
+        """The lines to compare against, honouring a `@ <sha>` pin on self-citations.
+
+        Baseline paths ignore the pin: `@ 863e313` names the *baseline* repo, which
+        never moves, and that sha does not rev-parse here — so existing corpus is
+        untouched. A study path with a pin that IS a commit here reads that version.
+        """
+        t = resolve(pth)
+        if (repo / pth).is_file():
+            return t, source_lines(t)
+        # 钉子优先于工作树:引的就是被改掉的那一版,读最新版等于钉子没写。
+        sha = pin_after(text, cite)
+        if sha:
+            pinned = pinned_source(pth, sha)
+            if pinned is not None:
+                return t, pinned
+        return t, (source_lines(t) if t.is_file() else None)
+
     i = 0
     while i < len(lines):
         line = lines[i]
@@ -749,9 +828,11 @@ def check_note(repo: Path, note: Path, fix: bool = False):
             m = next((c for c in cands if matches(c)), m)
 
         path, start = m.group("path"), int(m.group("start"))
-        target = resolve(path)
+        target, pinned_lines = source_for(path, m, line)
+        if pinned_lines is not None and not target.is_file():
+            target = STUDY_ROOT / path  # pinned blob: file may be gone from the tree
 
-        if not target.is_file():
+        if pinned_lines is None:
             # A blockquote after a prose line that merely happens to name a file is
             # common; only the fence contract makes an unresolvable path an error.
             status = "MISSING-FILE" if kind == "fence" else "UNCHECKED"
@@ -759,7 +840,7 @@ def check_note(repo: Path, note: Path, fix: bool = False):
         elif first is None:
             results.append(("UNCHECKED", f"{note.name}:{i+1}  {m.group(0)} (empty block)"))
         else:
-            src = source_lines(target)
+            src = pinned_lines
             if start < 1 or start > len(src):
                 results.append(
                     ("OUT-OF-RANGE", f"{note.name}:{i+1}  {path}:{start} (file has {len(src)} lines)")

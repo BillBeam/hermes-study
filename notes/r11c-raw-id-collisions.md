@@ -599,7 +599,7 @@ R11B 口径(基准)            撞号  39 号 / 100 实体
 
 ### 4.5 `H-R11C-A-a` —— `.tsv` 不在锚点白名单上
 
-`scripts/verify_citations.py:169`
+`scripts/verify_citations.py:169 @ 25c612f`
 
 ```python
 CITE_EXTS = "py|mdx|md|yaml|yml|toml|c|h|sh|json|tsx|ts|mjs|js|nix|rs|txt"
@@ -788,7 +788,7 @@ R10B 的 `▲-H-2` 是**同一条断言的第三处出处**,本片只补出处,*
 
 | 移交项 | 去向 | 锚点 + 摘录 | 一句话现象 |
 |---|---|---|---|
-| **H-R11C-A-a** | R12 前置(制度) | `scripts/verify_citations.py:169`:`CITE_EXTS = "py\|mdx\|md\|yaml\|yml\|toml\|c\|h\|sh\|json\|tsx\|ts\|mjs\|js\|nix\|rs\|txt"` | `tsv` 不在锚点白名单,指向 `data/ledger.tsv` 某行的锚点既不校验也不计数(全语料实测 **1 处**,在 R10B 主线移交表);要不要补由下一轮定,补则连同全语料前后对比一起补 |
+| **H-R11C-A-a** | R12 前置(制度) | `scripts/verify_citations.py:169 @ 25c612f`:`CITE_EXTS = "py\|mdx\|md\|yaml\|yml\|toml\|c\|h\|sh\|json\|tsx\|ts\|mjs\|js\|nix\|rs\|txt"` | `tsv` 不在锚点白名单,指向 `data/ledger.tsv` 某行的锚点既不校验也不计数(全语料实测 **1 处**,在 R10B 主线移交表);要不要补由下一轮定,补则连同全语料前后对比一起补 |
 | **H-R11C-A-b** | **R12 前置(必须处理)** | `notes/r8d-raw-provider-identity.md:2702` 的 `hermes_cli/models.py:1282`:`_PROVIDER_ALIASES = {` | R8D 片底稿的 7 条移交项(`H-1`…`H-7`,provider 身份映射)**从未进入任何账**:R8D 主线移交表用 `H-R8D-a…j` 且内容无一重合,报告也没有其他轮那句「片内移交留在各片底稿」的声明;而 `H-1`…`H-7` 在语料里都带着别轮写的「结清」。7 条锚点串在铸号文件之外**命中 0**(§5.2) |
 | **H-R11C-A-c** | R12 装订 | `notes/r10b-raw-capability-panels.md:1045` 的 `### ▲-H-2 —— ` | 片内定案号写成 `▲-H-2` / `■-H-3`,与移交号 `H-2` / `H-3` 在纯文本里无法区分,已污染撞号普查 3 个实体;建议统一为 `▲-R10B-H-2` 形式 |
 | **H-R11C-A-d** | R12 前置(方法论) | `data/r11c/a-id-collisions-coverage.py:57`:`CENSUS_FILES = frozenset({` | 「某案子被处置过没有」这类测量会被**上一轮的普查清单**污染:`H-R10B-a` 两个实体在不剔除读数下被判 COVERED,而点名它们的正是 R11B 那份「它们没被处置」的清单。R12 若再做同类普查,必须报剔除与不剔除两个读数 |

@@ -540,7 +540,7 @@ PY
 - `r2` 的两个 `>` 提示框(代码化石 / 流式注释抄错)改成了正文 + 锚点 + 块。
   **理由不是审美**:主循环遇到引用块会整段跳过,里面的锚点连扫都不扫——
 
-  `scripts/verify_citations.py:676-679`
+  `scripts/verify_citations.py:676-679 @ 25c612f`
 
   ```python
         if QUOTE.match(line):

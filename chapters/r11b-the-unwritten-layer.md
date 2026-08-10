@@ -252,7 +252,7 @@ _REASONING_STALE_TIMEOUT_FLOORS: tuple[tuple[str, int], ...] = (
 
 - 底稿:`notes/r11b-raw-backlog-r7b.md`(R7B 12 文件,10 个机制簇)、
   `notes/r11b-raw-backlog-light.md`(R2/R4/R6/R8B 26 文件)。
-- 平台接驳的主干在第十一章 `chapters/r7b-platform-integration.md`;本章是它的边角补遗。
+- 平台接驳的主干在第八章 `chapters/r7b-platform-integration.md`;本章是它的边角补遗。
 - CLI 主干在 `chapters/r8b-cli-trunk-and-interaction.md`;§3.3 的薄壳层是它的下一层。
 - 这 38 个文件为什么会漏、怎么被发现、怎么保证不再漏,见本轮报告
   `reports/round-11b-review-and-reconciliation.md`。
