@@ -1,0 +1,1041 @@
+=== [甲/点名] r1-what-is-hermes-agent.md  <-  reports/round-8-fix-review-1.md:268  (轮次 8-fix > 1)
+| # | 级别 | 处置 | 修改位置(锚点) |
+|---|---|---|---|
+| M-1 | 阻断 | **采纳** | `chapters/r7-gateway-session-core.md:35-48` 改写并补 `base.py:5711` 锚点;`chapters/r7b-platform-integration.md` ▲1 扩为逐分句判定;CLAUDE.md 新增"整句一并判定"规矩 |
+| M-2 | 阻断 | **采纳(取仲裁推荐的 a 案)** | `chapters/r1-what-is-hermes-agent.md` 分层表改为台账当前值(511/479,923、2,183/713,923),并加"这张表会动"的演进说明 + 回填理由 |
+| M-3 | 阻断 | **采纳** | 同章 `:22` "38 万行"→"48 万行";`测试比核心机制还多` 一句的 382,770 → 479,923 |
+| M-4 | 阻断 | **采纳** | 同章 `:94` "26 万行" → "260 万行" |
+| M-4a | 阻断 | **采纳并加重** | `notes/r7b-90-*.md` B-4 由 ▲ 降 ◇、锚点 `:105`→`:103`/`:113`;`chapters/r7b-*.md` 同改。**加重**:该小节实为**五个**交互方法,其中 `send_clarify`(`base.py:3780`)与 `send_slash_confirm`(`:3745`)**确有基类桩**,只有三个没有——评审位只提三个,漏了"两个有桩"这半边,而正是这半边让"文档从不说破分界"这个 ◇ 立得住 |
+
+=== [甲/点名] r3-tool-infrastructure.md  <-  notes/r11b-raw-chapter-anchors.md:617  (轮次 11b > 3)
+
+| 编号 | 锚点 + 现象 |
+|---|---|
+| **H-R11B-C-a** | `chapters/r3-tool-infrastructure.md` 的 UNCHECKED 占比实测 **15/17 = 88.2%**,**只差 1.8 个百分点就触发关卡的排版提示**,却因为在阈值下方从未被点名。它与本轮六章是同一病因(散文内联锚点、无摘录),不在 H-R8D-g 的名单里纯属阈值巧合。第一条无块引用在该章第 103 行,指 `tools/registry.py:43`:`def _module_registers_tools(module_path: Path) -> bool:`;15 条全是这个形态。 |
+| **H-R11B-C-b** | `scripts/verify_citations.py:676`:`if QUOTE.match(line):` —— 主循环**整段跳过 `>` 引用块内部**,于是写在提示框/引用框里的锚点**连 UNCHECKED 都不记**(比 UNCHECKED 更隐蔽,与 H-R10-a 点名的扩展名盲区同型)。本轮在 `r2` 一章就发现 3 条锚点活在这个盲区里。全语料规模未测,建议下一轮先普查再决定是否改脚本。 |
+| **H-R11B-C-c** | `chapters/r7-gateway-session-core.md` 第 687 行那格标注的 `gateway/session.py:1103`:`if source.chat_type == "dm":` —— 该章 §6 的对照表有 2 个表格锚点记 TABLE-UNCHECKED(另一个在第 689 行,指 `gateway/run.py:14493-14500`,连声明式摘录都没写)。非阻断,但按 R9B 的规矩它们一次都不会被比对。 |
+| **H-R11B-C-d** | `reports/round-8d-cli-completion.md:430`:`| **H-R8D-g** | R11B |` —— 该移交项对病因的描述("锚点写在代码块之后")**只适用于六章中的 `r7b` 一章**,另外五章是"根本没有源码块"。见本底稿 §2。建议主线在 R11B 报告里点名更正,以免下一轮把同类问题当成机械搬运估工。 |
+
+=== [甲/点名] r7-gateway-session-core.md  <-  notes/r11b-raw-chapter-anchors.md:619  (轮次 11b > 7)
+|---|---|
+| **H-R11B-C-a** | `chapters/r3-tool-infrastructure.md` 的 UNCHECKED 占比实测 **15/17 = 88.2%**,**只差 1.8 个百分点就触发关卡的排版提示**,却因为在阈值下方从未被点名。它与本轮六章是同一病因(散文内联锚点、无摘录),不在 H-R8D-g 的名单里纯属阈值巧合。第一条无块引用在该章第 103 行,指 `tools/registry.py:43`:`def _module_registers_tools(module_path: Path) -> bool:`;15 条全是这个形态。 |
+| **H-R11B-C-b** | `scripts/verify_citations.py:676`:`if QUOTE.match(line):` —— 主循环**整段跳过 `>` 引用块内部**,于是写在提示框/引用框里的锚点**连 UNCHECKED 都不记**(比 UNCHECKED 更隐蔽,与 H-R10-a 点名的扩展名盲区同型)。本轮在 `r2` 一章就发现 3 条锚点活在这个盲区里。全语料规模未测,建议下一轮先普查再决定是否改脚本。 |
+| **H-R11B-C-c** | `chapters/r7-gateway-session-core.md` 第 687 行那格标注的 `gateway/session.py:1103`:`if source.chat_type == "dm":` —— 该章 §6 的对照表有 2 个表格锚点记 TABLE-UNCHECKED(另一个在第 689 行,指 `gateway/run.py:14493-14500`,连声明式摘录都没写)。非阻断,但按 R9B 的规矩它们一次都不会被比对。 |
+| **H-R11B-C-d** | `reports/round-8d-cli-completion.md:430`:`| **H-R8D-g** | R11B |` —— 该移交项对病因的描述("锚点写在代码块之后")**只适用于六章中的 `r7b` 一章**,另外五章是"根本没有源码块"。见本底稿 §2。建议主线在 R11B 报告里点名更正,以免下一轮把同类问题当成机械搬运估工。 |
+| **H-R11B-C-e** | `scripts/verify_evidence_commands.py:97`:`r = subprocess.run(["bash", "-c", cmd], cwd=ROOT, capture_output=True,` —— 关卡会真的执行 `verify` 块里的命令,所以**在某文件里写"跑本文件的 `verify_evidence_commands.py`"会无限递归**(本轮实测跑到 120 秒超时)。同理,任何钉了输出、而输出取决于 `chapters/*.md` / `notes/*.md` 通配符的 `verify` 块,会被**别的片的合法新增**弄成 differing——本轮实测:主线新增一章后全量数从 474 跳到 479。建议把这两条禁忌写进下一轮派工书。 |
+
+=== [甲/点名] r9a-capability-organization.md  <-  notes/r11c-raw-pre-binding-inventory.md:451  (轮次 11c > 9a)
+
+> 另**更正 R9A 的锚点** `AGENTS.md:971-974` → `971-975`:原范围**漏掉整整一行 8 个键**,
+
+`chapters/r9a-capability-organization.md:429`
+
+> | ▲4 | `AGENTS.md:971-974` | 列出 30 个 toolset 键 | 其中 `messaging` / `moa` / `rl` **不存在** |
+
+
+=== [甲/点名] r8a-configuration-surface.md  <-  notes/r11c-raw-pre-binding-inventory.md:502  (轮次 11c > 8a)
+
+| 被后续轮次改判的结论 | 成品章现状 | 判定 |
+|---|---|---|
+| `config.yaml` 读取函数 五个 → 六个(R8B) | `chapters/r8a-configuration-surface.md:18`:`3. 但**同一份 `config.yaml` 有六个读取函数**(本轮清点为五个,R8B 补上了启动最早期的` | 已同步 |
+| r7b 交互方法「三个没有基类桩」→「五个里两个有桩」(R8-fix M-4a) | `chapters/r7b-platform-integration.md:819`:`**这五个交互方法里,两个有基类桩(`send_clarify`、`send_slash_confirm`)、三个没有**` | 已同步 |
+| 「看板评论 steer」定位错(R7C 更正 R7) | 第 7 章正文已无该说法;第 9 章 `chapters/r7c-gateway-periphery-and-scheduling.md:464`:`顺带更正上一轮的一处定位:第 7 章曾把"看板评论 steer"归到网关的看板 watcher 文件里。` 保留了更正记录 | 已同步(**但 R12 要决定这段过程性文字留不留**) |
+| 漏列 31 个 toolset 整体判 ▲ → 24 ◇ + 7 ▲ + 3 ▲(R9D 推翻主线初判) | 第 17 章 `chapters/r9d-tool-surface-and-guard-placement.md:667`:`(本章初稿把 31 个整体算作 ▲,是错的;更正依据是上面那次定稿快照对读。)` | 已同步 |
+
+=== [甲/点名] r7b-platform-integration.md  <-  notes/r11c-raw-pre-binding-inventory.md:503  (轮次 11c > 7b)
+| 被后续轮次改判的结论 | 成品章现状 | 判定 |
+|---|---|---|
+| `config.yaml` 读取函数 五个 → 六个(R8B) | `chapters/r8a-configuration-surface.md:18`:`3. 但**同一份 `config.yaml` 有六个读取函数**(本轮清点为五个,R8B 补上了启动最早期的` | 已同步 |
+| r7b 交互方法「三个没有基类桩」→「五个里两个有桩」(R8-fix M-4a) | `chapters/r7b-platform-integration.md:819`:`**这五个交互方法里,两个有基类桩(`send_clarify`、`send_slash_confirm`)、三个没有**` | 已同步 |
+| 「看板评论 steer」定位错(R7C 更正 R7) | 第 7 章正文已无该说法;第 9 章 `chapters/r7c-gateway-periphery-and-scheduling.md:464`:`顺带更正上一轮的一处定位:第 7 章曾把"看板评论 steer"归到网关的看板 watcher 文件里。` 保留了更正记录 | 已同步(**但 R12 要决定这段过程性文字留不留**) |
+| 漏列 31 个 toolset 整体判 ▲ → 24 ◇ + 7 ▲ + 3 ▲(R9D 推翻主线初判) | 第 17 章 `chapters/r9d-tool-surface-and-guard-placement.md:667`:`(本章初稿把 31 个整体算作 ▲,是错的;更正依据是上面那次定稿快照对读。)` | 已同步 |
+| `approvals.deny` 落盘截断「静默抹掉」→ R8C 推翻(有 stderr + 逐字备份) | 全 `chapters/` 搜「静默抹掉」「静默地抹」零命中(搜索面:`grep -rn` 全部 21 个 `chapters/*.md`,不排除任何段落,含围栏块) | 未进成品章 |
+
+=== [甲/点名] r7c-gateway-periphery-and-scheduling.md  <-  notes/r11c-raw-pre-binding-inventory.md:504  (轮次 11c > 7c)
+|---|---|---|
+| `config.yaml` 读取函数 五个 → 六个(R8B) | `chapters/r8a-configuration-surface.md:18`:`3. 但**同一份 `config.yaml` 有六个读取函数**(本轮清点为五个,R8B 补上了启动最早期的` | 已同步 |
+| r7b 交互方法「三个没有基类桩」→「五个里两个有桩」(R8-fix M-4a) | `chapters/r7b-platform-integration.md:819`:`**这五个交互方法里,两个有基类桩(`send_clarify`、`send_slash_confirm`)、三个没有**` | 已同步 |
+| 「看板评论 steer」定位错(R7C 更正 R7) | 第 7 章正文已无该说法;第 9 章 `chapters/r7c-gateway-periphery-and-scheduling.md:464`:`顺带更正上一轮的一处定位:第 7 章曾把"看板评论 steer"归到网关的看板 watcher 文件里。` 保留了更正记录 | 已同步(**但 R12 要决定这段过程性文字留不留**) |
+| 漏列 31 个 toolset 整体判 ▲ → 24 ◇ + 7 ▲ + 3 ▲(R9D 推翻主线初判) | 第 17 章 `chapters/r9d-tool-surface-and-guard-placement.md:667`:`(本章初稿把 31 个整体算作 ▲,是错的;更正依据是上面那次定稿快照对读。)` | 已同步 |
+| `approvals.deny` 落盘截断「静默抹掉」→ R8C 推翻(有 stderr + 逐字备份) | 全 `chapters/` 搜「静默抹掉」「静默地抹」零命中(搜索面:`grep -rn` 全部 21 个 `chapters/*.md`,不排除任何段落,含围栏块) | 未进成品章 |
+
+
+=== [甲/点名] r9d-tool-surface-and-guard-placement.md  <-  notes/r11c-raw-pre-binding-inventory.md:505  (轮次 11c > 9d)
+| `config.yaml` 读取函数 五个 → 六个(R8B) | `chapters/r8a-configuration-surface.md:18`:`3. 但**同一份 `config.yaml` 有六个读取函数**(本轮清点为五个,R8B 补上了启动最早期的` | 已同步 |
+| r7b 交互方法「三个没有基类桩」→「五个里两个有桩」(R8-fix M-4a) | `chapters/r7b-platform-integration.md:819`:`**这五个交互方法里,两个有基类桩(`send_clarify`、`send_slash_confirm`)、三个没有**` | 已同步 |
+| 「看板评论 steer」定位错(R7C 更正 R7) | 第 7 章正文已无该说法;第 9 章 `chapters/r7c-gateway-periphery-and-scheduling.md:464`:`顺带更正上一轮的一处定位:第 7 章曾把"看板评论 steer"归到网关的看板 watcher 文件里。` 保留了更正记录 | 已同步(**但 R12 要决定这段过程性文字留不留**) |
+| 漏列 31 个 toolset 整体判 ▲ → 24 ◇ + 7 ▲ + 3 ▲(R9D 推翻主线初判) | 第 17 章 `chapters/r9d-tool-surface-and-guard-placement.md:667`:`(本章初稿把 31 个整体算作 ▲,是错的;更正依据是上面那次定稿快照对读。)` | 已同步 |
+| `approvals.deny` 落盘截断「静默抹掉」→ R8C 推翻(有 stderr + 逐字备份) | 全 `chapters/` 搜「静默抹掉」「静默地抹」零命中(搜索面:`grep -rn` 全部 21 个 `chapters/*.md`,不排除任何段落,含围栏块) | 未进成品章 |
+
+搜索面申报:
+
+=== [甲/点名] r8a-configuration-surface.md  <-  notes/r8b-90-handover-rulings.md:205  (轮次 8b > 8a)
+
+### 1.3 与 r8a 那条安全叙事的正面冲突
+
+`chapters/r8a-configuration-surface.md` 用整节讲"解析失败退回上一次好的,而不是退回默认值",
+理由原文是"配置里有 `approvals.deny`……退回默认值等于**用户存了个错别字,防线就自己拆了**"。
+**那一节讲的是 `load_config`;而这条路走的是 `read_raw_config`,它返回 `{}`。**
+同一个安全不变式,在另一条读取路径上根本不成立。r8a 那节的机制描述没错,
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:463 引 gateway/relay/media.py:92  <-  reports/round-10-client-interface-layer.md:527 引 gateway/relay/media.py:94  (轮次 10 > 9a)
+| **H-R10-e** | R10B | `data/r10/slices/REMAINDER.txt` 的 977 行清单 | 本轮显式未吃的 977 文件 / 214,245 行,含 `apps/desktop/src/` 816 文件与全部 13 个 L3 文件 |
+| **H-R10-f** | R10B / R11A | `ui-tui/src/gatewayClient.ts:221`:`this.subscribed = false` | 网关重启后订阅开关无复位路径(唯一开启点在 `drain()`,唯一调用点在依赖恒定的 mount effect);**静态推演,未实测**,需起真实网关复现 |
+| **H-R8C-f**(后端半边) | R11A | `hermes_cli/web_server.py:12892`:`@app.post("/api/ops/import")` | 「来源校验仅 basename」需读 import 解包实现才能证成或证伪,本轮只结清前端半边 |
+| **H-R9B-d**(改判后续转) | R11A | `gateway/relay/media.py:94` 的 `is_relay_media_url` | 去向原写 R9C 但四个 R9 轮次均未处置,确认为真孤儿;与同处代码的 H-R9C-d 同轮做 |
+| **H-R8FIX-b**(合并后续转) | R11B | 本报告 §4 的 **314 处**与按文件分解表 | 与 H-R8D-g 合并做,共用一次全量校验 |
+| **制度四条确认在册** | — | `CLAUDE.md` | 表格行内锚点(:68)、shell 命令即证据(:176)、移交项格式(:180)、负结论的成本(:207)、异步产出完成判定(:214)**均在册**;**但 H-R9B-g 的惰性安装纪律不在册**——R9C/R9D 实际都在用,建议 R11 复盘补写 |
+
+
+=== [乙/锚点] chapters/r10-client-interface-layer.md:40 引 ui-tui/src/gatewayClient.ts:213  <-  reports/round-10b-desktop-application.md:503 引 ui-tui/src/gatewayClient.ts:221  (轮次 10b > 10)
+
+### 11.3 H-R10-f:静态推演 → 实测复现,而「需起真实网关」这个前提不成立
+
+移交项写:`ui-tui/src/gatewayClient.ts:221`:`this.subscribed = false` —— 网关重启后订阅开关
+无复位路径;**静态推演,未实测,需起真实网关复现**。
+
+**不需要真实网关**:仓库自己的测试套件早就把传输层 mock 掉了。探针已落库,三个用例:
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:463 引 gateway/relay/media.py:92  <-  reports/round-10b-desktop-application.md:535 引 gateway/relay/media.py:94  (轮次 10b > 9a)
+### 11.4 明确不归本轮的,逐条核过锚点
+
+去向非 R10B 的 25 条,本轮只核一件事:**锚点在基线上还解析得到吗**。
+三条基线锚点全部解析得到:`hermes_cli/web_server.py:5524`、`:12892`、`gateway/relay/media.py:94`。
+
+**其中第三条我第一版说错了,已就地更正**:`:94` 是 `is_relay_media_url` 的**函数体**
+(那句子串判断),`def` 在 `:92`。**锚点本身是对的**(H-R9B-d 说的缺陷正是那句 `in`),
+
+=== [乙/锚点] chapters/r7b-platform-integration.md:869 引 gateway/platforms/ADDING_A_PLATFORM.md:400  <-  reports/round-7c-gateway-periphery-and-scheduling.md:185 引 gateway/platforms/ADDING_A_PLATFORM.md:400  (轮次 7c > 7b)
+
+**修订一 · "自检 grep 只扫 `gateway/`" 表述更正。** 实际扫描集是**六个路径**
+(`gateway/ tools/ agent/ cron/ hermes_cli/ toolsets.py`,
+`gateway/platforms/ADDING_A_PLATFORM.md:400-402 @ 863e313`);另更正一处小失准 ——
+该 grep **不在 §16**(§16 是 "Tests"),而在其后的 "Quick Verification" 一节(`:392`)。
+**结论不变**:六个路径里依然没有 `plugins/`,而那条失效引用正指向
+`plugins/platforms/*/adapter.py`,"它发现不了自己"成立。
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:58 引 gateway/run.py:11096  <-  reports/round-8-fix-review-1.md:251 引 gateway/run.py:11096  (轮次 8-fix > 7)
+            if self._busy_session_handler is not None:
+```
+
+装入点三处:`gateway/run.py:11096`、`:12468`、`:13410`。所以"忙时怎么办"的决策权在**网关层**,
+r7 §3.4 整节讲的四选一全在网关侧;按"不往下送"理解,那一节永远执行不到。
+
+**一句过时文档,一半被证伪、一半以"这里已经查过了"的名义活了下来,并被另一章原样采信。**
+
+=== [乙/锚点] chapters/r7b-platform-integration.md:779 引 gateway/run.py:11096  <-  reports/round-8-fix-review-1.md:251 引 gateway/run.py:11096  (轮次 8-fix > 7b)
+            if self._busy_session_handler is not None:
+```
+
+装入点三处:`gateway/run.py:11096`、`:12468`、`:13410`。所以"忙时怎么办"的决策权在**网关层**,
+r7 §3.4 整节讲的四选一全在网关侧;按"不往下送"理解,那一节永远执行不到。
+
+**一句过时文档,一半被证伪、一半以"这里已经查过了"的名义活了下来,并被另一章原样采信。**
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:1742 引 hermes_cli/main.py:280  <-  reports/round-8b-cli-trunk-and-interaction.md:203 引 hermes_cli/main.py:280  (轮次 8b > 8a)
+  **记它的理由不是它会出事,而是它不出事的原因是纵深防御、不是优先级正确**;
+  任何一处防护被当作冗余删掉,那段 docstring 里描述过的 kanban 事故就会以新形态回来。
+- **◇-R8B-b**:`config.yaml` 读取函数应从 R8A 的**五个**更正为**六个**;
+  第六个是 `_config_default_interface_early`(`hermes_cli/main.py:280`),
+  **且它是唯一一个有正当理由的重复**——它的调用点在模块级第 371 行,
+  而复用共享缓存的那个桥在第 709 行才 import 配置子系统,**371 < 709**,此时确实无缓存可用。
+
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:463 引 gateway/relay/media.py:92  <-  reports/round-9b-multimodal-delivery.md:326 引 gateway/relay/media.py:92  (轮次 9b > 9a)
+- 移交项原写的锚点 `:318` 是函数体第一行,函数头在 `:307`;已在底稿更正。
+
+**■ H-R9A-a(一并结清,比上一条重一个量级)**:
+`gateway/relay/media.py:92-94` 的 `is_relay_media_url` 只做子串 `"/relay/media/" in url`,
+**不看主机**;判为真就挂网关 bearer 并 `urlopen` 出去(`gateway/relay/media.py:169`)。
+而 `url` 来自 `gateway/relay/ws_transport.py:268` —— **relay 帧的原始载荷,未经任何校验**。
+**触发者是入站消息,不是本机配置**,这是它更重的原因。
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:428 引 AGENTS.md:986  <-  reports/round-9d-l1-completion.md:187 引 AGENTS.md:971  (轮次 9d > 9a)
+*为什么这个更正重要:**判 ▲ 是在说"作者画错了地图",判 ◇ 是在说"地图没画这一块"。**
+对那 24 个,作者画对了——他画的是另一张图,只是没写图例。把它算成 ▲ 既冤枉作者,
+也让 ▲ 这个跨轮"地图腐烂程度"指标失真。*
+另**更正 R9A 的锚点** `AGENTS.md:971-974` → `971-975`:原范围**漏掉整整一行 8 个键**,
+照它去截取只数得出 22 个而非 30 个。**R9A 的"漏 28"也改正为 31**(58−27,而非 58−30)。
+
+**H-R9A-e —— 方向定死为 fail-open,这是它是不是 ■ 的关键。**
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:429 引 AGENTS.md:971  <-  reports/round-9d-l1-completion.md:187 引 AGENTS.md:971  (轮次 9d > 9a)
+*为什么这个更正重要:**判 ▲ 是在说"作者画错了地图",判 ◇ 是在说"地图没画这一块"。**
+对那 24 个,作者画对了——他画的是另一张图,只是没写图例。把它算成 ▲ 既冤枉作者,
+也让 ▲ 这个跨轮"地图腐烂程度"指标失真。*
+另**更正 R9A 的锚点** `AGENTS.md:971-974` → `971-975`:原范围**漏掉整整一行 8 个键**,
+照它去截取只数得出 22 个而非 30 个。**R9A 的"漏 28"也改正为 31**(58−27,而非 58−30)。
+
+**H-R9A-e —— 方向定死为 fail-open,这是它是不是 ■ 的关键。**
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:489 引 gateway/relay/adapter.py:461  <-  notes/r11b-92-fix-regression-correction.md:181 引 gateway/relay/adapter.py:471  (轮次 11b > 9a)
+
+| 移交项 | 去向 | 锚点 | 现象 |
+|---|---|---|---|
+| **H-R11B-a** | 接手网关中继的那一轮 | `gateway/relay/adapter.py:471`:`if "/relay/media/" not in url:` | ■-R11A-01 的同形态子串判定在非测试代码里另有 2 处(`:471` 与 `:477`,后者是 `elif "/relay/media/" not in url:`),本轮只更正修法记录、未逐处取证它们是否也带凭据 |
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:509 引 gateway/relay/adapter.py:449  <-  notes/r11b-92-fix-regression-correction.md:181 引 gateway/relay/adapter.py:471  (轮次 11b > 9a)
+
+| 移交项 | 去向 | 锚点 | 现象 |
+|---|---|---|---|
+| **H-R11B-a** | 接手网关中继的那一轮 | `gateway/relay/adapter.py:471`:`if "/relay/media/" not in url:` | ■-R11A-01 的同形态子串判定在非测试代码里另有 2 处(`:471` 与 `:477`,后者是 `elif "/relay/media/" not in url:`),本轮只更正修法记录、未逐处取证它们是否也带凭据 |
+
+=== [乙/锚点] chapters/r3-tool-infrastructure.md:103 引 tools/registry.py:43  <-  notes/r11b-raw-chapter-anchors.md:617 引 tools/registry.py:43  (轮次 11b > 3)
+
+| 编号 | 锚点 + 现象 |
+|---|---|
+| **H-R11B-C-a** | `chapters/r3-tool-infrastructure.md` 的 UNCHECKED 占比实测 **15/17 = 88.2%**,**只差 1.8 个百分点就触发关卡的排版提示**,却因为在阈值下方从未被点名。它与本轮六章是同一病因(散文内联锚点、无摘录),不在 H-R8D-g 的名单里纯属阈值巧合。第一条无块引用在该章第 103 行,指 `tools/registry.py:43`:`def _module_registers_tools(module_path: Path) -> bool:`;15 条全是这个形态。 |
+| **H-R11B-C-b** | `scripts/verify_citations.py:676`:`if QUOTE.match(line):` —— 主循环**整段跳过 `>` 引用块内部**,于是写在提示框/引用框里的锚点**连 UNCHECKED 都不记**(比 UNCHECKED 更隐蔽,与 H-R10-a 点名的扩展名盲区同型)。本轮在 `r2` 一章就发现 3 条锚点活在这个盲区里。全语料规模未测,建议下一轮先普查再决定是否改脚本。 |
+| **H-R11B-C-c** | `chapters/r7-gateway-session-core.md` 第 687 行那格标注的 `gateway/session.py:1103`:`if source.chat_type == "dm":` —— 该章 §6 的对照表有 2 个表格锚点记 TABLE-UNCHECKED(另一个在第 689 行,指 `gateway/run.py:14493-14500`,连声明式摘录都没写)。非阻断,但按 R9B 的规矩它们一次都不会被比对。 |
+| **H-R11B-C-d** | `reports/round-8d-cli-completion.md:430`:`| **H-R8D-g** | R11B |` —— 该移交项对病因的描述("锚点写在代码块之后")**只适用于六章中的 `r7b` 一章**,另外五章是"根本没有源码块"。见本底稿 §2。建议主线在 R11B 报告里点名更正,以免下一轮把同类问题当成机械搬运估工。 |
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:166 引 gateway/session.py:1103  <-  notes/r11b-raw-chapter-anchors.md:619 引 gateway/session.py:1103  (轮次 11b > 7)
+|---|---|
+| **H-R11B-C-a** | `chapters/r3-tool-infrastructure.md` 的 UNCHECKED 占比实测 **15/17 = 88.2%**,**只差 1.8 个百分点就触发关卡的排版提示**,却因为在阈值下方从未被点名。它与本轮六章是同一病因(散文内联锚点、无摘录),不在 H-R8D-g 的名单里纯属阈值巧合。第一条无块引用在该章第 103 行,指 `tools/registry.py:43`:`def _module_registers_tools(module_path: Path) -> bool:`;15 条全是这个形态。 |
+| **H-R11B-C-b** | `scripts/verify_citations.py:676`:`if QUOTE.match(line):` —— 主循环**整段跳过 `>` 引用块内部**,于是写在提示框/引用框里的锚点**连 UNCHECKED 都不记**(比 UNCHECKED 更隐蔽,与 H-R10-a 点名的扩展名盲区同型)。本轮在 `r2` 一章就发现 3 条锚点活在这个盲区里。全语料规模未测,建议下一轮先普查再决定是否改脚本。 |
+| **H-R11B-C-c** | `chapters/r7-gateway-session-core.md` 第 687 行那格标注的 `gateway/session.py:1103`:`if source.chat_type == "dm":` —— 该章 §6 的对照表有 2 个表格锚点记 TABLE-UNCHECKED(另一个在第 689 行,指 `gateway/run.py:14493-14500`,连声明式摘录都没写)。非阻断,但按 R9B 的规矩它们一次都不会被比对。 |
+| **H-R11B-C-d** | `reports/round-8d-cli-completion.md:430`:`| **H-R8D-g** | R11B |` —— 该移交项对病因的描述("锚点写在代码块之后")**只适用于六章中的 `r7b` 一章**,另外五章是"根本没有源码块"。见本底稿 §2。建议主线在 R11B 报告里点名更正,以免下一轮把同类问题当成机械搬运估工。 |
+| **H-R11B-C-e** | `scripts/verify_evidence_commands.py:97`:`r = subprocess.run(["bash", "-c", cmd], cwd=ROOT, capture_output=True,` —— 关卡会真的执行 `verify` 块里的命令,所以**在某文件里写"跑本文件的 `verify_evidence_commands.py`"会无限递归**(本轮实测跑到 120 秒超时)。同理,任何钉了输出、而输出取决于 `chapters/*.md` / `notes/*.md` 通配符的 `verify` 块,会被**别的片的合法新增**弄成 differing——本轮实测:主线新增一章后全量数从 474 跳到 479。建议把这两条禁忌写进下一轮派工书。 |
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:184 引 gateway/session.py:1119  <-  notes/r11b-raw-chapter-anchors.md:619 引 gateway/session.py:1103  (轮次 11b > 7)
+|---|---|
+| **H-R11B-C-a** | `chapters/r3-tool-infrastructure.md` 的 UNCHECKED 占比实测 **15/17 = 88.2%**,**只差 1.8 个百分点就触发关卡的排版提示**,却因为在阈值下方从未被点名。它与本轮六章是同一病因(散文内联锚点、无摘录),不在 H-R8D-g 的名单里纯属阈值巧合。第一条无块引用在该章第 103 行,指 `tools/registry.py:43`:`def _module_registers_tools(module_path: Path) -> bool:`;15 条全是这个形态。 |
+| **H-R11B-C-b** | `scripts/verify_citations.py:676`:`if QUOTE.match(line):` —— 主循环**整段跳过 `>` 引用块内部**,于是写在提示框/引用框里的锚点**连 UNCHECKED 都不记**(比 UNCHECKED 更隐蔽,与 H-R10-a 点名的扩展名盲区同型)。本轮在 `r2` 一章就发现 3 条锚点活在这个盲区里。全语料规模未测,建议下一轮先普查再决定是否改脚本。 |
+| **H-R11B-C-c** | `chapters/r7-gateway-session-core.md` 第 687 行那格标注的 `gateway/session.py:1103`:`if source.chat_type == "dm":` —— 该章 §6 的对照表有 2 个表格锚点记 TABLE-UNCHECKED(另一个在第 689 行,指 `gateway/run.py:14493-14500`,连声明式摘录都没写)。非阻断,但按 R9B 的规矩它们一次都不会被比对。 |
+| **H-R11B-C-d** | `reports/round-8d-cli-completion.md:430`:`| **H-R8D-g** | R11B |` —— 该移交项对病因的描述("锚点写在代码块之后")**只适用于六章中的 `r7b` 一章**,另外五章是"根本没有源码块"。见本底稿 §2。建议主线在 R11B 报告里点名更正,以免下一轮把同类问题当成机械搬运估工。 |
+| **H-R11B-C-e** | `scripts/verify_evidence_commands.py:97`:`r = subprocess.run(["bash", "-c", cmd], cwd=ROOT, capture_output=True,` —— 关卡会真的执行 `verify` 块里的命令,所以**在某文件里写"跑本文件的 `verify_evidence_commands.py`"会无限递归**(本轮实测跑到 120 秒超时)。同理,任何钉了输出、而输出取决于 `chapters/*.md` / `notes/*.md` 通配符的 `verify` 块,会被**别的片的合法新增**弄成 differing——本轮实测:主线新增一章后全量数从 474 跳到 479。建议把这两条禁忌写进下一轮派工书。 |
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:198 引 gateway/session.py:1087  <-  notes/r11b-raw-chapter-anchors.md:619 引 gateway/session.py:1103  (轮次 11b > 7)
+|---|---|
+| **H-R11B-C-a** | `chapters/r3-tool-infrastructure.md` 的 UNCHECKED 占比实测 **15/17 = 88.2%**,**只差 1.8 个百分点就触发关卡的排版提示**,却因为在阈值下方从未被点名。它与本轮六章是同一病因(散文内联锚点、无摘录),不在 H-R8D-g 的名单里纯属阈值巧合。第一条无块引用在该章第 103 行,指 `tools/registry.py:43`:`def _module_registers_tools(module_path: Path) -> bool:`;15 条全是这个形态。 |
+| **H-R11B-C-b** | `scripts/verify_citations.py:676`:`if QUOTE.match(line):` —— 主循环**整段跳过 `>` 引用块内部**,于是写在提示框/引用框里的锚点**连 UNCHECKED 都不记**(比 UNCHECKED 更隐蔽,与 H-R10-a 点名的扩展名盲区同型)。本轮在 `r2` 一章就发现 3 条锚点活在这个盲区里。全语料规模未测,建议下一轮先普查再决定是否改脚本。 |
+| **H-R11B-C-c** | `chapters/r7-gateway-session-core.md` 第 687 行那格标注的 `gateway/session.py:1103`:`if source.chat_type == "dm":` —— 该章 §6 的对照表有 2 个表格锚点记 TABLE-UNCHECKED(另一个在第 689 行,指 `gateway/run.py:14493-14500`,连声明式摘录都没写)。非阻断,但按 R9B 的规矩它们一次都不会被比对。 |
+| **H-R11B-C-d** | `reports/round-8d-cli-completion.md:430`:`| **H-R8D-g** | R11B |` —— 该移交项对病因的描述("锚点写在代码块之后")**只适用于六章中的 `r7b` 一章**,另外五章是"根本没有源码块"。见本底稿 §2。建议主线在 R11B 报告里点名更正,以免下一轮把同类问题当成机械搬运估工。 |
+| **H-R11B-C-e** | `scripts/verify_evidence_commands.py:97`:`r = subprocess.run(["bash", "-c", cmd], cwd=ROOT, capture_output=True,` —— 关卡会真的执行 `verify` 块里的命令,所以**在某文件里写"跑本文件的 `verify_evidence_commands.py`"会无限递归**(本轮实测跑到 120 秒超时)。同理,任何钉了输出、而输出取决于 `chapters/*.md` / `notes/*.md` 通配符的 `verify` 块,会被**别的片的合法新增**弄成 differing——本轮实测:主线新增一章后全量数从 474 跳到 479。建议把这两条禁忌写进下一轮派工书。 |
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:210 引 gateway/session.py:1105  <-  notes/r11b-raw-chapter-anchors.md:619 引 gateway/session.py:1103  (轮次 11b > 7)
+|---|---|
+| **H-R11B-C-a** | `chapters/r3-tool-infrastructure.md` 的 UNCHECKED 占比实测 **15/17 = 88.2%**,**只差 1.8 个百分点就触发关卡的排版提示**,却因为在阈值下方从未被点名。它与本轮六章是同一病因(散文内联锚点、无摘录),不在 H-R8D-g 的名单里纯属阈值巧合。第一条无块引用在该章第 103 行,指 `tools/registry.py:43`:`def _module_registers_tools(module_path: Path) -> bool:`;15 条全是这个形态。 |
+| **H-R11B-C-b** | `scripts/verify_citations.py:676`:`if QUOTE.match(line):` —— 主循环**整段跳过 `>` 引用块内部**,于是写在提示框/引用框里的锚点**连 UNCHECKED 都不记**(比 UNCHECKED 更隐蔽,与 H-R10-a 点名的扩展名盲区同型)。本轮在 `r2` 一章就发现 3 条锚点活在这个盲区里。全语料规模未测,建议下一轮先普查再决定是否改脚本。 |
+| **H-R11B-C-c** | `chapters/r7-gateway-session-core.md` 第 687 行那格标注的 `gateway/session.py:1103`:`if source.chat_type == "dm":` —— 该章 §6 的对照表有 2 个表格锚点记 TABLE-UNCHECKED(另一个在第 689 行,指 `gateway/run.py:14493-14500`,连声明式摘录都没写)。非阻断,但按 R9B 的规矩它们一次都不会被比对。 |
+| **H-R11B-C-d** | `reports/round-8d-cli-completion.md:430`:`| **H-R8D-g** | R11B |` —— 该移交项对病因的描述("锚点写在代码块之后")**只适用于六章中的 `r7b` 一章**,另外五章是"根本没有源码块"。见本底稿 §2。建议主线在 R11B 报告里点名更正,以免下一轮把同类问题当成机械搬运估工。 |
+| **H-R11B-C-e** | `scripts/verify_evidence_commands.py:97`:`r = subprocess.run(["bash", "-c", cmd], cwd=ROOT, capture_output=True,` —— 关卡会真的执行 `verify` 块里的命令,所以**在某文件里写"跑本文件的 `verify_evidence_commands.py`"会无限递归**(本轮实测跑到 120 秒超时)。同理,任何钉了输出、而输出取决于 `chapters/*.md` / `notes/*.md` 通配符的 `verify` 块,会被**别的片的合法新增**弄成 differing——本轮实测:主线新增一章后全量数从 474 跳到 479。建议把这两条禁忌写进下一轮派工书。 |
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:687 引 gateway/session.py:1103  <-  notes/r11b-raw-chapter-anchors.md:619 引 gateway/session.py:1103  (轮次 11b > 7)
+|---|---|
+| **H-R11B-C-a** | `chapters/r3-tool-infrastructure.md` 的 UNCHECKED 占比实测 **15/17 = 88.2%**,**只差 1.8 个百分点就触发关卡的排版提示**,却因为在阈值下方从未被点名。它与本轮六章是同一病因(散文内联锚点、无摘录),不在 H-R8D-g 的名单里纯属阈值巧合。第一条无块引用在该章第 103 行,指 `tools/registry.py:43`:`def _module_registers_tools(module_path: Path) -> bool:`;15 条全是这个形态。 |
+| **H-R11B-C-b** | `scripts/verify_citations.py:676`:`if QUOTE.match(line):` —— 主循环**整段跳过 `>` 引用块内部**,于是写在提示框/引用框里的锚点**连 UNCHECKED 都不记**(比 UNCHECKED 更隐蔽,与 H-R10-a 点名的扩展名盲区同型)。本轮在 `r2` 一章就发现 3 条锚点活在这个盲区里。全语料规模未测,建议下一轮先普查再决定是否改脚本。 |
+| **H-R11B-C-c** | `chapters/r7-gateway-session-core.md` 第 687 行那格标注的 `gateway/session.py:1103`:`if source.chat_type == "dm":` —— 该章 §6 的对照表有 2 个表格锚点记 TABLE-UNCHECKED(另一个在第 689 行,指 `gateway/run.py:14493-14500`,连声明式摘录都没写)。非阻断,但按 R9B 的规矩它们一次都不会被比对。 |
+| **H-R11B-C-d** | `reports/round-8d-cli-completion.md:430`:`| **H-R8D-g** | R11B |` —— 该移交项对病因的描述("锚点写在代码块之后")**只适用于六章中的 `r7b` 一章**,另外五章是"根本没有源码块"。见本底稿 §2。建议主线在 R11B 报告里点名更正,以免下一轮把同类问题当成机械搬运估工。 |
+| **H-R11B-C-e** | `scripts/verify_evidence_commands.py:97`:`r = subprocess.run(["bash", "-c", cmd], cwd=ROOT, capture_output=True,` —— 关卡会真的执行 `verify` 块里的命令,所以**在某文件里写"跑本文件的 `verify_evidence_commands.py`"会无限递归**(本轮实测跑到 120 秒超时)。同理,任何钉了输出、而输出取决于 `chapters/*.md` / `notes/*.md` 通配符的 `verify` 块,会被**别的片的合法新增**弄成 differing——本轮实测:主线新增一章后全量数从 474 跳到 479。建议把这两条禁忌写进下一轮派工书。 |
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:689 引 gateway/run.py:14493  <-  notes/r11b-raw-chapter-anchors.md:619 引 gateway/run.py:14493  (轮次 11b > 7)
+|---|---|
+| **H-R11B-C-a** | `chapters/r3-tool-infrastructure.md` 的 UNCHECKED 占比实测 **15/17 = 88.2%**,**只差 1.8 个百分点就触发关卡的排版提示**,却因为在阈值下方从未被点名。它与本轮六章是同一病因(散文内联锚点、无摘录),不在 H-R8D-g 的名单里纯属阈值巧合。第一条无块引用在该章第 103 行,指 `tools/registry.py:43`:`def _module_registers_tools(module_path: Path) -> bool:`;15 条全是这个形态。 |
+| **H-R11B-C-b** | `scripts/verify_citations.py:676`:`if QUOTE.match(line):` —— 主循环**整段跳过 `>` 引用块内部**,于是写在提示框/引用框里的锚点**连 UNCHECKED 都不记**(比 UNCHECKED 更隐蔽,与 H-R10-a 点名的扩展名盲区同型)。本轮在 `r2` 一章就发现 3 条锚点活在这个盲区里。全语料规模未测,建议下一轮先普查再决定是否改脚本。 |
+| **H-R11B-C-c** | `chapters/r7-gateway-session-core.md` 第 687 行那格标注的 `gateway/session.py:1103`:`if source.chat_type == "dm":` —— 该章 §6 的对照表有 2 个表格锚点记 TABLE-UNCHECKED(另一个在第 689 行,指 `gateway/run.py:14493-14500`,连声明式摘录都没写)。非阻断,但按 R9B 的规矩它们一次都不会被比对。 |
+| **H-R11B-C-d** | `reports/round-8d-cli-completion.md:430`:`| **H-R8D-g** | R11B |` —— 该移交项对病因的描述("锚点写在代码块之后")**只适用于六章中的 `r7b` 一章**,另外五章是"根本没有源码块"。见本底稿 §2。建议主线在 R11B 报告里点名更正,以免下一轮把同类问题当成机械搬运估工。 |
+| **H-R11B-C-e** | `scripts/verify_evidence_commands.py:97`:`r = subprocess.run(["bash", "-c", cmd], cwd=ROOT, capture_output=True,` —— 关卡会真的执行 `verify` 块里的命令,所以**在某文件里写"跑本文件的 `verify_evidence_commands.py`"会无限递归**(本轮实测跑到 120 秒超时)。同理,任何钉了输出、而输出取决于 `chapters/*.md` / `notes/*.md` 通配符的 `verify` 块,会被**别的片的合法新增**弄成 differing——本轮实测:主线新增一章后全量数从 474 跳到 479。建议把这两条禁忌写进下一轮派工书。 |
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:1711 引 gateway/run.py:14479  <-  notes/r11b-raw-chapter-anchors.md:619 引 gateway/run.py:14493  (轮次 11b > 8a)
+|---|---|
+| **H-R11B-C-a** | `chapters/r3-tool-infrastructure.md` 的 UNCHECKED 占比实测 **15/17 = 88.2%**,**只差 1.8 个百分点就触发关卡的排版提示**,却因为在阈值下方从未被点名。它与本轮六章是同一病因(散文内联锚点、无摘录),不在 H-R8D-g 的名单里纯属阈值巧合。第一条无块引用在该章第 103 行,指 `tools/registry.py:43`:`def _module_registers_tools(module_path: Path) -> bool:`;15 条全是这个形态。 |
+| **H-R11B-C-b** | `scripts/verify_citations.py:676`:`if QUOTE.match(line):` —— 主循环**整段跳过 `>` 引用块内部**,于是写在提示框/引用框里的锚点**连 UNCHECKED 都不记**(比 UNCHECKED 更隐蔽,与 H-R10-a 点名的扩展名盲区同型)。本轮在 `r2` 一章就发现 3 条锚点活在这个盲区里。全语料规模未测,建议下一轮先普查再决定是否改脚本。 |
+| **H-R11B-C-c** | `chapters/r7-gateway-session-core.md` 第 687 行那格标注的 `gateway/session.py:1103`:`if source.chat_type == "dm":` —— 该章 §6 的对照表有 2 个表格锚点记 TABLE-UNCHECKED(另一个在第 689 行,指 `gateway/run.py:14493-14500`,连声明式摘录都没写)。非阻断,但按 R9B 的规矩它们一次都不会被比对。 |
+| **H-R11B-C-d** | `reports/round-8d-cli-completion.md:430`:`| **H-R8D-g** | R11B |` —— 该移交项对病因的描述("锚点写在代码块之后")**只适用于六章中的 `r7b` 一章**,另外五章是"根本没有源码块"。见本底稿 §2。建议主线在 R11B 报告里点名更正,以免下一轮把同类问题当成机械搬运估工。 |
+| **H-R11B-C-e** | `scripts/verify_evidence_commands.py:97`:`r = subprocess.run(["bash", "-c", cmd], cwd=ROOT, capture_output=True,` —— 关卡会真的执行 `verify` 块里的命令,所以**在某文件里写"跑本文件的 `verify_evidence_commands.py`"会无限递归**(本轮实测跑到 120 秒超时)。同理,任何钉了输出、而输出取决于 `chapters/*.md` / `notes/*.md` 通配符的 `verify` 块,会被**别的片的合法新增**弄成 differing——本轮实测:主线新增一章后全量数从 474 跳到 479。建议把这两条禁忌写进下一轮派工书。 |
+
+=== [乙/锚点] chapters/r7b-platform-integration.md:530 引 gateway/platforms/base.py:1451  <-  notes/r11b-raw-notes-citation-cleanup.md:536 引 gateway/platforms/base.py:1451  (轮次 11b > 7b)
+| # | 改动 | 不确定在哪 | 我的依据 |
+|---|---|---|---|
+| 1 | `notes/r3-10-approval-security.md` 15 个块由 ```python 改标 ```text(§4.4) | 这是全片最可能被推翻的一条:它把 15 条引用从"失败"移进 UNCHECKED,形式上像"为了过关" | 逐行审计 103 行、行号栏 102/103 准确(§4.2 可重跑);块确实不是逐字源码;并给出了让它变成 103 行全校验的修法(H-R11B-D-b) |
+| 2 | `notes/r7b-30-base-media-and-egress.md:20` 的 `gateway/platforms/base.py:1451-1527` 下那张判定顺序表由 ``` 改标 ```text | 同上一类的小号版本 | 该块是中文步骤表 + 右侧 `base.py:NNNN` 位置标注,不是源码 |
+| 3 | `notes/r2-20-adapters.md` 把一个压缩块拆成四个各自带锚点的块(§6.5) | 本片唯一一处**结构性重写**,改变了该节的排版形态 | 制度原话「摘录要跳段时,优先拆成两个各自带锚点的块」;拆后四块全部逐字通过 |
+| 4 | `notes/r8d-02-coverage-audit.md` 的两处行号改到 `:307-308` / `:437-438`(§6.4) | 指向**本仓库**的 `scripts/assign_layers.py`,下一轮几乎必然再漂 | 本轮实测;已在正文注明会移动,并作为 H-R11B-D-c 交出 |
+| 5 | `notes/r6-60-mcp-oauth-cleanup.md` 的 3 处**不改**(§5.1) | "留着"也是一个判断:代价是失败数停在 3 而不是 0 | 三条引用经 venv 内 `mcp 1.28.1` 逐字核过;三种绕法都是假声明 |
+
+=== [乙/锚点] chapters/r8d-self-custody.md:318 引 hermes_cli/urllib_security.py:11  <-  notes/r11b-raw-rulings-census.md:823 引 hermes_cli/urllib_security.py:31  (轮次 11b > 8d)
+1. **在 `reports/round-11a-ops-and-delivery.md` 文末勘误节加一条**(报告正文不静默改写):
+   点明 `■-R11A-01` 由 `H-R9B-d` 升格,而 `H-R9B-d` 已由 R9C 与 `H-R9A-a` 并案并改判过;
+   `■-R11A-01` 给出的修法方向(比对 `self._base_url`)**必要但不充分**,
+   完整修法见 `notes/r9c-90-handover-rulings.md` §1.2 与 `hermes_cli/urllib_security.py:31`。
+   **勘误节只加不减,不动 §8.2 正文。**
+2. **在 `notes/r11a-90-handover-rulings.md` §1 直接改正文**(`notes/` 属「直接改正文」那一类),
+   在「而正确的比较值就在同一个类的构造里」之后补一段,写明:原判是什么(只比 `_base_url` 即可)、
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:463 引 gateway/relay/media.py:92  <-  notes/r11b-raw-rulings-census.md:881 引 gateway/relay/media.py:94  (轮次 11b > 9a)
+
+| 移交项 | 去向 | 锚点 | 一句话现象 |
+|---|---|---|---|
+| **H-R11B-A-a** | R11B 主线(本轮) | `gateway/relay/media.py:94`:`return "/relay/media/" in (url or "")` | `■-R11A-01` 把 R9C 已证伪的修法(只比 `self._base_url`)重新写成结论;更正写法见 §3.6,**主线执行,本片不改** |
+| **H-R11B-A-b** | R11B 主线 / R12 | `hermes_cli/urllib_security.py:31`:`class SafeCredentialRedirectHandler(urllib.request.HTTPRedirectHandler):` | 仓库自带的正确修法在 R11A 全部产出里零提及(实测 3 份文件各 0 命中);它是 `■-R11A-01` 缺的那一层 |
+| **H-R11B-A-c** | R12 前置 | `tui_gateway/methods_session.py:1800`:`@method("pet.generate")` | `H-R10B-a` 三处独立铸号中的一处,R11A 只结清了 `scripts/` 那一处;本条从未被任何轮处置,且因号已标结清而不会被发现 |
+| **H-R11B-A-d** | R12 前置 | `apps/desktop/src/plugins/gateway-pill/plugin.tsx:350`:`const plugin: HermesPlugin = {` | 同上,`H-R10B-a` 的第三处铸号(R10B 片 H);插件未声明 `defaultEnabled`,同样随号被误判为已结清 |
+
+=== [乙/锚点] chapters/r8d-self-custody.md:318 引 hermes_cli/urllib_security.py:11  <-  notes/r11b-raw-rulings-census.md:882 引 hermes_cli/urllib_security.py:31  (轮次 11b > 8d)
+| 移交项 | 去向 | 锚点 | 一句话现象 |
+|---|---|---|---|
+| **H-R11B-A-a** | R11B 主线(本轮) | `gateway/relay/media.py:94`:`return "/relay/media/" in (url or "")` | `■-R11A-01` 把 R9C 已证伪的修法(只比 `self._base_url`)重新写成结论;更正写法见 §3.6,**主线执行,本片不改** |
+| **H-R11B-A-b** | R11B 主线 / R12 | `hermes_cli/urllib_security.py:31`:`class SafeCredentialRedirectHandler(urllib.request.HTTPRedirectHandler):` | 仓库自带的正确修法在 R11A 全部产出里零提及(实测 3 份文件各 0 命中);它是 `■-R11A-01` 缺的那一层 |
+| **H-R11B-A-c** | R12 前置 | `tui_gateway/methods_session.py:1800`:`@method("pet.generate")` | `H-R10B-a` 三处独立铸号中的一处,R11A 只结清了 `scripts/` 那一处;本条从未被任何轮处置,且因号已标结清而不会被发现 |
+| **H-R11B-A-d** | R12 前置 | `apps/desktop/src/plugins/gateway-pill/plugin.tsx:350`:`const plugin: HermesPlugin = {` | 同上,`H-R10B-a` 的第三处铸号(R10B 片 H);插件未声明 `defaultEnabled`,同样随号被误判为已结清 |
+| **H-R11B-A-e** | R12 装订 | `gateway/pairing.py:18`:`Storage: ~/.hermes/pairing/` | 同一条断言 R7C 记 ▲、R8A 记 ◇;跨轮 ▲ 计数被 CLAUDE.md 定义为「地图腐烂程度」指标,记号不一致使它不可比 |
+
+=== [乙/锚点] chapters/r9c-external-interfaces.md:418 引 agent/file_safety.py:280  <-  notes/r11b-raw-rulings-census.md:887 引 agent/file_safety.py:284  (轮次 11b > 9c)
+| **H-R11B-A-d** | R12 前置 | `apps/desktop/src/plugins/gateway-pill/plugin.tsx:350`:`const plugin: HermesPlugin = {` | 同上,`H-R10B-a` 的第三处铸号(R10B 片 H);插件未声明 `defaultEnabled`,同样随号被误判为已结清 |
+| **H-R11B-A-e** | R12 装订 | `gateway/pairing.py:18`:`Storage: ~/.hermes/pairing/` | 同一条断言 R7C 记 ▲、R8A 记 ◇;跨轮 ▲ 计数被 CLAUDE.md 定义为「地图腐烂程度」指标,记号不一致使它不可比 |
+| **H-R11B-A-f** | R11B 主线(制度) | `hermes_cli/config.py:75`:`backup_path = config_path.with_name(f"{config_path.name}.corrupt.{ts}.bak")` | `CLAUDE.md:274` 的「静默抹掉」写于 R8-fix,R8C 已改判该定性,该句从未更新,并已被 R8D 两份底稿原样复用 |
+| **H-R11B-A-g** | R12 装订 | `agent/file_safety.py:284`:`os.path.join("cache", "bws_cache.json"),` | R9C `■-1` 与 R9D `■-2` 是同一条(R9D 自陈「结清 R9C D 片 ■-1 在本片的部分」),跨轮 ■ 计数因此多算一条 |
+| **H-R11B-A-h** | R12 装订 | `cron/scheduler.py:334`:`_running_job_ids: set = set()` | R7C 两份底稿互不通气各铸 `▲-1`,登记卷统成 `▲-4` —— 去重是本项目已有的动作,但只在轮内做过,没有跨轮别名表 |
+
+=== [乙/锚点] chapters/r9d-tool-surface-and-guard-placement.md:229 引 agent/file_safety.py:281  <-  notes/r11b-raw-rulings-census.md:887 引 agent/file_safety.py:284  (轮次 11b > 9d)
+| **H-R11B-A-d** | R12 前置 | `apps/desktop/src/plugins/gateway-pill/plugin.tsx:350`:`const plugin: HermesPlugin = {` | 同上,`H-R10B-a` 的第三处铸号(R10B 片 H);插件未声明 `defaultEnabled`,同样随号被误判为已结清 |
+| **H-R11B-A-e** | R12 装订 | `gateway/pairing.py:18`:`Storage: ~/.hermes/pairing/` | 同一条断言 R7C 记 ▲、R8A 记 ◇;跨轮 ▲ 计数被 CLAUDE.md 定义为「地图腐烂程度」指标,记号不一致使它不可比 |
+| **H-R11B-A-f** | R11B 主线(制度) | `hermes_cli/config.py:75`:`backup_path = config_path.with_name(f"{config_path.name}.corrupt.{ts}.bak")` | `CLAUDE.md:274` 的「静默抹掉」写于 R8-fix,R8C 已改判该定性,该句从未更新,并已被 R8D 两份底稿原样复用 |
+| **H-R11B-A-g** | R12 装订 | `agent/file_safety.py:284`:`os.path.join("cache", "bws_cache.json"),` | R9C `■-1` 与 R9D `■-2` 是同一条(R9D 自陈「结清 R9C D 片 ■-1 在本片的部分」),跨轮 ■ 计数因此多算一条 |
+| **H-R11B-A-h** | R12 装订 | `cron/scheduler.py:334`:`_running_job_ids: set = set()` | R7C 两份底稿互不通气各铸 `▲-1`,登记卷统成 `▲-4` —— 去重是本项目已有的动作,但只在轮内做过,没有跨轮别名表 |
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:428 引 AGENTS.md:986  <-  notes/r11c-raw-pre-binding-inventory.md:299 引 AGENTS.md:971  (轮次 11c > 9a)
+
+| # | 簇 | 涉及章 | 各自怎么讲 | 建议 |
+|---|---|---|---|---|
+| M1 | `AGENTS.md:971-975` toolset 键清单 | 第 14 章 `r9a:429`、第 17 章 `r9d:643` | 14 章一行 ▲4 表格格(「列出 30 个键,其中 3 个不存在」);17 章有完整引文 + 58/30/漏 31/多列 3 的全套数,并自陈「结清 R9A 的一条移交项」 | **留 17 章**;14 章 ▲4 保留一行 + 指路。注意 14 章那一格的锚点是过期的,见 §4.2 |
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:429 引 AGENTS.md:971  <-  notes/r11c-raw-pre-binding-inventory.md:299 引 AGENTS.md:971  (轮次 11c > 9a)
+
+| # | 簇 | 涉及章 | 各自怎么讲 | 建议 |
+|---|---|---|---|---|
+| M1 | `AGENTS.md:971-975` toolset 键清单 | 第 14 章 `r9a:429`、第 17 章 `r9d:643` | 14 章一行 ▲4 表格格(「列出 30 个键,其中 3 个不存在」);17 章有完整引文 + 58/30/漏 31/多列 3 的全套数,并自陈「结清 R9A 的一条移交项」 | **留 17 章**;14 章 ▲4 保留一行 + 指路。注意 14 章那一格的锚点是过期的,见 §4.2 |
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+
+=== [乙/锚点] chapters/r9d-tool-surface-and-guard-placement.md:643 引 AGENTS.md:971  <-  notes/r11c-raw-pre-binding-inventory.md:299 引 AGENTS.md:971  (轮次 11c > 9d)
+
+| # | 簇 | 涉及章 | 各自怎么讲 | 建议 |
+|---|---|---|---|---|
+| M1 | `AGENTS.md:971-975` toolset 键清单 | 第 14 章 `r9a:429`、第 17 章 `r9d:643` | 14 章一行 ▲4 表格格(「列出 30 个键,其中 3 个不存在」);17 章有完整引文 + 58/30/漏 31/多列 3 的全套数,并自陈「结清 R9A 的一条移交项」 | **留 17 章**;14 章 ▲4 保留一行 + 指路。注意 14 章那一格的锚点是过期的,见 §4.2 |
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+
+=== [乙/锚点] chapters/r5-session-state-and-persistence.md:469 引 agent/system_prompt.py:504  <-  notes/r11c-raw-pre-binding-inventory.md:300 引 agent/system_prompt.py:504  (轮次 11c > 5)
+| # | 簇 | 涉及章 | 各自怎么讲 | 建议 |
+|---|---|---|---|---|
+| M1 | `AGENTS.md:971-975` toolset 键清单 | 第 14 章 `r9a:429`、第 17 章 `r9d:643` | 14 章一行 ▲4 表格格(「列出 30 个键,其中 3 个不存在」);17 章有完整引文 + 58/30/漏 31/多列 3 的全套数,并自陈「结清 R9A 的一条移交项」 | **留 17 章**;14 章 ▲4 保留一行 + 指路。注意 14 章那一格的锚点是过期的,见 §4.2 |
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:233 引 agent/system_prompt.py:505  <-  notes/r11c-raw-pre-binding-inventory.md:300 引 agent/system_prompt.py:504  (轮次 11c > 9a)
+| # | 簇 | 涉及章 | 各自怎么讲 | 建议 |
+|---|---|---|---|---|
+| M1 | `AGENTS.md:971-975` toolset 键清单 | 第 14 章 `r9a:429`、第 17 章 `r9d:643` | 14 章一行 ▲4 表格格(「列出 30 个键,其中 3 个不存在」);17 章有完整引文 + 58/30/漏 31/多列 3 的全套数,并自陈「结清 R9A 的一条移交项」 | **留 17 章**;14 章 ▲4 保留一行 + 指路。注意 14 章那一格的锚点是过期的,见 §4.2 |
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:195 引 gateway/run.py:2057  <-  notes/r11c-raw-pre-binding-inventory.md:301 引 gateway/run.py:2057  (轮次 11c > 8a)
+|---|---|---|---|---|
+| M1 | `AGENTS.md:971-975` toolset 键清单 | 第 14 章 `r9a:429`、第 17 章 `r9d:643` | 14 章一行 ▲4 表格格(「列出 30 个键,其中 3 个不存在」);17 章有完整引文 + 58/30/漏 31/多列 3 的全套数,并自陈「结清 R9A 的一条移交项」 | **留 17 章**;14 章 ▲4 保留一行 + 指路。注意 14 章那一格的锚点是过期的,见 §4.2 |
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:222 引 gateway/run.py:2037  <-  notes/r11c-raw-pre-binding-inventory.md:301 引 gateway/run.py:2057  (轮次 11c > 8a)
+|---|---|---|---|---|
+| M1 | `AGENTS.md:971-975` toolset 键清单 | 第 14 章 `r9a:429`、第 17 章 `r9d:643` | 14 章一行 ▲4 表格格(「列出 30 个键,其中 3 个不存在」);17 章有完整引文 + 58/30/漏 31/多列 3 的全套数,并自陈「结清 R9A 的一条移交项」 | **留 17 章**;14 章 ▲4 保留一行 + 指路。注意 14 章那一格的锚点是过期的,见 §4.2 |
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:1303 引 gateway/run.py:2058  <-  notes/r11c-raw-pre-binding-inventory.md:301 引 gateway/run.py:2057  (轮次 11c > 8a)
+|---|---|---|---|---|
+| M1 | `AGENTS.md:971-975` toolset 键清单 | 第 14 章 `r9a:429`、第 17 章 `r9d:643` | 14 章一行 ▲4 表格格(「列出 30 个键,其中 3 个不存在」);17 章有完整引文 + 58/30/漏 31/多列 3 的全套数,并自陈「结清 R9A 的一条移交项」 | **留 17 章**;14 章 ▲4 保留一行 + 指路。注意 14 章那一格的锚点是过期的,见 §4.2 |
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+
+=== [乙/锚点] chapters/r8c-dashboard-and-web.md:293 引 gateway/run.py:2058  <-  notes/r11c-raw-pre-binding-inventory.md:301 引 gateway/run.py:2057  (轮次 11c > 8c)
+|---|---|---|---|---|
+| M1 | `AGENTS.md:971-975` toolset 键清单 | 第 14 章 `r9a:429`、第 17 章 `r9d:643` | 14 章一行 ▲4 表格格(「列出 30 个键,其中 3 个不存在」);17 章有完整引文 + 58/30/漏 31/多列 3 的全套数,并自陈「结清 R9A 的一条移交项」 | **留 17 章**;14 章 ▲4 保留一行 + 指路。注意 14 章那一格的锚点是过期的,见 §4.2 |
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+
+=== [乙/锚点] chapters/r8c-dashboard-and-web.md:299 引 gateway/run.py:2060  <-  notes/r11c-raw-pre-binding-inventory.md:301 引 gateway/run.py:2057  (轮次 11c > 8c)
+|---|---|---|---|---|
+| M1 | `AGENTS.md:971-975` toolset 键清单 | 第 14 章 `r9a:429`、第 17 章 `r9d:643` | 14 章一行 ▲4 表格格(「列出 30 个键,其中 3 个不存在」);17 章有完整引文 + 58/30/漏 31/多列 3 的全套数,并自陈「结清 R9A 的一条移交项」 | **留 17 章**;14 章 ▲4 保留一行 + 指路。注意 14 章那一格的锚点是过期的,见 §4.2 |
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:1742 引 hermes_cli/main.py:280  <-  notes/r11c-raw-pre-binding-inventory.md:302 引 hermes_cli/main.py:280  (轮次 11c > 8a)
+| M1 | `AGENTS.md:971-975` toolset 键清单 | 第 14 章 `r9a:429`、第 17 章 `r9d:643` | 14 章一行 ▲4 表格格(「列出 30 个键,其中 3 个不存在」);17 章有完整引文 + 58/30/漏 31/多列 3 的全套数,并自陈「结清 R9A 的一条移交项」 | **留 17 章**;14 章 ▲4 保留一行 + 指路。注意 14 章那一格的锚点是过期的,见 §4.2 |
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+
+=== [乙/锚点] chapters/r8b-cli-trunk-and-interaction.md:552 引 hermes_cli/main.py:280  <-  notes/r11c-raw-pre-binding-inventory.md:302 引 hermes_cli/main.py:280  (轮次 11c > 8b)
+| M1 | `AGENTS.md:971-975` toolset 键清单 | 第 14 章 `r9a:429`、第 17 章 `r9d:643` | 14 章一行 ▲4 表格格(「列出 30 个键,其中 3 个不存在」);17 章有完整引文 + 58/30/漏 31/多列 3 的全套数,并自陈「结清 R9A 的一条移交项」 | **留 17 章**;14 章 ▲4 保留一行 + 指路。注意 14 章那一格的锚点是过期的,见 §4.2 |
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+
+=== [乙/锚点] chapters/r8c-dashboard-and-web.md:245 引 hermes_cli/web_server.py:1833  <-  notes/r11c-raw-pre-binding-inventory.md:303 引 hermes_cli/web_server.py:1833  (轮次 11c > 8c)
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+=== [乙/锚点] chapters/r8c-dashboard-and-web.md:410 引 hermes_cli/web_server.py:1833  <-  notes/r11c-raw-pre-binding-inventory.md:303 引 hermes_cli/web_server.py:1833  (轮次 11c > 8c)
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+=== [乙/锚点] chapters/r8d-self-custody.md:378 引 hermes_cli/web_server.py:1838  <-  notes/r11c-raw-pre-binding-inventory.md:303 引 hermes_cli/web_server.py:1833  (轮次 11c > 8d)
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+=== [乙/锚点] chapters/r8d-self-custody.md:388 引 hermes_cli/web_server.py:1833  <-  notes/r11c-raw-pre-binding-inventory.md:303 引 hermes_cli/web_server.py:1833  (轮次 11c > 8d)
+| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | **留 5 章**(提示词分层是它的主题);14 章缩为一句 + 指路,术语锚定上移到全局术语表(§3.4) |
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+=== [乙/锚点] chapters/r9b-multimodal-delivery.md:405 引 tools/transcription_tools.py:341  <-  notes/r11c-raw-pre-binding-inventory.md:304 引 tools/transcription_tools.py:336  (轮次 11c > 9b)
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+
+=== [乙/锚点] chapters/r9c-external-interfaces.md:266 引 tools/transcription_tools.py:336  <-  notes/r11c-raw-pre-binding-inventory.md:304 引 tools/transcription_tools.py:336  (轮次 11c > 9c)
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+
+=== [乙/锚点] chapters/r9b-multimodal-delivery.md:422 引 tools/voice_mode.py:2193  <-  notes/r11c-raw-pre-binding-inventory.md:304 引 tools/voice_mode.py:2193  (轮次 11c > 9b)
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+
+=== [乙/锚点] chapters/r9b-multimodal-delivery.md:487 引 tools/voice_mode.py:2193  <-  notes/r11c-raw-pre-binding-inventory.md:304 引 tools/voice_mode.py:2193  (轮次 11c > 9b)
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+
+=== [乙/锚点] chapters/r9c-external-interfaces.md:289 引 tools/voice_mode.py:2193  <-  notes/r11c-raw-pre-binding-inventory.md:304 引 tools/voice_mode.py:2193  (轮次 11c > 9c)
+| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+
+=== [乙/锚点] chapters/r9c-external-interfaces.md:418 引 agent/file_safety.py:280  <-  notes/r11c-raw-pre-binding-inventory.md:305 引 agent/file_safety.py:280  (轮次 11c > 9c)
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+### 3.3 判定为「有意的交叉引用,不合并」的 9 组(覆盖 A 的 10 簇)
+
+=== [乙/锚点] chapters/r9d-tool-surface-and-guard-placement.md:229 引 agent/file_safety.py:281  <-  notes/r11c-raw-pre-binding-inventory.md:305 引 agent/file_safety.py:280  (轮次 11c > 9d)
+| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决定是否保留「本轮清点为五个」这句历史注记——它在单章里是诚实,在成书里是噪音 |
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+### 3.3 判定为「有意的交叉引用,不合并」的 9 组(覆盖 A 的 10 簇)
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:50 引 gateway/platforms/base.py:5711  <-  notes/r11c-raw-pre-binding-inventory.md:306 引 gateway/platforms/base.py:5711  (轮次 11c > 7)
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+### 3.3 判定为「有意的交叉引用,不合并」的 9 组(覆盖 A 的 10 簇)
+
+
+=== [乙/锚点] chapters/r7b-platform-integration.md:778 引 gateway/platforms/base.py:5711  <-  notes/r11c-raw-pre-binding-inventory.md:306 引 gateway/platforms/base.py:5711  (轮次 11c > 7b)
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+### 3.3 判定为「有意的交叉引用,不合并」的 9 组(覆盖 A 的 10 簇)
+
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:58 引 gateway/run.py:11096  <-  notes/r11c-raw-pre-binding-inventory.md:306 引 gateway/run.py:11096  (轮次 11c > 7)
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+### 3.3 判定为「有意的交叉引用,不合并」的 9 组(覆盖 A 的 10 簇)
+
+
+=== [乙/锚点] chapters/r7b-platform-integration.md:779 引 gateway/run.py:11096  <-  notes/r11c-raw-pre-binding-inventory.md:306 引 gateway/run.py:11096  (轮次 11c > 7b)
+| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docstring 论证写侧无守卫;13 章还多引了守卫本体 | **留 12 章**(dashboard 是它的主题);13 章缩为指路。**不能两处都留全文** |
+| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一条 ■(少一个 `deepinfra`) | **留 15 章**(多模态交付面是它的主题);16 章缩为一句 + 指路 |
+| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Password 那一半) | **留 16 章**;17 章缩为一句 + 指路 |
+| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 章用它证伪文档三句话中的一句 | **留 8 章**;7 章的两个代码块可删,一句话 + 指路即可(它自己已经这么声明了) |
+
+### 3.3 判定为「有意的交叉引用,不合并」的 9 组(覆盖 A 的 10 簇)
+
+
+=== [乙/锚点] chapters/r5-session-state-and-persistence.md:578 引 agent/memory_manager.py:347  <-  notes/r11c-raw-pre-binding-inventory.md:315 引 agent/memory_manager.py:347  (轮次 11c > 5)
+| # | 簇 | 涉及章 | 为什么不合并 |
+|---|---|---|---|
+| K1 | `agent/agent_init.py:892` + `agent/conversation_loop.py:1415-1445`(`_budget_grace_call` 死代码) | 第 1 章 `r1:144`、第 2 章 `r2:141`/`:151`/`:157` | 第 1 章拿它当「文档-代码冲突」的示范例,第 2 章是机制正文。全景章举例是它的职责 |
+| K2 | `agent/memory_manager.py:347-361` 记忆围栏 | 第 5 章 `r5:578`、第 6 章 `r6:292` | 第 6 章那一处**已经写着**「围栏全文见 R5 §3.7」,是正确写法 |
+| K3 | `cli.py:479-481` `agent.personalities` 只在 CLI 默认值里 | 第 10 章 `r8a:397`、第 11 章 `r8b:169` | 10 章讲「键名校验只认 `DEFAULT_CONFIG`,于是假警告」,11 章讲「14 个内置人格」,是同一事实的两个后果 |
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+
+=== [乙/锚点] chapters/r6-memory-provider-ecosystem.md:292 引 agent/memory_manager.py:351  <-  notes/r11c-raw-pre-binding-inventory.md:315 引 agent/memory_manager.py:347  (轮次 11c > 6)
+| # | 簇 | 涉及章 | 为什么不合并 |
+|---|---|---|---|
+| K1 | `agent/agent_init.py:892` + `agent/conversation_loop.py:1415-1445`(`_budget_grace_call` 死代码) | 第 1 章 `r1:144`、第 2 章 `r2:141`/`:151`/`:157` | 第 1 章拿它当「文档-代码冲突」的示范例,第 2 章是机制正文。全景章举例是它的职责 |
+| K2 | `agent/memory_manager.py:347-361` 记忆围栏 | 第 5 章 `r5:578`、第 6 章 `r6:292` | 第 6 章那一处**已经写着**「围栏全文见 R5 §3.7」,是正确写法 |
+| K3 | `cli.py:479-481` `agent.personalities` 只在 CLI 默认值里 | 第 10 章 `r8a:397`、第 11 章 `r8b:169` | 10 章讲「键名校验只认 `DEFAULT_CONFIG`,于是假警告」,11 章讲「14 个内置人格」,是同一事实的两个后果 |
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:397 引 cli.py:479  <-  notes/r11c-raw-pre-binding-inventory.md:316 引 cli.py:479  (轮次 11c > 8a)
+|---|---|---|---|
+| K1 | `agent/agent_init.py:892` + `agent/conversation_loop.py:1415-1445`(`_budget_grace_call` 死代码) | 第 1 章 `r1:144`、第 2 章 `r2:141`/`:151`/`:157` | 第 1 章拿它当「文档-代码冲突」的示范例,第 2 章是机制正文。全景章举例是它的职责 |
+| K2 | `agent/memory_manager.py:347-361` 记忆围栏 | 第 5 章 `r5:578`、第 6 章 `r6:292` | 第 6 章那一处**已经写着**「围栏全文见 R5 §3.7」,是正确写法 |
+| K3 | `cli.py:479-481` `agent.personalities` 只在 CLI 默认值里 | 第 10 章 `r8a:397`、第 11 章 `r8b:169` | 10 章讲「键名校验只认 `DEFAULT_CONFIG`,于是假警告」,11 章讲「14 个内置人格」,是同一事实的两个后果 |
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+
+=== [乙/锚点] chapters/r8b-cli-trunk-and-interaction.md:169 引 cli.py:481  <-  notes/r11c-raw-pre-binding-inventory.md:316 引 cli.py:479  (轮次 11c > 8b)
+|---|---|---|---|
+| K1 | `agent/agent_init.py:892` + `agent/conversation_loop.py:1415-1445`(`_budget_grace_call` 死代码) | 第 1 章 `r1:144`、第 2 章 `r2:141`/`:151`/`:157` | 第 1 章拿它当「文档-代码冲突」的示范例,第 2 章是机制正文。全景章举例是它的职责 |
+| K2 | `agent/memory_manager.py:347-361` 记忆围栏 | 第 5 章 `r5:578`、第 6 章 `r6:292` | 第 6 章那一处**已经写着**「围栏全文见 R5 §3.7」,是正确写法 |
+| K3 | `cli.py:479-481` `agent.personalities` 只在 CLI 默认值里 | 第 10 章 `r8a:397`、第 11 章 `r8b:169` | 10 章讲「键名校验只认 `DEFAULT_CONFIG`,于是假警告」,11 章讲「14 个内置人格」,是同一事实的两个后果 |
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:247 引 gateway/slash_commands.py:2507  <-  notes/r11c-raw-pre-binding-inventory.md:317 引 gateway/slash_commands.py:2502  (轮次 11c > 8a)
+| K1 | `agent/agent_init.py:892` + `agent/conversation_loop.py:1415-1445`(`_budget_grace_call` 死代码) | 第 1 章 `r1:144`、第 2 章 `r2:141`/`:151`/`:157` | 第 1 章拿它当「文档-代码冲突」的示范例,第 2 章是机制正文。全景章举例是它的职责 |
+| K2 | `agent/memory_manager.py:347-361` 记忆围栏 | 第 5 章 `r5:578`、第 6 章 `r6:292` | 第 6 章那一处**已经写着**「围栏全文见 R5 §3.7」,是正确写法 |
+| K3 | `cli.py:479-481` `agent.personalities` 只在 CLI 默认值里 | 第 10 章 `r8a:397`、第 11 章 `r8b:169` | 10 章讲「键名校验只认 `DEFAULT_CONFIG`,于是假警告」,11 章讲「14 个内置人格」,是同一事实的两个后果 |
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+| K7 | `gateway/run.py:14479-14500` 配对码 | 第 7 章 `r7:689`、第 10 章 `r8a:1711` | 7 章是 ▲(文档把 `/pair` 方向写反),10 章是配置面的入站路径 |
+
+=== [乙/锚点] chapters/r8b-cli-trunk-and-interaction.md:335 引 gateway/slash_commands.py:2502  <-  notes/r11c-raw-pre-binding-inventory.md:317 引 gateway/slash_commands.py:2502  (轮次 11c > 8b)
+| K1 | `agent/agent_init.py:892` + `agent/conversation_loop.py:1415-1445`(`_budget_grace_call` 死代码) | 第 1 章 `r1:144`、第 2 章 `r2:141`/`:151`/`:157` | 第 1 章拿它当「文档-代码冲突」的示范例,第 2 章是机制正文。全景章举例是它的职责 |
+| K2 | `agent/memory_manager.py:347-361` 记忆围栏 | 第 5 章 `r5:578`、第 6 章 `r6:292` | 第 6 章那一处**已经写着**「围栏全文见 R5 §3.7」,是正确写法 |
+| K3 | `cli.py:479-481` `agent.personalities` 只在 CLI 默认值里 | 第 10 章 `r8a:397`、第 11 章 `r8b:169` | 10 章讲「键名校验只认 `DEFAULT_CONFIG`,于是假警告」,11 章讲「14 个内置人格」,是同一事实的两个后果 |
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+| K7 | `gateway/run.py:14479-14500` 配对码 | 第 7 章 `r7:689`、第 10 章 `r8a:1711` | 7 章是 ▲(文档把 `/pair` 方向写反),10 章是配置面的入站路径 |
+
+=== [乙/锚点] chapters/r3-tool-infrastructure.md:278 引 tools/code_execution_tool.py:253  <-  notes/r11c-raw-pre-binding-inventory.md:318 引 tools/code_execution_tool.py:252  (轮次 11c > 3)
+| K2 | `agent/memory_manager.py:347-361` 记忆围栏 | 第 5 章 `r5:578`、第 6 章 `r6:292` | 第 6 章那一处**已经写着**「围栏全文见 R5 §3.7」,是正确写法 |
+| K3 | `cli.py:479-481` `agent.personalities` 只在 CLI 默认值里 | 第 10 章 `r8a:397`、第 11 章 `r8b:169` | 10 章讲「键名校验只认 `DEFAULT_CONFIG`,于是假警告」,11 章讲「14 个内置人格」,是同一事实的两个后果 |
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+| K7 | `gateway/run.py:14479-14500` 配对码 | 第 7 章 `r7:689`、第 10 章 `r8a:1711` | 7 章是 ▲(文档把 `/pair` 方向写反),10 章是配置面的入站路径 |
+| K8 | `cli.py:4488-4490` | 第 10 章 `r8a:426`、第 11 章 `r8b:218` | 10 章讲 28 个 CLI 专属键的假警告,11 章讲一层 `update` 让 14 个人格丢失 |
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:186 引 tools/code_execution_tool.py:252  <-  notes/r11c-raw-pre-binding-inventory.md:318 引 tools/code_execution_tool.py:252  (轮次 11c > 9a)
+| K2 | `agent/memory_manager.py:347-361` 记忆围栏 | 第 5 章 `r5:578`、第 6 章 `r6:292` | 第 6 章那一处**已经写着**「围栏全文见 R5 §3.7」,是正确写法 |
+| K3 | `cli.py:479-481` `agent.personalities` 只在 CLI 默认值里 | 第 10 章 `r8a:397`、第 11 章 `r8b:169` | 10 章讲「键名校验只认 `DEFAULT_CONFIG`,于是假警告」,11 章讲「14 个内置人格」,是同一事实的两个后果 |
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+| K7 | `gateway/run.py:14479-14500` 配对码 | 第 7 章 `r7:689`、第 10 章 `r8a:1711` | 7 章是 ▲(文档把 `/pair` 方向写反),10 章是配置面的入站路径 |
+| K8 | `cli.py:4488-4490` | 第 10 章 `r8a:426`、第 11 章 `r8b:218` | 10 章讲 28 个 CLI 专属键的假警告,11 章讲一层 `update` 让 14 个人格丢失 |
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:1100 引 hermes_cli/web_server.py:12335  <-  notes/r11c-raw-pre-binding-inventory.md:319 引 hermes_cli/web_server.py:12321  (轮次 11c > 8a)
+| K3 | `cli.py:479-481` `agent.personalities` 只在 CLI 默认值里 | 第 10 章 `r8a:397`、第 11 章 `r8b:169` | 10 章讲「键名校验只认 `DEFAULT_CONFIG`,于是假警告」,11 章讲「14 个内置人格」,是同一事实的两个后果 |
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+| K7 | `gateway/run.py:14479-14500` 配对码 | 第 7 章 `r7:689`、第 10 章 `r8a:1711` | 7 章是 ▲(文档把 `/pair` 方向写反),10 章是配置面的入站路径 |
+| K8 | `cli.py:4488-4490` | 第 10 章 `r8a:426`、第 11 章 `r8b:218` | 10 章讲 28 个 CLI 专属键的假警告,11 章讲一层 `update` 让 14 个人格丢失 |
+| K9 | `model_tools.py:1103-1123` | 第 3 章 `r3:54`、第 16 章 `r9c:365` | 3 章点名管线入口 `handle_function_call`,16 章讲 `post_tool_call` 钩子的载荷键 |
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:1109 引 hermes_cli/web_server.py:12343  <-  notes/r11c-raw-pre-binding-inventory.md:319 引 hermes_cli/web_server.py:12321  (轮次 11c > 8a)
+| K3 | `cli.py:479-481` `agent.personalities` 只在 CLI 默认值里 | 第 10 章 `r8a:397`、第 11 章 `r8b:169` | 10 章讲「键名校验只认 `DEFAULT_CONFIG`,于是假警告」,11 章讲「14 个内置人格」,是同一事实的两个后果 |
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+| K7 | `gateway/run.py:14479-14500` 配对码 | 第 7 章 `r7:689`、第 10 章 `r8a:1711` | 7 章是 ▲(文档把 `/pair` 方向写反),10 章是配置面的入站路径 |
+| K8 | `cli.py:4488-4490` | 第 10 章 `r8a:426`、第 11 章 `r8b:218` | 10 章讲 28 个 CLI 专属键的假警告,11 章讲一层 `update` 让 14 个人格丢失 |
+| K9 | `model_tools.py:1103-1123` | 第 3 章 `r3:54`、第 16 章 `r9c:365` | 3 章点名管线入口 `handle_function_call`,16 章讲 `post_tool_call` 钩子的载荷键 |
+
+=== [乙/锚点] chapters/r8c-dashboard-and-web.md:50 引 hermes_cli/web_server.py:12321  <-  notes/r11c-raw-pre-binding-inventory.md:319 引 hermes_cli/web_server.py:12321  (轮次 11c > 8c)
+| K3 | `cli.py:479-481` `agent.personalities` 只在 CLI 默认值里 | 第 10 章 `r8a:397`、第 11 章 `r8b:169` | 10 章讲「键名校验只认 `DEFAULT_CONFIG`,于是假警告」,11 章讲「14 个内置人格」,是同一事实的两个后果 |
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+| K7 | `gateway/run.py:14479-14500` 配对码 | 第 7 章 `r7:689`、第 10 章 `r8a:1711` | 7 章是 ▲(文档把 `/pair` 方向写反),10 章是配置面的入站路径 |
+| K8 | `cli.py:4488-4490` | 第 10 章 `r8a:426`、第 11 章 `r8b:218` | 10 章讲 28 个 CLI 专属键的假警告,11 章讲一层 `update` 让 14 个人格丢失 |
+| K9 | `model_tools.py:1103-1123` | 第 3 章 `r3:54`、第 16 章 `r9c:365` | 3 章点名管线入口 `handle_function_call`,16 章讲 `post_tool_call` 钩子的载荷键 |
+
+=== [乙/锚点] chapters/r8c-dashboard-and-web.md:56 引 hermes_cli/web_server.py:12322  <-  notes/r11c-raw-pre-binding-inventory.md:319 引 hermes_cli/web_server.py:12321  (轮次 11c > 8c)
+| K3 | `cli.py:479-481` `agent.personalities` 只在 CLI 默认值里 | 第 10 章 `r8a:397`、第 11 章 `r8b:169` | 10 章讲「键名校验只认 `DEFAULT_CONFIG`,于是假警告」,11 章讲「14 个内置人格」,是同一事实的两个后果 |
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+| K7 | `gateway/run.py:14479-14500` 配对码 | 第 7 章 `r7:689`、第 10 章 `r8a:1711` | 7 章是 ▲(文档把 `/pair` 方向写反),10 章是配置面的入站路径 |
+| K8 | `cli.py:4488-4490` | 第 10 章 `r8a:426`、第 11 章 `r8b:218` | 10 章讲 28 个 CLI 专属键的假警告,11 章讲一层 `update` 让 14 个人格丢失 |
+| K9 | `model_tools.py:1103-1123` | 第 3 章 `r3:54`、第 16 章 `r9c:365` | 3 章点名管线入口 `handle_function_call`,16 章讲 `post_tool_call` 钩子的载荷键 |
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:689 引 gateway/run.py:14493  <-  notes/r11c-raw-pre-binding-inventory.md:320 引 gateway/run.py:14479  (轮次 11c > 7)
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+| K7 | `gateway/run.py:14479-14500` 配对码 | 第 7 章 `r7:689`、第 10 章 `r8a:1711` | 7 章是 ▲(文档把 `/pair` 方向写反),10 章是配置面的入站路径 |
+| K8 | `cli.py:4488-4490` | 第 10 章 `r8a:426`、第 11 章 `r8b:218` | 10 章讲 28 个 CLI 专属键的假警告,11 章讲一层 `update` 让 14 个人格丢失 |
+| K9 | `model_tools.py:1103-1123` | 第 3 章 `r3:54`、第 16 章 `r9c:365` | 3 章点名管线入口 `handle_function_call`,16 章讲 `post_tool_call` 钩子的载荷键 |
+
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:1711 引 gateway/run.py:14479  <-  notes/r11c-raw-pre-binding-inventory.md:320 引 gateway/run.py:14479  (轮次 11c > 8a)
+| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+| K7 | `gateway/run.py:14479-14500` 配对码 | 第 7 章 `r7:689`、第 10 章 `r8a:1711` | 7 章是 ▲(文档把 `/pair` 方向写反),10 章是配置面的入站路径 |
+| K8 | `cli.py:4488-4490` | 第 10 章 `r8a:426`、第 11 章 `r8b:218` | 10 章讲 28 个 CLI 专属键的假警告,11 章讲一层 `update` 让 14 个人格丢失 |
+| K9 | `model_tools.py:1103-1123` | 第 3 章 `r3:54`、第 16 章 `r9c:365` | 3 章点名管线入口 `handle_function_call`,16 章讲 `post_tool_call` 钩子的载荷键 |
+
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:426 引 cli.py:4488  <-  notes/r11c-raw-pre-binding-inventory.md:321 引 cli.py:4488  (轮次 11c > 8a)
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+| K7 | `gateway/run.py:14479-14500` 配对码 | 第 7 章 `r7:689`、第 10 章 `r8a:1711` | 7 章是 ▲(文档把 `/pair` 方向写反),10 章是配置面的入站路径 |
+| K8 | `cli.py:4488-4490` | 第 10 章 `r8a:426`、第 11 章 `r8b:218` | 10 章讲 28 个 CLI 专属键的假警告,11 章讲一层 `update` 让 14 个人格丢失 |
+| K9 | `model_tools.py:1103-1123` | 第 3 章 `r3:54`、第 16 章 `r9c:365` | 3 章点名管线入口 `handle_function_call`,16 章讲 `post_tool_call` 钩子的载荷键 |
+
+### 3.4 判据 B:58 个术语被 ≥2 章各锚定一次(R12 的全局术语表底稿)
+
+=== [乙/锚点] chapters/r8b-cli-trunk-and-interaction.md:218 引 cli.py:4490  <-  notes/r11c-raw-pre-binding-inventory.md:321 引 cli.py:4488  (轮次 11c > 8b)
+| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
+| K6 | `hermes_cli/web_server.py:12321-12346` pairing approve | 第 10 章 `r8a:1100`/`:1109`、第 12 章 `r8c:50`/`:56` | 12 章问「谁能调这条路由」,10 章讲「两把钥匙的分叉」 |
+| K7 | `gateway/run.py:14479-14500` 配对码 | 第 7 章 `r7:689`、第 10 章 `r8a:1711` | 7 章是 ▲(文档把 `/pair` 方向写反),10 章是配置面的入站路径 |
+| K8 | `cli.py:4488-4490` | 第 10 章 `r8a:426`、第 11 章 `r8b:218` | 10 章讲 28 个 CLI 专属键的假警告,11 章讲一层 `update` 让 14 个人格丢失 |
+| K9 | `model_tools.py:1103-1123` | 第 3 章 `r3:54`、第 16 章 `r9c:365` | 3 章点名管线入口 `handle_function_call`,16 章讲 `post_tool_call` 钩子的载荷键 |
+
+### 3.4 判据 B:58 个术语被 ≥2 章各锚定一次(R12 的全局术语表底稿)
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:428 引 AGENTS.md:986  <-  notes/r11c-raw-pre-binding-inventory.md:449 引 AGENTS.md:971  (轮次 11c > 9a)
+
+`reports/round-9d-l1-completion.md:187`
+
+> 另**更正 R9A 的锚点** `AGENTS.md:971-974` → `971-975`:原范围**漏掉整整一行 8 个键**,
+
+`chapters/r9a-capability-organization.md:429`
+
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:429 引 AGENTS.md:971  <-  notes/r11c-raw-pre-binding-inventory.md:449 引 AGENTS.md:971  (轮次 11c > 9a)
+
+`reports/round-9d-l1-completion.md:187`
+
+> 另**更正 R9A 的锚点** `AGENTS.md:971-974` → `971-975`:原范围**漏掉整整一行 8 个键**,
+
+`chapters/r9a-capability-organization.md:429`
+
+
+=== [乙/锚点] chapters/r9d-tool-surface-and-guard-placement.md:643 引 AGENTS.md:971  <-  notes/r11c-raw-pre-binding-inventory.md:449 引 AGENTS.md:971  (轮次 11c > 9d)
+
+`reports/round-9d-l1-completion.md:187`
+
+> 另**更正 R9A 的锚点** `AGENTS.md:971-974` → `971-975`:原范围**漏掉整整一行 8 个键**,
+
+`chapters/r9a-capability-organization.md:429`
+
+
+=== [乙/锚点] chapters/r4-execution-environments.md:141 引 tools/environments/base.py:666  <-  notes/r5-60-r4-structure-cleanup.md:575 引 tools/environments/base.py:645  (轮次 5 > 4)
+
+## 5. 与文档/既有认知的出入
+
+1. **▲ "Windows 子类"不存在**。base.py:645-647 注释写 "the Windows subclass override converts a native ``C:\Users\x`` cwd"(`tools/environments/base.py:645-647 @ 863e313`),但全仓没有 Windows 专用 Environment 子类;所指实为 `LocalEnvironment._quote_cwd_for_cd`/`_quote_shell_path` 这两个跨平台 override(local.py:1477-1484)+ 模块级 `_IS_WINDOWS` 守卫函数。代码注释措辞与实际结构不符(功能无碍),本轮任务描述沿用了该措辞,一并修正认知。
+2. **◇ local.py 类 docstring 的 "CWD persists via file-based read" 已过时**(local.py:1419)。现行实现与远程后端共享 stdout marker 解析,`_update_cwd` 自己的 docstring 说明了这一点并保留 `_cwd_file` 仅作 cleanup 遗产(local.py:1635-1644、1670-1676)。
+3. **website/docs 本簇核对无冲突**:`user-guide/features/hooks.md`(consent 三通道、timeout 1..300 clamp、双 wire shape、"errors never crash the agent"、approval 观察 hook observer-only)与 `agent/shell_hooks.py` 逐条一致;`user-guide/features/browser.md`(auto_local_for_private_urls 默认开、关闭后需 allow_private_urls、restrict_evaluate 默认关且独立于 SSRF)与 `tools/browser_tool.py` 一致。R1/R3 已录的"文档为作者自绘地图"原则本轮未新增冲突条目。
+
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-30-hindsight-supermemory-retaindb.md:423 引 README.md:55  (轮次 6 > 4)
+
+| # | README 断言 | 代码事实 | 判定 |
+|---|---|---|---|
+| 1 | `README.md:55` `capture_mode` 默认 `all`,"Skip tiny or trivial turns by default" | `_capture_mode` 被加载(`__init__.py:672`)但**全文件无任何使用点**;`_is_trivial_message`(276)与 `_MIN_CAPTURE_LENGTH = 10`(33)同为死代码;sync_turn(740-750)缓冲一切非空轮 | ▲ 死配置,README 描述的行为不存在 |
+| 2 | `README.md:58` `api_timeout`"Timeout for SDK and ingest requests" | SDK 用原值(305),ingest 用 `timeout + 3`(417) | ▲ 细节不符(ingest 实为 +3s) |
+| 3 | `README.md:49` base_url 优先级 config > env > 默认 | `_resolve_base_url`(82-91)完全一致 | ✓ |
+| 4 | `README.md:74`"Kebab-case names are registered for the agent; snake_case aliases remain supported" | `with_kebab_aliases`(905-920)把两套名字**都**作为完整 schema 注册(kebab 是追加的 copy),`handle_tool_call` 把 kebab 归一回 snake(1034-1040) | ◇ 方向说反了(snake 是本体、kebab 是别名 copy),行为等价 |
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-30-hindsight-supermemory-retaindb.md:424 引 README.md:58  (轮次 6 > 4)
+| # | README 断言 | 代码事实 | 判定 |
+|---|---|---|---|
+| 1 | `README.md:55` `capture_mode` 默认 `all`,"Skip tiny or trivial turns by default" | `_capture_mode` 被加载(`__init__.py:672`)但**全文件无任何使用点**;`_is_trivial_message`(276)与 `_MIN_CAPTURE_LENGTH = 10`(33)同为死代码;sync_turn(740-750)缓冲一切非空轮 | ▲ 死配置,README 描述的行为不存在 |
+| 2 | `README.md:58` `api_timeout`"Timeout for SDK and ingest requests" | SDK 用原值(305),ingest 用 `timeout + 3`(417) | ▲ 细节不符(ingest 实为 +3s) |
+| 3 | `README.md:49` base_url 优先级 config > env > 默认 | `_resolve_base_url`(82-91)完全一致 | ✓ |
+| 4 | `README.md:74`"Kebab-case names are registered for the agent; snake_case aliases remain supported" | `with_kebab_aliases`(905-920)把两套名字**都**作为完整 schema 注册(kebab 是追加的 copy),`handle_tool_call` 把 kebab 归一回 snake(1034-1040) | ◇ 方向说反了(snake 是本体、kebab 是别名 copy),行为等价 |
+| 5 | `README.md:85-89` `x-sm-source: hermes` + `metadata.sm_source` 是功能性路由非遥测 | `default_headers`(307)、`_merge_metadata`(310-318)注释同文 | ✓ |
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-30-hindsight-supermemory-retaindb.md:425 引 README.md:49  (轮次 6 > 4)
+|---|---|---|---|
+| 1 | `README.md:55` `capture_mode` 默认 `all`,"Skip tiny or trivial turns by default" | `_capture_mode` 被加载(`__init__.py:672`)但**全文件无任何使用点**;`_is_trivial_message`(276)与 `_MIN_CAPTURE_LENGTH = 10`(33)同为死代码;sync_turn(740-750)缓冲一切非空轮 | ▲ 死配置,README 描述的行为不存在 |
+| 2 | `README.md:58` `api_timeout`"Timeout for SDK and ingest requests" | SDK 用原值(305),ingest 用 `timeout + 3`(417) | ▲ 细节不符(ingest 实为 +3s) |
+| 3 | `README.md:49` base_url 优先级 config > env > 默认 | `_resolve_base_url`(82-91)完全一致 | ✓ |
+| 4 | `README.md:74`"Kebab-case names are registered for the agent; snake_case aliases remain supported" | `with_kebab_aliases`(905-920)把两套名字**都**作为完整 schema 注册(kebab 是追加的 copy),`handle_tool_call` 把 kebab 归一回 snake(1034-1040) | ◇ 方向说反了(snake 是本体、kebab 是别名 copy),行为等价 |
+| 5 | `README.md:85-89` `x-sm-source: hermes` + `metadata.sm_source` 是功能性路由非遥测 | `default_headers`(307)、`_merge_metadata`(310-318)注释同文 | ✓ |
+| 6 | `README.md:129-132` 多容器:工具收 `container_tag`、必须在白名单、自动操作只用主容器 | `_resolve_tool_container_tag`(884-902)白名单校验;自动路径(prefetch/sync/ingest/on_memory_write)全部不传 tag→主容器 | ✓ |
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-30-hindsight-supermemory-retaindb.md:558 引 README.md:24  (轮次 6 > 4)
+
+| # | README 断言 | 代码事实 | 判定 |
+|---|---|---|---|
+| 1 | `README.md:24`"All config via environment variables in `.env`" | `_load_retaindb_config`(47-63)还读 config.yaml 的 `memory.retaindb` 块(Dashboard 写入),测试 `test_retaindb_provider.py:111-125` 点名 #68209 | ▲ README 落后于代码 |
+| 2 | `README.md:33-40` 工具表 5 个 | `get_tool_schemas`(677-683)注册 **10 个**(另有 upload/list/read/ingest/delete 文件工具,schema 136-198) | ▲ README 漏掉整个文件工具族 |
+| 3 | `README.md:3`"7 memory types" | REMEMBER_SCHEMA enum 只有 6 个:`["factual", "preference", "goal", "instruction", "event", "opinion"]`(113-117) | ▲ 数字对不上(7 vs 6) |
+| 4 | `README.md:3`"hybrid search (Vector + BM25 + Reranking)" | 纯服务端断言,插件只 POST `/v1/memory/search`(255-263),仓内不可验证 | ◇ 存疑不证伪 |
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-30-hindsight-supermemory-retaindb.md:559 引 README.md:33  (轮次 6 > 4)
+| # | README 断言 | 代码事实 | 判定 |
+|---|---|---|---|
+| 1 | `README.md:24`"All config via environment variables in `.env`" | `_load_retaindb_config`(47-63)还读 config.yaml 的 `memory.retaindb` 块(Dashboard 写入),测试 `test_retaindb_provider.py:111-125` 点名 #68209 | ▲ README 落后于代码 |
+| 2 | `README.md:33-40` 工具表 5 个 | `get_tool_schemas`(677-683)注册 **10 个**(另有 upload/list/read/ingest/delete 文件工具,schema 136-198) | ▲ README 漏掉整个文件工具族 |
+| 3 | `README.md:3`"7 memory types" | REMEMBER_SCHEMA enum 只有 6 个:`["factual", "preference", "goal", "instruction", "event", "opinion"]`(113-117) | ▲ 数字对不上(7 vs 6) |
+| 4 | `README.md:3`"hybrid search (Vector + BM25 + Reranking)" | 纯服务端断言,插件只 POST `/v1/memory/search`(255-263),仓内不可验证 | ◇ 存疑不证伪 |
+| 5 | `README.md:30` `RETAINDB_PROJECT` 默认"auto (profile-scoped)" | 529-535:显式值 > `hermes-<profile>`(hermes_home 目录名非 `.hermes` 时)> `"default"` | ✓(README 简化但方向对) |
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-30-hindsight-supermemory-retaindb.md:560 引 README.md:3  (轮次 6 > 4)
+|---|---|---|---|
+| 1 | `README.md:24`"All config via environment variables in `.env`" | `_load_retaindb_config`(47-63)还读 config.yaml 的 `memory.retaindb` 块(Dashboard 写入),测试 `test_retaindb_provider.py:111-125` 点名 #68209 | ▲ README 落后于代码 |
+| 2 | `README.md:33-40` 工具表 5 个 | `get_tool_schemas`(677-683)注册 **10 个**(另有 upload/list/read/ingest/delete 文件工具,schema 136-198) | ▲ README 漏掉整个文件工具族 |
+| 3 | `README.md:3`"7 memory types" | REMEMBER_SCHEMA enum 只有 6 个:`["factual", "preference", "goal", "instruction", "event", "opinion"]`(113-117) | ▲ 数字对不上(7 vs 6) |
+| 4 | `README.md:3`"hybrid search (Vector + BM25 + Reranking)" | 纯服务端断言,插件只 POST `/v1/memory/search`(255-263),仓内不可验证 | ◇ 存疑不证伪 |
+| 5 | `README.md:30` `RETAINDB_PROJECT` 默认"auto (profile-scoped)" | 529-535:显式值 > `hermes-<profile>`(hermes_home 目录名非 `.hermes` 时)> `"default"` | ✓(README 简化但方向对) |
+| 6 | 模块 docstring(1-19)列 durable SQLite queue、dialectic、SOUL.md 种子、文件库 | README 一概未提 | ▲ README 极薄,docstring 才是真地图 |
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-30-hindsight-supermemory-retaindb.md:561 引 README.md:3  (轮次 6 > 4)
+| 1 | `README.md:24`"All config via environment variables in `.env`" | `_load_retaindb_config`(47-63)还读 config.yaml 的 `memory.retaindb` 块(Dashboard 写入),测试 `test_retaindb_provider.py:111-125` 点名 #68209 | ▲ README 落后于代码 |
+| 2 | `README.md:33-40` 工具表 5 个 | `get_tool_schemas`(677-683)注册 **10 个**(另有 upload/list/read/ingest/delete 文件工具,schema 136-198) | ▲ README 漏掉整个文件工具族 |
+| 3 | `README.md:3`"7 memory types" | REMEMBER_SCHEMA enum 只有 6 个:`["factual", "preference", "goal", "instruction", "event", "opinion"]`(113-117) | ▲ 数字对不上(7 vs 6) |
+| 4 | `README.md:3`"hybrid search (Vector + BM25 + Reranking)" | 纯服务端断言,插件只 POST `/v1/memory/search`(255-263),仓内不可验证 | ◇ 存疑不证伪 |
+| 5 | `README.md:30` `RETAINDB_PROJECT` 默认"auto (profile-scoped)" | 529-535:显式值 > `hermes-<profile>`(hermes_home 目录名非 `.hermes` 时)> `"default"` | ✓(README 简化但方向对) |
+| 6 | 模块 docstring(1-19)列 durable SQLite queue、dialectic、SOUL.md 种子、文件库 | README 一概未提 | ▲ README 极薄,docstring 才是真地图 |
+
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-30-hindsight-supermemory-retaindb.md:562 引 README.md:30  (轮次 6 > 4)
+| 2 | `README.md:33-40` 工具表 5 个 | `get_tool_schemas`(677-683)注册 **10 个**(另有 upload/list/read/ingest/delete 文件工具,schema 136-198) | ▲ README 漏掉整个文件工具族 |
+| 3 | `README.md:3`"7 memory types" | REMEMBER_SCHEMA enum 只有 6 个:`["factual", "preference", "goal", "instruction", "event", "opinion"]`(113-117) | ▲ 数字对不上(7 vs 6) |
+| 4 | `README.md:3`"hybrid search (Vector + BM25 + Reranking)" | 纯服务端断言,插件只 POST `/v1/memory/search`(255-263),仓内不可验证 | ◇ 存疑不证伪 |
+| 5 | `README.md:30` `RETAINDB_PROJECT` 默认"auto (profile-scoped)" | 529-535:显式值 > `hermes-<profile>`(hermes_home 目录名非 `.hermes` 时)> `"default"` | ✓(README 简化但方向对) |
+| 6 | 模块 docstring(1-19)列 durable SQLite queue、dialectic、SOUL.md 种子、文件库 | README 一概未提 | ▲ README 极薄,docstring 才是真地图 |
+
+### 3.8 配套测试(行为规格)
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-40-mem0-holographic.md:383 引 README.md:28  (轮次 6 > 4)
+
+| # | README 断言 | 代码事实 | 判定 |
+|---|---|---|---|
+| 1 | `README.md:28`:`mode` 默认 `platform` | `__init__.py:88` `os.environ.get("MEM0_MODE", "platform")` | 一致 |
+| 2 | `README.md:30`:`user_id` 默认 `hermes-user` | `__init__.py:56-62、353-356`:该值是**哨兵**,被视为未配置,实际回落网关原生 id | ▲ 有误导:写着"默认值"的字符串在代码里等于"没配",按 README 填 hermes-user 会得到与预期不同(其实是更合理)的 per-gateway 隔离 |
+| 3 | `README.md:65`:"authenticates with X-API-Key ... /search and /memories routes. api_key is optional — omit it only for AUTH_DISABLED" | `_backend.py:97-99、115-147` 完全一致 | 一致 |
+| 4 | `README.md:67`:"Don't set mode: oss — OSS takes precedence and ignores host" | `_create_backend` 280-288 优先级 oss>host;测试 test_mem0_v3.py:384-391 锁死 | 一致 |
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-40-mem0-holographic.md:384 引 README.md:30  (轮次 6 > 4)
+| # | README 断言 | 代码事实 | 判定 |
+|---|---|---|---|
+| 1 | `README.md:28`:`mode` 默认 `platform` | `__init__.py:88` `os.environ.get("MEM0_MODE", "platform")` | 一致 |
+| 2 | `README.md:30`:`user_id` 默认 `hermes-user` | `__init__.py:56-62、353-356`:该值是**哨兵**,被视为未配置,实际回落网关原生 id | ▲ 有误导:写着"默认值"的字符串在代码里等于"没配",按 README 填 hermes-user 会得到与预期不同(其实是更合理)的 per-gateway 隔离 |
+| 3 | `README.md:65`:"authenticates with X-API-Key ... /search and /memories routes. api_key is optional — omit it only for AUTH_DISABLED" | `_backend.py:97-99、115-147` 完全一致 | 一致 |
+| 4 | `README.md:67`:"Don't set mode: oss — OSS takes precedence and ignores host" | `_create_backend` 280-288 优先级 oss>host;测试 test_mem0_v3.py:384-391 锁死 | 一致 |
+| 5 | `README.md:101` Flags 表:`--mode` 取值 "platform or oss" | `_setup.py:980` 还接受 `selfhosted`/`self-hosted`(README 自己 49 行也用了) | ▲ 表格漏了第三个取值,README 内部自相矛盾 |
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-40-mem0-holographic.md:618 引 README.md:24  (轮次 6 > 4)
+|---|---|---|---|
+| 1 | `README.md:3`:"Local SQLite fact store with FTS5 search, trust scoring, entity resolution, and HRR-based compositional retrieval" | store.py schema + retrieval.py 五算法俱全 | 一致 |
+| 2 | `README.md:7`:"Requirements: None — uses SQLite (always available). NumPy optional" | `__init__.py:126-127` is_available 恒 True;`holographic.py:27-31` numpy try/except;`retrieval.py:39-42` 无 numpy 重分配权重 | 一致 |
+| 3 | `README.md:24-29` 配置表:db_path/auto_extract/default_trust/hrr_dim 四键 | initialize 还读 `min_trust_threshold`(`__init__.py:120`)、`hrr_weight`(169)、`temporal_decay_half_life`(170);模块 docstring(8-16)列了 min_trust_threshold/temporal_decay 却没列 hrr_dim/hrr_weight | ▲ README 与 docstring 各漏一半:实际可配 7 键,任一处文档都不全 |
+| 4 | `README.md:35`:"fact_store | 9 actions: add, search, probe, related, reason, contradict, update, remove, list" | schema enum(`__init__.py:58-61`)正是这 9 个 | 一致 |
+| 5 | `README.md:22`:"Config in config.yaml under plugins.hermes-memory-store" | `_load_plugin_config`(104)一致;但 plugin.yaml `name: holographic`、provider name "holographic" | ◇ 一致但暗坑:插件名与配置键不同名(历史名 hermes-memory-store 残留),README 未解释 |
+| 6 | `README.md:36`:fact_feedback "trains trust scores" | `store.py:402-441` +0.05/−0.10 不对称调整 | 一致("trains"是修辞,实为固定步长) |
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-40-mem0-holographic.md:619 引 README.md:35  (轮次 6 > 4)
+| 1 | `README.md:3`:"Local SQLite fact store with FTS5 search, trust scoring, entity resolution, and HRR-based compositional retrieval" | store.py schema + retrieval.py 五算法俱全 | 一致 |
+| 2 | `README.md:7`:"Requirements: None — uses SQLite (always available). NumPy optional" | `__init__.py:126-127` is_available 恒 True;`holographic.py:27-31` numpy try/except;`retrieval.py:39-42` 无 numpy 重分配权重 | 一致 |
+| 3 | `README.md:24-29` 配置表:db_path/auto_extract/default_trust/hrr_dim 四键 | initialize 还读 `min_trust_threshold`(`__init__.py:120`)、`hrr_weight`(169)、`temporal_decay_half_life`(170);模块 docstring(8-16)列了 min_trust_threshold/temporal_decay 却没列 hrr_dim/hrr_weight | ▲ README 与 docstring 各漏一半:实际可配 7 键,任一处文档都不全 |
+| 4 | `README.md:35`:"fact_store | 9 actions: add, search, probe, related, reason, contradict, update, remove, list" | schema enum(`__init__.py:58-61`)正是这 9 个 | 一致 |
+| 5 | `README.md:22`:"Config in config.yaml under plugins.hermes-memory-store" | `_load_plugin_config`(104)一致;但 plugin.yaml `name: holographic`、provider name "holographic" | ◇ 一致但暗坑:插件名与配置键不同名(历史名 hermes-memory-store 残留),README 未解释 |
+| 6 | `README.md:36`:fact_feedback "trains trust scores" | `store.py:402-441` +0.05/−0.10 不对称调整 | 一致("trains"是修辞,实为固定步长) |
+
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-40-mem0-holographic.md:620 引 README.md:22  (轮次 6 > 4)
+| 2 | `README.md:7`:"Requirements: None — uses SQLite (always available). NumPy optional" | `__init__.py:126-127` is_available 恒 True;`holographic.py:27-31` numpy try/except;`retrieval.py:39-42` 无 numpy 重分配权重 | 一致 |
+| 3 | `README.md:24-29` 配置表:db_path/auto_extract/default_trust/hrr_dim 四键 | initialize 还读 `min_trust_threshold`(`__init__.py:120`)、`hrr_weight`(169)、`temporal_decay_half_life`(170);模块 docstring(8-16)列了 min_trust_threshold/temporal_decay 却没列 hrr_dim/hrr_weight | ▲ README 与 docstring 各漏一半:实际可配 7 键,任一处文档都不全 |
+| 4 | `README.md:35`:"fact_store | 9 actions: add, search, probe, related, reason, contradict, update, remove, list" | schema enum(`__init__.py:58-61`)正是这 9 个 | 一致 |
+| 5 | `README.md:22`:"Config in config.yaml under plugins.hermes-memory-store" | `_load_plugin_config`(104)一致;但 plugin.yaml `name: holographic`、provider name "holographic" | ◇ 一致但暗坑:插件名与配置键不同名(历史名 hermes-memory-store 残留),README 未解释 |
+| 6 | `README.md:36`:fact_feedback "trains trust scores" | `store.py:402-441` +0.05/−0.10 不对称调整 | 一致("trains"是修辞,实为固定步长) |
+
+### 2.7 配套测试与行为规格(holographic)
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-40-mem0-holographic.md:621 引 README.md:36  (轮次 6 > 4)
+| 3 | `README.md:24-29` 配置表:db_path/auto_extract/default_trust/hrr_dim 四键 | initialize 还读 `min_trust_threshold`(`__init__.py:120`)、`hrr_weight`(169)、`temporal_decay_half_life`(170);模块 docstring(8-16)列了 min_trust_threshold/temporal_decay 却没列 hrr_dim/hrr_weight | ▲ README 与 docstring 各漏一半:实际可配 7 键,任一处文档都不全 |
+| 4 | `README.md:35`:"fact_store | 9 actions: add, search, probe, related, reason, contradict, update, remove, list" | schema enum(`__init__.py:58-61`)正是这 9 个 | 一致 |
+| 5 | `README.md:22`:"Config in config.yaml under plugins.hermes-memory-store" | `_load_plugin_config`(104)一致;但 plugin.yaml `name: holographic`、provider name "holographic" | ◇ 一致但暗坑:插件名与配置键不同名(历史名 hermes-memory-store 残留),README 未解释 |
+| 6 | `README.md:36`:fact_feedback "trains trust scores" | `store.py:402-441` +0.05/−0.10 不对称调整 | 一致("trains"是修辞,实为固定步长) |
+
+### 2.7 配套测试与行为规格(holographic)
+
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-90-doc-conflict-rulings.md:52 引 README.md:55  (轮次 6 > 4)
+
+## 定案 6 ▲ supermemory:死配置
+
+`README.md:55` `capture_mode` "Skip tiny or trivial turns by default":`_capture_mode` 被加载
+(__init__.py:672)但**全文件无使用点**,`_is_trivial_message` 同为死代码——sync_turn 缓冲一切
+非空轮,过滤已在演化中移除(测试注释留有痕迹)。README 描述的行为不存在。另 `api_timeout`
+对 ingest 实为 +3s;kebab/snake 别名方向说反(行为等价)。
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-90-doc-conflict-rulings.md:59 引 README.md:3  (轮次 6 > 4)
+
+## 定案 7 ▲ retaindb:三处 README 证伪
+
+- `README.md:3` "7 memory types":schema enum 只有 6 个(factual/preference/goal/instruction/
+  event/opinion,__init__.py:113-117)。
+- `README.md:33-40` 工具表 5 个:实注册 **10 个**(漏整个文件工具族 upload/list/read/ingest/delete)。
+- `README.md:24` "All config via env":还读 config.yaml 的 `memory.retaindb` 块(#68209)。
+
+=== [乙/锚点] chapters/r4-execution-environments.md:266 引 README.md:29  <-  notes/r6-90-doc-conflict-rulings.md:67 引 README.md:30  (轮次 6 > 4)
+
+## 定案 8 ▲ mem0:README 误导 + 代码内漂移
+
+- `README.md:30` `user_id` 默认 `hermes-user`:该值实为**哨兵**,等于"未配置"、回落网关原生 id
+  (__init__.py:56-62)——按 README 填会得到与预期不同的行为。
+- `README.md:101` `--mode` 取值表漏 `selfhosted`(README 自己 49 行用了,内部矛盾)。
+- 代码内:`_setup.py:954` 最低版本检查 (2,0,7) 落后 plugin.yaml 的 `mem0ai>=2.0.10`。
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:397 引 gateway/run.py:8867  <-  notes/r7c-90-doc-conflict-rulings.md:104 引 gateway/run.py:8867  (轮次 7c > 7)
+- 网关侧的 kanban → agent 注入走的是**另一条明确不 steer 的路**:
+  终态事件 → `deliver_wake` → 合成 `MessageEvent(internal=True)`
+  (`gateway/wake.py:73-87`)→ 忙时策略机在读 `_busy_text_mode` **之前**就短路
+  (`gateway/run.py:8867-8879`,`if internal: return False`)→ 落到
+  `gateway/platforms/base.py:5735-5748` **排队**。
+
+**裁决:A6 的 ◇ 维持(活动心跳的多消费者共享成立),但锚点改判** ——
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:403 引 gateway/run.py:8867  <-  notes/r7c-90-doc-conflict-rulings.md:104 引 gateway/run.py:8867  (轮次 7c > 7)
+- 网关侧的 kanban → agent 注入走的是**另一条明确不 steer 的路**:
+  终态事件 → `deliver_wake` → 合成 `MessageEvent(internal=True)`
+  (`gateway/wake.py:73-87`)→ 忙时策略机在读 `_busy_text_mode` **之前**就短路
+  (`gateway/run.py:8867-8879`,`if internal: return False`)→ 落到
+  `gateway/platforms/base.py:5735-5748` **排队**。
+
+**裁决:A6 的 ◇ 维持(活动心跳的多消费者共享成立),但锚点改判** ——
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:50 引 gateway/platforms/base.py:5711  <-  notes/r7c-90-doc-conflict-rulings.md:105 引 gateway/platforms/base.py:5735  (轮次 7c > 7)
+  终态事件 → `deliver_wake` → 合成 `MessageEvent(internal=True)`
+  (`gateway/wake.py:73-87`)→ 忙时策略机在读 `_busy_text_mode` **之前**就短路
+  (`gateway/run.py:8867-8879`,`if internal: return False`)→ 落到
+  `gateway/platforms/base.py:5735-5748` **排队**。
+
+**裁决:A6 的 ◇ 维持(活动心跳的多消费者共享成立),但锚点改判** ——
+kanban 评论 steer 在 `tools/kanban_tools.py` + `agent/run_agent.py`(R2/R3 域),
+
+=== [乙/锚点] chapters/r7b-platform-integration.md:778 引 gateway/platforms/base.py:5711  <-  notes/r7c-90-doc-conflict-rulings.md:105 引 gateway/platforms/base.py:5735  (轮次 7c > 7b)
+  终态事件 → `deliver_wake` → 合成 `MessageEvent(internal=True)`
+  (`gateway/wake.py:73-87`)→ 忙时策略机在读 `_busy_text_mode` **之前**就短路
+  (`gateway/run.py:8867-8879`,`if internal: return False`)→ 落到
+  `gateway/platforms/base.py:5735-5748` **排队**。
+
+**裁决:A6 的 ◇ 维持(活动心跳的多消费者共享成立),但锚点改判** ——
+kanban 评论 steer 在 `tools/kanban_tools.py` + `agent/run_agent.py`(R2/R3 域),
+
+=== [乙/锚点] chapters/r7c-gateway-periphery-and-scheduling.md:175 引 hermes_cli/commands.py:106  <-  notes/r8a-90-doc-conflict-rulings.md:658 引 hermes_cli/commands.py:93  (轮次 8a > 7c)
+| ■-24 | 锁定恢复提示**只有 CLI 有**,且**硬编码了新版路径** | `hermes_cli/pairing.py:96`(提示写死 `~/.hermes/platforms/pairing/`)/ `hermes_cli/web_server.py:12347`(GUI 的 429 无恢复路径) | 老装的文件其实在 `~/.hermes/pairing/`,运维者照提示去删,找不到文件;走面板的运维者则连"可以手删恢复"都不知道 |
+| ■-16 | **第二例“默认值撞上硬编码值”**:`resource_attributes["service.name"]` 被无条件覆盖 | `agent/monitoring/gateway_health_export.py:85`(覆盖)/ 默认值恰等于该硬编码值 | 用户改 `service.name` 毫无效果;因默认值==硬编码值,在默认值上验证必然假阳性。同块的 `deployment.environment.name` 却是好的 |
+| ■-21 | **bug 修好了、回归测试也写了,但都只落在两条写路径中的一条** | `hermes_cli/web_server.py:6520`(GUI 已修)/ `hermes_cli/moa_cmd.py:127,147`(CLI 未修)/ `tests/hermes_cli/test_moa_set_models_preserves_extra_keys.py:12`(测试 import 的是 GUI 侧) | 手写 `moa.save_traces: true` 开了 trace,跑一次 `hermes moa configure` 换模型,**trace 悄悄关了**;走 dashboard 做同一件事则不会 |
+| ■-20 | **名叫 `VALID_BUSY_POLICIES` 的常量不校验任何东西**;唯一引用它的测试 import 了却零断言 | `hermes_cli/commands.py:93`(常量)/ `:75`(裸 `str` 字段)/ `gateway/run.py:14117`(消费方) | `busy_policy` 写错一个字母不报错,该命令在 agent 忙时**从“可执行”静默变成“被拒”**;而文件名 `test_busy_policy_invariants` + import 两条线索合起来制造了“已覆盖”的错觉 |
+| ■-19 | **自我拆台的守卫**:检查了成员资格,随后赋的值却没再检查 → `KeyError` 崩栈 | `hermes_cli/tools_config.py:3794-3795`(守卫)/ `:3817`(`catalog[mid]` 崩) | 任何第三方 image_gen / video_gen 插件的 `default_model()` 返回值不在 `list_models()` 里(或为 None),用户在 `hermes tools` 里选中它即崩溃退出;video 版同形(`:3956`) |
+| ■-18 | **读-改-写用了两份各自 `load_config()` 的副本,后写的抹掉前一份** | `hermes_cli/tools_config.py:4356`(内层自己重载)/ `:5153-5154`(外层随后存过期副本) | 在 `hermes tools` 里配好 vision 模型 → 主流程随后一存,该值被**清空回默认**;键还在、值没了,比"配置项消失"更难查。主线运行时确证 |
+| ■-17 | **`or` 兜底链让“显式 0”无法表达** | `hermes_logging.py:313`(`backup_count or cfg_backup or 3`);正确写法见 `gateway/platforms/base.py:742` | `logging.backup_count: 0`(不留备份)静默变 3;`max_size_mb: 0`、`model_catalog.ttl_hours: 0` 同型。同仓库两种写法并存 |
+
+=== [乙/锚点] chapters/r7-gateway-session-core.md:689 引 gateway/run.py:14493  <-  notes/r8a-raw-pairing-and-config-cmd.md:1294 引 gateway/run.py:14498  (轮次 8a > 7)
+- **严重度**：中。**前提**：多用户机器 / 共享容器，且存在同 uid 的其它不可信进程。
+  单用户桌面或单租户容器下不成立。
+- **附带**：操作员执行 `hermes pairing approve <platform> <CODE>` 会把码留在 shell history 和
+  `/proc/<pid>/cmdline`；提示语正是这么教的（`gateway/run.py:14498`）。码一次性且 1h 过期，窗口有限。
+
+### F-8A-P6 · 默认绑 127.0.0.1；绑 0.0.0.0 时 pairing 批准能力随面板认证一起外移
+- **症状**：默认 `host="127.0.0.1"`，非回环强制认证且无 provider 直接拒绝启动；
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:1541 引 hermes_cli/config.py:3092  <-  notes/r8c-11-hr8fixa-guard-parse-check.md:188 引 hermes_cli/config.py:3072  (轮次 8c > 8a)
+
+**H-R8FIX-a 结清(设计判断,非新 ■)。** 回答移交项的原问:
+
+- **补解析检查不破坏「全新安装」**:`hermes_cli/config.py:3072` 已先行 `return`。
+- **不破坏「空文件」**:`fast_safe_load("")` 返回 `None` 而不抛;"空文档"是合法 YAML。
+  破坏空文件语义的是"结果必须非空 dict"这个**写错了的判据**,不是解析检查本身。
+- **判据应写成**「解析不抛 **且** 结果是 `None` 或 `dict`」——只查"抛不抛"会漏掉
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:1100 引 hermes_cli/web_server.py:12335  <-  notes/r8c-90-rulings.md:15 引 hermes_cli/web_server.py:12321  (轮次 8c > 8a)
+
+| 移交项 | 来源轮 | 锚点 | 本轮结论 | 证据在哪 |
+|---|---|---|---|---|
+| **H-3** | R8A | `hermes_cli/web_server.py:12321`(`approve_pairing`;R8A 原写 `:12320`,那是空行,本轮更正) | **结清,负结论**:四种绑定形态 + 畸形 host 值,**没有任何组合**能让未认证请求打到该路由。全部保护来自中间件链,路由本体零鉴权 | `notes/r8c-raw-boot-authchain.md` §2 |
+| **H-10** | R8A | `hermes_cli/web_server.py:6921` 一带(`PUT /api/config` 写入路径) | **结清,定 ■-R8C-05**:挡不住,**能走到**。主线独立复现 | 本卷 §2 |
+| **H-11** | R8A | `hermes_cli/web_server.py:12296` vs `:6914` | **结清**:不是两套,是**并存多套**;A/B 两套并存**是有意设计**(分界线=handler 会不会 `await`),真正的问题是"选哪套"没有单一入口 | `notes/r8c-raw-config-endpoints.md` |
+| **H-13 / H-R8B-c** | R8A→R8B | 平台就绪判定 8 份实现 | 见 `notes/r8c-raw-platform-readiness.md` | 同左 |
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:1109 引 hermes_cli/web_server.py:12343  <-  notes/r8c-90-rulings.md:15 引 hermes_cli/web_server.py:12321  (轮次 8c > 8a)
+
+| 移交项 | 来源轮 | 锚点 | 本轮结论 | 证据在哪 |
+|---|---|---|---|---|
+| **H-3** | R8A | `hermes_cli/web_server.py:12321`(`approve_pairing`;R8A 原写 `:12320`,那是空行,本轮更正) | **结清,负结论**:四种绑定形态 + 畸形 host 值,**没有任何组合**能让未认证请求打到该路由。全部保护来自中间件链,路由本体零鉴权 | `notes/r8c-raw-boot-authchain.md` §2 |
+| **H-10** | R8A | `hermes_cli/web_server.py:6921` 一带(`PUT /api/config` 写入路径) | **结清,定 ■-R8C-05**:挡不住,**能走到**。主线独立复现 | 本卷 §2 |
+| **H-11** | R8A | `hermes_cli/web_server.py:12296` vs `:6914` | **结清**:不是两套,是**并存多套**;A/B 两套并存**是有意设计**(分界线=handler 会不会 `await`),真正的问题是"选哪套"没有单一入口 | `notes/r8c-raw-config-endpoints.md` |
+| **H-13 / H-R8B-c** | R8A→R8B | 平台就绪判定 8 份实现 | 见 `notes/r8c-raw-platform-readiness.md` | 同左 |
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:1541 引 hermes_cli/config.py:3092  <-  notes/r8c-raw-config-endpoints.md:1299 引 hermes_cli/config.py:3092  (轮次 8c > 8a)
+- **▲-2** `hermes_cli/web_server.py:12296-12297` “`default` maps back to the global store” 在
+  dashboard 自身跑在具名 profile 下时**不成立**;`gateway/pairing.py:414-418`
+  的类 docstring 反而说对了。§5.4 已运行时复现。
+- **▲-3** `hermes_cli/config.py:3092-3093` 称 `atomic_config_write` 是 “the single chokepoint
+  every config-update path should use”,但 `save_config` 与 `set_config_value`
+  这两条主路都直接调 `atomic_yaml_write`。(§6.3)
+
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:55 引 hermes_cli/status.py:483  <-  notes/r8c-raw-platform-readiness.md:1321 引 hermes_cli/status.py:494  (轮次 8c > 8a)
+   现象:分支条件要求 `home_var == "QQBOT_HOME_CHANNEL"`,但同文件 §7.1 引的写死表里给 QQBot 配的
+   `home_var` 是 `"QQ_HOME_CHANNEL"`,两者永不相等,该分支恒不成立。
+
+`hermes_cli/status.py:494 @ 863e313`
+
+```python
+        # Back-compat: QQBot home channel was renamed from QQ_HOME_CHANNEL to QQBOT_HOME_CHANNEL
+
+=== [乙/锚点] chapters/r8a-configuration-surface.md:67 引 hermes_cli/status.py:494  <-  notes/r8c-raw-platform-readiness.md:1321 引 hermes_cli/status.py:494  (轮次 8c > 8a)
+   现象:分支条件要求 `home_var == "QQBOT_HOME_CHANNEL"`,但同文件 §7.1 引的写死表里给 QQBot 配的
+   `home_var` 是 `"QQ_HOME_CHANNEL"`,两者永不相等,该分支恒不成立。
+
+`hermes_cli/status.py:494 @ 863e313`
+
+```python
+        # Back-compat: QQBot home channel was renamed from QQ_HOME_CHANNEL to QQBOT_HOME_CHANNEL
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:428 引 AGENTS.md:986  <-  notes/r9d-90-handover-agents-md-toolset-census.md:15 引 AGENTS.md:964  (轮次 9d > 9a)
+
+| 项 | R9A 的说法 | 本轮实测 | 处置 |
+|---|---|---|---|
+| 锚点 | AGENTS.md 的 971–974 行 | 清单实为 **971–975**(五行),归 `AGENTS.md:964` 的 `## Toolsets` 标题管 | 锚点**改述**(漏了末行) |
+| 文档侧键数 | 30 | **30** ✅ | 维持 |
+| 代码侧键数 | 58 | **58** ✅ | 维持 |
+| 「文档有、代码无」 | 3 | **3**(`messaging` / `moa` / `rl`)✅ | 维持 |
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:429 引 AGENTS.md:971  <-  notes/r9d-90-handover-agents-md-toolset-census.md:15 引 AGENTS.md:964  (轮次 9d > 9a)
+
+| 项 | R9A 的说法 | 本轮实测 | 处置 |
+|---|---|---|---|
+| 锚点 | AGENTS.md 的 971–974 行 | 清单实为 **971–975**(五行),归 `AGENTS.md:964` 的 `## Toolsets` 标题管 | 锚点**改述**(漏了末行) |
+| 文档侧键数 | 30 | **30** ✅ | 维持 |
+| 代码侧键数 | 58 | **58** ✅ | 维持 |
+| 「文档有、代码无」 | 3 | **3**(`messaging` / `moa` / `rl`)✅ | 维持 |
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:428 引 AGENTS.md:986  <-  notes/r9d-90-handover-agents-md-toolset-census.md:660 引 AGENTS.md:964  (轮次 9d > 9a)
+**H-R9A-g:关闭并改述。**
+
+1. **锚点改正**:AGENTS.md 的 971–974 行 → **971–975 行**(漏了整整一行 8 个键),
+   归 `AGENTS.md:964` 的 `## Toolsets` 标题管。
+2. **数字改判**:「漏 28」→ **漏 31**(R9A 用 `58−30` 相减,未扣除 30 里已被代码删除的 3 个)。
+3. **31 个漏列项判定完毕,分两类**:
+   - **24 个 `hermes-*` 平台束 = ◇**(代码有、文档无)。有历史快照证明是**有意的分类排除**
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:429 引 AGENTS.md:971  <-  notes/r9d-90-handover-agents-md-toolset-census.md:660 引 AGENTS.md:964  (轮次 9d > 9a)
+**H-R9A-g:关闭并改述。**
+
+1. **锚点改正**:AGENTS.md 的 971–974 行 → **971–975 行**(漏了整整一行 8 个键),
+   归 `AGENTS.md:964` 的 `## Toolsets` 标题管。
+2. **数字改判**:「漏 28」→ **漏 31**(R9A 用 `58−30` 相减,未扣除 30 里已被代码删除的 3 个)。
+3. **31 个漏列项判定完毕,分两类**:
+   - **24 个 `hermes-*` 平台束 = ◇**(代码有、文档无)。有历史快照证明是**有意的分类排除**
+
+=== [乙/锚点] chapters/r9c-external-interfaces.md:418 引 agent/file_safety.py:280  <-  notes/r9d-90-handover-credential-landing.md:948 引 agent/file_safety.py:278  (轮次 9d > 9c)
+| 移交项 | 处置 | 核心锚点 | 主线可独立重跑的复核 |
+|---|---|---|---|
+| **H-R9C-a** | **改判**:env 分支非缺陷(推翻);stored 分支降级为设计缺口;**新增 ■ = 裸 `urlopen` 跨源重定向泄漏 Bearer**,与 H-R9A-a 同型 | `hermes_cli/nous_billing.py:413`:`with urllib.request.urlopen(req, timeout=timeout) as resp:`;对照 `hermes_cli/urllib_security.py:112` 的 `open_credentialed_url`;策略依据 `hermes_cli/auth.py:2340`:`gated by ``_NOUS_PORTAL_ALLOWED_HOSTS``: that allowlist exists to reject` | 跑 `redirect_probe.py`(见 1.5),看 B 端是否收到 `Authorization`;再跑上面那 6 个测试文件确认 49/0 |
+| **H-R9C-b** | **关闭并改述**:补读完成、落盘卫生合格、`.env` **在**禁读清单里(原担心形态不成立);**新增 ■ = `cmd_setup` 验证前落盘** | `hermes_cli/secrets_cli.py:195`:`save_env_value(token_env, token)`;禁清单 `agent/file_safety.py:278`:`".env",`;反例承诺 `hermes_cli/secrets_cli.py:374`:`persists it to .env — so a bad paste never bricks the working token.` | 跑 `env_deny_probe.py` 看 `read_blocked=True` / `mode=0o600`;跑 `setup_overwrite_probe.py` 看 rc=1 而 `.env` 已被改 |
+
+---
+
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:428 引 AGENTS.md:986  <-  notes/r9d-91-handover-rulings.md:769 引 AGENTS.md:966  (轮次 9d > 9a)
+| **H-R9A-c** | `agent/tool_result_classification.py:9`:`FILE_MUTATING_TOOL_NAMES = frozenset({"write_file", "patch"})` | **立 ■ 但改述定性**:是收尾验证门变窄,**非**审批旁路;仓库内已有 git 级探测器未接上 |
+| **H-R9A-e** | `agent/subagent_lifecycle.py:259`:`record.future = _EXECUTOR.submit(self._run, record, request.goal, parent)` | **维持 ■,方向定死为 fail-open**:父线程 `approved=False` 的危险动作,在裸 submit 的 worker 里变成 `approved=True`(主线独立复现) |
+| **H-R9A-f** | `tools/skills_hub.py:3205`:`resp = httpx.get(md_url, timeout=20, follow_redirects=True)` | **维持 ■,改述两处**:风险是 SSRF + skill 内容投毒(不挂凭据);覆盖率由「8 取 1」改述为「同类 3 处、2 守 1 未守」 |
+| **H-R9A-g** | `AGENTS.md:966`:`All toolsets are defined in ` | **关闭**。R9A 的「漏 28」改正为 **31**;**主线初判被推翻**——按定稿快照(集合严格相等)拆为 24 平台族 **◇** + 7 能力 toolset **▲**;R9A 锚点 `971-974` 改正为 `971-975`(原范围漏一整行 8 个键) |
+| **H-R9C-a** | `hermes_cli/nous_billing.py:413`:`with urllib.request.urlopen(req, timeout=timeout) as resp:` | **三段拆分(经取证组 D 证据修订)**:env 分支**非缺陷**;stored 分支**由 ■ 降为设计缺口**(无网络写入路径 + 有测试钉住宽松行为);**真正的 ■ 是下游裸 `urlopen` 跨源 302 带走 Bearer**,与来源无关。范围仍 2 处 |
+| **H-R9C-b** | `hermes_cli/secrets_cli.py:195`:`save_env_value(token_env, token)` | **关闭并改述**:原担心形态不成立(`.env` 在禁读清单里,两条规则各拦一次);补读完成,**新增 ■ = `cmd_setup` 验证前落盘**,而兄弟命令 `cmd_rotate` 把安全顺序写进了 docstring |
+
+=== [乙/锚点] chapters/r9a-capability-organization.md:429 引 AGENTS.md:971  <-  notes/r9d-91-handover-rulings.md:769 引 AGENTS.md:966  (轮次 9d > 9a)
+| **H-R9A-c** | `agent/tool_result_classification.py:9`:`FILE_MUTATING_TOOL_NAMES = frozenset({"write_file", "patch"})` | **立 ■ 但改述定性**:是收尾验证门变窄,**非**审批旁路;仓库内已有 git 级探测器未接上 |
+| **H-R9A-e** | `agent/subagent_lifecycle.py:259`:`record.future = _EXECUTOR.submit(self._run, record, request.goal, parent)` | **维持 ■,方向定死为 fail-open**:父线程 `approved=False` 的危险动作,在裸 submit 的 worker 里变成 `approved=True`(主线独立复现) |
+| **H-R9A-f** | `tools/skills_hub.py:3205`:`resp = httpx.get(md_url, timeout=20, follow_redirects=True)` | **维持 ■,改述两处**:风险是 SSRF + skill 内容投毒(不挂凭据);覆盖率由「8 取 1」改述为「同类 3 处、2 守 1 未守」 |
+| **H-R9A-g** | `AGENTS.md:966`:`All toolsets are defined in ` | **关闭**。R9A 的「漏 28」改正为 **31**;**主线初判被推翻**——按定稿快照(集合严格相等)拆为 24 平台族 **◇** + 7 能力 toolset **▲**;R9A 锚点 `971-974` 改正为 `971-975`(原范围漏一整行 8 个键) |
+| **H-R9C-a** | `hermes_cli/nous_billing.py:413`:`with urllib.request.urlopen(req, timeout=timeout) as resp:` | **三段拆分(经取证组 D 证据修订)**:env 分支**非缺陷**;stored 分支**由 ■ 降为设计缺口**(无网络写入路径 + 有测试钉住宽松行为);**真正的 ■ 是下游裸 `urlopen` 跨源 302 带走 Bearer**,与来源无关。范围仍 2 处 |
+| **H-R9C-b** | `hermes_cli/secrets_cli.py:195`:`save_env_value(token_env, token)` | **关闭并改述**:原担心形态不成立(`.env` 在禁读清单里,两条规则各拦一次);补读完成,**新增 ■ = `cmd_setup` 验证前落盘**,而兄弟命令 `cmd_rotate` 把安全顺序写进了 docstring |
