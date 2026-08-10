@@ -1,0 +1,5 @@
+agent: 片 B · 定案去重未完成的 82 簇
+dispatched: R11C 派发批次一
+signal: OPEN
+path: notes/r11c-raw-dedup-82.md
+path: data/r11c/b-dedup-82-*

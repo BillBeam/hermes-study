@@ -1,0 +1,5 @@
+agent: 片 F · 装订前状态盘点(只报不改)
+dispatched: R11C 派发批次一
+signal: OPEN
+path: notes/r11c-raw-pre-binding-inventory.md
+path: data/r11c/f-pre-binding-inventory-*

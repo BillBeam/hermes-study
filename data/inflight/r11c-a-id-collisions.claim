@@ -1,0 +1,5 @@
+agent: 片 A · 案号重复造成的隐形欠账
+dispatched: R11C 派发批次一
+signal: OPEN
+path: notes/r11c-raw-id-collisions.md
+path: data/r11c/a-id-collisions-*
