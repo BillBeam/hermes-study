@@ -1,0 +1,925 @@
+# 同一处代码(同文件 ±30 行)被 ≥2 个案号、跨 ≥2 轮声明:92 簇
+
+== gateway/relay/media.py  行[80, 92, 94]  案号7 轮次6
+   [R9B   ] H-R9A-a        reports/round-9b-multimodal-delivery.md:325  ->80
+        **■ H-R9A-a(一并结清,比上一条重一个量级)**:
+   [R9B   ] H-R9A-a        notes/r9b-90-rulings.md:198  ->92
+        ## 2. H-R9A-a 结清:网关 bearer 的判定用子串,而正确的比较值就在同一个对象上
+   [R9C   ] H-R9A-a        notes/r9c-90-handover-rulings.md:18  ->92
+        ## 1. H-R9A-a:维持 ■,但修法要改
+   [R9A   ] H-R9A-a        reports/round-9a-capability-organization.md:321  ->92
+        | **H-R9A-a** | R9C(网关/传输片)或立即 | `gateway/relay/media.py:92` 的 `is_relay_media_url` | 子串判断使网关 bearer 可被挂到任意主机;修法是比对配置的 connector h
+   [R9C   ] H-R9A-a        reports/round-9c-external-interfaces.md:122  ->92
+        ## 4. H-R9A-a 的处置结论(验收项 ①)
+   [R9B   ] H-R9A-h        reports/round-9b-multimodal-delivery.md:29  ->92
+        ## 2. 开工杂项:H-R9A-h 结清(本轮验收项 ①)
+   [R9A   ] ■-01           reports/round-9a-capability-organization.md:163  ->92
+        **■-01 网关 bearer 会被挂到任意主机。** 判断「这个媒体 URL 要不要带我们的凭据」用的是子串包含
+   [R11A  ] H-R11A-a       notes/r11a-90-handover-rulings.md:413  ->94
+        | **H-R11A-a** | R11B | `gateway/relay/media.py:94`:`return "/relay/media/" in (url or "")` | ■-R11A-01:子串判定让入站 URL 把每网关 bearer 引到
+   [R9A   ] H-R8D-e        notes/r9a-h-r8d-ef-surveys.md:812  ->94
+        ## 1.8 结论:H-R8D-e **关闭并加重**
+   [R10   ] H-R9B-d        notes/r10-90-handover-rulings.md:83  ->94
+        **一条 H-R9B-d,去向 R9C(网关片),主线判为真孤儿但不属 R10。**
+   [R10B  ] H-R9B-d        notes/r10b-90-handover-rulings.md:345  ->94
+        | H-R9B-d | R11A | `gateway/relay/media.py:94` 的 `is_relay_media_url` —— 复核:解析得到,行号正确 |
+   [R11A  ] H-R9B-d        notes/r11a-90-handover-rulings.md:20  ->94
+        | **H-R9B-d** 中继媒体 bearer | **证实,升为 ■-R11A-01** | `gateway/relay/media.py:94` 的 `return "/relay/media/" in (url or "")` |
+   [R11A  ] H-R9B-d        notes/r11a-90-handover-rulings.md:43  ->94
+        ## 1. H-R9B-d —— 中继媒体的 bearer 用**子串**决定发给谁(■-R11A-01)
+   [R10   ] H-R9B-d        reports/round-10-client-interface-layer.md:527  ->94
+        | **H-R9B-d**(改判后续转) | R11A | `gateway/relay/media.py:94` 的 `is_relay_media_url` | 去向原写 R9C 但四个 R9 轮次均未处置,确认为真孤儿;与同处代码的 H-R9C-d 同轮
+   [R11A  ] H-R9B-d        reports/round-11a-ops-and-delivery.md:494  ->94
+        - **■-R11A-01**(由 H-R9B-d 升格):`gateway/relay/media.py:94` 用**子串**决定要不要带
+   [R9B   ] H-R9B-d        reports/round-9b-multimodal-delivery.md:454  ->94
+        | **H-R9B-d** | R9C(网关片) | `gateway/relay/media.py:94` 的 `"/relay/media/" in (url or "")` | 网关 bearer 的发送判定用子串不比主机,`url` 来自未校验的入站帧
+   [R11A  ] ■-R11A-01      notes/r11a-90-handover-rulings.md:20  ->94
+        | **H-R9B-d** 中继媒体 bearer | **证实,升为 ■-R11A-01** | `gateway/relay/media.py:94` 的 `return "/relay/media/" in (url or "")` |
+   [R11A  ] ■-R11A-01      notes/r11a-90-handover-rulings.md:43  ->94
+        ## 1. H-R9B-d —— 中继媒体的 bearer 用**子串**决定发给谁(■-R11A-01)
+   [R11A  ] ■-R11A-01      reports/round-11a-ops-and-delivery.md:494  ->94
+        - **■-R11A-01**(由 H-R9B-d 升格):`gateway/relay/media.py:94` 用**子串**决定要不要带
+
+== hermes_cli/config.py  行[3065, 3089, 3092]  案号9 轮次4
+   [R8A   ] H-7            notes/r8a-90-doc-conflict-rulings.md:2117  ->3065
+        | H-7 | **R8B / R8D** | `hermes_cli/config.py:3065`(`require_readable_config_before_write`) | 该守卫只检查文件**可读**不检查**可解析**;`set/unset_
+   [R8B   ] H-7            notes/r8b-90-handover-rulings.md:209  ->3065
+        ## 1.9 原 §1 正文(迁移流水线那条线,结论仍成立,仅作废其"H-7 关闭"的推论)
+   [R8B   ] H-R8FIX-a      notes/r8b-90-handover-rulings.md:646  ->3065
+        | **H-R8FIX-a** | **R8C / R8D** | `hermes_cli/config.py:3065`(`require_readable_config_before_write` 只 `stat()` + `read(1)`)+ `her
+   [R8C   ] H-R8FIX-a      notes/r8c-11-hr8fixa-guard-parse-check.md:1  ->3065
+        # r8c-11 · H-R8FIX-a 定案 —— 给守卫补解析检查,破不破坏「全新安装 / 空文件」语义
+   [R8C   ] H-R8FIX-a      notes/r8c-90-rulings.md:20  ->3065
+        | **H-R8FIX-a** | R8-fix | `hermes_cli/config.py:3065` + `hermes_cli/auth.py:7329` | **结清(设计判断)**:补解析检查**不**破坏全新安装/空文件;但只查"抛不抛"**不
+   [R8FIX ] H-R8FIX-a      reports/round-8-fix-review-1.md:339  ->3065
+        | **H-R8FIX-a** | R8C / R8D | `hermes_cli/config.py:3065`(`require_readable_config_before_write` 只 `stat()` + `read(1)`)+ `hermes_
+   [R8C   ] H-R8FIX-a      notes/r8c-90-rulings.md:285  ->3089
+        ### 5.4 采信并已并入 H-R8FIX-a:收口与手写守卫等价(底稿 I ◎-2)
+   [R8C   ] ◎-2            notes/r8c-11-hr8fixa-guard-parse-check.md:145  ->3089
+        **先排除一个会误导修复方向的读法。** 本轮另一段(`notes/r8c-raw-auth-py.md` ◎-2)查出:
+   [R8C   ] ◎-2            notes/r8c-90-rulings.md:285  ->3089
+        ### 5.4 采信并已并入 H-R8FIX-a:收口与手写守卫等价(底稿 I ◎-2)
+   [R8C   ] ◎-2            notes/r8c-raw-auth-py.md:1754  ->3089
+        | ◎-2 | ◎ | `hermes_cli/config.py:3089` | `atomic_config_write` 自称 "single chokepoint … can never silently clobber",但其根因描述只覆盖 I/O 
+   [R8A   ] ▲-10           notes/r8a-90-doc-conflict-rulings.md:258  ->3092
+        ### ▲-10 一个自称"唯一收口"的写入函数,而仓库最主要的写入者绕过了它
+   [R8C   ] ▲-1            notes/r8c-raw-config-endpoints.md:1238  ->3092
+        - **▲-1** `hermes_cli/web_server.py:6917` 的注释举例 `agent.personalities` / `terminal.lifetime_seconds`,
+   [R8C   ] ▲-2            notes/r8c-raw-config-endpoints.md:1241  ->3092
+        - **▲-2** `hermes_cli/web_server.py:12296-12297` “`default` maps back to the global store” 在
+   [R8C   ] ▲-3            notes/r8c-raw-config-endpoints.md:1244  ->3092
+        - **▲-3** `hermes_cli/config.py:3092-3093` 称 `atomic_config_write` 是 “the single chokepoint
+
+== gateway/pairing.py  行[414, 421, 424, 437]  案号5 轮次3
+   [R8C   ] ▲-1            notes/r8c-raw-config-endpoints.md:1238  ->414
+        - **▲-1** `hermes_cli/web_server.py:6917` 的注释举例 `agent.personalities` / `terminal.lifetime_seconds`,
+   [R8C   ] ▲-2            notes/r8c-raw-config-endpoints.md:1241  ->414
+        - **▲-2** `hermes_cli/web_server.py:12296-12297` “`default` maps back to the global store” 在
+   [R7C   ] ◇3             notes/r7c-raw-authz-pairing.md:1719  ->421
+        ### ◇3 频道目录**无 profile 隔离**:代码事实,文档未提
+   [R8A   ] H-11           notes/r8a-90-doc-conflict-rulings.md:2119  ->424
+        | H-11 | **R8C** | `hermes_cli/web_server.py:12296`(`_pairing_store` 的 docstring 说"不需要 `_profile_scope`")vs `:6914`(`update_config
+   [R8A   ] ■-39           notes/r8a-90-doc-conflict-rulings.md:631  ->437
+        | ■-39 | **同一个 dashboard 页面上,两个 UI 元素对同一个操作写进不同 profile 的库** | `hermes_cli/web_server.py:15148`(console 只设 context-local 的 `_profi
+
+== cli.py  行[477, 479, 481]  案号4 轮次3
+   [R8A   ] ■-12           notes/r8a-90-doc-conflict-rulings.md:665  ->477
+        | ■-12 | **14 个内置人格在网关侧完全不存在** | `cli.py:477`(14 条只在 CLI 默认值里)/ `gateway/slash_commands.py:2502`(网关读法)/ `gateway/run.py:3145`(网关用的
+   [R10B  ] ◇-2            notes/r10b-raw-settings-billing.md:972  ->479
+        ### ◇-2 R8A 的 856 键表覆盖不到桌面设置面在用的 3 个键
+   [R8A   ] ■-10           notes/r8a-90-doc-conflict-rulings.md:667  ->479
+        | ■-10 | **两份默认值的第一个真实受害者**:`hermes config set agent.reasoning_effort high` 被判为未知键,并给出会弄坏配置的建议 | `hermes_cli/config.py:4810`(校验)/ 
+   [R8A   ] ■-10           notes/r8a-90-doc-conflict-rulings.md:1690  ->479
+        ### ■-10 细节:两份默认值的第一个真实受害者(线索来自 `r8a-raw-defaults-a` D-1,主线运行时复核)
+   [R8B   ] H-1            notes/r8b-02-h1-h2-config-debt.md:49  ->481
+        ### 1.1 H-1 的后果:同一个键名,四个面读出两种结果
+
+== gateway/relay/media.py  行[154, 162, 164, 169]  案号3 轮次3
+   [R9B   ] H-R9A-a        notes/r9b-90-rulings.md:198  ->154
+        ## 2. H-R9A-a 结清:网关 bearer 的判定用子串,而正确的比较值就在同一个对象上
+   [R9C   ] H-R9A-a        notes/r9c-90-handover-rulings.md:18  ->162
+        ## 1. H-R9A-a:维持 ■,但修法要改
+   [R11A  ] H-R9B-d        notes/r11a-90-handover-rulings.md:43  ->164
+        ## 1. H-R9B-d —— 中继媒体的 bearer 用**子串**决定发给谁(■-R11A-01)
+   [R11A  ] ■-R11A-01      notes/r11a-90-handover-rulings.md:43  ->164
+        ## 1. H-R9B-d —— 中继媒体的 bearer 用**子串**决定发给谁(■-R11A-01)
+   [R9B   ] H-R9A-a        reports/round-9b-multimodal-delivery.md:325  ->169
+        **■ H-R9A-a(一并结清,比上一条重一个量级)**:
+
+== hermes_cli/env_loader.py  行[640, 666, 667]  案号3 轮次3
+   [R8C   ] ■-R8C-01       notes/r8c-10-h17-env-loader-race.md:280  ->640
+        ## 7. 定案 ■-R8C-01
+   [R8C   ] H-R8C-d        reports/round-8c-dashboard-and-web.md:359  ->666
+        | **H-R8C-d** | R8D / R9 | `hermes_cli/env_loader.py:666`(无锁写 `_SECRET_SOURCES`)vs `:235`(有锁写) | ■-R8C-01 只复现了另外两个全局;`_SECRET_SOUR
+   [R8C   ] H-R8C-d        reports/round-8c-dashboard-and-web.md:378  ->666
+        | H-R8C-d 行 | `hermes_cli/env_loader.py:667` | `hermes_cli/env_loader.py:666` | 行内声明的摘录是 `_SECRET_SOURCES`,赋值语句 `_SECRET_SOURCES[n
+   [R8D   ] H-R8D-c        reports/round-8d-cli-completion.md:426  ->666
+        | **H-R8D-c** | R9 | `hermes_cli/env_loader.py:666` 无锁写 `_SECRET_SOURCES`,`:235` 有锁写 | 同一全局两条写路径锁纪律不一致,后果推定轻于 ■-R8C-01 已复现的两个,**未验
+   [R8D   ] H-R8D-c        reports/round-8d-cli-completion.md:447  ->666
+        | H-R8D-c 行 | `hermes_cli/env_loader.py:667` | `hermes_cli/env_loader.py:666` | 行内声明的摘录是 `_SECRET_SOURCES`,赋值语句 `_SECRET_SOURCES[n
+   [R8D   ] H-R8C-d        notes/r8d-90-rulings.md:244  ->667
+        ## 3. H-R8C-d —— 归属澄清:本轮不结清,理由是范围
+   [R9A   ] H-R8C-d        notes/r9a-h-r8d-c-env-loader-lock.md:1  ->667
+        # r9a 底稿 · 结清 H-R8D-c / H-R8C-d —— `_SECRET_SOURCES` 的两条写路径与那把只有一边拿的锁
+   [R9A   ] H-R8D-c        notes/r9a-h-r8d-c-env-loader-lock.md:1  ->667
+        # r9a 底稿 · 结清 H-R8D-c / H-R8C-d —— `_SECRET_SOURCES` 的两条写路径与那把只有一边拿的锁
+
+== hermes_constants.py  行[274, 278, 280]  案号3 轮次3
+   [R9B   ] ■-2            notes/r9b-raw-video.md:2741  ->274
+        ### ■-2 两处"视频缓存目录"的解析方式不一致
+   [R7C   ] ▲3             notes/r7c-raw-authz-pairing.md:1640  ->278
+        ### ▲3 配对数据存储路径过时
+   [R8A   ] ◇3             notes/r8a-raw-pairing-and-config-cmd.md:1229  ->280
+        | ◇3 | `gateway/pairing.py:18` 模块 docstring "Storage: ~/.hermes/pairing/" | 新装实际是 `~/.hermes/platforms/pairing/`（`gateway/pairing.
+
+== hermes_cli/auth.py  行[7329]  案号2 轮次3
+   [R8B   ] H-R8FIX-a      notes/r8b-90-handover-rulings.md:646  ->7329
+        | **H-R8FIX-a** | **R8C / R8D** | `hermes_cli/config.py:3065`(`require_readable_config_before_write` 只 `stat()` + `read(1)`)+ `her
+   [R8C   ] H-R8FIX-a      notes/r8c-11-hr8fixa-guard-parse-check.md:1  ->7329
+        # r8c-11 · H-R8FIX-a 定案 —— 给守卫补解析检查,破不破坏「全新安装 / 空文件」语义
+   [R8C   ] H-R8FIX-a      notes/r8c-90-rulings.md:20  ->7329
+        | **H-R8FIX-a** | R8-fix | `hermes_cli/config.py:3065` + `hermes_cli/auth.py:7329` | **结清(设计判断)**:补解析检查**不**破坏全新安装/空文件;但只查"抛不抛"**不
+   [R8FIX ] H-R8FIX-a      reports/round-8-fix-review-1.md:339  ->7329
+        | **H-R8FIX-a** | R8C / R8D | `hermes_cli/config.py:3065`(`require_readable_config_before_write` 只 `stat()` + `read(1)`)+ `hermes_
+   [R8C   ] ■-R8B-12       notes/r8c-90-rulings.md:387  ->7329
+        ## 7. 改判前轮定案:■-R8B-12 的「静默消失」不成立
+
+== hermes_cli/web_server.py  行[5519, 5521, 5524]  案号2 轮次3
+   [R10   ] ■-R10-01       reports/round-10-client-interface-layer.md:190  ->5519
+        ### 6.2 ■-R10-01:`install_specs` 把信任推给 manifest,而 manifest 旁边那条路根本没有守卫
+   [R10B  ] ■-R10-01       notes/r10b-raw-capability-panels.md:336  ->5521
+        | **C. 记忆 provider(■-R10-01,非本片)** | dashboard ▸ memory provider setup | 有 | **有,`shell=True` 无过滤** | 无 | `hermes_cli/web_server.p
+   [R10B  ] H-R10-d        notes/r10b-90-handover-rulings.md:343  ->5524
+        | H-R10-d | R11A | `hermes_cli/web_server.py:5524`:`shell=True` —— 复核:解析得到,行号正确 |
+   [R11A  ] H-R10-d        notes/r11a-90-handover-rulings.md:366  ->5524
+        ## 8. H-R10-d —— 定级所缺的那一问已经答上
+   [R10   ] H-R10-d        reports/round-10-client-interface-layer.md:523  ->5524
+        | **H-R10-d** | R11A | `hermes_cli/web_server.py:5524`:`shell=True` | manifest 的 `install` 字段以 `bash -c` 执行、无过滤;需连同 ■-R8D-02 重验「谁能
+
+== gateway/run.py  行[15595, 15615]  案号9 轮次2
+   [R9A   ] ▲-2            notes/r9a-raw-skills-agent-side.md:2527  ->15595
+        ### ▲-2 · "Bundles work in every surface … dispatch is centralized"
+   [R7C   ] ■-3            notes/r7c-90-doc-conflict-rulings.md:353  ->15615
+        - **▲-17** `/footer on|off|status`:注册表与文档宣称三态,实现恒 toggle(见 ■-3)。
+   [R7C   ] ▲-17           notes/r7c-90-doc-conflict-rulings.md:353  ->15615
+        - **▲-17** `/footer on|off|status`:注册表与文档宣称三态,实现恒 toggle(见 ■-3)。
+   [R7C   ] ▲-18           notes/r7c-90-doc-conflict-rulings.md:354  ->15615
+        - **▲-18** `/platform pause|resume`:文档描述的语义(停止投递 / 熔断器)与代码
+   [R7C   ] ▲-19           notes/r7c-90-doc-conflict-rulings.md:356  ->15615
+        - **▲-19** `/status` 承诺的 "Session recap" 从未实现;`hermes_cli/session_recap.py:244`
+   [R7C   ] ▲-20           notes/r7c-90-doc-conflict-rulings.md:358  ->15615
+        - **▲-20** `gateway-internals.md:117` 说 `resolve_command()` 做前缀匹配;
+   [R7C   ] ▲-21           notes/r7c-90-doc-conflict-rulings.md:360  ->15615
+        - **▲-21** `/curator` 有注册(`hermes_cli/commands.py:283`,`cli_only=False`)、有文档、
+   [R7C   ] ▲-6            notes/r7c-raw-slash-c.md:1326  ->15615
+        | ▲-6 | 前缀匹配 | `slash-commands.md:214`:"Commands support prefix matching: typing `/h` resolves to `/help`, `/mod` resolves to `/mo
+   [R7C   ] ▲-8            notes/r7c-raw-slash-c.md:1340  ->15615
+        **◇-L 升级为 ▲-8**:
+
+== gateway/run.py  行[2057, 2058]  案号7 轮次2
+   [R8A   ] ◇-1c           notes/r8a-90-doc-conflict-rulings.md:525  ->2057
+        ### ◇-1c 第三条桥:config.yaml 的顶层标量会变成环境变量(方向与 `${VAR}` 相反)
+   [R8C   ] H-10           notes/r8c-raw-config-endpoints.md:1223  ->2058
+        **■-1(= H-10)`PUT /api/config` 把凭据写进不参与轮换的文件,并绕过 `.env` 写入器黑名单。**
+   [R8C   ] ■-1            notes/r8c-raw-config-endpoints.md:1223  ->2058
+        **■-1(= H-10)`PUT /api/config` 把凭据写进不参与轮换的文件,并绕过 `.env` 写入器黑名单。**
+   [R8A   ] ◇-1            reports/round-8a-configuration-surface.md:368  ->2058
+        - **◇-1** 856 个配置键里 **105 个在全部文档面上零提及**。
+   [R8A   ] ◇-1b           reports/round-8a-configuration-surface.md:369  ->2058
+        - **◇-1b** `DEFAULT_CONFIG` 并非全部合法配置键:另有 **23 个根键**合法但故意不在默认值里
+   [R8A   ] ◇-1c           reports/round-8a-configuration-surface.md:373  ->2058
+        - **◇-1c** **第三条桥零文档**:`config.yaml` 顶层标量 → `os.environ`
+   [R8C   ] ■-R8C-05       notes/r8c-90-rulings.md:91  ->2058
+        **■-R8C-05**:`PUT /api/config`(`hermes_cli/web_server.py` 的 config 写入路径)对 body 里的键名
+
+== cron/scheduler.py  行[1210, 1231, 1233]  案号6 轮次2
+   [R9D   ] ■-1            notes/r9d-raw-messaging-platform-tools.md:1457  ->1210
+        **■-1 —— `send_message` 的"不给模型"禁令,可被模型经 `cronjob` 一跳绕过。**(静态对读)
+   [R7C   ] ◇-1            notes/r7c-raw-cron-sched-a.md:617  ->1231
+        ### ◇-1 `whatsapp_cloud` 的 home 映射基本是死配置
+   [R7C   ] ▲-10           notes/r7c-90-doc-conflict-rulings.md:320  ->1233
+        - **▲-10** `AGENTS.md:1074` 的 "**3-minute hard interrupt**" 双重失实:实际默认是
+   [R7C   ] ▲-11           notes/r7c-90-doc-conflict-rulings.md:323  ->1233
+        - **▲-11** `cron-internals.md:250` 称裸名 `homeassistant` 投到 HA 会话;它在
+   [R7C   ] ▲-9            notes/r7c-90-doc-conflict-rulings.md:317  ->1233
+        - **▲-9** `AGENTS.md:1061` 称支持 `"every monday 9am"`;`parse_schedule` 的
+   [R7C   ] ▲-7            notes/r7c-raw-cron-sched-a.md:589  ->1233
+        ### ▲-7 `homeassistant` 被列为"裸名投递到 HA 会话"，实际解析不出目标
+
+== AGENTS.md  行[964, 966, 971, 986]  案号5 轮次2
+   [R9D   ] H-R9A-g        notes/r9d-90-handover-agents-md-toolset-census.md:1  ->964
+        # r9d-90 · 移交项取证组 C —— H-R9A-g:`AGENTS.md` toolset 清单的文档缺口普查
+   [R9D   ] H-R9A-g        notes/r9d-91-handover-rulings.md:769  ->966
+        | **H-R9A-g** | `AGENTS.md:966`:`All toolsets are defined in ` | **关闭**。R9A 的「漏 28」改正为 **31**;**主线初判被推翻**——按定稿快照(集合严格相等)拆为 24 平台族 
+   [R9A   ] H-R9A-g        reports/round-9a-capability-organization.md:327  ->971
+        | **H-R9A-g** | R9D | `AGENTS.md:971-974` 的 toolset 清单 | 文档列 30 个键、代码有 58 个,**文档还漏 28 个**;本轮只判定了「文档有而代码无」的 3 个,漏列那一半未判 |
+   [R9A   ] ▲4             chapters/r9a-capability-organization.md:429  ->971
+        | ▲4 | `AGENTS.md:971-974` | 列出 30 个 toolset 键 | 其中 `messaging` / `moa` / `rl` **不存在** |
+   [R9A   ] ▲-3            notes/r9a-raw-moa.md:2030  ->971
+        ### ▲-3 `AGENTS.md` 把 `moa` 列为现行 toolset
+   [R9A   ] ▲3             chapters/r9a-capability-organization.md:428  ->986
+        | ▲3 | `AGENTS.md:986-989` | 父 agent **默认等**孩子 | 顶层**一律后台**,那个参数已废弃 |
+   [R9A   ] ▲1             notes/r9a-raw-async-delegation.md:2071  ->986
+        ### ▲1 `AGENTS.md:986-989` —— 把 `background` 说成一个可选开关
+
+== agent/lsp/manager.py  行[480, 486]  案号5 轮次2
+   [R9D   ] ■2             notes/r9d-raw-lsp.md:1807  ->480
+        | ■2 | `agent/lsp/manager.py:480` 的 `_snapshot_async` | 冷启动 > 8s(文档自称 rust-analyzer 可能 10+s)同样触发 ■1 的路径;`INITIALIZE_TIMEOUT = 45.0
+   [R11A  ] H-R11A-b       notes/r11a-90-handover-rulings.md:414  ->486
+        | **H-R11A-b** | R11B | `agent/lsp/manager.py:486`:`fresh = await client.wait_for_diagnostics(file_path, version, mode=self._wait_
+   [R11A  ] H-R9D-a        notes/r11a-90-handover-rulings.md:16  ->486
+        | **H-R9D-a** LSP 超时不变式 | **证实,且诊断更准** | `agent/lsp/manager.py:486` 的 `mode=self._wait_mode` |
+   [R11A  ] H-R9D-a        notes/r11a-90-handover-rulings.md:108  ->486
+        ## 2. H-R9D-a —— LSP 外层预算小于内层,但根因不是那行算式
+   [R9D   ] ■1             notes/r9d-raw-lsp.md:1816  ->486
+        | ■11 | `agent/lsp/manager.py:486`:`fresh = await client.wait_for_diagnostics(file_path, version, mode=self._wait_mode)` | 基线快照路径不
+   [R9D   ] ■11            notes/r9d-raw-lsp.md:1816  ->486
+        | ■11 | `agent/lsp/manager.py:486`:`fresh = await client.wait_for_diagnostics(file_path, version, mode=self._wait_mode)` | 基线快照路径不
+
+== apps/desktop/README.md  行[114, 131, 133]  案号5 轮次2
+   [R10   ] H-R10H-h       notes/r10-raw-desktop-electron.md:1857  ->114
+        | H-R10H-h | `apps/desktop/electron/backend-probes.ts:190`:`return typeof hermesOverride === 'string' && hermesOverride.trim().len
+   [R10   ] ▲-3            notes/r10-raw-desktop-electron.md:1645  ->114
+        ### ▲-3 `apps/desktop/README.md:114` 的"候选一律先探针"有一个代码里明写的例外
+   [R10B  ] ▲1             notes/r10b-raw-store-state.md:1045  ->131
+        ### ▲1 —— README 说「换 profile 是软切换,不是冷启」;代码里换 profile 有两条路,其中一条就是冷启
+   [R10B  ] H-R10B-C-i     notes/r10b-raw-settings-billing.md:1401  ->133
+        | **H-R10B-C-i** | `apps/desktop/README.md:133`:`Desktop supports a managed local backend, explicit remote gateways, and Hermes` |
+   [R10B  ] ◎-1            notes/r10b-raw-settings-billing.md:945  ->133
+        ### ◎-1 `apps/desktop/README.md` 只列三种连接模式,代码有四种
+
+== hermes_cli/pairing.py  行[81, 96, 97]  案号5 轮次2
+   [R8A   ] ■-6            notes/r8a-90-doc-conflict-rulings.md:621  ->81
+        | ■-6 | 配对 CLI 捅穿 `PairingStore` 封装(三个私有成员) | `hermes_cli/pairing.py:81` | 私有方法改名 → 运维者最需要的那条诊断路径炸掉 |
+   [R8A   ] ■-8            notes/r8a-90-doc-conflict-rulings.md:669  ->81
+        | ■-8 | **两把配对钥匙行为不一致**:CLI 在 request-id 路径上也报"平台被锁定" | `hermes_cli/pairing.py:81` vs `hermes_cli/web_server.py:12346` | 用过期 reque
+   [R7C   ] ▲3             notes/r7c-raw-authz-pairing.md:1640  ->96
+        ### ▲3 配对数据存储路径过时
+   [R8A   ] ■-24           notes/r8a-90-doc-conflict-rulings.md:655  ->96
+        | ■-24 | 锁定恢复提示**只有 CLI 有**,且**硬编码了新版路径** | `hermes_cli/pairing.py:96`(提示写死 `~/.hermes/platforms/pairing/`)/ `hermes_cli/web_serve
+   [R8A   ] ◇6             notes/r8a-raw-pairing-and-config-cmd.md:1232  ->97
+        | ◇6 | `hermes_cli/pairing.py:97` 硬编码恢复路径 `~/.hermes/platforms/pairing/_rate_limits.json` | 老装在 `~/.hermes/pairing/`（§1.3） | **提示路
+
+== hermes_cli/web_server.py  行[12296, 12303, 12309, 12320, 12321]  案号5 轮次2
+   [R8A   ] H-11           notes/r8a-90-doc-conflict-rulings.md:2119  ->12296
+        | H-11 | **R8C** | `hermes_cli/web_server.py:12296`(`_pairing_store` 的 docstring 说"不需要 `_profile_scope`")vs `:6914`(`update_config
+   [R8C   ] H-11           notes/r8c-90-rulings.md:17  ->12296
+        | **H-11** | R8A | `hermes_cli/web_server.py:12296` vs `:6914` | **结清**:不是两套,是**并存多套**;A/B 两套并存**是有意设计**(分界线=handler 会不会 `await`),
+   [R8C   ] ▲-1            notes/r8c-raw-config-endpoints.md:1238  ->12296
+        - **▲-1** `hermes_cli/web_server.py:6917` 的注释举例 `agent.personalities` / `terminal.lifetime_seconds`,
+   [R8C   ] ▲-2            notes/r8c-raw-config-endpoints.md:1241  ->12296
+        - **▲-2** `hermes_cli/web_server.py:12296-12297` “`default` maps back to the global store” 在
+   [R8C   ] ◇-R8C-a        notes/r8c-90-rulings.md:280  ->12303
+        **改判后的定案**:记 **◇-R8C-a**(代码有、文档无,中置信)——
+   [R8C   ] H-11           notes/r8c-raw-config-endpoints.md:586  ->12309
+        ## 5. 移交项 H-11 —— dashboard 里的 profile 作用域机制全清点
+   [R8A   ] H-3            notes/r8a-90-doc-conflict-rulings.md:2112  ->12320
+        | H-3 | **R8C** | `hermes_cli/web_server.py:12320`(`approve_pairing` 路由) | 本轮已读该路由本体并定案 ■-8(与 CLI 的锁定报告不一致);**未查的是它的鉴权层**——`/api/p
+   [R8C   ] H-3            notes/r8c-raw-boot-authchain.md:301  ->12320
+        ## 2. 核心问题二:移交项 H-3 —— `/api/pairing/approve` 到底由哪一层保证
+   [R8C   ] H-3            notes/r8c-90-rulings.md:15  ->12321
+        | **H-3** | R8A | `hermes_cli/web_server.py:12321`(`approve_pairing`;R8A 原写 `:12320`,那是空行,本轮更正) | **结清,负结论**:四种绑定形态 + 畸形 host 值,**
+
+== website/docs/developer-guide/gateway-internals.md  行[59, 86]  案号5 轮次2
+   [R7B   ] ▲-B-2          notes/r7b-90-doc-conflict-rulings.md:63  ->59
+        ### ▲ B-2 —— `/stop` 与 `/approve` 走同一条 inline 路:**证伪**
+   [R7B   ] ▲1             chapters/r7b-platform-integration.md:705  ->86
+        **▲1(上一轮移交项,本轮结案)**。开发者文档那一句一共讲了三件事,**其中两件是错的**
+   [R7    ] ▲21            notes/r7-raw-run-05-gwr-queue-busy.md:1063  ->86
+        **▲21-1 `website/docs/developer-guide/gateway-internals.md:86 @ 863e313`(双层守卫 Level 1)**
+   [R7B   ] ▲-B-1          notes/r7b-10-base-adapter-contract.md:302  ->86
+        **▲ B-1(R7 移交项定案)**:`website/docs/developer-guide/gateway-internals.md:86 @ 863e313`
+   [R7B   ] ▲-B-1          notes/r7b-90-doc-conflict-rulings.md:16  ->86
+        ### ▲ B-1 —— 第一层守卫"设置中断事件":**证伪**
+
+== agent/file_safety.py  行[274, 278, 284]  案号4 轮次2
+   [R9C   ] ■-1            notes/r9c-raw-secret-sources.md:37  ->274
+        | ■-1 | `agent/file_safety.py:274-285` | 1Password 明文磁盘缓存 `cache/op_cache.json` 不在读禁清单里,于是它**可被 skill 挂进远端沙箱**;结构完全相同的 `cache/bws_
+   [R9C   ] ■-1            notes/r9c-raw-secret-sources.md:1724  ->274
+        ### 5.3 ■-1:`op_cache.json` 不在读禁清单里,于是可被挂进沙箱
+   [R9D   ] H-R9C-b        notes/r9d-90-handover-credential-landing.md:948  ->278
+        | **H-R9C-b** | **关闭并改述**:补读完成、落盘卫生合格、`.env` **在**禁读清单里(原担心形态不成立);**新增 ■ = `cmd_setup` 验证前落盘** | `hermes_cli/secrets_cli.py:195`:`
+   [R9D   ] H-R9D-B-b      notes/r9d-raw-file-io-safety.md:1706  ->284
+        | H-R9D-B-b | `agent/file_safety.py:284`:`os.path.join("cache", "bws_cache.json"),` | 同类的 `cache/op_cache.json`(1Password 明文值)不在任何
+   [R9D   ] ■-2            notes/r9d-raw-file-io-safety.md:1342  ->284
+        ### ■-2 `op_cache.json`(1Password 明文缓存)在**所有**守卫表里都不存在,并且可被挂进沙箱
+
+== apps/desktop/README.md  行[155, 156, 183, 184]  案号4 轮次2
+   [R10B  ] ▲1             notes/r10b-raw-store-state.md:1045  ->155
+        ### ▲1 —— README 说「换 profile 是软切换,不是冷启」;代码里换 profile 有两条路,其中一条就是冷启
+   [R10B  ] ◎2             notes/r10b-raw-store-state.md:1156  ->156
+        ### ◎2 —— README 说「gateway-bound nanostores are wiped」,清的是**一部分**
+   [R10   ] ▲-1            notes/r10-raw-desktop-electron.md:1531  ->183
+        ### ▲-1 两份文档都说"删掉 `.hermes-bootstrap-complete` 可以强制干净的首启",代码明确不这么做
+   [R10   ] H-R10H-g       notes/r10-raw-desktop-electron.md:1856  ->184
+        | H-R10H-g | `apps/desktop/electron/main.ts:3912`:`if (!activeRuntime.hasValidMarker) {` | 代码明确忽略缺失的 bootstrap marker,而 `apps/desk
+
+== cli.py  行[598, 599, 624]  案号4 轮次2
+   [R8B   ] H-2            notes/r8b-02-h1-h2-config-debt.md:177  ->598
+        ## 2. H-2:浅合并的影响面,穷举完毕
+   [R8B   ] H-1            notes/r8b-02-h1-h2-config-debt.md:1  ->599
+        # r8b-02 · 结算 R8A 移交的 H-1 / H-2
+   [R8B   ] H-1            notes/r8b-02-h1-h2-config-debt.md:10  ->599
+        - **H-1** —— 锚点 `cli.py:441`(`load_cli_config` 的内联 `defaults`):
+   [R8A   ] H-2            notes/r8a-90-doc-conflict-rulings.md:2111  ->599
+        | H-2 | **R8B** | `cli.py:599`(`defaults[key].update(...)`) | 浅合并的**实际影响面**未穷举:哪些从 `CLI_CONFIG` 读的嵌套键**没有**硬编码兜底,那些才是会真出事的 |
+   [R8B   ] H-2            notes/r8b-02-h1-h2-config-debt.md:1  ->599
+        # r8b-02 · 结算 R8A 移交的 H-1 / H-2
+   [R8B   ] H-2            notes/r8b-02-h1-h2-config-debt.md:13  ->599
+        - **H-2** —— 锚点 `cli.py:599`(`defaults[key].update(...)`):
+   [R8A   ] ■-3            notes/r8a-90-doc-conflict-rulings.md:618  ->599
+        | ■-3 | 两个装载器合并语义不同(深合并 vs `dict.update`) | `cli.py:599` | 在 CLI/TUI 侧设一个嵌套键,会静默清除其同级默认值 |
+   [R8A   ] H-4            notes/r8a-90-doc-conflict-rulings.md:2113  ->624
+        | H-4 | **R8D** | `hermes_cli/managed_scope.py` | 本轮从 `config.py:3396` 与 `cli.py:624` 两侧读到它,但**没读本体**;managed 层的叶级合并实现与失败姿态未取证 |
+
+== cron/scheduler.py  行[332, 334]  案号4 轮次2
+   [R8C   ] ■-R8C-01       notes/r8c-10-h17-env-loader-race.md:280  ->332
+        ## 7. 定案 ■-R8C-01
+   [R8C   ] ■-R8C-01       notes/r8c-10-h17-env-loader-race.md:282  ->332
+        **■-R8C-01**:`_apply_external_secret_sources`(`hermes_cli/env_loader.py:591`)与
+   [R7C   ] ▲-4            notes/r7c-90-doc-conflict-rulings.md:300  ->334
+        - **▲-4** `cron-internals.md:73,92` 的 `running` 是**幽灵状态**:全仓 state 写入点
+   [R7C   ] ▲-1            notes/r7c-raw-cron-sched-a.md:491  ->334
+        ### ▲-1 `state: "running"` 是文档里的幽灵状态，代码从不写
+   [R7C   ] ▲-1            notes/r7c-raw-cron-sched-b.md:1405  ->334
+        ### ▲-1 `running` 不是真实的作业状态
+
+== gateway/relay/adapter.py  行[461, 471]  案号4 轮次2
+   [R9A   ] ■-01           reports/round-9a-capability-organization.md:163  ->461
+        **■-01 网关 bearer 会被挂到任意主机。** 判断「这个媒体 URL 要不要带我们的凭据」用的是子串包含
+   [R11A  ] H-R11A-a       notes/r11a-90-handover-rulings.md:413  ->471
+        | **H-R11A-a** | R11B | `gateway/relay/media.py:94`:`return "/relay/media/" in (url or "")` | ■-R11A-01:子串判定让入站 URL 把每网关 bearer 引到
+   [R11A  ] H-R9B-d        reports/round-11a-ops-and-delivery.md:494  ->471
+        - **■-R11A-01**(由 H-R9B-d 升格):`gateway/relay/media.py:94` 用**子串**决定要不要带
+   [R11A  ] ■-R11A-01      reports/round-11a-ops-and-delivery.md:494  ->471
+        - **■-R11A-01**(由 H-R9B-d 升格):`gateway/relay/media.py:94` 用**子串**决定要不要带
+
+== hermes_cli/web_server.py  行[12330, 12337, 12346, 12347]  案号4 轮次2
+   [R7C   ] ◇1             notes/r7c-raw-authz-pairing.md:1696  ->12330
+        ### ◇1 request-id 批准路径:代码有、文档无
+   [R7C   ] ▲1             notes/r7c-raw-authz-pairing.md:1612  ->12337
+        ### ▲1(已定案,R7 A4)DM 配对方向写反 —— 证据链见 §3
+   [R8A   ] ■-8            notes/r8a-90-doc-conflict-rulings.md:669  ->12346
+        | ■-8 | **两把配对钥匙行为不一致**:CLI 在 request-id 路径上也报"平台被锁定" | `hermes_cli/pairing.py:81` vs `hermes_cli/web_server.py:12346` | 用过期 reque
+   [R8A   ] ■-24           notes/r8a-90-doc-conflict-rulings.md:655  ->12347
+        | ■-24 | 锁定恢复提示**只有 CLI 有**,且**硬编码了新版路径** | `hermes_cli/pairing.py:96`(提示写死 `~/.hermes/platforms/pairing/`)/ `hermes_cli/web_serve
+
+== agent/agent_runtime_helpers.py  行[59, 78, 79]  案号3 轮次2
+   [R11A  ] H-R9D-c        notes/r11a-90-handover-rulings.md:162  ->59
+        ## 3. H-R9D-c —— 带属性的推理标签:两条路径结果相反
+   [R9D   ] ■-4            notes/r9d-raw-gateway-clarify-turn-misc.md:1582  ->78
+        ### ■-4 流式 think scrubber 不识别带属性的推理标签,导致推理内容流给用户、随后整条回复变空
+   [R9D   ] H-R9D-F-b      notes/r9d-raw-gateway-clarify-turn-misc.md:1991  ->79
+        | H-R9D-F-b | `agent/think_scrubber.py:89`:`    _OPEN_TAGS: Tuple[str, ...] = tuple(f"<{name}>" for name in _OPEN_TAG_NAMES)` | 字面
+
+== agent/lsp/manager.py  行[313]  案号3 轮次2
+   [R9D   ] H-R9D-A-a      notes/r9d-raw-lsp.md:1889  ->313
+        | H-R9D-A-a | `agent/lsp/manager.py:313`:`t = max(8.0, self._wait_timeout + 3.0)` | 外层预算不随 `wait_mode` 走,`full` 模式下 8s < 内层 10s,基线
+   [R11A  ] H-R9D-a        notes/r11a-90-handover-rulings.md:108  ->313
+        ## 2. H-R9D-a —— LSP 外层预算小于内层,但根因不是那行算式
+   [R9D   ] H-R9D-a        reports/round-9d-l1-completion.md:436  ->313
+        | **H-R9D-a** | R11A | `agent/lsp/manager.py:313`:`t = max(8.0, self._wait_timeout + 3.0)` | 注释自陈"外层预算必须大于内层",但 `lsp.wait_mode: fu
+   [R9D   ] ■1             notes/r9d-raw-lsp.md:1806  ->313
+        | ■1 | `agent/lsp/manager.py:313`:`t = max(8.0, self._wait_timeout + 3.0)` | `wait_mode: full`(文档化合法值)+ 默认 `wait_timeout: 5.0` ⇒ 外
+
+== agent/think_scrubber.py  行[79, 89]  案号3 轮次2
+   [R9D   ] ■-4            notes/r9d-raw-gateway-clarify-turn-misc.md:1582  ->79
+        ### ■-4 流式 think scrubber 不识别带属性的推理标签,导致推理内容流给用户、随后整条回复变空
+   [R9D   ] H-R9D-F-b      notes/r9d-raw-gateway-clarify-turn-misc.md:1991  ->89
+        | H-R9D-F-b | `agent/think_scrubber.py:89`:`    _OPEN_TAGS: Tuple[str, ...] = tuple(f"<{name}>" for name in _OPEN_TAG_NAMES)` | 字面
+   [R11A  ] H-R9D-c        notes/r11a-90-handover-rulings.md:18  ->89
+        | **H-R9D-c** 推理标签双路径相反 | **证实** | `agent/think_scrubber.py:89` 的 `_OPEN_TAGS: Tuple[str, ...] = tuple(f"<{name}>" for name in _OP
+   [R11A  ] H-R9D-c        notes/r11a-90-handover-rulings.md:162  ->89
+        ## 3. H-R9D-c —— 带属性的推理标签:两条路径结果相反
+   [R9D   ] H-R9D-c        reports/round-9d-l1-completion.md:438  ->89
+        | **H-R9D-c** | R11A | `agent/think_scrubber.py:89`:`_OPEN_TAGS: Tuple[str, ...] = tuple(f"<{name}>" for name in _OPEN_TAG_NAMES)`
+
+== apps/desktop/electron/preload.ts  行[103, 126]  案号3 轮次2
+   [R10B  ] ▲1             notes/r10b-raw-store-state.md:1110  ->103
+        ### ◇1 —— 那条硬路今天在渲染层**没有任何调用方**(即 ▲1 的另一面)
+   [R10B  ] ◇1             notes/r10b-raw-store-state.md:1110  ->103
+        ### ◇1 —— 那条硬路今天在渲染层**没有任何调用方**(即 ▲1 的另一面)
+   [R10   ] H-R10H-j       notes/r10-raw-desktop-electron.md:1859  ->126
+        | H-R10H-j | `apps/desktop/electron/preload.ts:126`:`return webUtils.getPathForFile(file)` | 152 个暴露项里唯一一个不经过主进程、直接在 preload 里调 El
+
+== cron/scheduler.py  行[1158, 1177]  案号3 轮次2
+   [R7C   ] ◇-1            notes/r7c-raw-cron-sched-a.md:617  ->1158
+        ### ◇-1 `whatsapp_cloud` 的 home 映射基本是死配置
+   [R9D   ] H-R9D-D-a      notes/r9d-raw-messaging-platform-tools.md:1651  ->1177
+        | H-R9D-D-a | `tools/send_message_tool.py:2106`:`# NOTE: ``send_message`` is intentionally NOT registered as an agent-callable` | 
+   [R9D   ] ■-1            notes/r9d-raw-messaging-platform-tools.md:1457  ->1177
+        **■-1 —— `send_message` 的"不给模型"禁令,可被模型经 `cronjob` 一跳绕过。**(静态对读)
+
+== cron/scheduler.py  行[2638, 2643, 2663]  案号3 轮次2
+   [R9A   ] ◇-5            notes/r9a-raw-skills-agent-side.md:2839  ->2638
+        ### ◇-5 · 预处理逻辑在两处各写一遍
+   [R9A   ] ▲-2            notes/r9a-raw-skills-agent-side.md:2527  ->2643
+        ### ▲-2 · "Bundles work in every surface … dispatch is centralized"
+   [R7C   ] ◇-5            notes/r7c-raw-cron-sched-a.md:662  ->2663
+        ### ◇-5 文档没提"组装后 prompt 二次扫描"
+
+== gateway/platforms/base.py  行[3758, 3766, 3780]  案号3 轮次2
+   [R7C   ] ◇-09           notes/r7c-raw-slash-b.md:2108  ->3758
+        ### ◇-09 `tools/slash_confirm.py` docstring 说「目前只有 /reload-mcp」
+   [R7C   ] ◇-08           notes/r7c-raw-slash-b.md:2097  ->3766
+        ### ◇-08 `_resolve_slash_confirm` 是幽灵 API
+   [R9D   ] ■-1            notes/r9d-raw-gateway-clarify-turn-misc.md:1467  ->3780
+        ### ■-1 webhook 会话把 `clarify` 留在工具集里,而 webhook 的默认投递没有回话通道
+
+== gateway/run.py  行[14455, 14479]  案号3 轮次2
+   [R7C   ] ▲1             notes/r7c-raw-authz-pairing.md:1612  ->14455
+        ### ▲1(已定案,R7 A4)DM 配对方向写反 —— 证据链见 §3
+   [R8A   ] ▲-6            chapters/r8a-configuration-surface.md:1709  ->14479
+        **▲-6 FAQ 把配对讲成"先到先得",而代码要求操作员批准。** FAQ 两处写着
+   [R8A   ] ▲-6            notes/r8a-90-doc-conflict-rulings.md:293  ->14479
+        ### ▲-6 FAQ 把配对讲成"先到先得",而代码要求操作员批准
+
+== hermes_cli/backup.py  行[1099, 1112, 1116]  案号3 轮次2
+   [R7C   ] ◇2             notes/r7c-raw-authz-pairing.md:1711  ->1099
+        ### ◇2 `channel_aliases.json`:用户可写的功能,文档零记载
+   [R9A   ] ◇3             notes/r9a-raw-verification.md:1817  ->1112
+        ### ◇3 —— 台账被纳入备份白名单
+   [R7C   ] ▲3             notes/r7c-raw-authz-pairing.md:1640  ->1116
+        ### ▲3 配对数据存储路径过时
+
+== hermes_cli/dashboard_auth/public_paths.py  行[39, 48, 51]  案号3 轮次2
+   [R8C   ] ◎-1            notes/r8c-raw-dashboard-auth.md:2538  ->39
+        ### ◎-1 `/api/status` 的公开面比"存活探针"宽
+   [R8C   ] ◎-2            notes/r8c-raw-dashboard-auth.md:2546  ->48
+        ### ◎-2 `/api/model/info` 的免鉴权理由与实际返回不完全对应
+   [R10   ] ◇-G-03         notes/r10-raw-web-dashboard.md:1952  ->51
+        ### ◇-G-03 —— 前端认的公开端点里有两个会在登录前就被拉取
+
+== hermes_cli/env_loader.py  行[588, 591, 614]  案号3 轮次2
+   [R8A   ] ■-27           notes/r8a-90-doc-conflict-rulings.md:644  ->588
+        | ■-27 | **同一个 managed `.env` 在同一进程里被两个不同解析器读** | `hermes_cli/env_loader.py:588`(python-dotenv,负责灌 `os.environ`)/ `hermes_cli/mana
+   [R8C   ] ■-R8C-01       notes/r8c-10-h17-env-loader-race.md:280  ->591
+        ## 7. 定案 ■-R8C-01
+   [R8C   ] ■-R8C-01       notes/r8c-10-h17-env-loader-race.md:282  ->591
+        **■-R8C-01**:`_apply_external_secret_sources`(`hermes_cli/env_loader.py:591`)与
+   [R8A   ] H-17           notes/r8a-90-doc-conflict-rulings.md:2125  ->614
+        | H-17 | **R8B/R8C** | `hermes_cli/env_loader.py:614-669`(无锁)vs `:184`(有 `_SECRET_SOURCE_CACHE_LOCK`) | 两条写同一批全局字典的路径只有一条加锁;子代理判为并
+   [R8C   ] H-17           notes/r8c-10-h17-env-loader-race.md:1  ->614
+        # r8c-10 · H-17 定案 —— 无锁那半边的三条后果,全部实测复现
+   [R8C   ] H-17           notes/r8c-90-rulings.md:19  ->614
+        | **H-17** | R8A→R8B | `hermes_cli/env_loader.py:614-669`(无锁)vs `:184`(有锁) | **结清,定 ■-R8C-01**:成立,三条后果全部实测复现;**触发场景不是移交项猜的网关热重载,是 
+
+== hermes_cli/pairing.py  行[15, 18, 42]  案号3 轮次2
+   [R8A   ] ■-39           notes/r8a-90-doc-conflict-rulings.md:631  ->15
+        | ■-39 | **同一个 dashboard 页面上,两个 UI 元素对同一个操作写进不同 profile 的库** | `hermes_cli/web_server.py:15148`(console 只设 context-local 的 `_profi
+   [R8A   ] ■-37           notes/r8a-90-doc-conflict-rulings.md:629  ->18
+        | ■-37 | **`hermes pairing` 的所有失败路径都 exit 0** | `hermes_cli/pairing.py:18-28`(四条分支只 print 不 return)/ `hermes_cli/main.py:12591-125
+   [R7C   ] ◇1             notes/r7c-raw-authz-pairing.md:1696  ->42
+        ### ◇1 request-id 批准路径:代码有、文档无
+
+== hermes_cli/pairing.py  行[49, 71, 72]  案号3 轮次2
+   [R8A   ] ◇4             notes/r8a-raw-pairing-and-config-cmd.md:1230  ->49
+        | ◇4 | `website/docs/reference/cli-commands.md:1119` "`approve <platform> <code>` \| Approve a pairing code." | 还接受 request-id（`he
+   [R7C   ] ◇1             notes/r7c-raw-authz-pairing.md:1696  ->71
+        ### ◇1 request-id 批准路径:代码有、文档无
+   [R7C   ] ▲1             notes/r7c-raw-authz-pairing.md:1612  ->72
+        ### ▲1(已定案,R7 A4)DM 配对方向写反 —— 证据链见 §3
+
+== hermes_cli/subcommands/pairing.py  行[16, 31, 39]  案号3 轮次2
+   [R7C   ] ▲6             notes/r7c-raw-authz-pairing.md:1686  ->16
+        ### ▲6 命名漂移两处
+   [R7C   ] ◇1             notes/r7c-raw-authz-pairing.md:1696  ->31
+        ### ◇1 request-id 批准路径:代码有、文档无
+   [R8A   ] ■-23           notes/r8a-90-doc-conflict-rulings.md:654  ->39
+        | ■-23 | `clear-pending` **清的是所有平台**,两个入口都没说清 | `hermes_cli/pairing.py:116` / `hermes_cli/web_server.py:12374`(都不传 platform)/ `gat
+
+== hermes_cli/web_server.py  行[6917, 6921, 6923]  案号3 轮次2
+   [R8C   ] ▲-1            notes/r8c-raw-config-endpoints.md:1238  ->6917
+        - **▲-1** `hermes_cli/web_server.py:6917` 的注释举例 `agent.personalities` / `terminal.lifetime_seconds`,
+   [R8A   ] H-10           notes/r8a-90-doc-conflict-rulings.md:2118  ->6921
+        | H-10 | **R8C** | `hermes_cli/web_server.py:6921`(`PUT /api/config` 的三行写入路径) | CLI 的 `set_config_value` 会把 API-key 形状的键改道写 `.env`
+   [R8C   ] H-10           notes/r8c-90-rulings.md:16  ->6921
+        | **H-10** | R8A | `hermes_cli/web_server.py:6921` 一带(`PUT /api/config` 写入路径) | **结清,定 ■-R8C-05**:挡不住,**能走到**。主线独立复现 | 本卷 §2 |
+   [R8A   ] ■-51           notes/r8a-90-doc-conflict-rulings.md:623  ->6923
+        | ■-51 | `_deep_merge` 对 base 只做**浅拷贝**,返回值与入参共享嵌套对象(隐式契约,无守卫) | `hermes_cli/config.py:2448`(`result = base.copy()`)/ 隐患调用点 `herme
+
+== hermes_constants.py  行[114, 132]  案号3 轮次2
+   [R7C   ] ◇-4            notes/r7c-raw-delivery.md:1739  ->114
+        ### ◇-4 `sticker_cache` 的 profile 隔离缺陷(代码内部矛盾,非文档)
+   [R9D   ] ■-6            notes/r9d-raw-gateway-clarify-turn-misc.md:1641  ->114
+        ### ■-6 `DebugSession` 在模块 import 时定格 `get_hermes_home()`,多 profile 下调试日志会写错 profile
+   [R7C   ] ◇3             notes/r7c-raw-kanban.md:1559  ->132
+        ### ◇3. `HOOKS_DIR` 在模块导入期固化,profile 级 override 对它无效
+
+== tools/debug_helpers.py  行[43, 47]  案号3 轮次2
+   [R9B   ] ▲-4            notes/r9b-raw-image.md:1968  ->43
+        ### ▲-4 文档说调试日志在 `./logs/`,代码写 `$HERMES_HOME/logs/`
+   [R9D   ] H-R9D-F-h      notes/r9d-raw-gateway-clarify-turn-misc.md:1997  ->47
+        | H-R9D-F-h | `tools/debug_helpers.py:47`:`        self.log_dir = get_hermes_home() / "logs"` | 在模块 import 时定格 profile 感知的 `get_he
+   [R9D   ] ■-6            notes/r9d-raw-gateway-clarify-turn-misc.md:1641  ->47
+        ### ■-6 `DebugSession` 在模块 import 时定格 `get_hermes_home()`,多 profile 下调试日志会写错 profile
+
+== tools/lazy_deps.py  行[532, 554]  案号3 轮次2
+   [R11A  ] H-R9B-g        notes/r11a-90-handover-rulings.md:13  ->532
+        | **H-R9B-g** 惰性安装纪律 | **结清** | `tools/lazy_deps.py:532` 的 `if os.environ.get("HERMES_DISABLE_LAZY_INSTALLS") == "1":`,已入册 |
+   [R11A  ] H-R9B-g        reports/round-11a-ops-and-delivery.md:129  ->532
+        ### 1.3 H-R9B-g 惰性安装纪律入册
+   [R10   ] H-R8C-g        notes/r10-90-handover-rulings.md:236  ->554
+        ### 2.3 H-R8C-g —— **结清,并把「pip install 任意依赖」改述为一条更准的话**
+   [R10   ] ■-R10-01       reports/round-10-client-interface-layer.md:190  ->554
+        ### 6.2 ■-R10-01:`install_specs` 把信任推给 manifest,而 manifest 旁边那条路根本没有守卫
+
+== tools/managed_tool_gateway.py  行[298]  案号3 轮次2
+   [R9D   ] H-R9D-F-f      notes/r9d-raw-gateway-clarify-turn-misc.md:1995  ->298
+        | H-R9D-F-f | `tools/managed_tool_gateway.py:298`:`    return bool(actual.scheme) and (actual.scheme, actual.netloc) == (expected.
+   [R11A  ] H-R9D-d        notes/r11a-90-handover-rulings.md:19  ->298
+        | **H-R9D-d** 托管网关信任闸门 | **证实(两半各自成立但方向不同)** | `tools/managed_tool_gateway.py:298` 的 `(actual.scheme, actual.netloc) == (expected.
+   [R11A  ] H-R9D-d        notes/r11a-90-handover-rulings.md:208  ->298
+        ## 4. H-R9D-d —— 两半都成立,但只有一半是安全问题
+   [R9D   ] H-R9D-d        reports/round-9d-l1-completion.md:439  ->298
+        | **H-R9D-d** | R11A | `tools/managed_tool_gateway.py:298`:`(actual.scheme, actual.netloc) == (expected.scheme, expected.netloc)` 
+   [R9D   ] ■-3            notes/r9d-raw-gateway-clarify-turn-misc.md:1560  ->298
+        ### ■-3 `is_managed_nous_gateway_url` 对主机名大小写敏感
+
+== tools/transcription_tools.py  行[336, 341]  案号3 轮次2
+   [R9C   ] H-R9B-a        reports/round-9c-external-interfaces.md:234  ->336
+        **H-R9B-a 的改述**:移交项说"病因是抄了一份,修法是 import 权威集合"。**不准确。**
+   [R9B   ] H-R9B-1        notes/r9b-raw-voicein.md:1798  ->341
+        **H-R9B-1(必做,■-1 的收口)** ——
+   [R9B   ] ■-1            notes/r9b-raw-voicein.md:1375  ->341
+        ### ■-1 `check_voice_requirements()` 的内置 STT 名单漏了 `deepinfra`,配好 DeepInfra 的用户开不了语音模式
+   [R9B   ] ■-1            notes/r9b-raw-voicein.md:1798  ->341
+        **H-R9B-1(必做,■-1 的收口)** ——
+
+== tools/voice_mode.py  行[2193]  案号3 轮次2
+   [R9B   ] H-R9B-1        notes/r9b-raw-voicein.md:1798  ->2193
+        **H-R9B-1(必做,■-1 的收口)** ——
+   [R9C   ] H-R9B-a        notes/r9c-90-handover-rulings.md:257  ->2193
+        ## 2. H-R9B-a:关闭,但病因要改述
+   [R9B   ] H-R9B-a        reports/round-9b-multimodal-delivery.md:451  ->2193
+        | **H-R9B-a** | R9C/R9D 任一 | `tools/voice_mode.py:2193` 的 `native_stt_available` | 同一份内置 STT 名单全仓三份、漂了一份;修法是 import 权威集合而非再抄一遍,顺带查
+   [R9C   ] H-R9B-a        reports/round-9c-external-interfaces.md:234  ->2193
+        **H-R9B-a 的改述**:移交项说"病因是抄了一份,修法是 import 权威集合"。**不准确。**
+   [R9B   ] ■-1            notes/r9b-raw-voicein.md:1375  ->2193
+        ### ■-1 `check_voice_requirements()` 的内置 STT 名单漏了 `deepinfra`,配好 DeepInfra 的用户开不了语音模式
+   [R9B   ] ■-1            notes/r9b-raw-voicein.md:1798  ->2193
+        **H-R9B-1(必做,■-1 的收口)** ——
+
+== tools/xai_http.py  行[301, 317, 324]  案号3 轮次2
+   [R9C   ] ◇-1            notes/r9c-raw-billing-and-http-clients.md:1848  ->301
+        | ◇-1 | `tools/xai_http.py:301` | `HERMES_XAI_BASE_URL` 只在 OAuth 路径生效、API-key 路径静默忽略;该变量在 `website/docs/reference/environment-vari
+   [R9D   ] ■-7            notes/r9d-raw-search-browser-supply.md:1228  ->317
+        ### ■-7 `x_search` 在凭据解析抛非 `RuntimeError` 时会把异常抛出工具边界(**实跑复现**)
+   [R9C   ] ■-7            notes/r9c-raw-billing-and-http-clients.md:1835  ->324
+        | ■-7 | `tools/xai_http.py:324` | API-key 路径的 `XAI_BASE_URL` 不做校验(OAuth 路径做);按 `hermes_cli/auth.py:4735` 自陈的威胁模型(篡改的 `.env`),两条路径暴
+
+== ui-tui/src/gatewayClient.ts  行[213, 221]  案号3 轮次2
+   [R10B  ] H-R10-f        notes/r10b-90-handover-rulings.md:120  ->213
+        ### 1.3 H-R10-f —— **维持,并升级:由「静态推演」升为「实测复现」,且移交项说的复现条件是错的**
+   [R10   ] ■-2            notes/r10-raw-ui-tui-core.md:1522  ->213
+        ### ■-2 `start()` 之后再没人调 `drain()`:网关重启后事件流永久断掉
+   [R10   ] H-R10-f        reports/round-10-client-interface-layer.md:525  ->221
+        | **H-R10-f** | R10B / R11A | `ui-tui/src/gatewayClient.ts:221`:`this.subscribed = false` | 网关重启后订阅开关无复位路径(唯一开启点在 `drain()`,唯一调用点在
+   [R10B  ] H-R10-f        reports/round-10b-desktop-application.md:501  ->221
+        ### 11.3 H-R10-f:静态推演 → 实测复现,而「需起真实网关」这个前提不成立
+   [R10   ] H-R10D-a       notes/r10-raw-ui-tui-core.md:1940  ->221
+        | H-R10D-a | `ui-tui/src/gatewayClient.ts:221`:`this.subscribed = false` | 这一行在 `resetStartupState()` 里把消费者订阅标记随传输一起复位,而全仓唯一的 `dra
+
+== website/docs/reference/slash-commands.md  行[47, 65, 68, 70]  案号3 轮次2
+   [R7C   ] ◇-10           notes/r7c-raw-slash-b.md:2118  ->47
+        ### ◇-10 `/compress --preview|--dry-run` 在 website 文档里缺席
+   [R7C   ] ▲-6            notes/r7c-raw-slash-a.md:937  ->65
+        ### ▲-6 `/agents` 文档说"当前会话",代码是全网关
+   [R9A   ] ▲2             notes/r9a-raw-learning-graph.md:1584  ->68
+        ### ▲2 —— `/journey` 在同一张表里被写了两次,其中一条说它是 CLI 独占
+
+== website/docs/reference/slash-commands.md  行[266, 267, 288]  案号3 轮次2
+   [R7C   ] ▲-01           notes/r7c-raw-slash-b.md:1977  ->266
+        ### ▲-01 `/footer on|off|status` 在 gateway 上完全失效(严重)
+   [R7C   ] ▲-8            notes/r7c-raw-slash-c.md:1340  ->267
+        **◇-L 升级为 ▲-8**:
+   [R10B  ] ◇2             notes/r10b-raw-shell-overlays.md:1230  ->288
+        ### ◇2 —— 唤醒指示窗(`?win=wake`)在桌面文档里没有条目
+
+== agent/conversation_loop.py  行[2291, 2312]  案号2 轮次2
+   [R8D   ] ◇-3            notes/r8d-raw-extensions.md:2632  ->2291
+        **◇-3 · 4 个 `VALID_HOOKS` 成员在英文文档中无参考条目。**
+   [R9A   ] ■-2            notes/r9a-raw-moa.md:2239  ->2312
+        ### ■-2 `moa.presets.<name>.max_tokens` 是死配置键(默认 4096,文档示例里还教用户写)
+
+== agent/monitoring/gateway_health_export.py  行[85]  案号2 轮次2
+   [R8A   ] ■-16           notes/r8a-90-doc-conflict-rulings.md:656  ->85
+        | ■-16 | **第二例“默认值撞上硬编码值”**:`resource_attributes["service.name"]` 被无条件覆盖 | `agent/monitoring/gateway_health_export.py:85`(覆盖)/ 默认值
+   [R8A   ] ■-16           notes/r8a-90-doc-conflict-rulings.md:1161  ->85
+        ### ■-16 细节:第二例"默认值撞上硬编码值"——这条从个案升级成了模式
+   [R9C   ] ■-2            notes/r9c-raw-monitoring-egress.md:2274  ->85
+        | ■-2 | `agent/monitoring/gateway_health_export.py:85` 的 `attrs["service.name"] = "hermes-gateway"` | `service.name` / `service.in
+
+== agent/secret_sources/__init__.py  行[16, 25]  案号2 轮次2
+   [R8D   ] ▲1             notes/r8d-raw-credentials-security.md:2191  ->16
+        | ▲1 | `agent/secret_sources/__init__.py:16-30`(bundled 清单 + "possible future exception")、`registry.py:22-23`、`website/docs/user-g
+   [R9C   ] ▲-1            notes/r9c-raw-secret-sources.md:2021  ->25
+        ### ▲-1:内置源到底是两个还是三个
+
+== agent/subagent_lifecycle.py  行[255, 259]  案号2 轮次2
+   [R9D   ] H-R9A-e        notes/r9d-90-handover-single-call-site-misses.md:25  ->255
+        ## 1. H-R9A-e —— 子代理生命周期服务的裸 `submit`
+   [R9D   ] H-R9A-e        notes/r9d-91-handover-rulings.md:315  ->259
+        ## 3. H-R9A-e · 子代理提交点未包上下文传播
+   [R9D   ] H-R9A-e        notes/r9d-91-handover-rulings.md:767  ->259
+        | **H-R9A-e** | `agent/subagent_lifecycle.py:259`:`record.future = _EXECUTOR.submit(self._run, record, request.goal, parent)` | **
+   [R9A   ] H-R9A-e        reports/round-9a-capability-organization.md:325  ->259
+        | **H-R9A-e** | R9D | `agent/subagent_lifecycle.py:259` 的裸 `submit` | 未包上下文传播,worker 线程丢审批 session key 与 profile 覆盖;全仓 8 处同类提交点它是唯
+   [R9D   ] H-R9D-e1       notes/r9d-90-handover-single-call-site-misses.md:878  ->259
+        | H-R9D-e1 | `agent/subagent_lifecycle.py:259`:`record.future = _EXECUTOR.submit(self._run, record, request.goal, parent)` | 裸提交,w
+
+== cli.py  行[31, 53]  案号2 轮次2
+   [R8A   ] ■-41           notes/r8a-90-doc-conflict-rulings.md:633  ->31
+        | ■-41 | **`hermes status --deep` 探的那个端口与网关毫无关系**,而它给出的解读是"网关在不在跑" | `hermes_cli/status.py:683,685`(探 `127.0.0.1:18789`,注释 `Port i
+   [R8B   ] H-18           notes/r8b-90-handover-rulings.md:530  ->53
+        ## 6. H-18 结转:约 50 条未复核候选里,属 R8B 的部分
+
+== cli.py  行[441]  案号2 轮次2
+   [R8A   ] H-1            notes/r8a-90-doc-conflict-rulings.md:2110  ->441
+        | H-1 | **R8B** | `cli.py:441`(`load_cli_config` 的内联 `defaults`) | **本轮已数清:89 键中 28 个不在 `DEFAULT_CONFIG`(15 个是人格相关,13 个是真开关)**,名单见
+   [R8B   ] H-1            notes/r8b-02-h1-h2-config-debt.md:1  ->441
+        # r8b-02 · 结算 R8A 移交的 H-1 / H-2
+   [R8B   ] H-1            notes/r8b-02-h1-h2-config-debt.md:10  ->441
+        - **H-1** —— 锚点 `cli.py:441`(`load_cli_config` 的内联 `defaults`):
+   [R8B   ] H-2            notes/r8b-02-h1-h2-config-debt.md:1  ->441
+        # r8b-02 · 结算 R8A 移交的 H-1 / H-2
+
+== cli.py  行[523]  案号2 轮次2
+   [R8A   ] ■-11           notes/r8a-90-doc-conflict-rulings.md:666  ->523
+        | ■-11 | **一个自称"单一真源、防止各面漂移"的函数,实测在两个面上相差 780 秒** | `tools/clarify_gateway.py:388`(自述)/ `:399`(遗留键优先)/ `cli.py:523`(遗留键的 CLI 默认值 1
+   [R8B   ] ■-11           notes/r8b-90-handover-rulings.md:359  ->523
+        ### 2.1 与 ■-11 的对照:同一道题,一个做对一个做错,差三处
+
+== cli.py  行[650, 653]  案号2 轮次2
+   [R7C   ] ◇5             notes/r7c-raw-kanban.md:1598  ->650
+        ### ◇5. cwd 占位符逻辑三处独立复刻,只有网关一路被收编
+   [R8B   ] ■-R8B-10       reports/round-8b-cli-trunk-and-interaction.md:183  ->653
+        | ■-R8B-10 | **`hermes -w` 的 worktree 隔离会在会话中途静默解除**,此后 agent 在用户真实工作区里动手,而界面仍显示 worktree | 隔离只靠 `TERMINAL_CWD` 环境变量、**不改进程 cwd**(
+
+== gateway/authz_mixin.py  行[583, 585]  案号2 轮次2
+   [R7C   ] ▲6             notes/r7c-raw-authz-pairing.md:1686  ->583
+        ### ▲6 命名漂移两处
+   [R8A   ] ■-36           notes/r8a-90-doc-conflict-rulings.md:628  ->585
+        | ■-36 | **`revoke` 报告"已撤销",而 allowlist 那一侧的失败被 `except: pass` 吞掉**——授权是两者的**并集**,于是被"撤销"的用户仍被放行 | `gateway/pairing.py:325-326`(吞异
+   [R8A   ] ■-36           notes/r8a-90-doc-conflict-rulings.md:735  ->585
+        ### ■-36 细节:一次"成功"的撤销,和一个仍然进得来的人
+
+== gateway/pairing.py  行[18]  案号2 轮次2
+   [R7C   ] ▲3             notes/r7c-raw-authz-pairing.md:1640  ->18
+        ### ▲3 配对数据存储路径过时
+   [R8A   ] ◇3             notes/r8a-raw-pairing-and-config-cmd.md:1229  ->18
+        | ◇3 | `gateway/pairing.py:18` 模块 docstring "Storage: ~/.hermes/pairing/" | 新装实际是 `~/.hermes/platforms/pairing/`（`gateway/pairing.
+
+== gateway/pairing.py  行[59]  案号2 轮次2
+   [R7C   ] ▲3             notes/r7c-raw-authz-pairing.md:1640  ->59
+        ### ▲3 配对数据存储路径过时
+   [R8A   ] ◇3             notes/r8a-raw-pairing-and-config-cmd.md:1229  ->59
+        | ◇3 | `gateway/pairing.py:18` 模块 docstring "Storage: ~/.hermes/pairing/" | 新装实际是 `~/.hermes/platforms/pairing/`（`gateway/pairing.
+
+== gateway/pairing.py  行[733, 735]  案号2 轮次2
+   [R8A   ] ■-38           notes/r8a-90-doc-conflict-rulings.md:630  ->733
+        | ■-38 | **形状判别失手会把手抄错的 request-id 记成一次暴力破解**,而锁定还连带挡住新码生成 | `gateway/pairing.py:733`(要求**恰好** 16 位 hex)/ `:718`(不匹配即 `_record_fai
+   [R7C   ] ◇1             notes/r7c-raw-authz-pairing.md:1696  ->735
+        ### ◇1 request-id 批准路径:代码有、文档无
+
+== gateway/run.py  行[3137, 3145, 3148]  案号2 轮次2
+   [R7C   ] ◇-06           notes/r7c-raw-slash-b.md:2077  ->3137
+        ### ◇-06 多 profile 作用域只覆盖 3 个命令
+   [R8A   ] ■-12           notes/r8a-90-doc-conflict-rulings.md:665  ->3145
+        | ■-12 | **14 个内置人格在网关侧完全不存在** | `cli.py:477`(14 条只在 CLI 默认值里)/ `gateway/slash_commands.py:2502`(网关读法)/ `gateway/run.py:3145`(网关用的
+   [R8A   ] ■-12           notes/r8a-90-doc-conflict-rulings.md:1555  ->3148
+        ### ■-12 细节:同一个功能,一个面有 14 个选项,另一个面说"没配置"
+
+== gateway/run.py  行[15489, 15506]  案号2 轮次2
+   [R7C   ] ▲-7            notes/r7c-raw-slash-c.md:1327  ->15489
+        | ▲-7 | 非 admin 能跑什么 | `telegram.md:1109`:"A user in `allow_from` but **not** in `allow_admin_from` can only run commands listed i
+   [R9A   ] ▲-2            notes/r9a-raw-skills-agent-side.md:2527  ->15506
+        ### ▲-2 · "Bundles work in every surface … dispatch is centralized"
+
+== gateway/slash_commands.py  行[2502, 2507]  案号2 轮次2
+   [R10B  ] ▲-1            notes/r10b-raw-settings-billing.md:847  ->2502
+        ### ▲-1 `cli.md` 教用户把 personalities 写在顶层,四处运行时都读 `agent.personalities`
+   [R8A   ] ■-12           notes/r8a-90-doc-conflict-rulings.md:665  ->2502
+        | ■-12 | **14 个内置人格在网关侧完全不存在** | `cli.py:477`(14 条只在 CLI 默认值里)/ `gateway/slash_commands.py:2502`(网关读法)/ `gateway/run.py:3145`(网关用的
+   [R8A   ] ■-12           notes/r8a-90-doc-conflict-rulings.md:1555  ->2502
+        ### ■-12 细节:同一个功能,一个面有 14 个选项,另一个面说"没配置"
+
+== hermes_cli/auth.py  行[5900]  案号2 轮次2
+   [R9C   ] H-R9C-1        notes/r9c-raw-billing-and-http-clients.md:1860  ->5900
+        | H-R9C-1 | `hermes_cli/nous_billing.py:179` | `resolve_portal_base_url` 读环境变量与存储的 `portal_base_url` 时**不查** `_NOUS_PORTAL_ALLOWED
+   [R9D   ] H-R9C-a        notes/r9d-90-handover-credential-landing.md:21  ->5900
+        # 一、H-R9C-a —— `resolve_portal_base_url` 不查主机白名单
+   [R9D   ] H-R9C-a        notes/r9d-90-handover-credential-landing.md:419  ->5900
+        ## 1.7 H-R9C-a 处置结论
+   [R9D   ] H-R9C-a        notes/r9d-91-handover-rulings.md:578  ->5900
+        ## 6. H-R9C-a · Portal 基址不查白名单(**本轮扩大为两处**)
+   [R9C   ] H-R9C-a        reports/round-9c-external-interfaces.md:410  ->5900
+        | **H-R9C-a** | R9D 或 R11A | `hermes_cli/nous_billing.py:179` 的 `resolve_portal_base_url` | 读环境变量与存储的 `portal_base_url` 时**不查** `_
+
+== hermes_cli/backup.py  行[928, 934]  案号2 轮次2
+   [R11A  ] H-R8C-f        notes/r11a-90-handover-rulings.md:386  ->928
+        ## 9. H-R8C-f —— 按原述证伪
+   [R8D   ] ◇-2            notes/r8d-str-setup-and-ux.md:1101  ->934
+        | **◇-2** | `hermes backup` 产出的 zip **未加密**且**刻意包含** `.env` / `auth.json` / `state.db`,并额外收纳 HERMES_HOME 之外的 provider 凭据目录(`_exter
+
+== hermes_cli/config.py  行[1850, 1873]  案号2 轮次2
+   [R8A   ] ◇-1b           notes/r8a-90-doc-conflict-rulings.md:470  ->1850
+        ### ◇-1b 补充:`DEFAULT_CONFIG` 并不是全部合法配置键
+   [R7C   ] ◇-1            notes/r7c-raw-delivery.md:1708  ->1873
+        ### ◇-1 `gateway.filter_silence_narration` / `HERMES_FILTER_SILENCE_NARRATION` 完全没文档
+
+== hermes_cli/config.py  行[2127, 2142, 2147]  案号2 轮次2
+   [R8A   ] ■-25           notes/r8a-90-doc-conflict-rulings.md:642  ->2127
+        | ■-25 | **迁移报告"已添加 15 个键",磁盘上一个也没落**:两条迁移写的值恰好等于 `DEFAULT_CONFIG`,被写入不变式整段剥掉 | `hermes_cli/config.py:2127`(`_persist_migration` 的
+   [R8A   ] ■-25           notes/r8a-90-doc-conflict-rulings.md:848  ->2127
+        ### ■-25 细节:本轮最锋利的一条 —— 两个各自正确的设计,合起来把其中一个变成空操作
+   [R8B   ] H-7            notes/r8b-90-handover-rulings.md:209  ->2142
+        ## 1.9 原 §1 正文(迁移流水线那条线,结论仍成立,仅作废其"H-7 关闭"的推论)
+
+== hermes_cli/config_defaults.py  行[2436, 2463]  案号2 轮次2
+   [R9C   ] ■-2            notes/r9c-raw-monitoring-egress.md:1130  ->2436
+        #### ■-2 三个被白名单放行的资源属性键,随后被无条件覆盖;运维改了不生效也无提示
+   [R7C   ] ◇-5            notes/r7c-raw-delivery.md:1749  ->2463
+        ### ◇-5 `state.db` 里多了一张 `delivery_obligations` 表,文档只讲行为不讲存储
+
+== hermes_cli/config_migrations.py  行[250, 258]  案号2 轮次2
+   [R8A   ] H-16           notes/r8a-90-doc-conflict-rulings.md:2124  ->250
+        | H-16 | **R8B** | `hermes_cli/config_migrations.py:250-266`(v16 搬完不删 `display.tool_progress_overrides`) | 旧键永久留在用户的 `config.yaml`
+   [R8B   ] ■-11           notes/r8b-90-handover-rulings.md:359  ->258
+        ### 2.1 与 ■-11 的对照:同一道题,一个做对一个做错,差三处
+
+== hermes_cli/gateway.py  行[5451]  案号2 轮次2
+   [R8A   ] H-13           notes/r8a-90-doc-conflict-rulings.md:2121  ->5451
+        | H-13 | **R8B/R8C** | `hermes_cli/status.py:508`(`entry.check_fn()`)与 ■-31 已修的孪生 `hermes_cli/gateway.py:5451` | 本轮已定案 status 侧误判;
+   [R8B   ] H-13           notes/r8b-90-handover-rulings.md:416  ->5451
+        ## 4. H-13:平台就绪判定的 8 份实现 —— 本轮核到 R8B 能核的部分
+   [R8A   ] ■-31           notes/r8a-90-doc-conflict-rulings.md:648  ->5451
+        | ■-31 | **status 判插件平台用 `check_fn()`,而契约是"依赖装了没"**;同仓孪生实现已修好,且**它的注释逐字描述了 status 现在的行为** | `hermes_cli/status.py:508`(`configured
+   [R8A   ] ■-31           notes/r8a-90-doc-conflict-rulings.md:999  ->5451
+        ### ■-31 细节:孪生实现已经修好了,而且它的注释逐字描述了未修那一侧的 bug
+
+== hermes_cli/kanban_db.py  行[6930, 6936, 6937, 6941]  案号2 轮次2
+   [R9D   ] H-R9A-b        notes/r9d-90-handover-process-and-verification.md:28  ->6930
+        # 1. H-R9A-b —— `waitpid(-1)` 替别人收尸
+   [R9A   ] ■-2            notes/r9a-h-r8d-b-kanban-db.md:1608  ->6936
+        ### ■-2 `reap_worker_zombies()` 用 `waitpid(-1)`,会替网关进程里**别人的**子进程收尸
+   [R9D   ] H-R9A-b        notes/r9d-91-handover-rulings.md:11  ->6937
+        ## 1. H-R9A-b · 看板收尸的 `waitpid(-1)` 会替别人收尸
+   [R9A   ] H-R9A-b        notes/r9a-h-r8d-b-kanban-db.md:2068  ->6941
+        - **H-R9A-b(■-2 的范围确认)**:`hermes_cli/kanban_db.py:6941` 的
+   [R9D   ] H-R9A-b        notes/r9d-90-handover-process-and-verification.md:316  ->6941
+        **■ H-R9A-b 成立。** `hermes_cli/kanban_db.py:6941` 的 `os.waitpid(-1, os.WNOHANG)`
+   [R9D   ] H-R9A-b        notes/r9d-90-handover-process-and-verification.md:642  ->6941
+        | H-R9A-b | **改判:立 ■**(R9A 原为"不主张") | `hermes_cli/kanban_db.py:6941`:`pid, status = os.waitpid(-1, os.WNOHANG)` | 子系统级后台循环用进程级 `wa
+   [R9D   ] H-R9A-b        notes/r9d-91-handover-rulings.md:765  ->6941
+        | **H-R9A-b** | `hermes_cli/kanban_db.py:6941`:`pid, status = os.waitpid(-1, os.WNOHANG)` | **立 ■**,推翻 R9A「不主张」;实证 42→0 降级 + fail-
+   [R9A   ] H-R9A-b        reports/round-9a-capability-organization.md:322  ->6941
+        | **H-R9A-b** | R9D | `hermes_cli/kanban_db.py:6941` 的 `os.waitpid(-1, os.WNOHANG)` | 全仓唯一一处 `waitpid(-1)`,跑在网关工作线程上,会替别处的后台 `Pope
+   [R9A   ] ■-2            notes/r9a-h-r8d-b-kanban-db.md:2068  ->6941
+        - **H-R9A-b(■-2 的范围确认)**:`hermes_cli/kanban_db.py:6941` 的
+
+== hermes_cli/main.py  行[11601]  案号2 轮次2
+   [R8B   ] H-18           notes/r8b-90-handover-rulings.md:530  ->11601
+        ## 6. H-18 结转:约 50 条未复核候选里,属 R8B 的部分
+   [R7C   ] ▲6             notes/r7c-raw-authz-pairing.md:1686  ->11601
+        ### ▲6 命名漂移两处
+
+== hermes_cli/managed_scope.py  行[41, 44, 49]  案号2 轮次2
+   [R9A   ] H-R8D-f        notes/r9a-h-r8d-ef-surveys.md:859  ->41
+        # 普查二:H-R8D-f —— 挂在 `PYTEST_CURRENT_TEST` 上的安全判断
+   [R8D   ] ■-3            notes/r8d-90-rulings.md:426  ->44
+        ### 3.5.7 通过但需加一层判断:`PYTEST_CURRENT_TEST` 让受管层整层消失(簇 C 的 ■-3)
+   [R9A   ] H-R8D-f        notes/r9a-h-r8d-ef-surveys.md:1283  ->49
+        ## 2.5 结论:H-R8D-f **关闭**(结论收窄,不加重)
+   [R8D   ] H-R8D-f        reports/round-8d-cli-completion.md:429  ->49
+        | **H-R8D-f** | R9 | `hermes_cli/managed_scope.py:49` 的 `PYTEST_CURRENT_TEST` | 全仓还有多少安全判断挂在这个环境变量上,**本轮未取证** |
+
+== hermes_cli/models.py  行[4612]  案号2 轮次2
+   [R9A   ] H-R8D-e        notes/r9a-h-r8d-ef-surveys.md:22  ->4612
+        # 普查一:H-R8D-e —— 带凭据的裸 `urlopen`
+   [R8D   ] H-R8D-e        reports/round-8d-cli-completion.md:428  ->4612
+        | **H-R8D-e** | R9 | `hermes_cli/models.py:4612` | Bearer 令牌走裸 `urlopen`,而 `base_url` 是配置可控的;全仓 60+ 个裸 `urlopen` 里还有多少带凭据**未普查** |
+   [R8D   ] ■2             notes/r8d-raw-credentials-security.md:2210  ->4612
+        | ■2 | **中高** | `hermes_cli/models.py:4612` | `Authorization: Bearer {AI_GATEWAY_API_KEY}` 走裸 `urlopen`;`base_url` 由 env 可控 → 一个 3
+
+== hermes_cli/nous_billing.py  行[173, 179]  案号2 轮次2
+   [R9D   ] H-R9C-a        notes/r9d-90-handover-credential-landing.md:21  ->173
+        # 一、H-R9C-a —— `resolve_portal_base_url` 不查主机白名单
+   [R9C   ] H-R9C-1        notes/r9c-raw-billing-and-http-clients.md:1860  ->179
+        | H-R9C-1 | `hermes_cli/nous_billing.py:179` | `resolve_portal_base_url` 读环境变量与存储的 `portal_base_url` 时**不查** `_NOUS_PORTAL_ALLOWED
+   [R9D   ] H-R9C-a        notes/r9d-91-handover-rulings.md:578  ->179
+        ## 6. H-R9C-a · Portal 基址不查白名单(**本轮扩大为两处**)
+   [R9C   ] H-R9C-a        reports/round-9c-external-interfaces.md:410  ->179
+        | **H-R9C-a** | R9D 或 R11A | `hermes_cli/nous_billing.py:179` 的 `resolve_portal_base_url` | 读环境变量与存储的 `portal_base_url` 时**不查** `_
+
+== hermes_cli/providers.py  行[91, 92, 107]  案号2 轮次2
+   [R9C   ] ■-R9C-6        notes/r9c-raw-relay-and-plugin-llm.md:1516  ->91
+        #### ■-R9C-6 · `copilot-acp` 的 api_mode 在三处声明,三处不一致(未证明可达)
+   [R9C   ] ■-R9C-6        notes/r9c-raw-relay-and-plugin-llm.md:1793  ->92
+        | ■-R9C-6 | `hermes_cli/providers.py:92` → `transport="codex_responses",` | 与同一 provider 另两处声明冲突,而 ACP 客户端没有 `.responses` 面;**未证明可
+   [R8A   ] ■-35           notes/r8a-90-doc-conflict-rulings.md:652  ->107
+        | ■-35 | 6 家 provider 在**同一屏里出现两次**,两次用不同的环境变量集合作判断 | `hermes_cli/providers.py:107`(权威声明)/ `hermes_cli/status.py` 两段各自成表 | 只设了 `ZA
+
+== hermes_cli/web_server.py  行[639, 640, 665]  案号2 轮次2
+   [R8C   ] ▲-1            notes/r8c-raw-boot-authchain.md:1247  ->639
+        ### ▲-1 `hermes_cli/web_server.py:640` —— 注释写的中间件顺序与实际**完全相反**
+   [R10   ] H-R8C-g        notes/r10-90-handover-rulings.md:236  ->665
+        ### 2.3 H-R8C-g —— **结清,并把「pip install 任意依赖」改述为一条更准的话**
+
+== pyproject.toml  行[157, 167]  案号2 轮次2
+   [R9D   ] H-R8D-j        reports/round-9d-l1-completion.md:445  ->157
+        | **H-R8D-j / H-R9B-e**(续转) | R11A | `pyproject.toml:157`:`[project.optional-dependencies]`(`dev` 在 `:175`,`python-telegram-bot` 在
+   [R9D   ] H-R9B-e        reports/round-9d-l1-completion.md:445  ->157
+        | **H-R8D-j / H-R9B-e**(续转) | R11A | `pyproject.toml:157`:`[project.optional-dependencies]`(`dev` 在 `:175`,`python-telegram-bot` 在
+   [R9B   ] H-R9B-e        reports/round-9b-multimodal-delivery.md:455  ->167
+        | **H-R9B-e** | R11A | `pyproject.toml:167` 的 `fal = ["fal-client==0.13.1"]` | 缺 extra 在本簇表现为**普通断言失败**而非收集期 ImportError,比 H-R8D-j
+
+== tools/clarify_gateway.py  行[364, 388]  案号2 轮次2
+   [R9D   ] ◇-1            notes/r9d-raw-gateway-clarify-turn-misc.md:1690  ->364
+        ### ◇-1 `clear_session` 在单条 clarify 发送失败时连带取消整个会话的待决 clarify
+   [R8A   ] ■-11           notes/r8a-90-doc-conflict-rulings.md:666  ->388
+        | ■-11 | **一个自称"单一真源、防止各面漂移"的函数,实测在两个面上相差 780 秒** | `tools/clarify_gateway.py:388`(自述)/ `:399`(遗留键优先)/ `cli.py:523`(遗留键的 CLI 默认值 1
+   [R8A   ] ■-11           notes/r8a-90-doc-conflict-rulings.md:1599  ->388
+        ### ■-11 细节:本轮最强的一条 —— "单一真源"被第二份默认值击穿
+
+== tools/managed_tool_gateway.py  行[147, 153]  案号2 轮次2
+   [R9D   ] ◇-7            notes/r9d-raw-gateway-clarify-turn-misc.md:1829  ->147
+        ### ◇-7 `TOOL_GATEWAY_SCHEME=http` 会让 Nous OAuth bearer 走明文,且不限于回环地址
+   [R11A  ] H-R9D-d        notes/r11a-90-handover-rulings.md:208  ->153
+        ## 4. H-R9D-d —— 两半都成立,但只有一半是安全问题
+
+== tools/skills_hub.py  行[302]  案号2 轮次2
+   [R9D   ] H-R9A-f        notes/r9d-91-handover-rulings.md:368  ->302
+        ## 4. H-R9A-f · Skills Hub 的裸 `httpx.get`
+   [R9A   ] ■-4            notes/r9a-raw-skills-hub.md:1858  ->302
+        ### ■-4 `browse.sh` 适配器绕过本模块自己的 SSRF 守卫(输入→现象明确)
+
+== tools/skills_hub.py  行[3201, 3205]  案号2 轮次2
+   [R9D   ] H-R9A-f        notes/r9d-90-handover-single-call-site-misses.md:387  ->3201
+        ## 2. H-R9A-f —— skills_hub 里取自远端 JSON 的 URL 走裸 `httpx.get`
+   [R9D   ] H-R9A-f        notes/r9d-91-handover-rulings.md:368  ->3205
+        ## 4. H-R9A-f · Skills Hub 的裸 `httpx.get`
+   [R9D   ] H-R9A-f        notes/r9d-91-handover-rulings.md:768  ->3205
+        | **H-R9A-f** | `tools/skills_hub.py:3205`:`resp = httpx.get(md_url, timeout=20, follow_redirects=True)` | **维持 ■,改述两处**:风险是 SSRF 
+   [R9A   ] H-R9A-f        reports/round-9a-capability-organization.md:326  ->3205
+        | **H-R9A-f** | R9D | `tools/skills_hub.py:3205` 的 `httpx.get(md_url, ..., follow_redirects=True)` | 8 处裸调用里唯一 URL 取自远端 JSON 的一处未走
+   [R9D   ] H-R9D-f1       notes/r9d-90-handover-single-call-site-misses.md:880  ->3205
+        | H-R9D-f1 | `tools/skills_hub.py:3205`:`resp = httpx.get(md_url, timeout=20, follow_redirects=True)` | 远端 JSON 给的 URL 未过 `:302` 守
+
+== tools/working_diff.py  行[70]  案号2 轮次2
+   [R9D   ] H-R9A-c        notes/r9d-90-handover-process-and-verification.md:646  ->70
+        | H-R9A-c ◇ | 新增 ◇ | `tools/working_diff.py:70` 的 `collect_working_diff` | 仓库已有 git 级工作区改动探针,但只被 `/diff` 与 CLI 调用,**验证门从不调它** |
+   [R7C   ] ◇-12           notes/r7c-raw-slash-b.md:2133  ->70
+        ### ◇-12 `/diff <path>` 在 gateway 上被静默忽略
+
+== website/docs/reference/cli-commands.md  行[1119]  案号2 轮次2
+   [R7C   ] ◇1             notes/r7c-raw-authz-pairing.md:1696  ->1119
+        ### ◇1 request-id 批准路径:代码有、文档无
+   [R8A   ] ◇4             notes/r8a-raw-pairing-and-config-cmd.md:1230  ->1119
+        | ◇4 | `website/docs/reference/cli-commands.md:1119` "`approve <platform> <code>` \| Approve a pairing code." | 还接受 request-id（`he
+
+== website/docs/reference/environment-variables.md  行[112, 128]  案号2 轮次2
+   [R9B   ] ◎-1            notes/r9b-raw-voicein.md:1719  ->112
+        ### ◎-1 `environment-variables.md` 把 `HERMES_LOCAL_STT_LANGUAGE` 的作用范围写窄了
+   [R9D   ] H-R9C-a        notes/r9d-90-handover-credential-landing.md:419  ->128
+        ## 1.7 H-R9C-a 处置结论
+
+== website/docs/user-guide/features/hooks.md  行[670, 689]  案号2 轮次2
+   [R9D   ] H-R9A-c        notes/r9d-90-handover-process-and-verification.md:645  ->670
+        | H-R9A-c ▲ | 新增 ▲ | `website/docs/user-guide/features/hooks.md:670` 的 `Fires` | 文档写门"when the agent edited code"触发,实为"when write_
+   [R9A   ] ▲3             notes/r9a-raw-verification.md:1767  ->670
+        ### ▲3 —— `hooks.md` 说 `pre_verify`「每回合触发一次」,但同一页第 705 行说它每次 nudge 后重触发
+
+== website/docs/user-guide/features/kanban.md  行[64, 69]  案号2 轮次2
+   [R7C   ] ◇2             notes/r7c-raw-kanban.md:1543  ->64
+        ### ◇2. "评论 mid-run steer" 是完整实现的功能,但用户文档只描述了旧的 block→comment→unblock 流程
+   [R9A   ] ▲-1            notes/r9a-h-r8d-b-kanban-db.md:1727  ->69
+        ### ▲-1 文档说熔断器只数 **spawn** 失败,代码数的是**所有**非成功结局
+
+== website/docs/user-guide/features/pets.md  行[118, 120, 122, 147]  案号2 轮次2
+   [R9B   ] ◎-1            notes/r9b-raw-pet.md:1279  ->118
+        ### ◎-1 `pets.md` 的参考图后端清单少一个(4 vs 5),但所列全为真
+   [R10B  ] ◎2             notes/r10b-raw-shell-overlays.md:1194  ->147
+        ### ◎2 —— pets.md 只把"向光标缩放"记在弹出窗名下,窗内也是这么做的
+
+== website/docs/user-guide/features/web-dashboard.md  行[964, 970]  案号2 轮次2
+   [R8C   ] ▲-3            notes/r8c-raw-dashboard-auth.md:2445  ->964
+        ### ▲-3 文档说登录页列出"所有已注册 provider",代码只列 `supports_session` 的
+   [R7C   ] ◇-1            notes/r7c-raw-shutdown.md:1149  ->970
+        ### ◇-1 整个关停/排水子系统在 `website/docs/` 与根 `AGENTS.md` 里完全缺席
+
+== website/docs/user-guide/secrets/index.md  行[49, 50]  案号2 轮次2
+   [R8D   ] ▲1             notes/r8d-raw-credentials-security.md:2191  ->49
+        | ▲1 | `agent/secret_sources/__init__.py:16-30`(bundled 清单 + "possible future exception")、`registry.py:22-23`、`website/docs/user-g
+   [R9C   ] ▲-1            notes/r9c-raw-secret-sources.md:43  ->50
+        | ▲-1 | `website/docs/user-guide/secrets/index.md:50` | "Bitwarden and 1Password ship in-tree"——实际内置**三个**(含 command),同文件第 9 行自己就列
+   [R9C   ] ▲-1            notes/r9c-raw-secret-sources.md:2021  ->50
+        ### ▲-1:内置源到底是两个还是三个
+
+== website/docs/user-guide/secrets/onepassword.md  行[130, 149, 154]  案号2 轮次2
+   [R9C   ] ▲-3            notes/r9c-raw-secret-sources.md:2080  ->130
+        ### ▲-3:1Password 缓存"读写都关"
+   [R9D   ] ■-2            notes/r9d-raw-file-io-safety.md:1342  ->149
+        ### ■-2 `op_cache.json`(1Password 明文缓存)在**所有**守卫表里都不存在,并且可被挂进沙箱
+   [R9C   ] ▲-3            notes/r9c-raw-secret-sources.md:45  ->154
+        | ▲-3 | `website/docs/user-guide/secrets/onepassword.md:154` | "fully disabled — reads *and* writes — when `cache_ttl_seconds: 0`"

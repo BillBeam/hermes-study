@@ -1,0 +1,93 @@
+cluster	anchor_file	lines	n_cases	n_rounds	status	cases
+C01	gateway/relay/media.py	80,92,94	7	6	REAL	R9B/H-R9A-a R9C/H-R9A-a R9A/H-R9A-a R9B/H-R9A-h R9A/■-01 R11A/H-R11A-a R9A/H-R8D-e R10/H-R9B-d R10B/H-R9B-d R11A/H-R9B-d R9B/H-R9B-d R11A/■-R11A-01
+C02	hermes_cli/config.py	3065,3089,3092	9	4	REAL	R8A/H-7 R8B/H-7 R8B/H-R8FIX-a R8C/H-R8FIX-a R8FIX/H-R8FIX-a R8C/◎-2 R8A/▲-10 R8C/▲-1 R8C/▲-2 R8C/▲-3
+C03	gateway/pairing.py	414,421,424,437	5	3	REAL	R8C/▲-1 R8C/▲-2 R7C/◇3 R8A/H-11 R8A/■-39
+C04	cli.py	477,479,481	4	3	REAL	R8A/■-12 R10B/◇-2 R8A/■-10 R8B/H-1
+C05	gateway/relay/media.py	154,162,164,169	3	3	REAL	R9B/H-R9A-a R9C/H-R9A-a R11A/H-R9B-d R11A/■-R11A-01
+C06	hermes_cli/env_loader.py	640,666,667	3	3	REAL	R8C/■-R8C-01 R8C/H-R8C-d R8D/H-R8D-c R8D/H-R8C-d R9A/H-R8C-d R9A/H-R8D-c
+C07	hermes_constants.py	274,278,280	3	3	REAL	R9B/■-2 R7C/▲3 R8A/◇3
+C08	hermes_cli/auth.py	7329	2	3	REAL	R8B/H-R8FIX-a R8C/H-R8FIX-a R8FIX/H-R8FIX-a R8C/■-R8B-12
+C09	hermes_cli/web_server.py	5519,5521,5524	2	3	REAL	R10/■-R10-01 R10B/■-R10-01 R10B/H-R10-d R11A/H-R10-d R10/H-R10-d
+C10	gateway/run.py	15595,15615	9	2	REAL	R9A/▲-2 R7C/■-3 R7C/▲-17 R7C/▲-18 R7C/▲-19 R7C/▲-20 R7C/▲-21 R7C/▲-6 R7C/▲-8
+C11	gateway/run.py	2057,2058	7	2	REAL	R8A/◇-1c R8C/H-10 R8C/■-1 R8A/◇-1 R8A/◇-1b R8C/■-R8C-05
+C12	cron/scheduler.py	1210,1231,1233	6	2	REAL	R9D/■-1 R7C/◇-1 R7C/▲-10 R7C/▲-11 R7C/▲-9 R7C/▲-7
+C13	AGENTS.md	964,966,971,986	5	2	REAL	R9D/H-R9A-g R9A/H-R9A-g R9A/▲4 R9A/▲-3 R9A/▲3 R9A/▲1
+C14	agent/lsp/manager.py	480,486	5	2	REAL	R9D/■2 R11A/H-R11A-b R11A/H-R9D-a R9D/■1 R9D/■11
+C15	apps/desktop/README.md	114,131,133	5	2	REAL	R10/H-R10H-h R10/▲-3 R10B/▲1 R10B/H-R10B-C-i R10B/◎-1
+C16	hermes_cli/pairing.py	81,96,97	5	2	REAL	R8A/■-6 R8A/■-8 R7C/▲3 R8A/■-24 R8A/◇6
+C17	hermes_cli/web_server.py	12296,12303,12309,12320,12321	5	2	REAL	R8A/H-11 R8C/H-11 R8C/▲-1 R8C/▲-2 R8C/◇-R8C-a R8A/H-3 R8C/H-3
+C18	website/docs/developer-guide/gateway-internals.md	59,86	5	2	REAL	R7B/▲-B-2 R7B/▲1 R7/▲21 R7B/▲-B-1
+C19	agent/file_safety.py	274,278,284	4	2	REAL	R9C/■-1 R9D/H-R9C-b R9D/H-R9D-B-b R9D/■-2
+C20	apps/desktop/README.md	155,156,183,184	4	2	REAL	R10B/▲1 R10B/◎2 R10/▲-1 R10/H-R10H-g
+C21	cli.py	598,599,624	4	2	REAL	R8B/H-2 R8B/H-1 R8A/H-2 R8A/■-3 R8A/H-4
+C22	cron/scheduler.py	332,334	4	2	REAL	R8C/■-R8C-01 R7C/▲-4 R7C/▲-1
+C23	gateway/relay/adapter.py	461,471	4	2	REAL	R9A/■-01 R11A/H-R11A-a R11A/H-R9B-d R11A/■-R11A-01
+C24	hermes_cli/web_server.py	12330,12337,12346,12347	4	2	REAL	R7C/◇1 R7C/▲1 R8A/■-8 R8A/■-24
+C25	agent/agent_runtime_helpers.py	59,78,79	3	2	REAL	R11A/H-R9D-c R9D/■-4 R9D/H-R9D-F-b
+C26	agent/lsp/manager.py	313	3	2	REAL	R9D/H-R9D-A-a R11A/H-R9D-a R9D/H-R9D-a R9D/■1
+C27	agent/think_scrubber.py	79,89	3	2	REAL	R9D/■-4 R9D/H-R9D-F-b R11A/H-R9D-c R9D/H-R9D-c
+C28	apps/desktop/electron/preload.ts	103,126	3	2	REAL	R10B/▲1 R10B/◇1 R10/H-R10H-j
+C29	cron/scheduler.py	1158,1177	3	2	REAL	R7C/◇-1 R9D/H-R9D-D-a R9D/■-1
+C30	cron/scheduler.py	2638,2643,2663	3	2	REAL	R9A/◇-5 R9A/▲-2 R7C/◇-5
+C31	gateway/platforms/base.py	3758,3766,3780	3	2	REAL	R7C/◇-09 R7C/◇-08 R9D/■-1
+C32	gateway/run.py	14455,14479	3	2	REAL	R7C/▲1 R8A/▲-6
+C33	hermes_cli/backup.py	1099,1112,1116	3	2	REAL	R7C/◇2 R9A/◇3 R7C/▲3
+C34	hermes_cli/dashboard_auth/public_paths.py	39,48,51	3	2	REAL	R8C/◎-1 R8C/◎-2 R10/◇-G-03
+C35	hermes_cli/env_loader.py	588,591,614	3	2	REAL	R8A/■-27 R8C/■-R8C-01 R8A/H-17 R8C/H-17
+C36	hermes_cli/pairing.py	15,18,42	3	2	REAL	R8A/■-39 R8A/■-37 R7C/◇1
+C37	hermes_cli/pairing.py	49,71,72	3	2	REAL	R8A/◇4 R7C/◇1 R7C/▲1
+C38	hermes_cli/subcommands/pairing.py	16,31,39	3	2	REAL	R7C/▲6 R7C/◇1 R8A/■-23
+C39	hermes_cli/web_server.py	6917,6921,6923	3	2	REAL	R8C/▲-1 R8A/H-10 R8C/H-10 R8A/■-51
+C40	hermes_constants.py	114,132	3	2	REAL	R7C/◇-4 R9D/■-6 R7C/◇3
+C41	tools/debug_helpers.py	43,47	3	2	REAL	R9B/▲-4 R9D/H-R9D-F-h R9D/■-6
+C42	tools/lazy_deps.py	532,554	3	2	REAL	R11A/H-R9B-g R10/H-R8C-g R10/■-R10-01
+C43	tools/managed_tool_gateway.py	298	3	2	REAL	R9D/H-R9D-F-f R11A/H-R9D-d R9D/H-R9D-d R9D/■-3
+C44	tools/transcription_tools.py	336,341	3	2	REAL	R9C/H-R9B-a R9B/H-R9B-1 R9B/■-1
+C45	tools/voice_mode.py	2193	3	2	REAL	R9B/H-R9B-1 R9C/H-R9B-a R9B/H-R9B-a R9B/■-1
+C46	tools/xai_http.py	301,317,324	3	2	REAL	R9C/◇-1 R9D/■-7 R9C/■-7
+C47	ui-tui/src/gatewayClient.ts	213,221	3	2	REAL	R10B/H-R10-f R10/■-2 R10/H-R10-f R10/H-R10D-a
+C48	website/docs/reference/slash-commands.md	47,65,68,70	3	2	REAL	R7C/◇-10 R7C/▲-6 R9A/▲2
+C49	website/docs/reference/slash-commands.md	266,267,288	3	2	REAL	R7C/▲-01 R7C/▲-8 R10B/◇2
+C50	agent/conversation_loop.py	2291,2312	2	2	REAL	R8D/◇-3 R9A/■-2
+C51	agent/monitoring/gateway_health_export.py	85	2	2	REAL	R8A/■-16 R9C/■-2
+C52	agent/secret_sources/__init__.py	16,25	2	2	REAL	R8D/▲1 R9C/▲-1
+C53	agent/subagent_lifecycle.py	255,259	2	2	REAL	R9D/H-R9A-e R9A/H-R9A-e R9D/H-R9D-e1
+C54	cli.py	31,53	2	2	REAL	R8A/■-41 R8B/H-18
+C55	cli.py	441	2	2	BLEED-ONLY	R8A/H-1 R8B/H-1 R8B/H-2
+C56	cli.py	523	2	2	REAL	R8A/■-11 R8B/■-11
+C57	cli.py	650,653	2	2	REAL	R7C/◇5 R8B/■-R8B-10
+C58	gateway/authz_mixin.py	583,585	2	2	REAL	R7C/▲6 R8A/■-36
+C59	gateway/pairing.py	18	2	2	REAL	R7C/▲3 R8A/◇3
+C60	gateway/pairing.py	59	2	2	REAL	R7C/▲3 R8A/◇3
+C61	gateway/pairing.py	733,735	2	2	REAL	R8A/■-38 R7C/◇1
+C62	gateway/run.py	3137,3145,3148	2	2	REAL	R7C/◇-06 R8A/■-12
+C63	gateway/run.py	15489,15506	2	2	REAL	R7C/▲-7 R9A/▲-2
+C64	gateway/slash_commands.py	2502,2507	2	2	REAL	R10B/▲-1 R8A/■-12
+C65	hermes_cli/auth.py	5900	2	2	REAL	R9C/H-R9C-1 R9D/H-R9C-a R9C/H-R9C-a
+C66	hermes_cli/backup.py	928,934	2	2	REAL	R11A/H-R8C-f R8D/◇-2
+C67	hermes_cli/config.py	1850,1873	2	2	REAL	R8A/◇-1b R7C/◇-1
+C68	hermes_cli/config.py	2127,2142,2147	2	2	REAL	R8A/■-25 R8B/H-7
+C69	hermes_cli/config_defaults.py	2436,2463	2	2	REAL	R9C/■-2 R7C/◇-5
+C70	hermes_cli/config_migrations.py	250,258	2	2	REAL	R8A/H-16 R8B/■-11
+C71	hermes_cli/gateway.py	5451	2	2	REAL	R8A/H-13 R8B/H-13 R8A/■-31
+C72	hermes_cli/kanban_db.py	6930,6936,6937,6941	2	2	REAL	R9D/H-R9A-b R9A/■-2 R9A/H-R9A-b
+C73	hermes_cli/main.py	11601	2	2	REAL	R8B/H-18 R7C/▲6
+C74	hermes_cli/managed_scope.py	41,44,49	2	2	REAL	R9A/H-R8D-f R8D/■-3 R8D/H-R8D-f
+C75	hermes_cli/models.py	4612	2	2	REAL	R9A/H-R8D-e R8D/H-R8D-e R8D/■2
+C76	hermes_cli/nous_billing.py	173,179	2	2	REAL	R9D/H-R9C-a R9C/H-R9C-1 R9C/H-R9C-a
+C77	hermes_cli/providers.py	91,92,107	2	2	REAL	R9C/■-R9C-6 R8A/■-35
+C78	hermes_cli/web_server.py	639,640,665	2	2	REAL	R8C/▲-1 R10/H-R8C-g
+C79	pyproject.toml	157,167	2	2	REAL	R9D/H-R8D-j R9D/H-R9B-e R9B/H-R9B-e
+C80	tools/clarify_gateway.py	364,388	2	2	REAL	R9D/◇-1 R8A/■-11
+C81	tools/managed_tool_gateway.py	147,153	2	2	REAL	R9D/◇-7 R11A/H-R9D-d
+C82	tools/skills_hub.py	302	2	2	REAL	R9D/H-R9A-f R9A/■-4
+C83	tools/skills_hub.py	3201,3205	2	2	REAL	R9D/H-R9A-f R9A/H-R9A-f R9D/H-R9D-f1
+C84	tools/working_diff.py	70	2	2	REAL	R9D/H-R9A-c R7C/◇-12
+C85	website/docs/reference/cli-commands.md	1119	2	2	REAL	R7C/◇1 R8A/◇4
+C86	website/docs/reference/environment-variables.md	112,128	2	2	REAL	R9B/◎-1 R9D/H-R9C-a
+C87	website/docs/user-guide/features/hooks.md	670,689	2	2	REAL	R9D/H-R9A-c R9A/▲3
+C88	website/docs/user-guide/features/kanban.md	64,69	2	2	REAL	R7C/◇2 R9A/▲-1
+C89	website/docs/user-guide/features/pets.md	118,120,122,147	2	2	REAL	R9B/◎-1 R10B/◎2
+C90	website/docs/user-guide/features/web-dashboard.md	964,970	2	2	REAL	R8C/▲-3 R7C/◇-1
+C91	website/docs/user-guide/secrets/index.md	49,50	2	2	REAL	R8D/▲1 R9C/▲-1
+C92	website/docs/user-guide/secrets/onepassword.md	130,149,154	2	2	BLEED-ONLY	R9C/▲-3 R9D/■-2

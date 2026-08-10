@@ -1,0 +1,462 @@
+C01	gateway/relay/media.py	REAL
+    own  [R9B   ] H-R9A-a        reports/round-9b-multimodal-delivery.md:325 ->80
+    own  [R9B   ] H-R9A-a        notes/r9b-90-rulings.md:198 ->92
+    own  [R9C   ] H-R9A-a        notes/r9c-90-handover-rulings.md:18 ->92
+    own  [R9A   ] H-R9A-a        reports/round-9a-capability-organization.md:321 ->92
+    own  [R9C   ] H-R9A-a        reports/round-9c-external-interfaces.md:122 ->92
+    own  [R9B   ] H-R9A-h        reports/round-9b-multimodal-delivery.md:29 ->92
+    own  [R9A   ] ■-01           reports/round-9a-capability-organization.md:163 ->92
+    own  [R11A  ] H-R11A-a       notes/r11a-90-handover-rulings.md:413 ->94
+    BLED [R9A   ] H-R8D-e        notes/r9a-h-r8d-ef-surveys.md:812 ->94   (锚点其实属于 H-R9A-a)
+    own  [R10   ] H-R9B-d        notes/r10-90-handover-rulings.md:83 ->94
+    own  [R10B  ] H-R9B-d        notes/r10b-90-handover-rulings.md:345 ->94
+    own  [R11A  ] H-R9B-d        notes/r11a-90-handover-rulings.md:20 ->94
+    own  [R11A  ] H-R9B-d        notes/r11a-90-handover-rulings.md:43 ->94
+    own  [R10   ] H-R9B-d        reports/round-10-client-interface-layer.md:527 ->94
+    own  [R11A  ] H-R9B-d        reports/round-11a-ops-and-delivery.md:494 ->94
+    own  [R9B   ] H-R9B-d        reports/round-9b-multimodal-delivery.md:454 ->94
+    own  [R11A  ] ■-R11A-01      notes/r11a-90-handover-rulings.md:20 ->94
+    own  [R11A  ] ■-R11A-01      notes/r11a-90-handover-rulings.md:43 ->94
+    own  [R11A  ] ■-R11A-01      reports/round-11a-ops-and-delivery.md:494 ->94
+C02	hermes_cli/config.py	REAL
+    own  [R8A   ] H-7            notes/r8a-90-doc-conflict-rulings.md:2117 ->3065
+    own  [R8B   ] H-7            notes/r8b-90-handover-rulings.md:209 ->3065
+    own  [R8B   ] H-R8FIX-a      notes/r8b-90-handover-rulings.md:646 ->3065
+    own  [R8C   ] H-R8FIX-a      notes/r8c-11-hr8fixa-guard-parse-check.md:1 ->3065
+    own  [R8C   ] H-R8FIX-a      notes/r8c-90-rulings.md:20 ->3065
+    own  [R8FIX ] H-R8FIX-a      reports/round-8-fix-review-1.md:339 ->3065
+    own  [R8C   ] H-R8FIX-a      notes/r8c-90-rulings.md:285 ->3089
+    own  [R8C   ] ◎-2            notes/r8c-11-hr8fixa-guard-parse-check.md:145 ->3089
+    own  [R8C   ] ◎-2            notes/r8c-90-rulings.md:285 ->3089
+    own  [R8C   ] ◎-2            notes/r8c-raw-auth-py.md:1754 ->3089
+    own  [R8A   ] ▲-10           notes/r8a-90-doc-conflict-rulings.md:258 ->3092
+    BLED [R8C   ] ▲-1            notes/r8c-raw-config-endpoints.md:1238 ->3092   (锚点其实属于 ▲-3)
+    BLED [R8C   ] ▲-2            notes/r8c-raw-config-endpoints.md:1241 ->3092   (锚点其实属于 ▲-3)
+    own  [R8C   ] ▲-3            notes/r8c-raw-config-endpoints.md:1244 ->3092
+C03	gateway/pairing.py	REAL
+    BLED [R8C   ] ▲-1            notes/r8c-raw-config-endpoints.md:1238 ->414   (锚点其实属于 ▲-2)
+    own  [R8C   ] ▲-2            notes/r8c-raw-config-endpoints.md:1241 ->414
+    own  [R7C   ] ◇3             notes/r7c-raw-authz-pairing.md:1719 ->421
+    own  [R8A   ] H-11           notes/r8a-90-doc-conflict-rulings.md:2119 ->424
+    own  [R8A   ] ■-39           notes/r8a-90-doc-conflict-rulings.md:631 ->437
+C04	cli.py	REAL
+    own  [R8A   ] ■-12           notes/r8a-90-doc-conflict-rulings.md:665 ->477
+    own  [R10B  ] ◇-2            notes/r10b-raw-settings-billing.md:972 ->479
+    own  [R8A   ] ■-10           notes/r8a-90-doc-conflict-rulings.md:667 ->479
+    own  [R8A   ] ■-10           notes/r8a-90-doc-conflict-rulings.md:1690 ->479
+    own  [R8B   ] H-1            notes/r8b-02-h1-h2-config-debt.md:49 ->481
+C05	gateway/relay/media.py	REAL
+    own  [R9B   ] H-R9A-a        notes/r9b-90-rulings.md:198 ->154
+    own  [R9C   ] H-R9A-a        notes/r9c-90-handover-rulings.md:18 ->162
+    own  [R11A  ] H-R9B-d        notes/r11a-90-handover-rulings.md:43 ->164
+    own  [R11A  ] ■-R11A-01      notes/r11a-90-handover-rulings.md:43 ->164
+    own  [R9B   ] H-R9A-a        reports/round-9b-multimodal-delivery.md:325 ->169
+C06	hermes_cli/env_loader.py	REAL
+    own  [R8C   ] ■-R8C-01       notes/r8c-10-h17-env-loader-race.md:280 ->640
+    own  [R8C   ] H-R8C-d        reports/round-8c-dashboard-and-web.md:359 ->666
+    own  [R8C   ] H-R8C-d        reports/round-8c-dashboard-and-web.md:378 ->666
+    own  [R8D   ] H-R8D-c        reports/round-8d-cli-completion.md:426 ->666
+    own  [R8D   ] H-R8D-c        reports/round-8d-cli-completion.md:447 ->666
+    own  [R8D   ] H-R8C-d        notes/r8d-90-rulings.md:244 ->667
+    own  [R9A   ] H-R8C-d        notes/r9a-h-r8d-c-env-loader-lock.md:1 ->667
+    own  [R9A   ] H-R8D-c        notes/r9a-h-r8d-c-env-loader-lock.md:1 ->667
+C07	hermes_constants.py	REAL
+    own  [R9B   ] ■-2            notes/r9b-raw-video.md:2741 ->274
+    own  [R7C   ] ▲3             notes/r7c-raw-authz-pairing.md:1640 ->278
+    own  [R8A   ] ◇3             notes/r8a-raw-pairing-and-config-cmd.md:1229 ->280
+C08	hermes_cli/auth.py	REAL
+    own  [R8B   ] H-R8FIX-a      notes/r8b-90-handover-rulings.md:646 ->7329
+    own  [R8C   ] H-R8FIX-a      notes/r8c-11-hr8fixa-guard-parse-check.md:1 ->7329
+    own  [R8C   ] H-R8FIX-a      notes/r8c-90-rulings.md:20 ->7329
+    own  [R8FIX ] H-R8FIX-a      reports/round-8-fix-review-1.md:339 ->7329
+    own  [R8C   ] ■-R8B-12       notes/r8c-90-rulings.md:387 ->7329
+C09	hermes_cli/web_server.py	REAL
+    own  [R10   ] ■-R10-01       reports/round-10-client-interface-layer.md:190 ->5519
+    own  [R10B  ] ■-R10-01       notes/r10b-raw-capability-panels.md:336 ->5521
+    own  [R10B  ] H-R10-d        notes/r10b-90-handover-rulings.md:343 ->5524
+    own  [R11A  ] H-R10-d        notes/r11a-90-handover-rulings.md:366 ->5524
+    own  [R10   ] H-R10-d        reports/round-10-client-interface-layer.md:523 ->5524
+C10	gateway/run.py	REAL
+    own  [R9A   ] ▲-2            notes/r9a-raw-skills-agent-side.md:2527 ->15595
+    BLED [R7C   ] ■-3            notes/r7c-90-doc-conflict-rulings.md:353 ->15615   (锚点其实属于 ▲-21)
+    BLED [R7C   ] ▲-17           notes/r7c-90-doc-conflict-rulings.md:353 ->15615   (锚点其实属于 ▲-21)
+    BLED [R7C   ] ▲-18           notes/r7c-90-doc-conflict-rulings.md:354 ->15615   (锚点其实属于 ▲-21)
+    BLED [R7C   ] ▲-19           notes/r7c-90-doc-conflict-rulings.md:356 ->15615   (锚点其实属于 ▲-21)
+    BLED [R7C   ] ▲-20           notes/r7c-90-doc-conflict-rulings.md:358 ->15615   (锚点其实属于 ▲-21)
+    own  [R7C   ] ▲-21           notes/r7c-90-doc-conflict-rulings.md:360 ->15615
+    own  [R7C   ] ▲-6            notes/r7c-raw-slash-c.md:1326 ->15615
+    own  [R7C   ] ▲-8            notes/r7c-raw-slash-c.md:1340 ->15615
+C11	gateway/run.py	REAL
+    own  [R8A   ] ◇-1c           notes/r8a-90-doc-conflict-rulings.md:525 ->2057
+    own  [R8C   ] H-10           notes/r8c-raw-config-endpoints.md:1223 ->2058
+    own  [R8C   ] ■-1            notes/r8c-raw-config-endpoints.md:1223 ->2058
+    BLED [R8A   ] ◇-1            reports/round-8a-configuration-surface.md:368 ->2058   (锚点其实属于 ◇-1c)
+    BLED [R8A   ] ◇-1b           reports/round-8a-configuration-surface.md:369 ->2058   (锚点其实属于 ◇-1c)
+    own  [R8A   ] ◇-1c           reports/round-8a-configuration-surface.md:373 ->2058
+    own  [R8C   ] ■-R8C-05       notes/r8c-90-rulings.md:91 ->2058
+C12	cron/scheduler.py	REAL
+    own  [R9D   ] ■-1            notes/r9d-raw-messaging-platform-tools.md:1457 ->1210
+    own  [R7C   ] ◇-1            notes/r7c-raw-cron-sched-a.md:617 ->1231
+    BLED [R7C   ] ▲-10           notes/r7c-90-doc-conflict-rulings.md:320 ->1233   (锚点其实属于 ▲-11)
+    own  [R7C   ] ▲-11           notes/r7c-90-doc-conflict-rulings.md:323 ->1233
+    BLED [R7C   ] ▲-9            notes/r7c-90-doc-conflict-rulings.md:317 ->1233   (锚点其实属于 ▲-11)
+    own  [R7C   ] ▲-7            notes/r7c-raw-cron-sched-a.md:589 ->1233
+C13	AGENTS.md	REAL
+    own  [R9D   ] H-R9A-g        notes/r9d-90-handover-agents-md-toolset-census.md:1 ->964
+    own  [R9D   ] H-R9A-g        notes/r9d-91-handover-rulings.md:769 ->966
+    own  [R9A   ] H-R9A-g        reports/round-9a-capability-organization.md:327 ->971
+    own  [R9A   ] ▲4             chapters/r9a-capability-organization.md:429 ->971
+    own  [R9A   ] ▲-3            notes/r9a-raw-moa.md:2030 ->971
+    own  [R9A   ] ▲3             chapters/r9a-capability-organization.md:428 ->986
+    own  [R9A   ] ▲1             notes/r9a-raw-async-delegation.md:2071 ->986
+C14	agent/lsp/manager.py	REAL
+    own  [R9D   ] ■2             notes/r9d-raw-lsp.md:1807 ->480
+    own  [R11A  ] H-R11A-b       notes/r11a-90-handover-rulings.md:414 ->486
+    own  [R11A  ] H-R9D-a        notes/r11a-90-handover-rulings.md:16 ->486
+    own  [R11A  ] H-R9D-a        notes/r11a-90-handover-rulings.md:108 ->486
+    own  [R9D   ] ■1             notes/r9d-raw-lsp.md:1816 ->486
+    own  [R9D   ] ■11            notes/r9d-raw-lsp.md:1816 ->486
+C15	apps/desktop/README.md	REAL
+    own  [R10   ] H-R10H-h       notes/r10-raw-desktop-electron.md:1857 ->114
+    own  [R10   ] ▲-3            notes/r10-raw-desktop-electron.md:1645 ->114
+    own  [R10B  ] ▲1             notes/r10b-raw-store-state.md:1045 ->131
+    own  [R10B  ] H-R10B-C-i     notes/r10b-raw-settings-billing.md:1401 ->133
+    own  [R10B  ] ◎-1            notes/r10b-raw-settings-billing.md:945 ->133
+C16	hermes_cli/pairing.py	REAL
+    own  [R8A   ] ■-6            notes/r8a-90-doc-conflict-rulings.md:621 ->81
+    own  [R8A   ] ■-8            notes/r8a-90-doc-conflict-rulings.md:669 ->81
+    own  [R7C   ] ▲3             notes/r7c-raw-authz-pairing.md:1640 ->96
+    own  [R8A   ] ■-24           notes/r8a-90-doc-conflict-rulings.md:655 ->96
+    own  [R8A   ] ◇6             notes/r8a-raw-pairing-and-config-cmd.md:1232 ->97
+C17	hermes_cli/web_server.py	REAL
+    own  [R8A   ] H-11           notes/r8a-90-doc-conflict-rulings.md:2119 ->12296
+    own  [R8C   ] H-11           notes/r8c-90-rulings.md:17 ->12296
+    BLED [R8C   ] ▲-1            notes/r8c-raw-config-endpoints.md:1238 ->12296   (锚点其实属于 ▲-2)
+    own  [R8C   ] ▲-2            notes/r8c-raw-config-endpoints.md:1241 ->12296
+    own  [R8C   ] ◇-R8C-a        notes/r8c-90-rulings.md:280 ->12303
+    own  [R8C   ] H-11           notes/r8c-raw-config-endpoints.md:586 ->12309
+    own  [R8A   ] H-3            notes/r8a-90-doc-conflict-rulings.md:2112 ->12320
+    own  [R8C   ] H-3            notes/r8c-raw-boot-authchain.md:301 ->12320
+    own  [R8C   ] H-3            notes/r8c-90-rulings.md:15 ->12321
+C18	website/docs/developer-guide/gateway-internals.md	REAL
+    own  [R7B   ] ▲-B-2          notes/r7b-90-doc-conflict-rulings.md:63 ->59
+    own  [R7B   ] ▲1             chapters/r7b-platform-integration.md:705 ->86
+    own  [R7    ] ▲21            notes/r7-raw-run-05-gwr-queue-busy.md:1063 ->86
+    own  [R7B   ] ▲-B-1          notes/r7b-10-base-adapter-contract.md:302 ->86
+    own  [R7B   ] ▲-B-1          notes/r7b-90-doc-conflict-rulings.md:16 ->86
+C19	agent/file_safety.py	REAL
+    own  [R9C   ] ■-1            notes/r9c-raw-secret-sources.md:37 ->274
+    own  [R9C   ] ■-1            notes/r9c-raw-secret-sources.md:1724 ->274
+    own  [R9D   ] H-R9C-b        notes/r9d-90-handover-credential-landing.md:948 ->278
+    own  [R9D   ] H-R9D-B-b      notes/r9d-raw-file-io-safety.md:1706 ->284
+    BLED [R9D   ] ■-2            notes/r9d-raw-file-io-safety.md:1342 ->284   (锚点其实属于 ■-1)
+C20	apps/desktop/README.md	REAL
+    own  [R10B  ] ▲1             notes/r10b-raw-store-state.md:1045 ->155
+    own  [R10B  ] ◎2             notes/r10b-raw-store-state.md:1156 ->156
+    own  [R10   ] ▲-1            notes/r10-raw-desktop-electron.md:1531 ->183
+    own  [R10   ] H-R10H-g       notes/r10-raw-desktop-electron.md:1856 ->184
+C21	cli.py	REAL
+    own  [R8B   ] H-2            notes/r8b-02-h1-h2-config-debt.md:177 ->598
+    BLED [R8B   ] H-1            notes/r8b-02-h1-h2-config-debt.md:1 ->599   (锚点其实属于 H-2)
+    BLED [R8B   ] H-1            notes/r8b-02-h1-h2-config-debt.md:10 ->599   (锚点其实属于 H-2)
+    own  [R8A   ] H-2            notes/r8a-90-doc-conflict-rulings.md:2111 ->599
+    BLED [R8B   ] H-2            notes/r8b-02-h1-h2-config-debt.md:1 ->599   (锚点其实属于 H-1)
+    own  [R8B   ] H-2            notes/r8b-02-h1-h2-config-debt.md:13 ->599
+    own  [R8A   ] ■-3            notes/r8a-90-doc-conflict-rulings.md:618 ->599
+    own  [R8A   ] H-4            notes/r8a-90-doc-conflict-rulings.md:2113 ->624
+C22	cron/scheduler.py	REAL
+    own  [R8C   ] ■-R8C-01       notes/r8c-10-h17-env-loader-race.md:280 ->332
+    own  [R8C   ] ■-R8C-01       notes/r8c-10-h17-env-loader-race.md:282 ->332
+    own  [R7C   ] ▲-4            notes/r7c-90-doc-conflict-rulings.md:300 ->334
+    own  [R7C   ] ▲-1            notes/r7c-raw-cron-sched-a.md:491 ->334
+    own  [R7C   ] ▲-1            notes/r7c-raw-cron-sched-b.md:1405 ->334
+C23	gateway/relay/adapter.py	REAL
+    own  [R9A   ] ■-01           reports/round-9a-capability-organization.md:163 ->461
+    own  [R11A  ] H-R11A-a       notes/r11a-90-handover-rulings.md:413 ->471
+    own  [R11A  ] H-R9B-d        reports/round-11a-ops-and-delivery.md:494 ->471
+    own  [R11A  ] ■-R11A-01      reports/round-11a-ops-and-delivery.md:494 ->471
+C24	hermes_cli/web_server.py	REAL
+    own  [R7C   ] ◇1             notes/r7c-raw-authz-pairing.md:1696 ->12330
+    own  [R7C   ] ▲1             notes/r7c-raw-authz-pairing.md:1612 ->12337
+    own  [R8A   ] ■-8            notes/r8a-90-doc-conflict-rulings.md:669 ->12346
+    own  [R8A   ] ■-24           notes/r8a-90-doc-conflict-rulings.md:655 ->12347
+C25	agent/agent_runtime_helpers.py	REAL
+    own  [R11A  ] H-R9D-c        notes/r11a-90-handover-rulings.md:162 ->59
+    own  [R9D   ] ■-4            notes/r9d-raw-gateway-clarify-turn-misc.md:1582 ->78
+    own  [R9D   ] H-R9D-F-b      notes/r9d-raw-gateway-clarify-turn-misc.md:1991 ->79
+C26	agent/lsp/manager.py	REAL
+    own  [R9D   ] H-R9D-A-a      notes/r9d-raw-lsp.md:1889 ->313
+    own  [R11A  ] H-R9D-a        notes/r11a-90-handover-rulings.md:108 ->313
+    own  [R9D   ] H-R9D-a        reports/round-9d-l1-completion.md:436 ->313
+    own  [R9D   ] ■1             notes/r9d-raw-lsp.md:1806 ->313
+C27	agent/think_scrubber.py	REAL
+    own  [R9D   ] ■-4            notes/r9d-raw-gateway-clarify-turn-misc.md:1582 ->79
+    own  [R9D   ] H-R9D-F-b      notes/r9d-raw-gateway-clarify-turn-misc.md:1991 ->89
+    own  [R11A  ] H-R9D-c        notes/r11a-90-handover-rulings.md:18 ->89
+    own  [R11A  ] H-R9D-c        notes/r11a-90-handover-rulings.md:162 ->89
+    own  [R9D   ] H-R9D-c        reports/round-9d-l1-completion.md:438 ->89
+C28	apps/desktop/electron/preload.ts	REAL
+    own  [R10B  ] ▲1             notes/r10b-raw-store-state.md:1110 ->103
+    own  [R10B  ] ◇1             notes/r10b-raw-store-state.md:1110 ->103
+    own  [R10   ] H-R10H-j       notes/r10-raw-desktop-electron.md:1859 ->126
+C29	cron/scheduler.py	REAL
+    own  [R7C   ] ◇-1            notes/r7c-raw-cron-sched-a.md:617 ->1158
+    own  [R9D   ] H-R9D-D-a      notes/r9d-raw-messaging-platform-tools.md:1651 ->1177
+    own  [R9D   ] ■-1            notes/r9d-raw-messaging-platform-tools.md:1457 ->1177
+C30	cron/scheduler.py	REAL
+    own  [R9A   ] ◇-5            notes/r9a-raw-skills-agent-side.md:2839 ->2638
+    own  [R9A   ] ▲-2            notes/r9a-raw-skills-agent-side.md:2527 ->2643
+    own  [R7C   ] ◇-5            notes/r7c-raw-cron-sched-a.md:662 ->2663
+C31	gateway/platforms/base.py	REAL
+    own  [R7C   ] ◇-09           notes/r7c-raw-slash-b.md:2108 ->3758
+    own  [R7C   ] ◇-08           notes/r7c-raw-slash-b.md:2097 ->3766
+    own  [R9D   ] ■-1            notes/r9d-raw-gateway-clarify-turn-misc.md:1467 ->3780
+C32	gateway/run.py	REAL
+    own  [R7C   ] ▲1             notes/r7c-raw-authz-pairing.md:1612 ->14455
+    own  [R8A   ] ▲-6            chapters/r8a-configuration-surface.md:1709 ->14479
+    own  [R8A   ] ▲-6            notes/r8a-90-doc-conflict-rulings.md:293 ->14479
+C33	hermes_cli/backup.py	REAL
+    own  [R7C   ] ◇2             notes/r7c-raw-authz-pairing.md:1711 ->1099
+    own  [R9A   ] ◇3             notes/r9a-raw-verification.md:1817 ->1112
+    own  [R7C   ] ▲3             notes/r7c-raw-authz-pairing.md:1640 ->1116
+C34	hermes_cli/dashboard_auth/public_paths.py	REAL
+    own  [R8C   ] ◎-1            notes/r8c-raw-dashboard-auth.md:2538 ->39
+    own  [R8C   ] ◎-2            notes/r8c-raw-dashboard-auth.md:2546 ->48
+    own  [R10   ] ◇-G-03         notes/r10-raw-web-dashboard.md:1952 ->51
+C35	hermes_cli/env_loader.py	REAL
+    own  [R8A   ] ■-27           notes/r8a-90-doc-conflict-rulings.md:644 ->588
+    own  [R8C   ] ■-R8C-01       notes/r8c-10-h17-env-loader-race.md:280 ->591
+    own  [R8C   ] ■-R8C-01       notes/r8c-10-h17-env-loader-race.md:282 ->591
+    own  [R8A   ] H-17           notes/r8a-90-doc-conflict-rulings.md:2125 ->614
+    own  [R8C   ] H-17           notes/r8c-10-h17-env-loader-race.md:1 ->614
+    own  [R8C   ] H-17           notes/r8c-90-rulings.md:19 ->614
+C36	hermes_cli/pairing.py	REAL
+    own  [R8A   ] ■-39           notes/r8a-90-doc-conflict-rulings.md:631 ->15
+    own  [R8A   ] ■-37           notes/r8a-90-doc-conflict-rulings.md:629 ->18
+    own  [R7C   ] ◇1             notes/r7c-raw-authz-pairing.md:1696 ->42
+C37	hermes_cli/pairing.py	REAL
+    own  [R8A   ] ◇4             notes/r8a-raw-pairing-and-config-cmd.md:1230 ->49
+    own  [R7C   ] ◇1             notes/r7c-raw-authz-pairing.md:1696 ->71
+    own  [R7C   ] ▲1             notes/r7c-raw-authz-pairing.md:1612 ->72
+C38	hermes_cli/subcommands/pairing.py	REAL
+    own  [R7C   ] ▲6             notes/r7c-raw-authz-pairing.md:1686 ->16
+    own  [R7C   ] ◇1             notes/r7c-raw-authz-pairing.md:1696 ->31
+    own  [R8A   ] ■-23           notes/r8a-90-doc-conflict-rulings.md:654 ->39
+C39	hermes_cli/web_server.py	REAL
+    own  [R8C   ] ▲-1            notes/r8c-raw-config-endpoints.md:1238 ->6917
+    own  [R8A   ] H-10           notes/r8a-90-doc-conflict-rulings.md:2118 ->6921
+    own  [R8C   ] H-10           notes/r8c-90-rulings.md:16 ->6921
+    own  [R8A   ] ■-51           notes/r8a-90-doc-conflict-rulings.md:623 ->6923
+C40	hermes_constants.py	REAL
+    own  [R7C   ] ◇-4            notes/r7c-raw-delivery.md:1739 ->114
+    own  [R9D   ] ■-6            notes/r9d-raw-gateway-clarify-turn-misc.md:1641 ->114
+    own  [R7C   ] ◇3             notes/r7c-raw-kanban.md:1559 ->132
+C41	tools/debug_helpers.py	REAL
+    own  [R9B   ] ▲-4            notes/r9b-raw-image.md:1968 ->43
+    own  [R9D   ] H-R9D-F-h      notes/r9d-raw-gateway-clarify-turn-misc.md:1997 ->47
+    own  [R9D   ] ■-6            notes/r9d-raw-gateway-clarify-turn-misc.md:1641 ->47
+C42	tools/lazy_deps.py	REAL
+    own  [R11A  ] H-R9B-g        notes/r11a-90-handover-rulings.md:13 ->532
+    own  [R11A  ] H-R9B-g        reports/round-11a-ops-and-delivery.md:129 ->532
+    own  [R10   ] H-R8C-g        notes/r10-90-handover-rulings.md:236 ->554
+    own  [R10   ] ■-R10-01       reports/round-10-client-interface-layer.md:190 ->554
+C43	tools/managed_tool_gateway.py	REAL
+    own  [R9D   ] H-R9D-F-f      notes/r9d-raw-gateway-clarify-turn-misc.md:1995 ->298
+    own  [R11A  ] H-R9D-d        notes/r11a-90-handover-rulings.md:19 ->298
+    own  [R11A  ] H-R9D-d        notes/r11a-90-handover-rulings.md:208 ->298
+    own  [R9D   ] H-R9D-d        reports/round-9d-l1-completion.md:439 ->298
+    own  [R9D   ] ■-3            notes/r9d-raw-gateway-clarify-turn-misc.md:1560 ->298
+C44	tools/transcription_tools.py	REAL
+    own  [R9C   ] H-R9B-a        reports/round-9c-external-interfaces.md:234 ->336
+    own  [R9B   ] H-R9B-1        notes/r9b-raw-voicein.md:1798 ->341
+    own  [R9B   ] ■-1            notes/r9b-raw-voicein.md:1375 ->341
+    own  [R9B   ] ■-1            notes/r9b-raw-voicein.md:1798 ->341
+C45	tools/voice_mode.py	REAL
+    own  [R9B   ] H-R9B-1        notes/r9b-raw-voicein.md:1798 ->2193
+    own  [R9C   ] H-R9B-a        notes/r9c-90-handover-rulings.md:257 ->2193
+    own  [R9B   ] H-R9B-a        reports/round-9b-multimodal-delivery.md:451 ->2193
+    own  [R9C   ] H-R9B-a        reports/round-9c-external-interfaces.md:234 ->2193
+    own  [R9B   ] ■-1            notes/r9b-raw-voicein.md:1375 ->2193
+    own  [R9B   ] ■-1            notes/r9b-raw-voicein.md:1798 ->2193
+C46	tools/xai_http.py	REAL
+    own  [R9C   ] ◇-1            notes/r9c-raw-billing-and-http-clients.md:1848 ->301
+    own  [R9D   ] ■-7            notes/r9d-raw-search-browser-supply.md:1228 ->317
+    own  [R9C   ] ■-7            notes/r9c-raw-billing-and-http-clients.md:1835 ->324
+C47	ui-tui/src/gatewayClient.ts	REAL
+    own  [R10B  ] H-R10-f        notes/r10b-90-handover-rulings.md:120 ->213
+    own  [R10   ] ■-2            notes/r10-raw-ui-tui-core.md:1522 ->213
+    own  [R10   ] H-R10-f        reports/round-10-client-interface-layer.md:525 ->221
+    own  [R10B  ] H-R10-f        reports/round-10b-desktop-application.md:501 ->221
+    own  [R10   ] H-R10D-a       notes/r10-raw-ui-tui-core.md:1940 ->221
+C48	website/docs/reference/slash-commands.md	REAL
+    own  [R7C   ] ◇-10           notes/r7c-raw-slash-b.md:2118 ->47
+    own  [R7C   ] ▲-6            notes/r7c-raw-slash-a.md:937 ->65
+    own  [R9A   ] ▲2             notes/r9a-raw-learning-graph.md:1584 ->68
+C49	website/docs/reference/slash-commands.md	REAL
+    own  [R7C   ] ▲-01           notes/r7c-raw-slash-b.md:1977 ->266
+    own  [R7C   ] ▲-8            notes/r7c-raw-slash-c.md:1340 ->267
+    own  [R10B  ] ◇2             notes/r10b-raw-shell-overlays.md:1230 ->288
+C50	agent/conversation_loop.py	REAL
+    own  [R8D   ] ◇-3            notes/r8d-raw-extensions.md:2632 ->2291
+    own  [R9A   ] ■-2            notes/r9a-raw-moa.md:2239 ->2312
+C51	agent/monitoring/gateway_health_export.py	REAL
+    own  [R8A   ] ■-16           notes/r8a-90-doc-conflict-rulings.md:656 ->85
+    own  [R8A   ] ■-16           notes/r8a-90-doc-conflict-rulings.md:1161 ->85
+    own  [R9C   ] ■-2            notes/r9c-raw-monitoring-egress.md:2274 ->85
+C52	agent/secret_sources/__init__.py	REAL
+    own  [R8D   ] ▲1             notes/r8d-raw-credentials-security.md:2191 ->16
+    own  [R9C   ] ▲-1            notes/r9c-raw-secret-sources.md:2021 ->25
+C53	agent/subagent_lifecycle.py	REAL
+    own  [R9D   ] H-R9A-e        notes/r9d-90-handover-single-call-site-misses.md:25 ->255
+    own  [R9D   ] H-R9A-e        notes/r9d-91-handover-rulings.md:315 ->259
+    own  [R9D   ] H-R9A-e        notes/r9d-91-handover-rulings.md:767 ->259
+    own  [R9A   ] H-R9A-e        reports/round-9a-capability-organization.md:325 ->259
+    own  [R9D   ] H-R9D-e1       notes/r9d-90-handover-single-call-site-misses.md:878 ->259
+C54	cli.py	REAL
+    own  [R8A   ] ■-41           notes/r8a-90-doc-conflict-rulings.md:633 ->31
+    own  [R8B   ] H-18           notes/r8b-90-handover-rulings.md:530 ->53
+C55	cli.py	BLEED-ONLY
+    own  [R8A   ] H-1            notes/r8a-90-doc-conflict-rulings.md:2110 ->441
+    own  [R8B   ] H-1            notes/r8b-02-h1-h2-config-debt.md:1 ->441
+    own  [R8B   ] H-1            notes/r8b-02-h1-h2-config-debt.md:10 ->441
+    BLED [R8B   ] H-2            notes/r8b-02-h1-h2-config-debt.md:1 ->441   (锚点其实属于 H-1)
+C56	cli.py	REAL
+    own  [R8A   ] ■-11           notes/r8a-90-doc-conflict-rulings.md:666 ->523
+    own  [R8B   ] ■-11           notes/r8b-90-handover-rulings.md:359 ->523
+C57	cli.py	REAL
+    own  [R7C   ] ◇5             notes/r7c-raw-kanban.md:1598 ->650
+    own  [R8B   ] ■-R8B-10       reports/round-8b-cli-trunk-and-interaction.md:183 ->653
+C58	gateway/authz_mixin.py	REAL
+    own  [R7C   ] ▲6             notes/r7c-raw-authz-pairing.md:1686 ->583
+    own  [R8A   ] ■-36           notes/r8a-90-doc-conflict-rulings.md:628 ->585
+    own  [R8A   ] ■-36           notes/r8a-90-doc-conflict-rulings.md:735 ->585
+C59	gateway/pairing.py	REAL
+    own  [R7C   ] ▲3             notes/r7c-raw-authz-pairing.md:1640 ->18
+    own  [R8A   ] ◇3             notes/r8a-raw-pairing-and-config-cmd.md:1229 ->18
+C60	gateway/pairing.py	REAL
+    own  [R7C   ] ▲3             notes/r7c-raw-authz-pairing.md:1640 ->59
+    own  [R8A   ] ◇3             notes/r8a-raw-pairing-and-config-cmd.md:1229 ->59
+C61	gateway/pairing.py	REAL
+    own  [R8A   ] ■-38           notes/r8a-90-doc-conflict-rulings.md:630 ->733
+    own  [R7C   ] ◇1             notes/r7c-raw-authz-pairing.md:1696 ->735
+C62	gateway/run.py	REAL
+    own  [R7C   ] ◇-06           notes/r7c-raw-slash-b.md:2077 ->3137
+    own  [R8A   ] ■-12           notes/r8a-90-doc-conflict-rulings.md:665 ->3145
+    own  [R8A   ] ■-12           notes/r8a-90-doc-conflict-rulings.md:1555 ->3148
+C63	gateway/run.py	REAL
+    own  [R7C   ] ▲-7            notes/r7c-raw-slash-c.md:1327 ->15489
+    own  [R9A   ] ▲-2            notes/r9a-raw-skills-agent-side.md:2527 ->15506
+C64	gateway/slash_commands.py	REAL
+    own  [R10B  ] ▲-1            notes/r10b-raw-settings-billing.md:847 ->2502
+    own  [R8A   ] ■-12           notes/r8a-90-doc-conflict-rulings.md:665 ->2502
+    own  [R8A   ] ■-12           notes/r8a-90-doc-conflict-rulings.md:1555 ->2502
+C65	hermes_cli/auth.py	REAL
+    own  [R9C   ] H-R9C-1        notes/r9c-raw-billing-and-http-clients.md:1860 ->5900
+    own  [R9D   ] H-R9C-a        notes/r9d-90-handover-credential-landing.md:21 ->5900
+    own  [R9D   ] H-R9C-a        notes/r9d-90-handover-credential-landing.md:419 ->5900
+    own  [R9D   ] H-R9C-a        notes/r9d-91-handover-rulings.md:578 ->5900
+    own  [R9C   ] H-R9C-a        reports/round-9c-external-interfaces.md:410 ->5900
+C66	hermes_cli/backup.py	REAL
+    own  [R11A  ] H-R8C-f        notes/r11a-90-handover-rulings.md:386 ->928
+    own  [R8D   ] ◇-2            notes/r8d-str-setup-and-ux.md:1101 ->934
+C67	hermes_cli/config.py	REAL
+    own  [R8A   ] ◇-1b           notes/r8a-90-doc-conflict-rulings.md:470 ->1850
+    own  [R7C   ] ◇-1            notes/r7c-raw-delivery.md:1708 ->1873
+C68	hermes_cli/config.py	REAL
+    own  [R8A   ] ■-25           notes/r8a-90-doc-conflict-rulings.md:642 ->2127
+    own  [R8A   ] ■-25           notes/r8a-90-doc-conflict-rulings.md:848 ->2127
+    own  [R8B   ] H-7            notes/r8b-90-handover-rulings.md:209 ->2142
+C69	hermes_cli/config_defaults.py	REAL
+    own  [R9C   ] ■-2            notes/r9c-raw-monitoring-egress.md:1130 ->2436
+    own  [R7C   ] ◇-5            notes/r7c-raw-delivery.md:1749 ->2463
+C70	hermes_cli/config_migrations.py	REAL
+    own  [R8A   ] H-16           notes/r8a-90-doc-conflict-rulings.md:2124 ->250
+    own  [R8B   ] ■-11           notes/r8b-90-handover-rulings.md:359 ->258
+C71	hermes_cli/gateway.py	REAL
+    own  [R8A   ] H-13           notes/r8a-90-doc-conflict-rulings.md:2121 ->5451
+    own  [R8B   ] H-13           notes/r8b-90-handover-rulings.md:416 ->5451
+    own  [R8A   ] ■-31           notes/r8a-90-doc-conflict-rulings.md:648 ->5451
+    own  [R8A   ] ■-31           notes/r8a-90-doc-conflict-rulings.md:999 ->5451
+C72	hermes_cli/kanban_db.py	REAL
+    own  [R9D   ] H-R9A-b        notes/r9d-90-handover-process-and-verification.md:28 ->6930
+    own  [R9A   ] ■-2            notes/r9a-h-r8d-b-kanban-db.md:1608 ->6936
+    own  [R9D   ] H-R9A-b        notes/r9d-91-handover-rulings.md:11 ->6937
+    own  [R9A   ] H-R9A-b        notes/r9a-h-r8d-b-kanban-db.md:2068 ->6941
+    own  [R9D   ] H-R9A-b        notes/r9d-90-handover-process-and-verification.md:316 ->6941
+    own  [R9D   ] H-R9A-b        notes/r9d-90-handover-process-and-verification.md:642 ->6941
+    own  [R9D   ] H-R9A-b        notes/r9d-91-handover-rulings.md:765 ->6941
+    own  [R9A   ] H-R9A-b        reports/round-9a-capability-organization.md:322 ->6941
+    own  [R9A   ] ■-2            notes/r9a-h-r8d-b-kanban-db.md:2068 ->6941
+C73	hermes_cli/main.py	REAL
+    own  [R8B   ] H-18           notes/r8b-90-handover-rulings.md:530 ->11601
+    own  [R7C   ] ▲6             notes/r7c-raw-authz-pairing.md:1686 ->11601
+C74	hermes_cli/managed_scope.py	REAL
+    own  [R9A   ] H-R8D-f        notes/r9a-h-r8d-ef-surveys.md:859 ->41
+    own  [R8D   ] ■-3            notes/r8d-90-rulings.md:426 ->44
+    BLED [R9A   ] H-R8D-f        notes/r9a-h-r8d-ef-surveys.md:1283 ->49   (锚点其实属于 H-R9A-d)
+    own  [R8D   ] H-R8D-f        reports/round-8d-cli-completion.md:429 ->49
+C75	hermes_cli/models.py	REAL
+    own  [R9A   ] H-R8D-e        notes/r9a-h-r8d-ef-surveys.md:22 ->4612
+    own  [R8D   ] H-R8D-e        reports/round-8d-cli-completion.md:428 ->4612
+    own  [R8D   ] ■2             notes/r8d-raw-credentials-security.md:2210 ->4612
+C76	hermes_cli/nous_billing.py	REAL
+    own  [R9D   ] H-R9C-a        notes/r9d-90-handover-credential-landing.md:21 ->173
+    own  [R9C   ] H-R9C-1        notes/r9c-raw-billing-and-http-clients.md:1860 ->179
+    own  [R9D   ] H-R9C-a        notes/r9d-91-handover-rulings.md:578 ->179
+    own  [R9C   ] H-R9C-a        reports/round-9c-external-interfaces.md:410 ->179
+C77	hermes_cli/providers.py	REAL
+    own  [R9C   ] ■-R9C-6        notes/r9c-raw-relay-and-plugin-llm.md:1516 ->91
+    own  [R9C   ] ■-R9C-6        notes/r9c-raw-relay-and-plugin-llm.md:1793 ->92
+    own  [R8A   ] ■-35           notes/r8a-90-doc-conflict-rulings.md:652 ->107
+C78	hermes_cli/web_server.py	REAL
+    own  [R8C   ] ▲-1            notes/r8c-raw-boot-authchain.md:1247 ->639
+    own  [R10   ] H-R8C-g        notes/r10-90-handover-rulings.md:236 ->665
+C79	pyproject.toml	REAL
+    own  [R9D   ] H-R8D-j        reports/round-9d-l1-completion.md:445 ->157
+    own  [R9D   ] H-R9B-e        reports/round-9d-l1-completion.md:445 ->157
+    own  [R9B   ] H-R9B-e        reports/round-9b-multimodal-delivery.md:455 ->167
+C80	tools/clarify_gateway.py	REAL
+    own  [R9D   ] ◇-1            notes/r9d-raw-gateway-clarify-turn-misc.md:1690 ->364
+    own  [R8A   ] ■-11           notes/r8a-90-doc-conflict-rulings.md:666 ->388
+    own  [R8A   ] ■-11           notes/r8a-90-doc-conflict-rulings.md:1599 ->388
+C81	tools/managed_tool_gateway.py	REAL
+    own  [R9D   ] ◇-7            notes/r9d-raw-gateway-clarify-turn-misc.md:1829 ->147
+    own  [R11A  ] H-R9D-d        notes/r11a-90-handover-rulings.md:208 ->153
+C82	tools/skills_hub.py	REAL
+    own  [R9D   ] H-R9A-f        notes/r9d-91-handover-rulings.md:368 ->302
+    own  [R9A   ] ■-4            notes/r9a-raw-skills-hub.md:1858 ->302
+C83	tools/skills_hub.py	REAL
+    own  [R9D   ] H-R9A-f        notes/r9d-90-handover-single-call-site-misses.md:387 ->3201
+    own  [R9D   ] H-R9A-f        notes/r9d-91-handover-rulings.md:368 ->3205
+    own  [R9D   ] H-R9A-f        notes/r9d-91-handover-rulings.md:768 ->3205
+    own  [R9A   ] H-R9A-f        reports/round-9a-capability-organization.md:326 ->3205
+    own  [R9D   ] H-R9D-f1       notes/r9d-90-handover-single-call-site-misses.md:880 ->3205
+C84	tools/working_diff.py	REAL
+    own  [R9D   ] H-R9A-c        notes/r9d-90-handover-process-and-verification.md:646 ->70
+    own  [R7C   ] ◇-12           notes/r7c-raw-slash-b.md:2133 ->70
+C85	website/docs/reference/cli-commands.md	REAL
+    own  [R7C   ] ◇1             notes/r7c-raw-authz-pairing.md:1696 ->1119
+    own  [R8A   ] ◇4             notes/r8a-raw-pairing-and-config-cmd.md:1230 ->1119
+C86	website/docs/reference/environment-variables.md	REAL
+    own  [R9B   ] ◎-1            notes/r9b-raw-voicein.md:1719 ->112
+    own  [R9D   ] H-R9C-a        notes/r9d-90-handover-credential-landing.md:419 ->128
+C87	website/docs/user-guide/features/hooks.md	REAL
+    own  [R9D   ] H-R9A-c        notes/r9d-90-handover-process-and-verification.md:645 ->670
+    own  [R9A   ] ▲3             notes/r9a-raw-verification.md:1767 ->670
+C88	website/docs/user-guide/features/kanban.md	REAL
+    own  [R7C   ] ◇2             notes/r7c-raw-kanban.md:1543 ->64
+    own  [R9A   ] ▲-1            notes/r9a-h-r8d-b-kanban-db.md:1727 ->69
+C89	website/docs/user-guide/features/pets.md	REAL
+    own  [R9B   ] ◎-1            notes/r9b-raw-pet.md:1279 ->118
+    own  [R10B  ] ◎2             notes/r10b-raw-shell-overlays.md:1194 ->147
+C90	website/docs/user-guide/features/web-dashboard.md	REAL
+    own  [R8C   ] ▲-3            notes/r8c-raw-dashboard-auth.md:2445 ->964
+    own  [R7C   ] ◇-1            notes/r7c-raw-shutdown.md:1149 ->970
+C91	website/docs/user-guide/secrets/index.md	REAL
+    own  [R8D   ] ▲1             notes/r8d-raw-credentials-security.md:2191 ->49
+    own  [R9C   ] ▲-1            notes/r9c-raw-secret-sources.md:43 ->50
+    own  [R9C   ] ▲-1            notes/r9c-raw-secret-sources.md:2021 ->50
+C92	website/docs/user-guide/secrets/onepassword.md	BLEED-ONLY
+    own  [R9C   ] ▲-3            notes/r9c-raw-secret-sources.md:2080 ->130
+    BLED [R9D   ] ■-2            notes/r9d-raw-file-io-safety.md:1342 ->149   (锚点其实属于 ■-1)
+    own  [R9C   ] ▲-3            notes/r9c-raw-secret-sources.md:45 ->154
