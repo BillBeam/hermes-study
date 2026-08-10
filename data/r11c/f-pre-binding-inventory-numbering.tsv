@@ -5,8 +5,9 @@ num	literal	where	corpus	line
 1	第一章	notes/r11c-raw-pre-binding-inventory.md:235	carrier	7 处章内声明用了三种写法:`第一章` / `第 7 章`(阿拉伯数字 + 空格,4 处,全在 r7c)/ `第二章`、`第十一章`。
 1	第 1 章	notes/r11c-raw-pre-binding-inventory.md:314	carrier	| K1 | `agent/agent_init.py:892` + `agent/conversation_loop.py:1415-1445`(`_budget_grace_call` 死代码) | 第 1 章 `r1:144`、第 2 章 `r2:141`/`:151`/`:157` | 第 1 章拿它当「文档-
 1	第 1 章	notes/r11c-raw-pre-binding-inventory.md:314	carrier	| K1 | `agent/agent_init.py:892` + `agent/conversation_loop.py:1415-1445`(`_budget_grace_call` 死代码) | 第 1 章 `r1:144`、第 2 章 `r2:141`/`:151`/`:157` | 第 1 章拿它当「文档-
-1	第 1 章	notes/r11c-raw-pre-binding-inventory.md:397	carrier	### 4.1 【最严重】第 1 章的分层表与进度数字整段过期,而它自称是当前值
+1	第 1 章	notes/r11c-raw-pre-binding-inventory.md:402	carrier	### 4.1 【最严重】第 1 章的分层表与进度数字整段过期,而它自称是当前值
 1	第一章	notes/r11c-raw-pre-binding-inventory.md:70	carrier	| 1 | `r1-what-is-hermes-agent.md` | R1 | 208 | 这是什么:全仓地图 + 阅读顺序 | **第一部·进门**。它已自称「《设计蓝图》的第一章」,且唯一承担"怎么读这本书"的职责 |
+1	第一章	notes/r11c-raw-reversal-propagation.md:743	carrier	| **H-R11C-E-a** | R12 装订前(**必须**,否则蓝图第一章印错数) | `chapters/r1-what-is-hermes-agent.md:103`:`| **L1 机制精读** | harness 核心机制,要逐行读透、能凭笔记重实现 | 511 | 479,923 |` —— 分层表 
 1	第一章	reports/round-3-tool-infrastructure.md:23	reports	- **`chapters/r1-what-is-hermes-agent.md`**(全景开篇章,《设计蓝图》第一章):hermes 是什么、全仓地图
 1	第一章	reviews/review-1-full-corpus.md:241	reviews	**危害**:低(读者几乎必然识别为笔误),但它出现在**全书第一章解释方法论的关键句**里,
 2	第二章	chapters/r8d-self-custody.md:259	chapters	第二章讲的是"怎么调用一个模型"。这一节是**上游那半**:在调用之前,
@@ -41,17 +42,18 @@ num	literal	where	corpus	line
 7	第 7 章	notes/r11c-raw-pre-binding-inventory.md:306	carrier	| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 
 7	第 7 章	notes/r11c-raw-pre-binding-inventory.md:320	carrier	| K7 | `gateway/run.py:14479-14500` 配对码 | 第 7 章 `r7:689`、第 10 章 `r8a:1711` | 7 章是 ▲(文档把 `/pair` 方向写反),10 章是配置面的入站路径 |
 7	第 7 章	notes/r11c-raw-pre-binding-inventory.md:350	carrier	| D#2 `website/docs/developer-guide/gateway-internals.md` | 第 7 章 `r7:694`、第 8 章 `r7b:769` | 7 章讲 `:9` 的「20+ platforms」为什么记 ◎ 不记 ▲;8 章讲 `:86` 那句话里三件事有两件错 | **不合
-7	第 7 章	notes/r11c-raw-pre-binding-inventory.md:504	carrier	| 「看板评论 steer」定位错(R7C 更正 R7) | 第 7 章正文已无该说法;第 9 章 `chapters/r7c-gateway-periphery-and-scheduling.md:464`:`顺带更正上一轮的一处定位:第 7 章曾把"看板评论 steer"归到网关的看板 watcher 文件里。` 
-7	第 7 章	notes/r11c-raw-pre-binding-inventory.md:504	carrier	| 「看板评论 steer」定位错(R7C 更正 R7) | 第 7 章正文已无该说法;第 9 章 `chapters/r7c-gateway-periphery-and-scheduling.md:464`:`顺带更正上一轮的一处定位:第 7 章曾把"看板评论 steer"归到网关的看板 watcher 文件里。` 
-7	第 7 章	notes/r11c-raw-pre-binding-inventory.md:565	carrier	本轮对它做了四处修正:章号正则允许「第 7 章」的空格写法;章号扫描加 `git log --all`
+7	第 7 章	notes/r11c-raw-pre-binding-inventory.md:509	carrier	| 「看板评论 steer」定位错(R7C 更正 R7) | 第 7 章正文已无该说法;第 9 章 `chapters/r7c-gateway-periphery-and-scheduling.md:464`:`顺带更正上一轮的一处定位:第 7 章曾把"看板评论 steer"归到网关的看板 watcher 文件里。` 
+7	第 7 章	notes/r11c-raw-pre-binding-inventory.md:509	carrier	| 「看板评论 steer」定位错(R7C 更正 R7) | 第 7 章正文已无该说法;第 9 章 `chapters/r7c-gateway-periphery-and-scheduling.md:464`:`顺带更正上一轮的一处定位:第 7 章曾把"看板评论 steer"归到网关的看板 watcher 文件里。` 
+7	第 7 章	notes/r11c-raw-pre-binding-inventory.md:570	carrier	本轮对它做了四处修正:章号正则允许「第 7 章」的空格写法;章号扫描加 `git log --all`
 8	第 8 章	notes/r11c-raw-pre-binding-inventory.md:118	carrier	3. **第 21 章不是一个主题章,是一份补遗。** 它自陈「本章是它(第 8 章)的边角补遗」。
 8	第八章	notes/r11c-raw-pre-binding-inventory.md:137	carrier	而第十一章是 `r8b-cli-trunk-and-interaction.md`(§8.2 表 + 合并提交 `fa04d83`)。**r7b 是第八章。**
 8	第八章	notes/r11c-raw-pre-binding-inventory.md:29	carrier	r7b 是第八章。另有 7 个章号(3/4/5/6/8/9/10)**从未在任何地方被写出来过**,
 8	第 8 章	notes/r11c-raw-pre-binding-inventory.md:306	carrier	| M8 | `gateway/platforms/base.py:5711` + `gateway/run.py:11096` 忙时策略机先于 pending 槽 | 第 7 章 `r7:50`/`:58`、第 8 章 `r7b:778`/`:779` | 7 章给了两个代码块并注明「属平台接入面,下一轮细讲」;8 
 8	第 8 章	notes/r11c-raw-pre-binding-inventory.md:349	carrier	| D#1 `gateway/run.py` | 第 8 章 `r7b:242`、第 10 章 `r8a:1304` | 8 章的 ▲1 讲「打断由第二层决定,文档说反了」(锚 `:23127`);10 章那格讲「顶层标量→环境变量的桥有两处实现」(锚 `:2058`) | **不合并**:判据 D 按**文件**归并
 8	第 8 章	notes/r11c-raw-pre-binding-inventory.md:350	carrier	| D#2 `website/docs/developer-guide/gateway-internals.md` | 第 7 章 `r7:694`、第 8 章 `r7b:769` | 7 章讲 `:9` 的「20+ platforms」为什么记 ◎ 不记 ▲;8 章讲 `:86` 那句话里三件事有两件错 | **不合
+8	第八章	reports/round-11c-pre-binding-cleanup.md:239	carrier	正是 `chapters/r8b-cli-trunk-and-interaction.md` —— **第十一章是 r8b,r7b 是第八章**。
 9	第 9 章	notes/r11c-raw-pre-binding-inventory.md:348	carrier	| A#15 `hermes_cli/commands.py:92-106` | 第 9 章 `r7c:175`、第 10 章 `r8a:1014`/`:1512`/`:1539` | 9 章讲 `new` 子命令带 `aliases=("reset",)`;10 章讲 `VALID_BUSY_POLICIES` 这个
-9	第 9 章	notes/r11c-raw-pre-binding-inventory.md:504	carrier	| 「看板评论 steer」定位错(R7C 更正 R7) | 第 7 章正文已无该说法;第 9 章 `chapters/r7c-gateway-periphery-and-scheduling.md:464`:`顺带更正上一轮的一处定位:第 7 章曾把"看板评论 steer"归到网关的看板 watcher 文件里。` 
+9	第 9 章	notes/r11c-raw-pre-binding-inventory.md:509	carrier	| 「看板评论 steer」定位错(R7C 更正 R7) | 第 7 章正文已无该说法;第 9 章 `chapters/r7c-gateway-periphery-and-scheduling.md:464`:`顺带更正上一轮的一处定位:第 7 章曾把"看板评论 steer"归到网关的看板 watcher 文件里。` 
 10	第 10 章	notes/r11c-raw-pre-binding-inventory.md:116	carrier	2. **第 10 章 1,771 行,是第二长章(896 行)的 2 倍、全书的 14.1%。**
 10	第 10 章	notes/r11c-raw-pre-binding-inventory.md:301	carrier	| M3 | `gateway/run.py:2057-2060` 顶层标量 → 环境变量 | 第 10 章 `r8a:195`、第 12 章 `r8c:293`/`:299` | 10 章作为「桥③」完整讲;12 章为了铺 exfil 论证又引一遍 | **留 10 章**;12 章缩为一句 + 指路 |
 10	第 10 章	notes/r11c-raw-pre-binding-inventory.md:302	carrier	| M4 | `hermes_cli/main.py:280` 配置读取函数第六个 | 第 10 章 `r8a:1742`、第 11 章 `r8b:552` | 10 章写成就地注记(「本轮清点为五个……R8B 复核后更正为六个」);11 章写成 ◇-R8B-b | **留 10 章**;11 章缩为指路。R12 要决
@@ -63,6 +65,7 @@ num	literal	where	corpus	line
 10	第 10 章	notes/r11c-raw-pre-binding-inventory.md:348	carrier	| A#15 `hermes_cli/commands.py:92-106` | 第 9 章 `r7c:175`、第 10 章 `r8a:1014`/`:1512`/`:1539` | 9 章讲 `new` 子命令带 `aliases=("reset",)`;10 章讲 `VALID_BUSY_POLICIES` 这个
 10	第 10 章	notes/r11c-raw-pre-binding-inventory.md:349	carrier	| D#1 `gateway/run.py` | 第 8 章 `r7b:242`、第 10 章 `r8a:1304` | 8 章的 ▲1 讲「打断由第二层决定,文档说反了」(锚 `:23127`);10 章那格讲「顶层标量→环境变量的桥有两处实现」(锚 `:2058`) | **不合并**:判据 D 按**文件**归并
 11	第十一章	chapters/r11b-the-unwritten-layer.md:255	chapters	- 平台接驳的主干在第十一章 `chapters/r7b-platform-integration.md`;本章是它的边角补遗。
+11	第十一章	data/r11c/f-pre-binding-inventory-scan.py:260	carrier	# 提交信息里也提章号(「第十一章是 r8b」等),于是这个数每提交一次就变一次,
 11	第十一章	git:fa04d83	gitlog	Merge round 8B: CLI 主干与交互面(第十一章 + 定案)(#12)
 11	第十一章	notes/r11c-raw-pre-binding-inventory.md:131	carrier	- **重号**:第 21 章正文把 `r7b-platform-integration.md` 称作**第十一章**——
 11	第十一章	notes/r11c-raw-pre-binding-inventory.md:135	carrier	> - 平台接驳的主干在第十一章 `chapters/r7b-platform-integration.md`;本章是它的边角补遗。
@@ -79,9 +82,13 @@ num	literal	where	corpus	line
 11	第 11 章	notes/r11c-raw-pre-binding-inventory.md:317	carrier	| K4 | 消息网关的人格命令列不出内置人格(`gateway/slash_commands.py:2502-2508`) | 第 10 章 `r8a:247`、第 11 章 `r8b:335` | 10 章是完整机制 + 实测;11 章那一行在「谁没跟上」三例表里,有独立叙事价值 |
 11	第 11 章	notes/r11c-raw-pre-binding-inventory.md:321	carrier	| K8 | `cli.py:4488-4490` | 第 10 章 `r8a:426`、第 11 章 `r8b:218` | 10 章讲 28 个 CLI 专属键的假警告,11 章讲一层 `update` 让 14 个人格丢失 |
 11	第 11 章	notes/r11c-raw-pre-binding-inventory.md:351	carrier	| D#3 `website/docs/user-guide/configuration.md` | 第 11 章 `r8b:552`、第 15 章 `r9b:485` | 11 章讲 `:1646` 的 `display.compact` 读取分支是死代码;15 章讲 `:1727` 的界面语言少列了 `ar` | 
-11	第十一章	notes/r11c-raw-pre-binding-inventory.md:544	carrier	| **H-R11C-F-a** | 成品章正文里的章号重号:第 21 章把 r7b 叫作第十一章,而第十一章是 r8b(§8.2 表 + 合并提交 `fa04d83`)。**章号不在任何关卡的检查面上**,所以它能一直活着 | `chapters/r11b-the-unwritten-layer.md:255`:`-
-11	第十一章	notes/r11c-raw-pre-binding-inventory.md:544	carrier	| **H-R11C-F-a** | 成品章正文里的章号重号:第 21 章把 r7b 叫作第十一章,而第十一章是 r8b(§8.2 表 + 合并提交 `fa04d83`)。**章号不在任何关卡的检查面上**,所以它能一直活着 | `chapters/r11b-the-unwritten-layer.md:255`:`-
-11	第十一章	notes/r11c-raw-pre-binding-inventory.md:544	carrier	| **H-R11C-F-a** | 成品章正文里的章号重号:第 21 章把 r7b 叫作第十一章,而第十一章是 r8b(§8.2 表 + 合并提交 `fa04d83`)。**章号不在任何关卡的检查面上**,所以它能一直活着 | `chapters/r11b-the-unwritten-layer.md:255`:`-
+11	第十一章	notes/r11c-raw-pre-binding-inventory.md:549	carrier	| **H-R11C-F-a** | 成品章正文里的章号重号:第 21 章把 r7b 叫作第十一章,而第十一章是 r8b(§8.2 表 + 合并提交 `fa04d83`)。**章号不在任何关卡的检查面上**,所以它能一直活着 | `chapters/r11b-the-unwritten-layer.md:255`:`-
+11	第十一章	notes/r11c-raw-pre-binding-inventory.md:549	carrier	| **H-R11C-F-a** | 成品章正文里的章号重号:第 21 章把 r7b 叫作第十一章,而第十一章是 r8b(§8.2 表 + 合并提交 `fa04d83`)。**章号不在任何关卡的检查面上**,所以它能一直活着 | `chapters/r11b-the-unwritten-layer.md:255`:`-
+11	第十一章	notes/r11c-raw-pre-binding-inventory.md:549	carrier	| **H-R11C-F-a** | 成品章正文里的章号重号:第 21 章把 r7b 叫作第十一章,而第十一章是 r8b(§8.2 表 + 合并提交 `fa04d83`)。**章号不在任何关卡的检查面上**,所以它能一直活着 | `chapters/r11b-the-unwritten-layer.md:255`:`-
+11	第十一章	reports/round-11c-pre-binding-cleanup.md:238	carrier	称作第十一章。主线独立追到合并提交 `fa04d83`「Merge round 8B(第十一章)」而它新增的
+11	第十一章	reports/round-11c-pre-binding-cleanup.md:238	carrier	称作第十一章。主线独立追到合并提交 `fa04d83`「Merge round 8B(第十一章)」而它新增的
+11	第十一章	reports/round-11c-pre-binding-cleanup.md:239	carrier	正是 `chapters/r8b-cli-trunk-and-interaction.md` —— **第十一章是 r8b,r7b 是第八章**。
+11	第十一章	reports/round-11c-pre-binding-cleanup.md:458	carrier	| `H-R11C-F-a` | 章号重号 1 处 + 7 个章号从未被写出来过 | `chapters/r11b-the-unwritten-layer.md:255`:`- 平台接驳的主干在第十一章 ` | **R12 装订** |
 12	第十二章	data/r11c/dispatch-brief.md:218	carrier	现有章号散见于各轮 PR 描述(第十二章、第十七章…),**核对一遍有没有重号或跳号**。
 12	第十二章	git:ed5558e	gitlog	Merge R8C: dashboard 与 web 面(第十二章 + 定案 13 条)(#14)
 12	第十二章	git:ed5558e	gitlog	R8C:dashboard 与 web 面 —— 移交项 6 条全清 + 定案 13 条 + 第十二章
@@ -93,16 +100,16 @@ num	literal	where	corpus	line
 13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:303	carrier	| M5 | `hermes_cli/web_server.py:1833-1840` 文件管理器读侧守卫 | 第 12 章 `r8c:245`、第 13 章 `r8d:378`/`:388` | 两章都引 `Read-side only: this guards list/read/download` 这句 docs
 13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:33	carrier	另有 1 条不是重复而是**冲突**:同一个覆盖率被第 13 章与第 16 章用两种口径各报一次,
 13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:372	carrier	同一个「`urllib_security` 被采纳了多少」,第 13 章报 **5 处 / 60 多**,第 16 章报 **2 个 / 25**。
-13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:467	carrier	### 4.3 第 13 章把一处 ◇ 记轻了,R9D 已定案为 ■
-13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:477	carrier	第 13 章记的是 **◇**(「代码有、文档无」),落点是「采用率低」。R9D 用一个跨源 302 探针实证了
-13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:478	carrier	**未采用处会把 `Authorization` 带过去**,并**新立 ■**。第 13 章的 §5 合计行
-13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:486	carrier	**执行**:第 13 章 `:328` 由 ◇ 升为 ◇ + ■(或改述为「◇ 采用率低 → 见第 17 章 ■」),
-13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:488	carrier	*注意口径:第 13 章那行合计是「本簇」口径,不是全书口径;改它会改跨轮可比性,
-13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:491	carrier	### 4.4 第 13 章与第 16 章的覆盖率两个读数
-13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:494	carrier	而第 13 章(R8D)那句从没被回看过。
-13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:546	carrier	| **H-R11C-F-c** | 第 13 章把 `urllib_security` 的覆盖缺口记 ◇,而 R9D 已就同一处**新立 ■**(跨源 302 实测泄漏 Bearer);第 13 章 §5 的合计行因此也是按旧定案统计的 | `chapters/r8d-self-custody.md:328`:`代价
-13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:546	carrier	| **H-R11C-F-c** | 第 13 章把 `urllib_security` 的覆盖缺口记 ◇,而 R9D 已就同一处**新立 ■**(跨源 302 实测泄漏 Bearer);第 13 章 §5 的合计行因此也是按旧定案统计的 | `chapters/r8d-self-custody.md:328`:`代价
-13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:547	carrier	| **H-R11C-F-d** | 同一个「`urllib_security` 采纳率」被两章用两种口径各报一次(第 13 章 5 处/60 多;第 16 章 2 个/25),**两章都没写自己的口径** | `chapters/r9c-external-interfaces.md:22`:`307/308 语义、防
+13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:472	carrier	### 4.3 第 13 章把一处 ◇ 记轻了,R9D 已定案为 ■
+13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:482	carrier	第 13 章记的是 **◇**(「代码有、文档无」),落点是「采用率低」。R9D 用一个跨源 302 探针实证了
+13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:483	carrier	**未采用处会把 `Authorization` 带过去**,并**新立 ■**。第 13 章的 §5 合计行
+13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:491	carrier	**执行**:第 13 章 `:328` 由 ◇ 升为 ◇ + ■(或改述为「◇ 采用率低 → 见第 17 章 ■」),
+13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:493	carrier	*注意口径:第 13 章那行合计是「本簇」口径,不是全书口径;改它会改跨轮可比性,
+13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:496	carrier	### 4.4 第 13 章与第 16 章的覆盖率两个读数
+13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:499	carrier	而第 13 章(R8D)那句从没被回看过。
+13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:551	carrier	| **H-R11C-F-c** | 第 13 章把 `urllib_security` 的覆盖缺口记 ◇,而 R9D 已就同一处**新立 ■**(跨源 302 实测泄漏 Bearer);第 13 章 §5 的合计行因此也是按旧定案统计的 | `chapters/r8d-self-custody.md:328`:`代价
+13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:551	carrier	| **H-R11C-F-c** | 第 13 章把 `urllib_security` 的覆盖缺口记 ◇,而 R9D 已就同一处**新立 ■**(跨源 302 实测泄漏 Bearer);第 13 章 §5 的合计行因此也是按旧定案统计的 | `chapters/r8d-self-custody.md:328`:`代价
+13	第 13 章	notes/r11c-raw-pre-binding-inventory.md:552	carrier	| **H-R11C-F-d** | 同一个「`urllib_security` 采纳率」被两章用两种口径各报一次(第 13 章 5 处/60 多;第 16 章 2 个/25),**两章都没写自己的口径** | `chapters/r9c-external-interfaces.md:22`:`307/308 语义、防
 13	第十三章	reports/round-8d-cli-completion.md:133	reports	`chapters/r8d-self-custody.md`(第十三章)。主题:**一个装在别人机器上、要活很久的 agent
 14	第十四章	git:2eec955	gitlog	R9A 收官:成品章(第十四章)+ 报告定稿,四关全绿
 14	第 14 章	notes/r11c-raw-pre-binding-inventory.md:111	carrier	第 3 章讲工具系统的基础设施(注册、schema、执行),第 14 章讲能力怎么组织与委派,
@@ -110,9 +117,9 @@ num	literal	where	corpus	line
 14	第 14 章	notes/r11c-raw-pre-binding-inventory.md:300	carrier	| M2 | `agent/system_prompt.py:504-509` 技能索引放 volatile 层之首 | 第 5 章 `r5:469`、第 14 章 `r9a:233` | 两章都讲「索引会变,放 stable 会把缓存前缀从索引处炸到底」,14 章额外锚定了 prompt cache 这个术语 | *
 14	第 14 章	notes/r11c-raw-pre-binding-inventory.md:318	carrier	| K5 | `tools/code_execution_tool.py:252-253` 沙箱环境洗净 | 第 3 章 `r3:278`、第 14 章 `r9a:186` | 3 章讲机制与 GHSA 修法;14 章用它证伪 `creating-skills.md` 的 never 那句(▲5) |
 14	第 14 章	notes/r11c-raw-pre-binding-inventory.md:347	carrier	| A#6 `agent/skill_utils.py:849-877` | 第 14 章 `r9a:44`、第 20 章 `r11a:207` | 14 章讲 `SKILL_PROMPT_DESC_LIMIT = 60`(模型只看见一行索引);20 章讲 `iter_skill_index_files` | **不合
-14	第 14 章	notes/r11c-raw-pre-binding-inventory.md:445	carrier	### 4.2 第 14 章 ▲4 的锚点已被 R9D 更正,章内未同步
-14	第 14 章	notes/r11c-raw-pre-binding-inventory.md:464	carrier	**执行**:第 14 章 `:429` 那一格的锚点范围由 971–974 改为 971–975。断言本身(3 个键不存在)不变——
-14	第 14 章	notes/r11c-raw-pre-binding-inventory.md:465	carrier	R9D 的定案确认 3 个 ▲ 成立,被推翻的是**另外 31 个**该记 ◇ 还是 ▲,而第 14 章从没写过那 31 个。
+14	第 14 章	notes/r11c-raw-pre-binding-inventory.md:450	carrier	### 4.2 第 14 章 ▲4 的锚点已被 R9D 更正,章内未同步
+14	第 14 章	notes/r11c-raw-pre-binding-inventory.md:469	carrier	**执行**:第 14 章 `:429` 那一格的锚点范围由 971–974 改为 971–975。断言本身(3 个键不存在)不变——
+14	第 14 章	notes/r11c-raw-pre-binding-inventory.md:470	carrier	R9D 的定案确认 3 个 ▲ 成立,被推翻的是**另外 31 个**该记 ◇ 还是 ▲,而第 14 章从没写过那 31 个。
 15	第十五章	git:1888a1f	gitlog	R9B 收官:成品章(第十五章)+ 报告定稿,四关全绿
 15	第 15 章	notes/r11c-raw-pre-binding-inventory.md:304	carrier	| M6 | `tools/transcription_tools.py:336-350` + `tools/voice_mode.py:2193-2201` STT 名单三份、漂了一份 | 第 15 章 `r9b:405`/`:422`、第 16 章 `r9c:266`/`:289` | 同一个故事、同两段摘录、同一
 15	第 15 章	notes/r11c-raw-pre-binding-inventory.md:351	carrier	| D#3 `website/docs/user-guide/configuration.md` | 第 11 章 `r8b:552`、第 15 章 `r9b:485` | 11 章讲 `:1646` 的 `display.compact` 读取分支是死代码;15 章讲 `:1727` 的界面语言少列了 `ar` | 
@@ -122,17 +129,17 @@ num	literal	where	corpus	line
 16	第 16 章	notes/r11c-raw-pre-binding-inventory.md:322	carrier	| K9 | `model_tools.py:1103-1123` | 第 3 章 `r3:54`、第 16 章 `r9c:365` | 3 章点名管线入口 `handle_function_call`,16 章讲 `post_tool_call` 钩子的载荷键 |
 16	第 16 章	notes/r11c-raw-pre-binding-inventory.md:33	carrier	另有 1 条不是重复而是**冲突**:同一个覆盖率被第 13 章与第 16 章用两种口径各报一次,
 16	第 16 章	notes/r11c-raw-pre-binding-inventory.md:372	carrier	同一个「`urllib_security` 被采纳了多少」,第 13 章报 **5 处 / 60 多**,第 16 章报 **2 个 / 25**。
-16	第 16 章	notes/r11c-raw-pre-binding-inventory.md:491	carrier	### 4.4 第 13 章与第 16 章的覆盖率两个读数
-16	第 16 章	notes/r11c-raw-pre-binding-inventory.md:493	carrier	同 §3.6,不重复。它既是「跨章重复/冲突」也是「未同步」——因为第 16 章(R9C)的读数**更晚**,
-16	第 16 章	notes/r11c-raw-pre-binding-inventory.md:547	carrier	| **H-R11C-F-d** | 同一个「`urllib_security` 采纳率」被两章用两种口径各报一次(第 13 章 5 处/60 多;第 16 章 2 个/25),**两章都没写自己的口径** | `chapters/r9c-external-interfaces.md:22`:`307/308 语义、防
+16	第 16 章	notes/r11c-raw-pre-binding-inventory.md:496	carrier	### 4.4 第 13 章与第 16 章的覆盖率两个读数
+16	第 16 章	notes/r11c-raw-pre-binding-inventory.md:498	carrier	同 §3.6,不重复。它既是「跨章重复/冲突」也是「未同步」——因为第 16 章(R9C)的读数**更晚**,
+16	第 16 章	notes/r11c-raw-pre-binding-inventory.md:552	carrier	| **H-R11C-F-d** | 同一个「`urllib_security` 采纳率」被两章用两种口径各报一次(第 13 章 5 处/60 多;第 16 章 2 个/25),**两章都没写自己的口径** | `chapters/r9c-external-interfaces.md:22`:`307/308 语义、防
 17	第十七章	data/r11c/dispatch-brief.md:218	carrier	现有章号散见于各轮 PR 描述(第十二章、第十七章…),**核对一遍有没有重号或跳号**。
 17	第十七章	git:dfcccc7	gitlog	r9d 成品章(第十七章)+ 移交取证组 B/C 到货,主线一处初判被推翻
 17	第 17 章	notes/r11c-raw-pre-binding-inventory.md:112	carrier	第 17 章讲守卫装在哪一层。三章之间隔了 13 章。
 17	第十七章	notes/r11c-raw-pre-binding-inventory.md:160	carrier	就会把它抬高一次。开工首测 **29 处**(承载贡献 4:派工书写了「第十二章、第十七章」,
 17	第 17 章	notes/r11c-raw-pre-binding-inventory.md:299	carrier	| M1 | `AGENTS.md:971-975` toolset 键清单 | 第 14 章 `r9a:429`、第 17 章 `r9d:643` | 14 章一行 ▲4 表格格(「列出 30 个键,其中 3 个不存在」);17 章有完整引文 + 58/30/漏 31/多列 3 的全套数,并自陈「结清 R9A 的一条
 17	第 17 章	notes/r11c-raw-pre-binding-inventory.md:305	carrier	| M7 | `agent/file_safety.py:280-284` Bitwarden 缓存注释 + 1Password 同错未挡 | 第 16 章 `r9c:418`、第 17 章 `r9d:229` | 同一段注释、同一个「发生过一次、被记录、又犯一次」的故事;16 章更完整(带全仓 grep 与 1Pas
-17	第 17 章	notes/r11c-raw-pre-binding-inventory.md:486	carrier	**执行**:第 13 章 `:328` 由 ◇ 升为 ◇ + ■(或改述为「◇ 采用率低 → 见第 17 章 ■」),
-17	第 17 章	notes/r11c-raw-pre-binding-inventory.md:505	carrier	| 漏列 31 个 toolset 整体判 ▲ → 24 ◇ + 7 ▲ + 3 ▲(R9D 推翻主线初判) | 第 17 章 `chapters/r9d-tool-surface-and-guard-placement.md:667`:`(本章初稿把 31 个整体算作 ▲,是错的;更正依据是上面那次定稿快照对读。)`
+17	第 17 章	notes/r11c-raw-pre-binding-inventory.md:491	carrier	**执行**:第 13 章 `:328` 由 ◇ 升为 ◇ + ■(或改述为「◇ 采用率低 → 见第 17 章 ■」),
+17	第 17 章	notes/r11c-raw-pre-binding-inventory.md:510	carrier	| 漏列 31 个 toolset 整体判 ▲ → 24 ◇ + 7 ▲ + 3 ▲(R9D 推翻主线初判) | 第 17 章 `chapters/r9d-tool-surface-and-guard-placement.md:667`:`(本章初稿把 31 个整体算作 ▲,是错的;更正依据是上面那次定稿快照对读。)`
 18	第 18 章	notes/r11c-raw-pre-binding-inventory.md:88	carrier	| 19 | `r10b-desktop-application.md` | R10B | 308 | 桌面应用 | 第六部。`reports/round-10b-desktop-application.md:722` 自陈与第 18 章合起来才是完整界面层,R12 应把两章并为一部的相邻两节 |
 18	第十八章	reports/round-10b-desktop-application.md:722	reports	4. **R12 装订时**,本章是第十九章;第十八章(R10)与本章合起来才是完整的「界面层」。
 19	第十九章	git:719882e	gitlog	产出:chapters/r10b-desktop-application.md(第十九章)、
@@ -143,7 +150,7 @@ num	literal	where	corpus	line
 21	第二十一章	git:a5b53b9	gitlog	第二十一章 chapters/r11b-the-unwritten-layer.md:以 38 个欠账文件为素材,讲 harness
 21	第 21 章	notes/r11c-raw-pre-binding-inventory.md:118	carrier	3. **第 21 章不是一个主题章,是一份补遗。** 它自陈「本章是它(第 8 章)的边角补遗」。
 21	第 21 章	notes/r11c-raw-pre-binding-inventory.md:131	carrier	- **重号**:第 21 章正文把 `r7b-platform-integration.md` 称作**第十一章**——
-21	第 21 章	notes/r11c-raw-pre-binding-inventory.md:544	carrier	| **H-R11C-F-a** | 成品章正文里的章号重号:第 21 章把 r7b 叫作第十一章,而第十一章是 r8b(§8.2 表 + 合并提交 `fa04d83`)。**章号不在任何关卡的检查面上**,所以它能一直活着 | `chapters/r11b-the-unwritten-layer.md:255`:`-
+21	第 21 章	notes/r11c-raw-pre-binding-inventory.md:549	carrier	| **H-R11C-F-a** | 成品章正文里的章号重号:第 21 章把 r7b 叫作第十一章,而第十一章是 r8b(§8.2 表 + 合并提交 `fa04d83`)。**章号不在任何关卡的检查面上**,所以它能一直活着 | `chapters/r11b-the-unwritten-layer.md:255`:`-
 21	第 21 章	notes/r11c-raw-pre-binding-inventory.md:92	carrier	**「21 章 vs 派工书说的 20 章」**:第 21 章是 R11B 主线新增的,R11B 报告的口径注这样称呼它:
 21	第二十一章	notes/r11c-raw-pre-binding-inventory.md:96	carrier	> *口径注:479 里有 5 条来自主线本轮新增的第二十一章;片 C 收工自测的自身贡献口径是 474。
 21	第二十一章	reports/round-11b-review-and-reconciliation.md:207	reports	*口径注:479 里有 5 条来自主线本轮新增的第二十一章;片 C 收工自测的自身贡献口径是 474。

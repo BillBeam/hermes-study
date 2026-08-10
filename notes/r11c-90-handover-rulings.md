@@ -84,10 +84,15 @@ R11B 版的同轮底稿是这么找的:
 
 ### 1.3 修好之后的读数(前后对比)
 
+*(两条都带 `--exclude round-11c`:这是一个**前后对比**读数,而本轮自己的定案表一旦落地
+就会改变它 —— 修好之后的普查**读得到** R11C 的定案表,于是未结清会掉下去。
+把对比钉成「不含本轮」,含本轮的当前状态另报,见本节末。这正是 R11B 给这个探针写
+`--exclude` 时的理由:普查会被写它的那一轮污染。)*
+
 ```verify
 cd /home/user/hermes-study && \
-  python3 data/r11c/probes/handover_census_r11c.py --legacy --quiet | tail -1 && \
-  python3 data/r11c/probes/handover_census_r11c.py --quiet | tail -1
+  python3 data/r11c/probes/handover_census_r11c.py --legacy --quiet --exclude round-11c | tail -1 && \
+  python3 data/r11c/probes/handover_census_r11c.py --quiet --exclude round-11c | tail -1
 ```
 
 ```text
@@ -101,6 +106,11 @@ cd /home/user/hermes-study && \
 | 总条数 | 83 | **96** | 多出的 13 条含 `H-R10G-a…d`、`H-B1-a…e` —— **从未在任何普查里出现过** |
 | 未结清 | 29 | **16** | 26 条 R11B 已定案的被旧口径误报成 OPEN;另有新发现的 13 条里 13 条 OPEN |
 | 认不出表头的表格行 | 52 | 135 | **R11B 那一版从不打印这个数**;52 是本轮用它的判据补算的 |
+
+**含本轮的当前状态(第二读数,与上表口径不同,不合并)**:修好后的普查**读得到**
+本轮的定案表 —— 扫描文件 263 份、总计 97 条、**未结清 7 条**、REVIEW 队列 3 条、
+认不出表头 149 行。**16 → 7 这一降正是本条制度终于生效的证据**:R11B 的 21 条定案
+在旧口径下一条都读不到,而 R11C 的定案表一落地就被读进去了。
 
 **「认不出表头的表格行」这一栏必须单独说。** R11B 版遇到认不出的表头就 `continue`,
 于是「这张表里没有案号」和「这张表我看不懂」在输出里长得一模一样。

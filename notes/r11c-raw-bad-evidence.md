@@ -257,13 +257,18 @@ python3 data/r11c/c-bad-evidence-innerfence.py
 那正是 R10B 立这条关卡时抓到的第四种形态(「一段从未由该命令产生过的输出被写进底稿,
 数字看起来完全合理」)。**人工评审抓不住这一类,因为它要求评审者真的去跑那条命令。***
 
-**0 不是空跑出来的 —— 负控证明判据抓得住。** 把改前的两份原文从 `git show HEAD:` 取出放进
-一个临时树,用同一条判据跑:
+**0 不是空跑出来的 —— 负控证明判据抓得住。** 把改前的两份原文取出放进一个临时树,
+用同一条判据跑:
+
+*(R11C 主线更正,只改取证方式不改结论:原命令写的是 `git show HEAD:`,而**本轮 commit 一落,
+`HEAD` 就成了清理后**,负控于是从 2 跑成 0 —— 一个"证明判据抓得住"的负控反过来证明了
+判据抓不住。这与 R11B 报告 §7.2 记下的第三处**完全同型、同一个片号、隔一轮原样重演**。
+改钉本轮开工点 `b419bc1`(R11B 合入 main 那个提交)。)*
 
 ```verify
 SCR=$(mktemp -d); mkdir -p "$SCR/notes"; \
-  git show HEAD:notes/r10-raw-native-vendor.md > "$SCR/notes/r10-raw-native-vendor.md"; \
-  git show HEAD:notes/r11b-raw-notes-citation-cleanup.md > "$SCR/notes/r11b-raw-notes-citation-cleanup.md"; \
+  git show b419bc1:notes/r10-raw-native-vendor.md > "$SCR/notes/r10-raw-native-vendor.md"; \
+  git show b419bc1:notes/r11b-raw-notes-citation-cleanup.md > "$SCR/notes/r11b-raw-notes-citation-cleanup.md"; \
   python3 - "$SCR" <<'PY'
 import sys
 from pathlib import Path
@@ -330,7 +335,11 @@ baseline_porcelain_changed=False
 
 **逐类对账(不靠「差数正好对上」这种巧合式论证,直接量块)。**
 对片 C 那 31 个文件,用关卡自己的 `PAIR` / `ANY_VERIFY` / `is_mutating`
-分别量改前(`git show HEAD:`)与改后:
+分别量改前与改后。
+
+*(R11C 主线更正,只改取证方式不改结论:原命令用 `git show HEAD:` 取「改前」,
+而本轮 commit 一落 `HEAD` 就是改后,于是 before 与 after 读成同一份、delta 全变 0。
+与上面负控那处**同一物种、同一份底稿里的第二例**。改钉本轮开工点 `b419bc1`。)*
 
 ```verify
 cd /home/user/hermes-study && python3 - <<'PY'
@@ -340,7 +349,7 @@ sys.path.insert(0, 'scripts')
 from verify_evidence_commands import PAIR, ANY_VERIFY, is_mutating
 files = Path('data/r11c/slice-c-files.txt').read_text().split()
 agg = {}
-for tag, get in (('before', lambda f: subprocess.run(['git', 'show', f'HEAD:{f}'],
+for tag, get in (('before', lambda f: subprocess.run(['git', 'show', f'b419bc1:{f}'],
                                                      capture_output=True, text=True).stdout),
                  ('after', lambda f: Path(f).read_text(encoding='utf-8'))):
     v = pr = u = mu = 0

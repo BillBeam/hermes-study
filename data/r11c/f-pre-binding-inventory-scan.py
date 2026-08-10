@@ -76,7 +76,14 @@ F_CARRIERS = {
 
 
 def is_f_carrier(rel: str) -> bool:
-    return rel in F_CARRIERS or rel.startswith("data/r11c/f-pre-binding-inventory")
+    # R11C 主线更正:承载面原本只含片 F 自己的文件,于是**本轮其余产出**(主线底稿、
+    # 各片底稿、本轮报告)一提到章号就把读数抬上去 —— 关卡实测 25 -> 35。
+    # 「报告这个测量」这个动作会改变它自己的读数,与 R9D 那条点名覆盖率不幂等同源:
+    # 承载面必须是**整轮**,不是一片。
+    return (rel in F_CARRIERS
+            or rel.startswith("data/r11c/")
+            or "r11c-" in rel
+            or rel.startswith("reports/round-11c-"))
 
 
 def cn_to_int(s: str) -> int | None:
@@ -248,9 +255,18 @@ def main() -> int:
                         ln.strip()[:160],
                     ])
     # git 提交信息(PR 描述的落点)
+    #
+    # R11C 主线更正:原为 `git log --all`,**量的是一个自己会长的东西** —— R11C 自己的
+    # 提交信息里也提章号(「第十一章是 r8b」等),于是这个数每提交一次就变一次,
+    # 关卡当场判 EVIDENCE-DIFF(25 -> 35)。这正是 R11B 记过三次的那个物种:
+    # 「一条量『之前』的命令,被钉在了一个会移动的引用上」。
+    # 钉到 R11C 开工点(R11B 合入 main 的那个提交),读数从此稳定且语义明确:
+    # 「章号在本轮开工前的历史里被声明过几次」。可用 HERMES_CHAPTER_LOG_REV 覆盖。
+    import os
     import subprocess
+    rev = os.environ.get("HERMES_CHAPTER_LOG_REV", "b419bc1")
     log = subprocess.run(
-        ["git", "log", "--all", "--format=%x01%h%x02%s%n%b"],
+        ["git", "log", rev, "--format=%x01%h%x02%s%n%b"],
         cwd=STUDY, capture_output=True, text=True, check=True,
     ).stdout
     for entry in log.split("\x01"):

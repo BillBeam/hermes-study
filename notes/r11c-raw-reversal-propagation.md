@@ -601,7 +601,7 @@ cd "$(git rev-parse --show-toplevel)" && python3 data/r11c/e-reversal-propagatio
 
 | 条目 | 剔除 | 不剔除 | 多出来的位置 |
 |---|---|---|---|
-| E-21 `五个读取函数` | 0 | 1 | `data/r11c/f-pre-binding-inventory-scan.py:352`:`# 「五个读取函数」被 R8B 更正为六个,是本项目已知的成品章陈旧形态。` |
+| E-21 `五个读取函数` | 0 | 1 | `data/r11c/f-pre-binding-inventory-scan.py:368`:`# 「五个读取函数」被 R8B 更正为六个,是本项目已知的成品章陈旧形态。` |
 | E-26(负控)`iron` | 32 | 34 | `data/r11c/a-id-collisions-audit.py` 与 `data/r11c/probes/handover_census_r11c.py:71`:`# 这就是 r4-90 那条 `iron` 匹配到 `env`**`iron`**`ment` 的自检 grep,换了个部件。` |
 | E-28 `读数相同` | 1 | 4 | `data/r11c/dispatch-brief.md:43`:`11. **同一指标多次/多方法测量分别标注**,不得写成「读数相同」。` 等 3 处 |
 
@@ -613,7 +613,7 @@ cd "$(git rev-parse --show-toplevel)" && python3 data/r11c/e-reversal-propagatio
 11. **同一指标多次/多方法测量分别标注**,不得写成「读数相同」。
 ```
 
-`data/r11c/f-pre-binding-inventory-scan.py:352 @ 863e313`
+`data/r11c/f-pre-binding-inventory-scan.py:368 @ 863e313`
 
 ```
     # 「五个读取函数」被 R8B 更正为六个,是本项目已知的成品章陈旧形态。

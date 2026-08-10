@@ -386,8 +386,13 @@ cd /home/user/hermes-study && python3 data/r11c/f-pre-binding-inventory-scan.py 
 **独立性再声明**:本节从**成品章现状**出发反查(章侧锚点 / 章侧数字 / 章侧 ▲◇■◎),
 未读片 E 的任何产出。本片收工时 `notes/r11c-raw-reversal-propagation.md` 不存在:
 
+*(R11C 主线更正,只改取证方式、不改结论:原命令是 `ls notes/ | grep -c …`,量的是**当下
+工作区** —— 片 E 后来到货,这条命令就从 0 变成 1,关卡当场判 EVIDENCE-DIFF。一条用来证明
+「那时候还没有」的命令,不能钉在一个会长出那个东西的引用上。改钉片 F 入库的提交 `94be7f0`,
+读数稳定,且语义正是本节要断言的那一句。)*
+
 ```verify
-cd /home/user/hermes-study && ls notes/ | grep -c 'r11c-raw-reversal-propagation' || true
+cd /home/user/hermes-study && git ls-tree -r --name-only 94be7f0 notes/ | grep -c 'r11c-raw-reversal-propagation' || true
 ```
 
 ```text
