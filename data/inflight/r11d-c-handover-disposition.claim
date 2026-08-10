@@ -1,0 +1,6 @@
+agent: 片 C · 验收项 9 —— 移交条目逐条处置
+dispatched: 2026-08-10 (R11D 批次一)
+signal: RELEASED 片 C 完成信号(任务完成通知:处置 140 行 = 137 条 + 新铸 3 条;结清 28 / 已被取代 8 / 判为不做 4 / 转 X 100;三条自校验读数与三个口径前后读数)
+path: notes/r11d-raw-handover-disposition.md
+path: data/r11d/probes/handover_*
+path: data/r11d/handover-*
