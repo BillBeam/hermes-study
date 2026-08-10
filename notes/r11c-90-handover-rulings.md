@@ -150,7 +150,7 @@ R11A 有意未改,理由是这 243 个 L2「分散在一条兜底规则与两条
 ```
 
 - 兜底 **227 个 / 114,899 行** → `UNCLAIMED`(R6 从未点名过它们,是「没人认领」);
-- 显式点名的 **16 个**(memory 的 8 个 `README.md` + 8 个 `plugin.yaml`)→ **留 `R6`**。
+- 显式点名的 **16 个**(`plugins/memory/**/README.md` 8 个 + `plugins/memory/**/plugin.yaml` 8 个)→ **留 `R6`**。
   R6 的规则注释明写「README/plugin.yaml 留 L2(文档与元数据,结构级即可)」,
   即**点名了却没做**。
 
