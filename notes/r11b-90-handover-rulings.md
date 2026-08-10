@@ -238,7 +238,7 @@ R11A 那一轮的配对率 18.9% → 24.7%,`unpaired` 恒等于 758。
 「用户写错层级」和「用户自定义扩展」变成同一个无声成功。** 豁免名单该记录它豁免的**理由**,
 否则它就是一个专门用来掩盖错层级的机制。
 
-### H-R8B-b —— `status.py` 8 处无保护调用点
+### H-R8B-b —— `hermes_cli/status.py` 8 处无保护调用点
 
 **定案:关闭,判据已给、设计原则已提取;逐处「该不该罩」不再续转。**
 
@@ -343,7 +343,7 @@ const modules = import.meta.glob<{ default: HermesPlugin }>('../plugins/*/plugin
  * Runtime-loaded example — this file is NOT bundled as a module: it ships as
 ```
 
-**没有任何代码这样加载它**——`runtime-loader.ts:13` 与 `plugins-store.ts:3` 提到
+**没有任何代码这样加载它**——`apps/desktop/src/contrib/runtime-loader.ts:13` 与 `apps/desktop/src/contrib/plugins-store.ts:3` 提到
 「in-repo runtime example」的地方都是**注释,不是 import**。
 **记 ▲-R11B-01**:模块头注释声称的装载路径在代码里不存在。
 **维持 L2,status 照常。**
@@ -358,7 +358,7 @@ const modules = import.meta.glob<{ default: HermesPlugin }>('../plugins/*/plugin
 
 **记法**:码内矛盾记 **▲(码内)**,与地图级 ▲ 在报告里**分两行报**,不合并。
 本轮的 ▲-R11B-01(上一条)即按此记为**码内**。
-片 B2 移交的 `H-R11B-B2-e`(`subcommands/__init__.py` 自称 "each subcommand group owns a builder")
+片 B2 移交的 `H-R11B-B2-e`(`hermes_cli/subcommands/__init__.py` 自称 "each subcommand group owns a builder")
 同属码内,按此裁定。
 
 ### H-R9B-f —— `.ogg` 目标下的 ffmpeg 编解码
