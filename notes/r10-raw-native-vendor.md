@@ -523,7 +523,7 @@ best-effort(缺 `.so` / 关配置 / Python 编译时没开扩展加载,一律返
 
 **先查清是哪条规则把它们判成 L2 的。** 不是针对这两个文件的判断,而是一条目录级 catch-all:
 
-`scripts/assign_layers.py:619-623`
+`scripts/assign_layers.py:629-633`
 
 ```python
     # R5 吸纳:FTS5 CJK 分词器本体(vendored sqlite 头文件仍留 R10)

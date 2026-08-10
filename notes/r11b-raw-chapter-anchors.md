@@ -52,7 +52,7 @@
 探针用 `chr(96)*3` 拼出围栏标记而不是直接写三个反引号——**直接写会把这个 `verify` 块自己截断**。
 原因在配对正则里:命令体那一段 `NOFENCE` 明令不许出现围栏。
 
-`scripts/verify_evidence_commands.py:68`
+`scripts/verify_evidence_commands.py:102`
 
 ```python
 PAIR = re.compile(r"```verify\n(?P<cmd>" + NOFENCE + r")```[ \t]*\n\s*```text\n"
@@ -592,7 +592,11 @@ citations=16  OK=13  UNCHECKED=3
 
 **这个数本身不能写进 `verify` 块**——检查器会真的把块里的命令跑起来:
 
-`scripts/verify_evidence_commands.py:97`
+*(R11C 只改行号:该语句原在 `:97`,R11C 落地可跑性检查后,同一条语句移到 `:205`;
+`--fix` 找不到它是因为文件里现在有**两处**同样的 `subprocess.run`——`:180` 是新增的
+可跑性腿,`:205` 才是本条原本指的比对腿。原判不动。)*
+
+`scripts/verify_evidence_commands.py:205`
 
 ```python
             r = subprocess.run(["bash", "-c", cmd], cwd=ROOT, capture_output=True,

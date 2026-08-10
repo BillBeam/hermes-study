@@ -1,6 +1,6 @@
 agent: 片 C · 55 块可判定的坏证据
 dispatched: R11C 派发批次一
-signal: OPEN
+signal: TERMINATED 生产者在 04:30 前后全部死亡,未发任何完成信号;在途改动已按 CLAUDE.md「无信号即未完成」全部回滚,claim 据实关闭而非标 RELEASED
 path: notes/r11c-raw-bad-evidence.md
 path: data/r11c/c-bad-evidence-*
 path: notes/*.md
