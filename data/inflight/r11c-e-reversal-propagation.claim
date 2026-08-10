@@ -1,5 +1,5 @@
 agent: 片 E · 改判传播型污染复查
 dispatched: R11C 派发批次三
-signal: OPEN
+signal: RELEASED 片 E 完成信号(任务完成通知,含 798 行底稿 + 两个探针);主线已复跑两道关卡并独立复核 chapters/r1:118 的错六倍、R10 派工书 :52 的旧定性、以及 E-e 那条 30 行锚点漂移
 path: notes/r11c-raw-reversal-propagation.md
 path: data/r11c/e-reversal-propagation-*
