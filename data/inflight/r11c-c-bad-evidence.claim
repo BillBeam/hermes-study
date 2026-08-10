@@ -3,3 +3,4 @@ dispatched: R11C 派发批次一
 signal: OPEN
 path: notes/r11c-raw-bad-evidence.md
 path: data/r11c/c-bad-evidence-*
+path: notes/*.md
