@@ -1,5 +1,5 @@
 agent: 片 A · 案号重复造成的隐形欠账
-dispatched: R11C 派发批次一
-signal: TERMINATED 生产者在 04:30 前后全部死亡,未发任何完成信号;在途改动已按 CLAUDE.md「无信号即未完成」全部回滚,claim 据实关闭而非标 RELEASED
+dispatched: R11C 派发批次二
+signal: OPEN
 path: notes/r11c-raw-id-collisions.md
 path: data/r11c/a-id-collisions-*
