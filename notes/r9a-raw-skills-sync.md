@@ -740,19 +740,25 @@ Authorization header -> Bearer eyJ-FAKE-NOUS-BEARER
 3. **可达性**:`sync.base_url` 是 `config.yaml` 的根键,而 `sync` **不在** `DEFAULT_CONFIG`、
    也不在 `_EXTRA_KNOWN_ROOT_KEYS` 里(搜索面:直接问运行时那个已算好的集合,
    而不是 grep 源码字面——后者会被注释和字符串干扰):
+   **R11C 片 C 改:块在列表里整体缩进 3 空格,那 3 个空格跟着进了 `python -c "…"` 的
+   Python 源码,原样重跑必得 `IndentationError: unexpected indent`。命令行内容改为顶格,
+   并按纪律补 `HERMES_DISABLE_LAZY_INSTALLS=1`;原 ```console 块改标 ```text 使其被
+   关卡逐字比对(三个 False 是本条可达性判据钉的数,理应被机械校验)。**结论未变。**
+
    ```verify
-   cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python -c "
-   import sys; sys.path.insert(0,'.')
-   from hermes_cli.config import _KNOWN_ROOT_KEYS, DEFAULT_CONFIG, _EXTRA_KNOWN_ROOT_KEYS
-   print('sync in DEFAULT_CONFIG      :', 'sync' in DEFAULT_CONFIG)
-   print('sync in _EXTRA_KNOWN_ROOT   :', 'sync' in _EXTRA_KNOWN_ROOT_KEYS)
-   print('sync in _KNOWN_ROOT_KEYS    :', 'sync' in _KNOWN_ROOT_KEYS)"
+cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python -c "
+import sys; sys.path.insert(0,'.')
+from hermes_cli.config import _KNOWN_ROOT_KEYS, DEFAULT_CONFIG, _EXTRA_KNOWN_ROOT_KEYS
+print('sync in DEFAULT_CONFIG      :', 'sync' in DEFAULT_CONFIG)
+print('sync in _EXTRA_KNOWN_ROOT   :', 'sync' in _EXTRA_KNOWN_ROOT_KEYS)
+print('sync in _KNOWN_ROOT_KEYS    :', 'sync' in _KNOWN_ROOT_KEYS)"
    ```
-   ```console
-   sync in DEFAULT_CONFIG      : False
-   sync in _EXTRA_KNOWN_ROOT   : False
-   sync in _KNOWN_ROOT_KEYS    : False
-   ```
+
+   ```text
+sync in DEFAULT_CONFIG      : False
+sync in _EXTRA_KNOWN_ROOT   : False
+sync in _KNOWN_ROOT_KEYS    : False
+```
    而配置校验对未知根键**故意不告警**:
    `hermes_cli/config.py:2036 @ 863e313`
    ```python

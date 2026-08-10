@@ -1400,7 +1400,13 @@ const GLYPHS = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾅﾆ�
 
 在主线准备的基线副本上跑(**不装包**):
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 它不是可重跑命令。**
+vitest 要 `apps/desktop/node_modules`,而基线是只读 checkout、**没有 `apps/desktop/node_modules`**;补它只能在基线里 `npm ci`,
+那会弄脏全项目的引用基准(CLAUDE.md 边界第一条)。R10B 跑它用的是基线之外一份
+**会话专属副本**,该目录已随会话消失 —— 所以这条命令在新容器里**原理上跑不出原值**。
+按派工书如实声明,不伪造输出;块正文一字未动。
+
+```text
 cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project ui \
   src/components/assistant-ui src/components/chat src/app/right-sidebar
 ```
@@ -1415,18 +1421,27 @@ cd /home/user/r10b-ts/hermes-agent/apps/desktop && npx vitest run --project ui \
 
 **零执行核查**(判据要求逐个点名):
 
+**R11C 片 C 改:原块 `cd` 到 R10B 那份已消失的会话专属副本
+(`/home/user/r10b-ts/hermes-agent/apps/desktop`),且把结果写成 `# → 53` 这样的注释。
+这两条命令**只读源码、不需要 node_modules**,所以换成基线路径后能原样重跑;
+输出移进配对块逐字比对。**两个读数(53 / 无输出)与原块一致。**
+
 ```verify
-# 目录下的测试文件总数,应等于 vitest 报的 53
-cd /home/user/r10b-ts/hermes-agent/apps/desktop && \
+cd /home/user/hermes-agent/apps/desktop && \
   find src/components/assistant-ui src/components/chat src/app/right-sidebar \
        -name '*.test.ts' -o -name '*.test.tsx' | wc -l
-# → 53
-
-# skip / todo 标记
 grep -rnE "\.(skip|todo|skipIf|runIf)\(" src/components/assistant-ui src/components/chat \
     src/app/right-sidebar --include=*.test.ts --include=*.test.tsx
-# → (无输出)
+echo "skip-grep exit=$?"
 ```
+
+```text
+53
+skip-grep exit=1
+```
+
+第一行 `53` 是目录下测试文件总数,与 vitest 报的 53 相等;`skip-grep exit=1` 是
+GNU grep 的「零命中」退出码,即**没有任何 skip / todo 标记**。
 
 53 个文件全部被收集且全部执行,**没有整文件跳过、没有收集错误、没有 `describe.skip`**,
 没有被掩盖的用例。唯一的噪音是 jsdom 打印 5 次

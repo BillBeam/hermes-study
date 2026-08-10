@@ -1,6 +1,6 @@
 agent: 片 C · 55 块可判定的坏证据
 dispatched: R11C 派发批次二
-signal: OPEN
+signal: RELEASED 片 C 完成信号(任务完成通知,含 515 行底稿 + 31 文件改动 + 逐类对账);主线已独立重跑全语料普查得 bad=0、独立在 b419bc1 worktree 里验证 EVIDENCE-DIFF 为既有
 path: notes/r11c-raw-bad-evidence.md
 path: data/r11c/c-bad-evidence-*
 path: reports/round-8-fix-review-1.md

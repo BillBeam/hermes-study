@@ -1505,7 +1505,13 @@ export const RICH_INPUT_SLOT = 'composer-rich-input'
 
 在**基线之外**的导出副本上跑(不污染基线、不装包):
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 它不是可重跑命令。**
+eslint 要该工程自己的 flat config 与插件,也就是 `apps/desktop/node_modules`,而基线是只读 checkout、**没有 `apps/desktop/node_modules`**;补它只能在基线里 `npm ci`,
+那会弄脏全项目的引用基准(CLAUDE.md 边界第一条)。R10B 跑它用的是基线之外一份
+**会话专属副本**,该目录已随会话消失 —— 所以这条命令在新容器里**原理上跑不出原值**。
+按派工书如实声明,不伪造输出;块正文一字未动。
+
+```text
 cd /home/user/r10b-ts/hermes-agent/apps/desktop
 npx eslint $(sed 's|^apps/desktop/||' /home/user/hermes-study/data/r10b/slices/A.txt | tr '\n' ' ')
 ```
@@ -1666,7 +1672,13 @@ scope;`:497` `const scope = openDirectiveScope(event.currentTarget)` 在 `handle
 
 命令(在基线之外的导出副本上跑,未装任何包):
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 它不是可重跑命令。**
+vitest 要 `apps/desktop/node_modules`,而基线是只读 checkout、**没有 `apps/desktop/node_modules`**;补它只能在基线里 `npm ci`,
+那会弄脏全项目的引用基准(CLAUDE.md 边界第一条)。R10B 跑它用的是基线之外一份
+**会话专属副本**,该目录已随会话消失 —— 所以这条命令在新容器里**原理上跑不出原值**。
+按派工书如实声明,不伪造输出;块正文一字未动。
+
+```text
 cd /home/user/r10b-ts/hermes-agent/apps/desktop
 npx vitest run --project ui src/app/chat/composer src/app/chat/right-rail \
   src/app/chat/hooks src/app/chat/close-tab.test.ts src/app/chat/index.test.tsx \

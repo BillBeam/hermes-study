@@ -767,6 +767,13 @@ cd /home/user/hermes-agent && grep -rn --binary-files=without-match -I \
 下面这段脚本按围栏校验器的同一规则(空白不敏感、逐行到块尾、并额外核对声明区间与块行数一致)
 把这 7 块重跑一遍,当前输出 `checked=7 problems=0`:
 
+**R11C 片 C 改:脚本里原本写着字面的三反引号(`startswith('```')`),
+而关卡识别 ```verify 块用的是 `NOFENCE = (?:(?!```).)*?` —— **正文里任何一个字面
+三反引号都会被当成块的结尾**。于是这一块被截成半截脚本喂给 bash,报
+`SyntaxError: unterminated string literal`;而它偏偏是一个「检查围栏块」的自查脚本,
+非提到围栏不可。改法:不写字面反引号,改用 `chr(96) * 3` 构造,**语义完全相同**。
+这是**关卡自身的形状缺陷**,不是作者写错 —— 见移交 `H-R11C-C-a`。**
+
 ```verify
 cd /home/user/hermes-study && python3 - <<'PY'
 import re
@@ -774,6 +781,7 @@ from pathlib import Path
 note = Path('notes/r10-raw-native-vendor.md').read_text().splitlines()
 base = Path('/home/user/hermes-agent/native/fts5_cjk/vendor')
 CITE = re.compile(r'`native/fts5_cjk/vendor/(sqlite3(?:ext)?\.h):(\d+)(?:-(\d+))?`')
+BT = chr(96) * 3            # R11C:不写字面围栏,理由见块前说明
 i = checked = problems = 0
 while i < len(note):
     m = CITE.search(note[i])
@@ -781,9 +789,9 @@ while i < len(note):
         j = i + 1
         while j < len(note) and not note[j].strip():
             j += 1
-        if j < len(note) and note[j].startswith('```'):
+        if j < len(note) and note[j].startswith(BT):
             body, k = [], j + 1
-            while k < len(note) and not note[k].startswith('```'):
+            while k < len(note) and not note[k].startswith(BT):
                 body.append(note[k]); k += 1
             src = (base / m.group(1)).read_text().splitlines()
             start = int(m.group(2)); end = int(m.group(3) or m.group(2))
@@ -802,6 +810,17 @@ while i < len(note):
     i += 1
 print(f'checked={checked} problems={problems}')
 PY
+```
+
+```text
+OK   `native/fts5_cjk/vendor/sqlite3ext.h:366-370` (5 行, 声明区间 366-370)
+OK   `native/fts5_cjk/vendor/sqlite3ext.h:701-705` (5 行, 声明区间 701-705)
+OK   `native/fts5_cjk/vendor/sqlite3.h:13744-13761` (18 行, 声明区间 13744-13761)
+OK   `native/fts5_cjk/vendor/sqlite3ext.h:19-20` (2 行, 声明区间 19-20)
+OK   `native/fts5_cjk/vendor/sqlite3.h:13018-13019` (2 行, 声明区间 13018-13019)
+OK   `native/fts5_cjk/vendor/sqlite3.h:13714-13716` (3 行, 声明区间 13714-13716)
+OK   `native/fts5_cjk/vendor/sqlite3.h:149-151` (3 行, 声明区间 149-151)
+checked=7 problems=0
 ```
 
 ---

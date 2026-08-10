@@ -1297,7 +1297,13 @@ $ cd /home/user/r10b-ts/hermes-agent/ui-tui && npx vitest list | grep -c skill-s
 
 环境:主线在基线之外准备的 `git archive` 副本 `/home/user/r10b-ts/hermes-agent`,未装任何新包。
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 它不是可重跑命令。**
+vitest 要 `apps/desktop/node_modules`,而基线是只读 checkout、**没有 `apps/desktop/node_modules`**;补它只能在基线里 `npm ci`,
+那会弄脏全项目的引用基准(CLAUDE.md 边界第一条)。R10B 跑它用的是基线之外一份
+**会话专属副本**,该目录已随会话消失 —— 所以这条命令在新容器里**原理上跑不出原值**。
+按派工书如实声明,不伪造输出;块正文一字未动。
+
+```text
 cd /home/user/r10b-ts/hermes-agent/apps/desktop
 npx vitest run --project ui \
   src/app/settings src/app/profiles src/app/gateway/hooks \
@@ -1314,11 +1320,20 @@ npx vitest run --project ui \
 
 **零执行与整文件跳过的点名**:
 
+**R11C 片 C 改:原块 `cd` 到 R10B 那份已消失的会话专属副本。这条 grep **只读源码**,
+换成基线路径即可原样重跑;补一行退出码并配对输出,好让「零命中」这个结论本身被钉住
+——否则一条零命中的 grep 与一条路径不存在的 grep 在报告里长得一模一样。**结论未变。**
+
 ```verify
-cd /home/user/r10b-ts/hermes-agent
+cd /home/user/hermes-agent
 grep -rn "describe\.skip\|it\.skip\|test\.skip\|\.todo(" \
   apps/desktop/src/app/settings apps/desktop/src/app/profiles \
   apps/desktop/src/app/gateway/hooks apps/shared/src
+echo "exit=$?"
+```
+
+```text
+exit=1
 ```
 
 零命中——上述 32 个文件内**没有**任何 `.skip` / `.todo`,296 个用例全部真跑。

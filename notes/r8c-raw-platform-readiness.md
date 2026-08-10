@@ -1196,7 +1196,12 @@ Test* classes total=6572, docstring-only(empty)=14
 
 ### 9.1 "只有这 13 个判定点" 的依据
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text —— 块里是「搜索面 + 逐条判读」的说明,
+不是一条可以整块喂给 bash 的命令**(原样跑到第 5 行就报
+`bash: -c: line 5: '· gateway/config.py ...'`)。块里逐条列出的 `grep` 模式本身仍可单跑,
+它们是这条负结论的搜索面声明,按 CLAUDE.md「负结论必须给搜索面」保留原样。内容一字未动。
+
+```text
 搜索范围:基线仓库根,全部 *.py,排除 __pycache__。
 模式 1:  grep -rn 'is_connected'          --include=*.py .
          → 命中 93 处。归类:
@@ -1234,7 +1239,10 @@ Test* classes total=6572, docstring-only(empty)=14
 
 ### 9.3 "没有任何测试钉住 8 份一致性" 的依据
 
-```verify
+**R11C 片 C 改:围栏由 ```verify 改为 ```text,理由同 §9.1 —— 这是搜索面声明,不是命令。**
+内容一字未动。
+
+```text
 搜索范围:tests/ 全树,*.py。
 模式 1: grep -rl 'is_connected' tests/                  → 13 个文件
         逐个查看:全部是单平台适配器测试(discord/google_chat/msgraph/ntfy/raft/

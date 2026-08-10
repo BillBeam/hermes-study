@@ -117,21 +117,59 @@ def _infer_type(value: Any) -> str:
 
 ### 2.4 实测规模
 
+**R11C 片 C 改:原块是「命令 + 它的输出」混排在一个 ```verify 围栏里,而且命令本身是省略的
+(`python -c "from hermes_cli.web_server import CONFIG_SCHEMA; ..."` —— 那个 `...` 才是真正干活的部分)。
+重跑它只会得到 `bash: line 13: 只在: command not found`:输出行被当成命令执行了。
+下面把它拆成「可重跑命令 + 逐字输出」两块,命令是照原块每一行数字重建的,
+重建后**每个数都与原块一致**(见下),原块的旁注移到块后正文。**未改任何结论。**
+
 ```verify
-$ HERMES_HOME=$(mktemp -d) python -c "from hermes_cli.web_server import CONFIG_SCHEMA; ..."
+cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_HOME=$(mktemp -d) \
+  /home/user/hermes-venv/bin/python - <<'PY'
+import collections
+from hermes_cli.web_server import CONFIG_SCHEMA, _SCHEMA_OVERRIDES, _CATEGORY_MERGE, _CATEGORY_ORDER
+from hermes_cli.config import DEFAULT_CONFIG
+def leaves(d, prefix=""):
+    for k, v in d.items():
+        name = f"{prefix}.{k}" if prefix else k
+        if isinstance(v, dict):
+            yield from leaves(v, name)   # 空 dict 递归后产出 0 个叶子,与 schema 生成同规则
+        else:
+            yield name
+lv, sc = set(leaves(DEFAULT_CONFIG)), set(CONFIG_SCHEMA)
+h = collections.Counter(f["type"] for f in CONFIG_SCHEMA.values())
+print("CONFIG_SCHEMA fields   =", len(CONFIG_SCHEMA))
+print("DEFAULT_CONFIG leaves  =", len(lv))
+print("_SCHEMA_OVERRIDES      =", len(_SCHEMA_OVERRIDES))
+print("_CATEGORY_MERGE        =", len(_CATEGORY_MERGE))
+print("_CATEGORY_ORDER        =", len(_CATEGORY_ORDER))
+print("type histogram         =", " / ".join(f"{k} {v}" for k, v in h.most_common()))
+print("distinct categories    =", len({f["category"] for f in CONFIG_SCHEMA.values()}))
+print("timezone options       =", len(CONFIG_SCHEMA["timezone"].get("options", [])))
+print("leaves-only            =", sorted(lv - sc))
+print("schema-only            =", sorted(sc - lv))
+PY
+```
+
+```text
 CONFIG_SCHEMA fields   = 680
-DEFAULT_CONFIG leaves  = 680          # 完全对齐
+DEFAULT_CONFIG leaves  = 680
 _SCHEMA_OVERRIDES      = 29
 _CATEGORY_MERGE        = 18
 _CATEGORY_ORDER        = 15
-类型直方图              = string 261 / number 202 / boolean 169 / list 25 / select 23
-category 实际取值数     = 40           # 但 _CATEGORY_ORDER 只排了 15 个,其余按字母序排在后面
+type histogram         = string 261 / number 202 / boolean 169 / list 25 / select 23
+distinct categories    = 40
 timezone options       = 498
-memory.provider options= ['', 'byterover', 'hindsight', 'holographic', 'honcho',
-                          'mem0', 'openviking', 'retaindb', 'supermemory']
-只在 leaves 不在 schema = ['_config_version']      # 被显式跳过
-只在 schema 不在 leaves = ['model_context_length'] # 虚拟字段,见 §2.6
+leaves-only            = ['_config_version']
+schema-only            = ['model_context_length']
 ```
+
+原块的旁注(现为正文):`CONFIG_SCHEMA fields` 与 `DEFAULT_CONFIG leaves` **完全对齐**(680 = 680);
+`distinct categories = 40` 但 `_CATEGORY_ORDER` 只排了 15 个,**其余按字母序排在后面**;
+`leaves-only = ['_config_version']` 是被显式跳过的;`schema-only = ['model_context_length']`
+是虚拟字段(见 §2.6)。`memory.provider` 的 options 原块也列了,重建命令未打印它,
+这里照抄原块:`['', 'byterover', 'hindsight', 'holographic', 'honcho', 'mem0', 'openviking',
+'retaindb', 'supermemory']`(9 项,与 §2.3 select 类型的叙述一致)。
 
 ### 2.5 ◇ 39 个空 dict 段**在 GUI 里彻底不存在**
 
@@ -327,12 +365,29 @@ async def update_config(body: ConfigUpdate, profile: Optional[str] = None):
 注释说 “schema 之外的根键……还有 `agent.personalities`、`terminal.lifetime_seconds`”。
 实测:
 
+**R11C 片 C 改:原块是纯输出、没有命令,却写在 ```verify 围栏里**
+(重跑得到 `bash: line 4: lifetime_seconds: command not found`)。补上产生它的命令并配对:
+
 ```verify
-custom_providers in DEFAULT_CONFIG?      False   # 例子成立
-'personalities' in DEFAULT_CONFIG        True    # 但它在**顶层**,不是 agent 下
-'personalities' in DEFAULT_CONFIG['agent'] False
-'lifetime_seconds' in DEFAULT_CONFIG['terminal'] False
+cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 HERMES_HOME=$(mktemp -d) \
+  /home/user/hermes-venv/bin/python - <<'PY'
+from hermes_cli.config import DEFAULT_CONFIG
+print("'custom_providers' in DEFAULT_CONFIG             =", 'custom_providers' in DEFAULT_CONFIG)
+print("'personalities' in DEFAULT_CONFIG                =", 'personalities' in DEFAULT_CONFIG)
+print("'personalities' in DEFAULT_CONFIG['agent']       =", 'personalities' in DEFAULT_CONFIG['agent'])
+print("'lifetime_seconds' in DEFAULT_CONFIG['terminal'] =", 'lifetime_seconds' in DEFAULT_CONFIG['terminal'])
+PY
 ```
+
+```text
+'custom_providers' in DEFAULT_CONFIG             = False
+'personalities' in DEFAULT_CONFIG                = True
+'personalities' in DEFAULT_CONFIG['agent']       = False
+'lifetime_seconds' in DEFAULT_CONFIG['terminal'] = False
+```
+
+即:`custom_providers` 的例子成立;`personalities` 确实存在,但它在**顶层**、不是 `agent` 下;
+`terminal.lifetime_seconds` 不存在。**四个真值与原块逐个一致,结论未变。**
 
 `agent.personalities` 确实是运行时真键:
 

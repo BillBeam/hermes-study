@@ -2627,9 +2627,24 @@ ZIP 路径失败时给用户的话也刻意调过:因为两阶段替换保证了
 与文档措辞);(c) 同样搜索面下搜 `submodule.recurse|recurse-submodules` → **零命中**;
 (d) `hermes_cli/update_cmd.py` 全文搜 `submodule` → **零命中**。
 
+**R11C 片 C 改:原块的 `ls -a .gitmodules` 是**故意失败**的(「不存在」正是本条负结论的证据),
+但它把报错写到 stderr,于是整块被可跑性关卡判成 `EVIDENCE-RUNFAIL`。改法:给 `ls` 加 `2>&1`
+把那句报错并进 stdout(读者从此在输出里直接看见它),末尾补一行退出码,并配对逐字比对。
+**四条读数(不存在 / 23 / 0 / 零命中)与块前正文逐个一致,结论未变。**
+
 ```verify
-cd /home/user/hermes-agent && ls -a .gitmodules; echo "(b) 总数=$(grep -rn "submodule" --include=*.py --include=*.sh --include=*.ps1 . 2>/dev/null | grep -v "^./tests/" | grep -v node_modules | wc -l)  其中 git-submodule=$(grep -rn "git submodule" --include=*.py --include=*.sh --include=*.ps1 . 2>/dev/null | grep -v "^./tests/" | grep -v node_modules | wc -l)"; grep -rn "submodule.recurse\|recurse-submodules" -r . --include=*.py --include=*.sh --include=*.ps1 --include=*.rs; echo "(c)(d) 各自零命中则下一行 grep 无输出"; grep -n "submodule" hermes_cli/update_cmd.py
+cd /home/user/hermes-agent && ls -a .gitmodules 2>&1; echo "(b) 总数=$(grep -rn "submodule" --include=*.py --include=*.sh --include=*.ps1 . 2>/dev/null | grep -v "^./tests/" | grep -v node_modules | wc -l)  其中 git-submodule=$(grep -rn "git submodule" --include=*.py --include=*.sh --include=*.ps1 . 2>/dev/null | grep -v "^./tests/" | grep -v node_modules | wc -l)"; grep -rn "submodule.recurse\|recurse-submodules" -r . --include=*.py --include=*.sh --include=*.ps1 --include=*.rs; echo "(c)(d) 各自零命中则下一行 grep 无输出"; grep -n "submodule" hermes_cli/update_cmd.py; echo "(d) exit=$?"
 ```
+
+```text
+ls: cannot access '.gitmodules': No such file or directory
+(b) 总数=23  其中 git-submodule=0
+(c)(d) 各自零命中则下一行 grep 无输出
+(d) exit=1
+```
+
+`(c)` 那条 `grep -rn "submodule.recurse\|recurse-submodules"` 无任何输出行即零命中;
+`(d) exit=1` 是 `grep -n "submodule" hermes_cli/update_cmd.py` 的零命中退出码。
 
 ### ▲-2 `website/docs/getting-started/updating.md:113` —— 「Expected output」整块与代码不符
 

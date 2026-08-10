@@ -1758,15 +1758,31 @@ token 数 0,判为 skipped_under_target),然后进入训练集。**没有任何�
    `--config datagen-config-examples/web_research.yaml`,而 `main()` 的 23 个形参里没有 `config`。
    可复现判据:
 
+   **R11C 片 C 改(两处病灶):(a) 块在有序列表里整体缩进 3 空格,于是 `python3 -c "…"`
+   的续行也带着这 3 个空格进了 Python 源码,原样重跑必得 `IndentationError: unexpected indent`
+   —— 命令行内容改为顶格;(b) 用的是**系统** `python3`,而基线的 `batch_runner` 顶部
+   `import rich`,系统解释器没有该包(`ModuleNotFoundError: No module named 'rich'`),
+   改用项目 venv `/home/user/hermes-venv/bin/python`。并按纪律带 `HERMES_DISABLE_LAZY_INSTALLS=1`
+   —— 这条命令 import 的正是会触发惰性安装的那类模块。输出配对逐字比对,三个读数与原文一致。**
+
    ```verify
-   cd /home/user/hermes-agent && PYTHONPATH=. python3 -c "
-   import inspect, batch_runner
-   ps = list(inspect.signature(batch_runner.main).parameters)
-   print('config in params?', 'config' in ps)
-   print([k for k in ('toolsets','environment','max_items','output_dir','eval_every','eval_size','compression') if k in ps])
-   print('n params =', len(ps))"
+cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 PYTHONPATH=. \
+  /home/user/hermes-venv/bin/python -c "
+import inspect, batch_runner
+ps = list(inspect.signature(batch_runner.main).parameters)
+print('config in params?', 'config' in ps)
+print([k for k in ('toolsets','environment','max_items','output_dir','eval_every','eval_size','compression') if k in ps])
+print('n params =', len(ps))" 2>/dev/null
    ```
-   实测:`config in params? False` / `[]` / `n params = 23`。
+
+   ```text
+config in params? False
+[]
+n params = 23
+```
+
+   (`2>/dev/null` 丢掉的是基线在 import 期打的一句 SQLite WAL 版本告警,与本判据无关;
+   它只走 stderr,不影响上面三行 stdout。)
    `fire` 遇到未知 flag 会直接报错退出,所以该文件给出的命令**根本跑不起来**。
 3. **它的每一个键都无人读**:`environment` / `toolsets` / `num_workers` / `batch_size` /
    `max_items` / `model` / `ephemeral_system_prompt` / `output_dir` / `compression` /

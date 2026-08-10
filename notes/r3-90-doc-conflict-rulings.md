@@ -29,14 +29,22 @@
 (及其中文镜像)。真实符号是 `HARDLINE_PATTERNS`(`tools/approval.py:434`)+ `detect_hardline_command`
 (`tools/approval.py:520`)。亲测(在基线仓库根重跑,`verify` 围栏 = 自检命令,非源码摘录):
 
-```verify
-$ grep -rn UNRECOVERABLE_BLOCKLIST tools/ agent/ model_tools.py ; echo "exit=$?"
-exit=1                     # 零命中
+**R11C 片 C 改:原块是一段 `$` 提示符**转录**(命令与输出混排在同一个 ```verify 围栏里),原样重跑等于把输出行也当命令执行。下面拆成「可重跑命令 + 逐字输出」两块;转录里的旁注移到块后正文。**读数与原块一致,结论未变。**
 
-$ grep -rln UNRECOVERABLE_BLOCKLIST .
+```verify
+cd /home/user/hermes-agent
+grep -rn UNRECOVERABLE_BLOCKLIST tools/ agent/ model_tools.py; echo "code-side exit=$?"
+grep -rln UNRECOVERABLE_BLOCKLIST .
+```
+
+```text
+code-side exit=1
 ./website/docs/user-guide/security.md
 ./website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-guide/security.md
 ```
+
+`code-side exit=1` 即第一条 grep **零命中**(GNU grep 无匹配退出 1):代码面搜不到这个名字;
+全仓搜只命中**两份文档**(中英各一),它们互为翻译。
 
 *(R8-fix 修正:原写法 `grep UNRECOVERABLE_BLOCKLIST tools/ agent/ model_tools.py` 缺 `-r`,
 对目录参数不会递归,重跑给出的是 "是个目录" 而不是"零命中";第二条只搜 `website/docs/`,

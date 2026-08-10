@@ -1,0 +1,3 @@
+readonly_unpaired=538 exit0=510 silent_exit1=28 bad=0 skipped_mutating=155
+bad_by_kind=(none)
+baseline_porcelain_changed=False

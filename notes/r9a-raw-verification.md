@@ -1395,14 +1395,23 @@ nudge 那条 user 消息带标记 → 被 `_drop_verification_continuation_scaff
 共 10 处命中;下面第二条命令把 7 处 `./tests/` 下的命中排除,余 3 处 —— 1 处是定义、
 1 处是 import、只有最后 1 处是真正的调用点。
 
+**R11C 片 C 改:原块是一段 `$` 提示符**转录**(命令、输出、逐条判读混排在同一个 ```verify 围栏里),原样重跑等于把输出行也当命令执行。下面拆成「可重跑命令 + 逐字输出」两块,
+逐条判读移到块后正文。**命中集合与原块一致,结论未变。**
+
 ```verify
-$ grep -rn "mark_workspace_edited" --include='*.py' . | wc -l
+cd /home/user/hermes-agent
+grep -rn "mark_workspace_edited" --include='*.py' . | wc -l
+grep -rn "mark_workspace_edited" --include='*.py' . | grep -v '^\./tests/' | sort
+```
+
+```text
 10
-$ grep -rn "mark_workspace_edited" --include='*.py' . | grep -v '^\./tests/'
 ./agent/verification_evidence.py:526:def mark_workspace_edited(
 ./tools/file_tools.py:1734:        from agent.verification_evidence import mark_workspace_edited
 ./tools/file_tools.py:1752:        mark_workspace_edited(session_id=session_id or task_id, cwd=cwd, paths=paths)
 ```
+
+全仓 10 处命中,**非测试处只有 3 处**:定义 1 处、`tools/file_tools.py` 的 import 与调用各 1 处。
 
 唯一的生产写入点:
 
@@ -1517,9 +1526,19 @@ PY
 **(c) ■4:一次无关的 lint 通过,会清掉代码编辑留下的「待验」标记,门禁随即放行。**
 根因是 `record_terminal_result` 无条件 `last_edit_at = NULL, changed_paths_json='[]'`(§3.7)。
 
+**R11C 片 C 改:原块的前言写成 `... (同上建 Node 工程 p) ...`,于是它**不是**一条可重跑命令。
+本轮把 (a) 那段建工程的前言**照抄补全**(逐字取自本节 (a) 块,未改一处),
+命令与输出拆成两块配对。三行输出与原块**逐字一致** —— 也就是说原结论对、原命令不完整。
+`2>/dev/null` 丢掉的是基线打的一句 SQLite WAL 版本告警,只走 stderr。**
+
 ```verify
-$ cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python - <<'PY'
-... (同上建 Node 工程 p) ...
+cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 /home/user/hermes-venv/bin/python - <<'PY' 2>/dev/null
+import json, os, sys, tempfile, pathlib
+T = pathlib.Path(tempfile.mkdtemp()); os.environ["HERMES_HOME"] = str(T/".hermes")
+sys.path.insert(0, "/home/user/hermes-agent")
+p = T/"proj"; p.mkdir()
+p.joinpath("package.json").write_text(json.dumps({"scripts": {"test": "vitest", "lint": "eslint ."}}))
+p.joinpath("pnpm-lock.yaml").write_text("")
 from agent.verification_evidence import mark_workspace_edited, record_terminal_result, verification_status
 from agent.verification_stop import build_verify_on_stop_nudge
 code = str(p/"src"/"app.ts")
@@ -1530,6 +1549,9 @@ st = verification_status(session_id="s", cwd=p)
 print("after lint:", st["status"], "kind=", st["evidence"]["kind"], "changed_paths=", st["changed_paths"])
 print("nudge:", build_verify_on_stop_nudge(session_id="s", changed_paths=[code]))
 PY
+```
+
+```text
 after edit: unverified
 after lint: passed kind= lint changed_paths= []
 nudge: None
@@ -1541,7 +1563,16 @@ nudge: None
 
 **(d) 设计使然:没有 canonical 套件时,模型自己写的、零断言的脚本就是「通过证据」。**
 
-```verify
+**R11C 片 C 判「不修,点名留下」**:这一块与 (c) 那块同为 `$` 转录,但它的省略号
+**吃掉的不只是前言,还有产生下面三行输出的 `print` 语句本身** ——
+块里只剩 `record_terminal_result(...)` 一行,而 `verifyCommands = []` /
+`status = passed kind = ad_hoc scope = targeted` / `nudge  = None` 这三行
+究竟由哪几个调用打出、字段怎么取的,底稿里没有留下。**重建它就必须猜**,
+而猜出来的命令一旦跑出「看起来合理」的输出,就是 CLAUDE.md 明令禁止的那种伪造。
+故只改围栏为 ```text(声明它不是可重跑命令),块正文一字未动。
+(c) 那块能重建,是因为它的 `print` 全都在;这一块不能。详见移交 `H-R11C-C-d`。**
+
+```text
 $ cd /home/user/hermes-agent && /home/user/hermes-venv/bin/python - <<'PY'
 ... (建 p,package.json 内容为 "{}" —— 无 scripts) ...
 s = pathlib.Path(tempfile.gettempdir())/"hermes-verify-noop.py"; s.write_text("print('ok')\n")
