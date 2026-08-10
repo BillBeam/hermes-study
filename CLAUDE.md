@@ -107,6 +107,23 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   有 `/`、有 `_`、或能解析。* 复现:`data/r10b/probes/cite_ext_scan.py`(前后对比与误吞普查)、
   `data/r10b/probes/cite_ext_negative_control.py`(负控:自造漂移锚点,证明关卡真拦得住)。
 
+  **无扩展名文件(R11A 增,结清 H-R10B-a)**:`.gitignore:3`、`Dockerfile:12`、
+  `docker/s6-rc.d/main-hermes/run:23-26` 这类锚点**没有扩展名可以进白名单**,
+  于是一直处在上面说的那个"连分母都进不去"的状态。修法**不是**放宽正则
+  (`词:数字` 在散文里到处都是),而是另立一份**显式文件名单**
+  `scripts/verify_citations.py:245`:`EXTLESS_NAMES = frozenset({`,
+  取自基线实际存在的无扩展名文件(26 个),**与白名单并列而不是替代它**。
+  `base` / `run` / `type` / `finish` / `dashboard` 既是 `docker/s6-rc.d/` 下的真文件、
+  又是普通英文词,所以沿用 ccTLD 那条守卫的同一句话:**要多一点「它是个路径」的证据**
+  ——有目录部分,或者能解析。
+  *实测:全语料 26 处可解析的无扩展名锚点,关卡计数 citations **+19**、table_anchors **+1**
+  (差额已逐项对上:4 处在围栏块内不扫、2 处所在行本来就有带扩展名的锚点),
+  失败明细前后逐行 diff **完全相同**;唯一被守卫挡下的是 `reports/round-5` 里的
+  `base:645` —— 它是 `base.py` 的简写,哪儿都解析不到,**正是该挡的那一个**。*
+  复现:`data/r11a/probes/extless_name_census.py`(声明式 vs 嗅探式的误吞对比)、
+  `data/r11a/probes/extless_delta_reconcile.py`(26 → +20 的差额逐项对账)、
+  `data/r11a/probes/extless_negative_control.py`(负控 13 条断言)。
+
   **本关卡落地即阻断**,不走 R7C→R8A / R8C→R8D 那种"先加查、后升格"的分期——
   那个分期是为了避免关卡对着自己没造成的积压狂叫,而本轮**在同一轮把积压清零了**
   (全语料 5 处真漂移已全部改正:`notes/r7c-raw-slash-c.md`、
@@ -215,21 +232,33 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   ■ = 代码缺陷;**◎ = 文档成立但显著保守**(如"20+ 平台"而实为 24)。
   *理由(review-1 建议-13 / M-16e):▲ 条数是贯穿各轮、用来衡量"地图腐烂程度"的跨轮指标,
   把"保守但为真"计进 ▲ 会让它不可比。字面为真就不是 ▲。*
-- **shell 命令即证据(R8-fix,review-1 建议-16 / M-16d;R10B 起脚本可查)**:凡把 shell 命令写进证据,
-  **必须是重跑能复现该结论的那一条**,并用 ```` ```verify ```` 围栏标注。
-  **R10B 新增脚本检查,R11 起升格为阻断**(沿用 R7C→R8A、R8C→R8D 的同一套分期):
+- **shell 命令即证据(R8-fix,review-1 建议-16 / M-16d;R10B 起脚本可查,**R11A 起阻断**)**:
+  凡把 shell 命令写进证据,**必须是重跑能复现该结论的那一条**,并用 ```` ```verify ```` 围栏标注。
   ```` ```verify ```` 块后**紧跟**的 ```` ```text ```` 块会被重跑比对。
-  **R10B 本轮的强制范围是「当轮主线 notes + 报告 + 成品章」**(作者知道这条规则时写的那些);
-  各片底稿是在这道关卡存在**之前**派出去的,本轮**只报数不阻断**,积压交 R11 清完再升格
-  ——一个对着自己没造成的积压狂叫的关卡,只会教会作者忽略它。
-  每轮 commit 前运行:
+  **R11A 升格为阻断关卡**(沿用 R7C→R8A、R8C→R8D 的同一套分期:R10B 加检查只报数,
+  等积压清完再升格——一个对着自己没造成的积压狂叫的关卡,只会教会作者忽略它)。
+  **每轮 commit 前必须跑到退出码 0** 的强制范围,与 `verify_citations.py` 同口径:
 
   ```bash
-  python3 scripts/verify_evidence_commands.py notes/rN-*.md reports/round-N-*.md
+  python3 scripts/verify_evidence_commands.py \
+      chapters/*.md notes/rN-*.md reports/round-N-*.md
   ```
 
-  没有配对 ```` ```text ```` 的 verify 块记 unpaired,**不失败**——很多命令是给读者去跑的,
-  不是用来钉一个输出的。要钉输出,就把输出贴在紧跟其后的 ```` ```text ```` 块里。
+  即 **`chapters/` 全部** + **本轮的 `notes/` 与 `reports/`**,并在报告里报
+  `paired / unpaired / differing` 三个数。
+  *强制范围为什么不含历史轮次的 `notes/`(R11A 定,实测):历史底稿里的取证命令有相当一部分
+  **在新容器里原理上就跑不出原值**——它们指向上一轮会话的临时目录(如 `/home/user/r10b-ts/`)、
+  或指向重建后包数不同的 venv。把它们纳入强制范围,等于要求每一轮为**环境漂移**返工,
+  而那不是这条规矩要防的东西。历史轮次的 verify 块仍可按需重跑,只是不阻断本轮 commit。*
+
+  **未配对的 verify 块记 unpaired,不失败**——很多命令是给读者去跑的,不是用来钉一个输出的。
+  **但「用来钉一个数」的 verify 块必须配 ```` ```text ````(R11A 定,结清 H-R10B-g)**:
+  正文里凡出现"实测 N 处""共 M 个"这类由某条命令得出的数,那条命令就要把输出贴在紧跟其后的
+  ```` ```text ```` 块里。**这一条要写进当轮派工书**,否则子代理底稿默认不配对,
+  关卡覆盖面就停在个位数百分比。
+  *覆盖面要如实说(R11A 实测):全语料 935 个 verify 块里只有 177 个配了 text 块(18.9%),
+  其余 758 个从未被任何东西比对过。升格抬高的是「配了对的那些必须对」这条下限,
+  不是「所有命令都被验过」。*
   *理由(R10B 实测):这是全项目唯一没有机械校验的证据规则,而它首次运行就在**当轮自己**
   抓到 4 处:3 处是把命令输出手工裁剪过、命令与块对不上,1 处更糟——
   一段**从未由该命令产生过**的 diff 被写进了底稿,数字看起来完全合理。
@@ -310,6 +339,25 @@ provider 生态与 Python 异步生态**的工程师。验收判定 = 该读者�
   若被改的文件行数不变,就会静默通过,而此后所有 `路径:行号 @ 863e313` 引用**全部失去意义**。
   基线是整个项目的引用基准,"它还干净吗"必须**直接断言**,不能靠间接推断。
   恢复:`git -C /home/user/hermes-agent checkout -- . && git -C /home/user/hermes-agent clean -fd`。
+- **惰性安装纪律(R9B 记为 H-R9B-g,R9C 起各轮实际在用,R11A 补进本文件)**:
+  **凡执行基线代码的命令,一律带 `HERMES_DISABLE_LAZY_INSTALLS=1`。**
+  基线的可选依赖是**惰性安装**的:导入某后端时若缺包,它会**联网 pip 安装**到当前 venv,
+  且**默认开启**、非交互调用方跳过确认。于是"读一段代码"这个动作可以产生网络副作用、
+  **并改变自身运行环境**。
+
+  `tools/lazy_deps.py:532 @ 863e313`
+
+  ```
+      if os.environ.get("HERMES_DISABLE_LAZY_INSTALLS") == "1":
+          return _lazy_install_target() is not None
+  ```
+
+  注意这个开关**不是无条件的**:设了它,只有在**没有** lazy-install target 时才真的关闭
+  (有 target 时安装被重定向到数据卷,封印仍算成立)。所以纪律是**实测开关生效**、
+  不是照文档假定——R9C 开工即实测 `_allow_lazy_installs() = False`,并把该变量写进六份派工书。
+  *理由:venv 包数是报告要报的数(见下"测试环境"),而它同时是**被测代码可以自己改的东西**。
+  一轮里若有子代理触发了一次惰性安装,该轮前后两次包数读数就不可比,
+  且没有任何关卡会提醒——R9B 实测共享 venv 在一轮内被从 87 包装到 89 包。*
 - 本仓库分支策略:每轮工作在 **`claude/hermes-r<轮次>-<主题>`** 分支推进并 push
   (R8-fix 统一命名;历史分支不重命名)。轮次完成后经 PR 合入 main。
   任何新会话仅凭远端即可恢复全部产出与进度。
@@ -357,7 +405,13 @@ scripts/verify_citations.py# 引用校验(R7C 新增,R8A 起为定稿关卡,R8-f
                            # h/mjs/nix/rs(移交项点名)+ mdx/txt(本轮实测另发现);
                            # 路径允许前导点,`.github/...` 不再被解析成 `github/...`;
                            # `sh|js|rs` 与 ccTLD 重名,故无目录部分且不可解析时不认作锚点
-scripts/verify_evidence_commands.py # R10B 新增:重跑每个 ```verify 块并与紧跟其后的
+                           # R11A 增(结清 H-R10B-a):无扩展名文件锚点(`.gitignore:3`、
+                           # `Dockerfile:12`、`docker/s6-rc.d/main-hermes/run:23-26`)纳入校验。
+                           # 白名单机制原理上够不到它们,故另立**显式文件名单** EXTLESS_NAMES
+                           # (26 个,取自基线实际存在的无扩展名文件),不放宽正则;
+                           # `base`/`run`/`type` 等既是真文件又是英文词,故沿用 ccTLD 同款守卫:
+                           # 有目录部分、或能解析,才算锚点
+scripts/verify_evidence_commands.py # R10B 新增,**R11A 起阻断**:重跑每个 ```verify 块并与紧跟其后的
                            # ```text 块逐字比对(「shell 命令即证据」此前是全项目唯一
                            # 靠人自觉的证据规则);无配对 text 块的 verify 块记 unpaired,不失败
 scripts/verify_report_headline.py # R8-fix 新增:报告首句 ≤20 字口径的脚本化判定

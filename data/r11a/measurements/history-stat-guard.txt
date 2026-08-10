@@ -1,0 +1,6 @@
+ref                      : b2d9fd5
+reachable commits        : 258   <- the denominator
+clone is shallow         : no
+
+Claude-Session: only     -> 175
+either trailer           -> 187

@@ -1,0 +1,42 @@
+[MISMATCH] extless_fixture.md:13  .gitignore:36 -> actually at [30] [fixable: .gitignore:36 -> .gitignore:30]
+      cited: __pycache__/model_tools.cpython-310.pyc
+      found: .pytest-cache/
+[MISMATCH] extless_fixture.md:21  Dockerfile:65 -> actually at [60] [fixable: Dockerfile:65 -> Dockerfile:60]
+      cited: # Store Playwright browsers outside the volume mount so the build-time
+      found: # tini was previously PID 1 to reap orphaned zombie processes (MCP stdio
+[MISMATCH] extless_fixture.md:29  docker/s6-rc.d/main-hermes/run:9 -> actually at [5] [fixable: docker/s6-rc.d/main-hermes/run:9 -> docker/s6-rc.d/main-hermes/run:5]
+      cited: # IMPORTANT — this is NOT how the user's CMD runs.
+      found: # "main program" via Docker's CMD mechanism, NOT as an s6-supervised
+[MISMATCH] extless_fixture.md:37  docker/cont-init.d/015-supervise-perms:27 -> actually at [20] [fixable: docker/cont-init.d/015-supervise-perms:27 -> docker/cont-init.d/015-supervise-perms:20]
+      cited: # supervise/control owned by hermes BEFORE s6-svscanctl -a fires.
+      found: # cont-init.d gets to run — so by the time we're here, the
+[OUT-OF-RANGE] extless_fixture.md:45  docker/s6-rc.d/main-hermes/run:527 (file has 27 lines)
+[TABLE-DRIFT] extless_fixture.md:53  skills/research/research-paper-writing/templates/neurips2025/Makefile:9 -> 实际在 [5]
+      表格内联 token: CROPPED_PDFS := $(PDFS:.pdf=-crop.pdf)
+      锚点那一行:   %.pdf: %.tex Makefile $(CROPPED_PDFS)
+[TABLE-DRIFT] extless_fixture.md:54  .dockerignore:35 -> 实际在 [31]
+      表格内联 token: # Built artifacts that are regenerated inside the image. Excluded so local
+      锚点那一行:   ui-tui/packages/hermes-ink/dist/
+[TABLE-OUT-OF-RANGE] extless_fixture.md:55  skills/research/research-paper-writing/templates/neurips2025/Makefile:536 (file has 36 lines)
+
+citations=6  MISMATCH=4  OK=1  OUT-OF-RANGE=1
+可校验比例 OK/6 = 16.7%  << 低于 70% 下限
+table_anchors=3  DRIFT=2  OUT-OF-RANGE=1   (表格行内锚点,单独计数;DRIFT/OUT-OF-RANGE **阻断**,见 H-R9A-h)
+FAIL: 8 citation(s) need fixing
+
+=== assertions ===
+  ok   MISMATCH on every drifted extensionless fence anchor (expect 4, got 4)
+  ok   OUT-OF-RANGE on the past-EOF fence anchor (expect 1, got 1)
+  ok   TABLE-DRIFT on both drifted table anchors (expect 2, got 2)
+  ok   TABLE-OUT-OF-RANGE on the past-EOF table anchor (expect 1, got 1)
+  ok   positive control counted OK (expect 1, got 1)
+  ok   citations total is exactly the 6 planted anchors — no prose swallowed (got 6)
+  ok   not swallowed as an anchor: base:645
+  ok   not swallowed as an anchor: run:12
+  ok   not swallowed as an anchor: type:3
+  ok   not swallowed as an anchor: notbase:5
+  ok   not swallowed as an anchor: sqlite.org:443
+  ok   not swallowed as an anchor: 127.0.0.1:18789
+  ok   gate exits non-zero on the fixture
+
+NEGATIVE CONTROL PASSED: the gate blocks extensionless drift and swallows nothing.

@@ -1,0 +1,7 @@
+运维基建 L2 total: 141 files / 43365 lines
+  slice A:  32 files /  21851 lines
+  slice B: 109 files /  21514 lines
+  conservation OK: 141 files / 43365 lines
+  slice C (L3 校准): 118 files / 17619 lines   [from make_calibration_slice.py]
+wrote data/r11a/slices/slice-L2-A.tsv
+wrote data/r11a/slices/slice-L2-B.tsv

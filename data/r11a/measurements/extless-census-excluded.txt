@@ -1,0 +1,52 @@
+baseline repo: /home/user/hermes-agent
+corpus excludes: ('r11a-', 'round-11a-')
+
+A. baseline extensionless basenames: 30
+     .dockerignore
+     .envrc
+     .gitattributes
+     .gitignore
+     .gitkeep
+     .mailmap
+     .nojekyll
+     .npmrc
+     .nvmrc
+     .prettierignore
+     .prettierrc
+     .python-version
+     015-supervise-perms
+     02-reconcile-profiles
+     Dockerfile
+     LICENSE
+     Makefile
+     NOTICE
+     [email protected]
+     base
+     dashboard
+     finish
+     hermes
+     hermes-gateway
+     main-hermes
+     nyaruko@hermes
+     run
+     stanislav@local
+     tangyi@DESKTOP-2U4MD8Q
+     type
+
+   declared by verify_citations.py: 26
+   sniffed-only names (would be ADDED): 4
+
+B. DECLARED list capture
+  resolves to a real file  (26 occurrences, 4 paths):
+     x18   .gitignore   in: 16 个文件
+     x2    Dockerfile   in: round-1-capabilities-full.md, round-1-survey.md
+     x5    apps/bootstrap-installer/.gitignore   in: r10b-92-mainline-crosschecks.md, r10b-raw-build-package.md
+     x1    docker/s6-rc.d/main-hermes/run   in: r7c-raw-restart-readiness.md
+  does NOT resolve — prose lookalike (1 occurrences, 1 paths):
+     x1    base   in: round-5-session-state-and-persistence.md
+
+C. SNIFFED-ONLY extra (what declaring keeps out)
+  resolves to a real file  (0 occurrences, 0 paths):
+  does NOT resolve — prose lookalike (0 occurrences, 0 paths):
+
+VERDICT: sniffing would add 0 non-anchor occurrences across 0 distinct tokens.

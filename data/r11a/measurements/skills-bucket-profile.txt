@@ -1,0 +1,61 @@
+bucket: 1080 files / 315887 lines (292.5 lines/file)
+
+per-file line distribution:
+  p10 =       29
+  p25 =       60
+  p50 =      156
+  p75 =      312
+  p90 =      532
+  p99 =     3120
+  max =    16799   min =        0
+
+categories: 42
+category                                       files    lines  ln/file
+optional-skills/mlops                            112    82451    736.2
+skills/productivity                              151    54990    364.2
+skills/creative                                  222    54356    244.8
+skills/research                                   64    29419    459.7
+optional-skills/creative                         168    23501    139.9
+optional-skills/security                          86    11898    138.3
+skills/mlops                                      26     8849    340.3
+optional-skills/research                          52     8511    163.7
+optional-skills/productivity                      17     5300    311.8
+optional-skills/finance                           16     5028    314.2
+optional-skills/blockchain                         6     4496    749.3
+skills/autonomous-ai-agents                       27     4043    149.7
+optional-skills/migration                          3     3586   1195.3
+skills/software-development                       13     3273    251.8
+skills/github                                     17     2854    167.9
+optional-skills/devops                            15     2289    152.6
+optional-skills/health                             9     2069    229.9
+optional-skills/software-development               9     1603    178.1
+optional-skills/mcp                               11     1389    126.3
+optional-skills/autonomous-ai-agents               7     1338    191.1
+skills/email                                       4      733    183.2
+skills/apple                                       5      459     91.8
+optional-skills/web-development                    4      444    111.0
+skills/social-media                                2      439    219.5
+skills/media                                       6      433     72.2
+optional-skills/payments                           3      428    142.7
+optional-skills/gaming                             3      406    135.3
+optional-skills/dogfood                            2      194     97.0
+optional-skills/data-science                       2      181     90.5
+optional-skills/email                              1      126    126.0
+skills/smart-home                                  2      115     57.5
+optional-skills/yuanbao                            1      108    108.0
+optional-skills/communication                      2      105     52.5
+optional-mcps/blender                              1       88     88.0
+optional-mcps/comfy-cloud                          1       82     82.0
+optional-mcps/n8n                                  1       81     81.0
+skills/note-taking                                 2       64     32.0
+optional-mcps/unreal-engine                        1       54     54.0
+optional-mcps/figma                                1       39     39.0
+optional-mcps/linear                               1       38     38.0
+optional-skills/DESCRIPTION.md                     1       24     24.0
+skills/index-cache                                 3        3      1.0
+
+lines/file across categories: min 1  median 139  max 1195  -> spread 1195.3x
+
+skill directories (the unit a reader reads): 316
+  files per skill : median 1  max 54
+  lines per skill : median 298  max 29016

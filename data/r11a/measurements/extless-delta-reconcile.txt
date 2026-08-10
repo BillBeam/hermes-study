@@ -1,0 +1,11 @@
+corpus excludes: ('r11a-', 'round-11a-')
+total resolvable extensionless occurrences : 26
+  inside a ``` fence   (not scanned)       : 4
+  inside a `>` quote   (not scanned)       : 0
+  in a table row                           : 1   on 1 distinct rows
+  in prose                                 : 21   on 21 distinct lines
+    of those prose lines, already had a dotted anchor : 2  (no new verdict)
+
+gate should gain  prose citations = 19   (21 lines - 2 already counted)
+gate should gain  table anchors   = 1
+predicted delta: citations +19, table_anchors +1

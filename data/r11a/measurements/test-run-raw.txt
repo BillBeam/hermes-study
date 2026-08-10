@@ -1,0 +1,57 @@
+▶ no local venv — using Nix dev venv via HERMES_PYTHON: /home/user/hermes-venv/bin/python
+▶ running per-file parallel test suite via run_tests_parallel.py
+  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+▶ pre-compiling bytecode cache
+▶ launching test runner
+Discovered 31 test files (~106 tests) under ['tests/ci/test_classify_changes.py', 'tests/scripts/test_build_skills_index_health.py', 'tests/scripts/test_footgun_subprocess_encoding.py', 'tests/test_engines_satisfiable.py', 'tests/test_install_autostash_conflict_recovery.py', 'tests/test_install_commit_pin_rollback.py', 'tests/test_install_diverged_update.py', 'tests/test_install_lockfile_churn.py', 'tests/test_install_macos_launcher.py', 'tests/test_install_no_initial_commit.py', 'tests/test_install_ps1_ascii_only.py', 'tests/test_install_ps1_native_stderr_eap.py', 'tests/test_install_ps1_node_path_for_npm.py', 'tests/test_install_ps1_python_fallback_venv.py', 'tests/test_install_ps1_uv_powershell_host.py', 'tests/test_install_ps1_web_server_syntax_probe.py', 'tests/test_install_sh_acp_launcher.py', 'tests/test_install_sh_bootstrap_marker.py', 'tests/test_install_sh_browser_install.py', 'tests/test_install_sh_install_method_stamp.py', 'tests/test_install_sh_node_global_prefix.py', 'tests/test_install_sh_pythonpath_sanitization.py', 'tests/test_install_sh_root_fhs_uv_python_path.py', 'tests/test_install_sh_setup_wizard_tty_probe.py', 'tests/test_install_sh_symlink_stomp.py', 'tests/test_install_sh_termux_network_prereqs.py', 'tests/test_install_unmerged_index.py', 'tests/test_run_tests_parallel.py', 'tests/test_run_tests_parallel_stdio.py', 'tests/test_termux_all_extra_compat.py', 'tests/tui_gateway/test_iso_certify_seam.py']; running with -j 8
+[  5.7% |     6/~106 | ✓10 | ✗ 0] ✓ tests/test_engines_satisfiable.py (10✓, 2.2s)
+[  7.5% |     8/~106 | ✓12 | ✗ 0] ✓ tests/test_install_diverged_update.py (2✓, 2.3s)
+[ 10.4% |    11/~106 | ✓15 | ✗ 0] ✓ tests/test_install_lockfile_churn.py (3✓, 2.4s)
+[ 12.3% |    13/~106 | ✓54 | ✗ 0] ✓ tests/ci/test_classify_changes.py (39✓, 2.7s)
+[ 15.1% |    16/~106 | ✓56 | ✗ 0] ✓ tests/test_install_autostash_conflict_recovery.py (2✓ 1s, 4.0s)
+[ 16.0% |    17/~106 | ✓57 | ✗ 0] ✓ tests/test_install_ps1_ascii_only.py (1✓, 1.7s)
+[ 17.0% |    18/~106 | ✓58 | ✗ 0] ✓ tests/test_install_macos_launcher.py (1✓, 2.0s)
+[ 20.8% |    22/~106 | ✓62 | ✗ 0] ✓ tests/test_install_no_initial_commit.py (4✓, 1.9s)
+[ 24.5% |    26/~106 | ✓66 | ✗ 0] ✓ tests/test_install_ps1_native_stderr_eap.py (4✓, 1.6s)
+[ 28.3% |    30/~106 | ✓70 | ✗ 0] ✓ tests/test_install_commit_pin_rollback.py (4✓, 4.9s)
+[ 30.2% |    32/~106 | ✓72 | ✗ 0] ✓ tests/test_install_ps1_web_server_syntax_probe.py (2✓, 1.4s)
+[ 33.0% |    35/~106 | ✓75 | ✗ 0] ✓ tests/test_install_ps1_node_path_for_npm.py (3✓, 1.8s)
+[ 35.8% |    38/~106 | ✓78 | ✗ 0] ✓ tests/test_install_ps1_uv_powershell_host.py (3✓, 1.7s)
+[ 39.6% |    42/~106 | ✓82 | ✗ 0] ✓ tests/test_install_ps1_python_fallback_venv.py (4✓, 1.7s)
+[ 44.3% |    47/~106 | ✓87 | ✗ 0] ✓ tests/test_install_sh_acp_launcher.py (5✓, 1.7s)
+[ 45.3% |    48/~106 | ✓88 | ✗ 0] ✓ tests/test_install_sh_install_method_stamp.py (1✓, 1.4s)
+[ 50.0% |    53/~106 | ✓93 | ✗ 0] ✓ tests/test_install_sh_bootstrap_marker.py (5✓, 2.6s)
+[ 51.9% |    55/~106 | ✓95 | ✗ 0] ✓ tests/test_install_sh_root_fhs_uv_python_path.py (2✓, 1.5s)
+[ 53.8% |    57/~106 | ✓97 | ✗ 0] ✓ tests/test_install_sh_pythonpath_sanitization.py (2✓, 1.7s)
+[ 56.6% |    60/~106 | ✓100 | ✗  0] ✓ tests/test_install_sh_node_global_prefix.py (3✓, 1.7s)
+[ 58.5% |    62/~106 | ✓106 | ✗  0] ✓ tests/test_install_sh_setup_wizard_tty_probe.py (6✓, 1.1s)
+[ 60.4% |    64/~106 | ✓108 | ✗  0] ✓ tests/test_install_sh_termux_network_prereqs.py (2✓, 1.4s)
+[ 62.3% |    66/~106 | ✓110 | ✗  0] ✓ tests/test_install_sh_symlink_stomp.py (2✓, 1.5s)
+[ 64.2% |    68/~106 | ✓112 | ✗  0] ✓ tests/scripts/test_build_skills_index_health.py (2✓, 9.8s)
+[ 66.0% |    70/~106 | ✓114 | ✗  0] ✓ tests/test_termux_all_extra_compat.py (2✓, 1.0s)
+[ 69.8% |    74/~106 | ✓118 | ✗  0] ✓ tests/test_install_unmerged_index.py (4✓, 2.4s)
+[ 72.6% |    77/~106 | ✓121 | ✗  0] ✓ tests/test_run_tests_parallel_stdio.py (3✓, 1.6s)
+[ 81.1% |    86/~106 | ✓130 | ✗  0] ✓ tests/scripts/test_footgun_subprocess_encoding.py (9✓, 10.0s)
+[ 83.0% |    88/~106 | ✓132 | ✗  0] ✓ tests/tui_gateway/test_iso_certify_seam.py (2✓, 1.2s)
+[ 89.6% |    95/~106 | ✓139 | ✗  0] ✓ tests/test_install_sh_browser_install.py (7✓, 6.6s)
+[100.0% |   106/~106 | ✓146 | ✗  0] ✓ tests/test_run_tests_parallel.py (7✓, 7.2s)
+
+=== Summary: 31 files, 146 tests passed, 0 failed (100% complete) in 14.8s (8 workers) ===
+  Durations cached to test_durations.json (31 files)
+
+=== Per-file subprocess time distribution ===
+  Files:   31
+  Total subprocess CPU-wall: 86.7s  (runner wall: 14.8s, parallelism: 8x)
+  P50: 1.75s  P90: 6.58s  P95: 9.83s  P99: 10.00s  Max: 10.00s
+  <1s: 0 files (0%)  <2s: 19 files (61%)
+  Top 10 slowest:
+     10.00s  tests/scripts/test_footgun_subprocess_encoding.py
+      9.83s  tests/scripts/test_build_skills_index_health.py
+      7.17s  tests/test_run_tests_parallel.py
+      6.58s  tests/test_install_sh_browser_install.py
+      4.90s  tests/test_install_commit_pin_rollback.py
+      4.03s  tests/test_install_autostash_conflict_recovery.py
+      2.68s  tests/ci/test_classify_changes.py
+      2.56s  tests/test_install_sh_bootstrap_marker.py
+      2.41s  tests/test_install_lockfile_churn.py
+      2.35s  tests/test_install_unmerged_index.py

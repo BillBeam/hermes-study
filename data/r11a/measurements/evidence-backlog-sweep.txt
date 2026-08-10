@@ -1,0 +1,34 @@
+[DIFF x2] notes/r10-90-handover-rulings.md
+[DIFF x2] notes/r10-96-ts-suites.md
+[DIFF x2] notes/r10-raw-hermes-ink.md
+[DIFF x1] notes/r10-raw-web-dashboard.md
+[DIFF x1] notes/r10b-90-handover-rulings.md
+[DIFF x3] notes/r10b-92-mainline-crosschecks.md
+[DIFF x1] notes/r10b-raw-capability-panels.md
+[DIFF x1] notes/r10b-raw-chat-composer.md
+[DIFF x2] notes/r10b-raw-lib-themes.md
+[DIFF x1] notes/r10b-raw-settings-billing.md
+[DIFF x6] notes/r8d-raw-provider-identity.md
+[DIFF x2] notes/r9b-raw-image.md
+[DIFF x1] notes/r9b-raw-pet.md
+[DIFF x2] notes/r9c-01-scope-and-l1-closeout.md
+[DIFF x4] notes/r9c-90-handover-rulings.md
+[DIFF x6] notes/r9c-raw-transport-contract.md
+[DIFF x2] notes/r9d-01-scope-and-l1-closeout.md
+[DIFF x1] notes/r9d-90-handover-agents-md-toolset-census.md
+[DIFF x5] notes/r9d-90-handover-credential-landing.md
+[DIFF x3] notes/r9d-90-handover-process-and-verification.md
+[DIFF x2] notes/r9d-90-handover-single-call-site-misses.md
+[DIFF x2] notes/r9d-91-handover-rulings.md
+[TIMEOUT >150s] notes/r9d-92-mainline-tests-and-crosschecks.md
+[DIFF x8] notes/r9d-raw-messaging-platform-tools.md
+[DIFF x3] reports/round-10-client-interface-layer.md
+[DIFF x3] reports/round-10b-desktop-application.md
+[DIFF x1] reports/round-9c-external-interfaces.md
+[DIFF x1] reports/round-9d-l1-completion.md
+
+files with >=1 verify block : 111
+paired                      : 168
+unpaired                    : 757
+differing                   : 68
+files exceeding 150s   : 1
