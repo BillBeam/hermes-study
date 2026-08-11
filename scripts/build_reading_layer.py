@@ -625,7 +625,9 @@ def render_entry(corpus, e, refs, conflict=False):
         out.append(f"**冲突对象**:{', '.join(e['conflict-with'])}")
         out.append("")
     if e["ruling"]:
-        out.append(f"**裁定**:{e['ruling']}")
+        # 冲突条目的正文里通常已经有一段展开的「**裁定**:…」,字段这一行是**一句话摘要**。
+        # 两处都叫「裁定」会读成重复,故字段这一行单独命名。
+        out.append(f"**裁定摘要**:{e['ruling']}")
         out.append("")
     if e["scope"]:
         out.append(f"**适用边界**:{e['scope']}")
