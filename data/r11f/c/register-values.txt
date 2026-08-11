@@ -1,0 +1,246 @@
+## photon  plugins/platforms/photon/adapter.py:2866  kwargs=19
+   name                   "photon"
+   label                  "iMessage via Photon"
+   adapter_factory        lambda cfg: PhotonAdapter(cfg)
+   check_fn               check_requirements
+   validate_config        validate_config
+   is_connected           is_connected
+   required_env           ["PHOTON_PROJECT_ID", "PHOTON_PROJECT_SECRET"]
+   install_hint           "Run: hermes photon setup (logs in via device flow, creates a " "Spectrum project, links your ph
+   setup_fn               _cli.gateway_setup
+   allowed_users_env      "PHOTON_ALLOWED_USERS"
+   allow_all_env          "PHOTON_ALLOW_ALL_USERS"
+   max_message_length     _MAX_MESSAGE_LENGTH
+   pii_safe               True
+   emoji                  "📱"
+   allow_update_command   True
+   platform_hint          "You are communicating via Photon Spectrum (iMessage). " "Treat replies like regular text messag
+   env_enablement_fn      _env_enablement
+   cron_deliver_env_var   "PHOTON_HOME_CHANNEL"
+   standalone_sender_fn   _standalone_send
+## a2a  plugins/platforms/a2a/__init__.py:110  kwargs=15
+   name                   "a2a"
+   label                  "A2A"
+   adapter_factory        lambda cfg: A2AAdapter(cfg)
+   check_fn               check_requirements
+   validate_config        validate_config
+   is_connected           is_connected
+   required_env           []
+   install_hint           "No extra packages needed (stdlib only)"
+   setup_fn               interactive_setup
+   allowed_users_env      "A2A_ALLOWED_USERS"
+   allow_all_env          "A2A_ALLOW_ALL_USERS"
+   emoji                  "\U0001f9e9"
+   allow_update_command   False
+   platform_hint          "You are reachable over the A2A (Agent-to-Agent) protocol. " "Messages prefixed with [A2A inboun
+   cron_deliver_env_var   "A2A_HOME_CHANNEL"
+## whatsapp  plugins/platforms/whatsapp/adapter.py:1901  kwargs=16
+   name                   "whatsapp"
+   label                  "WhatsApp"
+   adapter_factory        _build_adapter
+   check_fn               check_whatsapp_requirements
+   is_connected           _is_connected
+   required_env           ["WHATSAPP_ENABLED"]
+   install_hint           "WhatsApp requires a Node.js bridge — see the WhatsApp messaging docs"
+   setup_fn               interactive_setup
+   allowed_users_env      "WHATSAPP_ALLOWED_USERS"
+   allow_all_env          "WHATSAPP_ALLOW_ALL_USERS"
+   max_message_length     4096
+   emoji                  "💬"
+   allow_update_command   True
+   apply_yaml_config_fn   _apply_yaml_config
+   cron_deliver_env_var   "WHATSAPP_HOME_CHANNEL"
+   standalone_sender_fn   _standalone_send
+## line  plugins/platforms/line/adapter.py:1728  kwargs=19
+   name                   "line"
+   label                  "LINE"
+   adapter_factory        lambda cfg: LineAdapter(cfg)
+   check_fn               check_requirements
+   validate_config        validate_config
+   is_connected           is_connected
+   required_env           ["LINE_CHANNEL_ACCESS_TOKEN", "LINE_CHANNEL_SECRET"]
+   install_hint           "pip install aiohttp"
+   setup_fn               interactive_setup
+   allowed_users_env      "LINE_ALLOWED_USERS"
+   allow_all_env          "LINE_ALLOW_ALL_USERS"
+   max_message_length     LINE_SAFE_BUBBLE_CHARS
+   pii_safe               False
+   emoji                  "💚"
+   allow_update_command   True
+   platform_hint          "You are chatting via LINE Messaging API. LINE does NOT render " "Markdown — text bubbles show *
+   env_enablement_fn      _env_enablement
+   cron_deliver_env_var   "LINE_HOME_CHANNEL"
+   standalone_sender_fn   _standalone_send
+## buzz  plugins/platforms/buzz/adapter.py:1489  kwargs=19
+   name                   "buzz"
+   label                  "Buzz"
+   adapter_factory        lambda cfg: BuzzAdapter(cfg)
+   check_fn               check_requirements
+   validate_config        validate_config
+   is_connected           is_connected
+   required_env           ["BUZZ_RELAY_URL", "BUZZ_PRIVATE_KEY"]
+   install_hint           "Requires the buzz CLI binary (https://github.com/block/buzz) on PATH or at BUZZ_CLI_PATH"
+   setup_fn               interactive_setup
+   allowed_users_env      "BUZZ_ALLOWED_USERS"
+   allow_all_env          "BUZZ_ALLOW_ALL_USERS"
+   pii_safe               False
+   emoji                  "🐝"
+   allow_update_command   True
+   platform_hint          "You are collaborating in a Buzz workspace (Block's Nostr-based " "human+agent platform). Markdo
+   env_enablement_fn      _env_enablement
+   apply_yaml_config_fn   _apply_yaml_config
+   cron_deliver_env_var   "BUZZ_HOME_CHANNEL"
+   standalone_sender_fn   _standalone_send
+## teams  plugins/platforms/teams/adapter.py:1466  kwargs=18
+   name                   "teams"
+   label                  "Microsoft Teams"
+   adapter_factory        lambda cfg: TeamsAdapter(cfg)
+   check_fn               check_requirements
+   validate_config        validate_config
+   is_connected           is_connected
+   required_env           ["TEAMS_CLIENT_ID", "TEAMS_CLIENT_SECRET", "TEAMS_TENANT_ID"]
+   install_hint           "pip install microsoft-teams-apps aiohttp"
+   setup_fn               interactive_setup
+   allowed_users_env      "TEAMS_ALLOWED_USERS"
+   allow_all_env          "TEAMS_ALLOW_ALL_USERS"
+   max_message_length     28000
+   emoji                  "💼"
+   allow_update_command   True
+   platform_hint          "You are chatting via Microsoft Teams. Teams renders a subset of " "markdown — bold (**text**), 
+   env_enablement_fn      _env_enablement
+   cron_deliver_env_var   "TEAMS_HOME_CHANNEL"
+   standalone_sender_fn   _standalone_send
+## simplex  plugins/platforms/simplex/adapter.py:1348  kwargs=19
+   name                   "simplex"
+   label                  "SimpleX Chat"
+   adapter_factory        lambda cfg: SimplexAdapter(cfg)
+   check_fn               check_requirements
+   validate_config        validate_config
+   is_connected           is_connected
+   required_env           ["SIMPLEX_WS_URL"]
+   install_hint           "pip install websockets # SimpleX adapter requires the " "websockets package"
+   setup_fn               interactive_setup
+   allowed_users_env      "SIMPLEX_ALLOWED_USERS"
+   allow_all_env          "SIMPLEX_ALLOW_ALL_USERS"
+   max_message_length     MAX_MESSAGE_LENGTH
+   pii_safe               True
+   emoji                  "🔒"
+   allow_update_command   True
+   platform_hint          "You are chatting via SimpleX Chat, a private decentralised " "messenger. Contacts are identifie
+   env_enablement_fn      _env_enablement
+   cron_deliver_env_var   "SIMPLEX_HOME_CHANNEL"
+   standalone_sender_fn   _standalone_send
+## mattermost  plugins/platforms/mattermost/adapter.py:1291  kwargs=17
+   name                   "mattermost"
+   label                  "Mattermost"
+   adapter_factory        _build_adapter
+   check_fn               check_mattermost_requirements
+   validate_config        validate_mattermost_config
+   is_connected           _is_connected
+   required_env           ["MATTERMOST_URL", "MATTERMOST_TOKEN"]
+   install_hint           "pip install aiohttp"
+   setup_fn               interactive_setup
+   allowed_users_env      "MATTERMOST_ALLOWED_USERS"
+   allow_all_env          "MATTERMOST_ALLOW_ALL_USERS"
+   max_message_length     MAX_POST_LENGTH
+   emoji                  "💬"
+   allow_update_command   True
+   apply_yaml_config_fn   _apply_yaml_config
+   cron_deliver_env_var   "MATTERMOST_HOME_CHANNEL"
+   standalone_sender_fn   _standalone_send
+## email  plugins/platforms/email/adapter.py:1302  kwargs=15
+   name                   "email"
+   label                  "Email"
+   adapter_factory        _build_adapter
+   check_fn               check_email_requirements
+   is_connected           _is_connected
+   required_env           ["EMAIL_ADDRESS", "EMAIL_PASSWORD", "EMAIL_SMTP_HOST"]
+   install_hint           "Email uses the Python stdlib (smtplib/imaplib) — no extra deps"
+   allowed_users_env      "EMAIL_ALLOWED_USERS"
+   allow_all_env          "EMAIL_ALLOW_ALL_USERS"
+   max_message_length     50_000
+   pii_safe               True
+   emoji                  "📧"
+   allow_update_command   True
+   cron_deliver_env_var   "EMAIL_HOME_ADDRESS"
+   standalone_sender_fn   _standalone_send
+## irc  plugins/platforms/irc/adapter.py:955  kwargs=19
+   name                   "irc"
+   label                  "IRC"
+   adapter_factory        lambda cfg: IRCAdapter(cfg)
+   check_fn               check_requirements
+   validate_config        validate_config
+   is_connected           is_connected
+   required_env           ["IRC_SERVER", "IRC_CHANNEL", "IRC_NICKNAME"]
+   install_hint           "No extra packages needed (stdlib only)"
+   setup_fn               interactive_setup
+   allowed_users_env      "IRC_ALLOWED_USERS"
+   allow_all_env          "IRC_ALLOW_ALL_USERS"
+   max_message_length     450
+   pii_safe               False
+   emoji                  "💬"
+   allow_update_command   True
+   platform_hint          "You are chatting via IRC. IRC does not support markdown formatting " "— use plain text only. Me
+   env_enablement_fn      _env_enablement
+   cron_deliver_env_var   "IRC_HOME_CHANNEL"
+   standalone_sender_fn   _standalone_send
+## raft  plugins/platforms/raft/adapter.py:828  kwargs=11
+   name                   "raft"
+   label                  "Raft"
+   adapter_factory        lambda cfg: RaftAdapter(cfg)
+   check_fn               check_raft_requirements
+   is_connected           _is_connected
+   required_env           ["RAFT_PROFILE"]
+   install_hint           "Install the Raft CLI from https://raft.build"
+   setup_fn               interactive_setup
+   emoji                  "🔔"
+   platform_hint          ( "You are connected to Raft via an external-agent channel. " "Run `raft --profile {profile} pro
+   env_enablement_fn      _env_enablement
+## ntfy  plugins/platforms/ntfy/adapter.py:581  kwargs=18
+   name                   "ntfy"
+   label                  "ntfy"
+   adapter_factory        lambda cfg: NtfyAdapter(cfg)
+   check_fn               check_requirements
+   validate_config        validate_config
+   is_connected           is_connected
+   required_env           ["NTFY_TOPIC"]
+   install_hint           "pip install httpx # already a Hermes dependency"
+   allowed_users_env      "NTFY_ALLOWED_USERS"
+   allow_all_env          "NTFY_ALLOW_ALL_USERS"
+   max_message_length     MAX_MESSAGE_LENGTH
+   pii_safe               True
+   emoji                  "🔔"
+   allow_update_command   True
+   platform_hint          "You are communicating via ntfy push notifications. " "Use plain text by default — ntfy supports
+   env_enablement_fn      _env_enablement
+   cron_deliver_env_var   "NTFY_HOME_CHANNEL"
+   standalone_sender_fn   _standalone_send
+## homeassistant  plugins/platforms/homeassistant/adapter.py:584  kwargs=12
+   name                   "homeassistant"
+   label                  "Home Assistant"
+   adapter_factory        _build_adapter
+   check_fn               check_ha_requirements
+   validate_config        validate_ha_config
+   is_connected           _is_connected
+   required_env           ["HASS_TOKEN"]
+   install_hint           "pip install aiohttp"
+   max_message_length     HomeAssistantAdapter.MAX_MESSAGE_LENGTH
+   emoji                  "🏠"
+   allow_update_command   True
+   standalone_sender_fn   _standalone_send
+## sms  plugins/platforms/sms/adapter.py:520  kwargs=15
+   name                   "sms"
+   label                  "SMS (Twilio)"
+   adapter_factory        _build_adapter
+   check_fn               check_sms_requirements
+   is_connected           _is_connected
+   required_env           ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"]
+   install_hint           "pip install aiohttp"
+   allowed_users_env      "SMS_ALLOWED_USERS"
+   allow_all_env          "SMS_ALLOW_ALL_USERS"
+   max_message_length     MAX_SMS_LENGTH
+   pii_safe               True
+   emoji                  "📱"
+   allow_update_command   True
+   cron_deliver_env_var   "SMS_HOME_CHANNEL"
+   standalone_sender_fn   _standalone_send
