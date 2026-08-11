@@ -77,6 +77,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from mandatory_scope import format_scope, resolve, take_round_args  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 
 # R11B (H-R11A-e): this used to be a bare constant, and `subprocess.run` was
@@ -143,11 +146,19 @@ def baseline_porcelain() -> str | None:
 
 
 def main() -> None:
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    # `--round <N>` 展开 CLAUDE.md 的强制范围;单一落点见 scripts/mandatory_scope.py。
+    rounds, rest = take_round_args(sys.argv[1:])
+    args = [a for a in rest if not a.startswith("--")]
     dry = "--list" in sys.argv
     runnability = "--no-runnability" not in sys.argv
+    scope_line = None
+    if rounds:
+        scope_files, breakdown = resolve(rounds)
+        scope_line = format_scope(rounds, breakdown)
+        args = [str(p) for p in scope_files]
     if not args:
         raise SystemExit(__doc__)
+    print(scope_line if scope_line else f"scope=explicit  files={len(args)}")
 
     checked = failed = unpaired = timedout = 0
     ran = runfailed = skipped_mutating = 0

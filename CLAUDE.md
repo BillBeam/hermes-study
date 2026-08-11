@@ -45,11 +45,20 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   **每轮 commit 前必须运行的范围(R8-fix 扩面,原为"本轮 notes + chapters"):**
 
   ```bash
-  python3 scripts/verify_citations.py /home/user/hermes-agent \
-      chapters/*.md reading/*.md notes/rN-*.md reports/round-N-*.md
+  python3 scripts/verify_citations.py /home/user/hermes-agent --round N
   ```
 
   即 **`chapters/` 全部** + **`reading/` 全部** + **本轮的 `notes/` 与 `reports/`**。
+  **`--round N` 是这段范围的唯一取法(R11F-fix 立,结清本轮第 4 项)**:范围定义在
+  `scripts/mandatory_scope.py` 的 `SEGMENTS` 里一份,两道关卡都从那里取,关卡把解析结果
+  (`scope=… files=N (chapters=… reading=… notes=… reports=…)`)**印在读数上面**,
+  于是一份报告里的引用读数**自带它的取数范围**。任一段解析出 0 个文件即 `EMPTY-SCOPE` 阻断。
+  *为什么不再手敲 glob:范围原本只存在于作者当时敲进终端的那一行里,既不在关卡输出里、
+  也不在任何检查面上。R11F 收官报告 §11 把它记成「`chapters/` + 当轮 `notes/` + 本报告」
+  ——**`reading/` 那一段掉了**,关卡照样绿、报告照样报数(`citations=726` **81.1%**),
+  没有任何东西指出少跑了一段;按统一口径重取是 `citations=733` **80.5%**。
+  这与 R10B「白名单外的锚点连分母都进不去」是同一物种:**少掉的那一段不会让关卡变红,
+  只会让分母变小**。手敲清单仍然可用(调试、单文件复核),但**报告里的读数必须用 `--round`**。*
   *`reading/` 于 R11E 并入(实测有 1 处基线锚点随 `chapters/r7` 的 TL;DR 被逐字带进快读层):
   派生件虽由脚本生成、源正确则派生正确,但它带着基线锚点进了语料,
   而**语料里带锚点却不在检查面上的东西,正是本项目反复栽的那一类**。*
@@ -98,9 +107,13 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   而它的扩展名白名单是有限的。**不在白名单上的锚点不会记 UNCHECKED——它根本不被当成锚点**,
   既不校验、也不计数,**比 UNCHECKED 更隐蔽**:UNCHECKED 至少出现在分母里,
   它连分母都进不去。白名单现为
-  `py mdx md yaml yml toml c h sh json tsx ts mjs js nix rs txt`(见
-  `scripts/verify_citations.py:169`:`CITE_EXTS = "py\|mdx\|md\|yaml\|yml\|toml\|c\|h\|sh\|json\|tsx\|ts\|mjs\|js\|nix\|rs\|txt"`),
+  `py mdx md yaml yml toml c h sh json tsx ts mjs js nix rs txt ps1 css tsv`(见
+  `scripts/verify_citations.py:179`:`CITE_EXTS = "py`…),
   路径另允许前导点(`.github/...` 此前被解析成 `github/...`,永远解析不到)。
+  *(R11F-fix 就地更正:本条原写行号 `:169`、且列表停在 `txt` —— `ps1` / `css` / `tsv`
+  三个是 **R11D `df6d450`** 加进代码的,本条没跟着更新,行号也随之漂了 10 行。
+  **CLAUDE.md 自己不在任何关卡的扫描面上**,所以这处漂移无人会报 —— 与本轮第 4 项
+  是同一物种,记在 `reports/round-11f-fix-delivery-issues.md` §5。)*
   **写锚点前先确认扩展名在表上;要加新扩展名,连同一次全语料前后对比一起加。**
   *为什么不干脆放宽成"任意扩展名":`sqlite.org:443` 和 `路径:行号` 是同一个形状。
   实测全语料有 **49 处** host:port 长成这样(`127.0.0.1:18789` 31 处、`sqlite.org:443` 4 处、
@@ -368,12 +381,12 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   **每轮 commit 前必须跑到退出码 0** 的强制范围,与 `verify_citations.py` 同口径:
 
   ```bash
-  python3 scripts/verify_evidence_commands.py \
-      chapters/*.md reading/*.md notes/rN-*.md reports/round-N-*.md
+  python3 scripts/verify_evidence_commands.py --round N
   ```
 
   即 **`chapters/` 全部** + **`reading/` 全部** + **本轮的 `notes/` 与 `reports/`**,并在报告里报
-  `paired / unpaired / differing` 三个数。
+  `paired / unpaired / differing` 三个数。**范围与 `verify_citations.py` 共用
+  `scripts/mandatory_scope.py` 这一个落点**(R11F-fix 立),两道关卡不可能再各跑各的。
   *强制范围为什么不含历史轮次的 `notes/`(R11A 定,实测):历史底稿里的取证命令有相当一部分
   **在新容器里原理上就跑不出原值**——它们指向上一轮会话的临时目录(如 `/home/user/r10b-ts/`)、
   或指向重建后包数不同的 venv。把它们纳入强制范围,等于要求每一轮为**环境漂移**返工,
@@ -426,10 +439,32 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   **锁一防的是忘了同步,锁二防的是不假思索地同步。**
   另有 `ANCHOR-UNRESOLVED`(产物里指向章内小节的链接解析不到真实标题)、
   `UNSTAMPED` / `STALE-STAMP`(引了没钉过的节 / 钉了没人引的节),以及
-  `EMPTY-GATE`(三类比对数任一为 **0** 即失败)。
+  `EMPTY-GATE`(四类比对数任一为 **0** 即失败)。
   *`EMPTY-GATE` 为什么必须有:一个什么都没比对的关卡也会打印绿字——正是 R8C 记下的那个形状
   (锚点全写在块后的文件,关卡输出 `OK` + 退出码 0,一条都没校验)。本关卡把
-  `sections=… products=… links=…` 三个读数**打印出来**,绿必然伴随一个可当场核的 N。*
+  `sections=… products=… links=… entries=…` 四个读数**打印出来**,绿必然伴随一个可当场核的 N。*
+
+  **锁三:同一份产物内,同类条目的字段结构必须一致(R11F-fix 增,落地即阻断)。**
+  `reading/02-principles.md` 的条目分 `P`(原则)与 `C`(冲突裁定)两类,每类各有一组字段
+  (产物里表现为**行首的黑体引导词**)。R11F-fix 实测:64 条 `P` 里 **59 条**有 `陈述`,
+  而 **`P60`~`P64` 一条都没有** —— 它们只有 `合并` 与机器抽取的 `源出处`,
+  于是这五条把「这条原则说的是什么」整个交给了源章的原话。**三道既有锁一条都够不到它**:
+  产物是脚本生成的、锚点逐字抽取、章节钉子全对,而「条目之间长得不一样」不在任何一道的判据里。
+  判据两半互相咬住:
+
+  * **`FIELD-MISSING`**:必备字段集在 `scripts/verify_reading_layer.py` 的 `REQUIRED_FIELDS`
+    里**显式声明**,该类每一条都必须有(声明,不靠嗅探)。
+  * **`FIELD-UNDECLARED`**:一个字段若在某类的**全部**条目里都有,它就必须在声明里。
+    **于是删掉要求并不能转绿** —— 删掉之后它仍然 64/64,立刻以 `FIELD-UNDECLARED` 回来。
+
+  *为什么这一条特意做成「100% ⇒ 必须声明」而不是「≥N% ⇒ 必须声明」:一个带阈值的判据,
+  调阈值本身就是一条转绿的路。代价是它发现不了「59/64」这种**进行中**的漂移,故另加一行
+  **非阻断**提示,把覆盖率 ≥50% 却未声明的字段点名列出(当前:`合并` 49/64 = 77%)。*
+  **覆盖面要如实说**:本锁管的是**字段在不在**,不管字段里写得好不好。
+  「`陈述` 是不是只把源出处换句话说」机器判不了,由
+  `data/r11f-fix/probes/principle_statement_overlap.py` 报两个重复度读数、由人看
+  (它**不改退出码**:一个靠阈值判「写得像不像」的关卡,调阈值又是一条转绿的路)。
+  负控 `data/r11f-fix/probes/principle_fields_negative_control.py`(F1..F4,判据从关卡 import)。
   *为什么必须机械化(两次实证,均已回源核对):(a) R11C 片 F 盘点确认
   **成品章里未同步的过期结论 4 条**(`notes/r11c-raw-pre-binding-inventory.md:35`:
   `4. **成品章里未同步的过期结论确认 4 条**。最严重的一条是`);
@@ -482,6 +517,27 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   另外两种形态本轮新见:探针用 `git log --all` 数章号,而本轮提交信息里也提章号(25→35);
   片 F 用 `ls notes/ | grep -c 片E底稿` 钉 0 来证明独立性,而片 E 后来到货(0→1)
   ——**一个用来证明「那时候还没有」的命令,不能钉在一个会长出那个东西的引用上**。*
+- **证据块必须自足,不得依赖另一个块产生的文件(R11F 入册,结清 `H-R11C-C-b` 余下半条)**:
+  一个 ```` ```verify ```` 块要么**自带**它需要的一切,要么只读**已在版本控制里**的文件。
+  不许出现「上一个块把结果 `tee` 到某处,本块去读它」这种跨块依赖。
+  *理由(R11C 实测):这种写法必然坏,而且是**两头都坏**——生产者块带 `tee` 被分类器判
+  MUTATING,于是**永不执行**;消费块每次都执行,于是每次都读不到那个文件、**每次都报错**。
+  它在关卡眼里是一条稳定的失败,在作者眼里是"我明明跑通过"。
+  修法是把脚手架收进同一个块(here-doc 或一条管线),或把中间产物落库。*
+- **省略号只能省「别处已逐字写过」的部分(R11F 入册,结清 `H-R11C-C-d`)**:
+  证据块里的 `...` 之后不再有任何校验(见上面 BLOCK-DRIFT 那条),所以它省掉的东西
+  **必须在别处逐字存在**——同一份底稿的另一个带锚点的块,或一个落库的探针文件。
+  **不许省掉「产生这个输出的那几行」**:`print` 语句、脚手架、参数构造。
+  *理由(R11C 实测):有证据块把产生输出的 `print` 与脚手架整个省进了省略号,
+  于是**重建这条证据必须靠猜**。一条要靠猜才能重跑的命令,不满足「shell 命令即证据」
+  这条规矩的前提——它证明的是作者当时看见了什么,不是读者现在能验证什么。*
+- **同类批量作业必须有人工复核环节(R11F 入册,结清 `H-R11D-A-c`)**:凡「把某个形状
+  批量改成另一个形状」的作业(锚点补全、行号漂移批改、状态列批量翻新),
+  **不得全自动落地**;必须有一步逐条过目,并在报告里报出**过目了多少条、驳回了多少条**。
+  *理由(R11D 实测的 use-mention 盲区):锚点被当作**讨论对象**而非引用时
+  ——「`base.py:645` 这种写法解析不到」——机械补全会把它改成一个能解析的路径,
+  **于是那句话自我否定了**。机器分不出「用」与「提」,这不是正则能补的洞;
+  能补的只有一双眼睛。所以这一条不是给脚本加规则,是给流程加环节。*
 - **claim 不许生产者自己关(R11C 定)**:`data/inflight/*.claim` 的 `signal:` 行是
   **消费者(主线)确认「我收到了完成信号」**的动作。*R11C 片 A 收工时自己把它从 `OPEN` 改成
   `RELEASED` —— **一个能被被守方解除的守卫不是守卫**。生产者只在底稿末尾写 `## 完成信号`。*
@@ -733,6 +789,18 @@ scripts/verify_derived_numbers.py # R11D 新增(结清 H-R11C-E-c / H-R11C-F-b):
                            # 可复算数,脚本从 data/ledger.tsv 复算并要求逐字出现。
                            # 不嗅探(511 既是 L1 过期值、也正好是 r9b 章的行数);
                            # 代价如实说:没写声明的手抄件发现不了
+                           # R11F 增:写入腿 `--sync --since <rev>`(新旧两值都由复算产生)
+                           # R11F-fix 重做两条腿的判据(结清本轮第 1、2 项):
+                           #   两腿共用 number_tokens() —— 整数字 token 比对,`12,586` 是一个
+                           #   token 而不含 `2,586`;锚点行号与围栏块内的行整段排除。
+                           #   校验腿改**保序绑定**:多键声明里键↔取值的对应关系可判、可打印
+                           #   (--explain),整表重排判 ORDER 阻断(旧判据只问"这个数在不在")。
+                           #   写入腿改**按 token 跨度落笔**,并修好恒不触发的「同声明撞值」守卫。
+                           #   负控:data/r11f-fix/probes/derived_{write,verify}_negative_control.py
+scripts/mandatory_scope.py # R11F-fix 新增:CLAUDE.md「每轮必跑范围」的**单一落点**。
+                           # verify_citations.py / verify_evidence_commands.py 的 `--round N`
+                           # 都从这里展开,并把 scope= 行印在读数上面;任一段 0 文件即
+                           # EMPTY-SCOPE 阻断。负控 data/r11f-fix/probes/gate_scope_negative_control.py
 data/chapter-order.tsv     # R11D 新增:全书章序的单一落点(章号/文件/轮次/主题)
 scripts/verify_report_headline.py # R8-fix 新增:报告首句 ≤20 字口径的脚本化判定
                            # (剥标签与强调、中文标点计入;纯数据附卷豁免、历史例外显式列名)
@@ -740,12 +808,23 @@ scripts/config_table.py    # R8A 新增:从 DEFAULT_CONFIG / OPTIONAL_ENV_VARS �
                            # 抽取配置项全表(不 import 不执行);用前先读它开头的三条告诫
 scripts/render_capabilities.py   # JSON → 附卷渲染
 scripts/render_main_report.py    # JSON → 主卷能力点章节渲染(--compact 出会话消息版)
+scripts/test_totals.py     # R11F 新增(结清 H-R11E-M-c):run_tests.sh 完整日志的
+                           # **唯一汇总口径**。运行器只打印失败清单与零执行清单,
+                           # passed/skipped 藏在进度行括号里,于是各轮各写一次解析、
+                           # 写出了两个数(R11D skipped 132 / R11E 239)。此后共用本脚本。
+                           # 报四类:passed/failed/skipped + 整文件跳过 + 部分跳过 + 零执行;
+                           # 零执行的用例数日志里没有(收集期就失败),给 --baseline 时
+                           # 静态数 def test_ 出下界,不给就只点名不报数 —— 不猜
 scripts/build_reading_layer.py  # R11E 新增:reading/ 三份派生件的**唯一生产者**。
                            # 凡引自成品章的文字一律运行时逐字抽取,不经人手;
                            # --write 写产物 / --restamp 重钉源节 / --stats 报体量与阅读时长
 scripts/verify_reading_layer.py # R11E 新增,**落地即阻断**:重建三份产物与库内逐字比对
                            # (PRODUCT-STALE)+ 源节 sha256 钉比对(SECTION-DRIFT)+
                            # 章内锚点解析(ANCHOR-UNRESOLVED)+ 非空绿守卫(EMPTY-GATE)
+                           # R11F-fix 增锁三:原则层条目的字段结构一致性 ——
+                           # REQUIRED_FIELDS 显式声明每类必备字段(FIELD-MISSING),
+                           # 且「全部条目都有的字段必须在声明里」(FIELD-UNDECLARED,无阈值),
+                           # 两半互咬所以删要求不能转绿;另有非阻断的覆盖率提示行
 reading/                   # R11E 新增的**阅读层**(全部派生自 chapters/,勿手改):
                            #   01-quickread.md      快读层:21 章 TL;DR 逐字合集
                            #   02-principles.md     原则层:以**原则**为条目重组,含去重与冲突裁定
@@ -813,6 +892,22 @@ R8A 同一套 170 个测试文件先后报出 **3,183** 与 **3,190** 两个数,
 
 **报测试通过数时一并记 venv 包数**(R8A 立):`pip list` 去掉两行表头后的条目数。
 R8B 实测 **87 个包**(`[dev]` extra + `aiohttp 3.14.1` + `brotlicffi 1.2.0.1`)。
+
+**汇总用 `scripts/test_totals.py`,不各轮各写一遍(R11F 立,结清 H-R11E-M-c)**:
+
+```bash
+cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 \
+  HERMES_PYTHON=/home/user/hermes-venv/bin/python bash scripts/run_tests.sh \
+  > /home/user/hermes-study/data/rN/tests-full.log 2>&1
+python3 scripts/test_totals.py data/rN/tests-full.log --baseline /home/user/hermes-agent
+```
+
+**日志要留全,不许 `tail`**:R11E 把输出管进 `tail -120`,聚合信息恰好被截掉,
+证据被自己的排版动作弄没了,只好整轮重跑。
+
+**三类"没跑到"分开报,别只报 skipped 总数**:整文件跳过(`passed==0 且 skipped>0`)、
+部分跳过、零执行(连进度行都没有)。三类在一个只看 passed 的读者眼里**都不存在**,
+而它们的成因完全不同 —— 前两类是 pytest 数过的,零执行是收集阶段就死了、pytest 没数出来。
 
 模型凭据不需要,也不得自行配置。
 

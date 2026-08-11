@@ -1,0 +1,6 @@
+agent: 片 E · 插件面 L2 结构级理解
+dispatched: 2026-08-11
+signal: RELEASED 片 E 完成信号(任务完成通知,含五条判据全达成、50/50 点名、九个接缝枚举)。主线已独立复核:(a) 基线 porcelain 0 / HEAD 863e31318 / venv 87 未变;(b) 两道关卡自跑复现其报数 —— citations=36 OK=31 86.1%、table_anchors 84/84、evidence paired=12 differing=0;(c) 50 个全路径逐条 grep 底稿,missing=0;(d) 复核 ■ H-R11F-E-a:全仓 get_active_provider 的 image 侧调用方只有 agent/pet/generate/imagegen.py:103,生图工具确实不经注册表 —— 成立;(e) **案号并案**:H-R11F-E-c 与片 D 的 H-R11F-D-a 是同一实体(hooks: vs provides_hooks),片 E 自己已标注请主线合并。裁定保留先落地的 H-R11F-D-a,E-c 记为并入;H-R11F-E-d(platforms: 键)同族但**不同实体,不合号**,片 E 的这个区分正确。
+path: notes/r11f-raw-e-*.md
+path: data/r11f/e/*
+path: data/r11f/probes/e_*.py

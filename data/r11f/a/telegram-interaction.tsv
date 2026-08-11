@@ -1,0 +1,37 @@
+handler	TelegramMessageHandler	_handle_text_message	plugins/platforms/telegram/adapter.py:3876
+handler	TelegramMessageHandler	_handle_command	plugins/platforms/telegram/adapter.py:3880
+handler	TelegramMessageHandler	_handle_location_message	plugins/platforms/telegram/adapter.py:3884
+handler	TelegramMessageHandler	_handle_media_message	plugins/platforms/telegram/adapter.py:3888
+handler	CallbackQueryHandler	_handle_callback_query	plugins/platforms/telegram/adapter.py:3893
+handler	TelegramMessageHandler	_handle_text_message	plugins/platforms/telegram/adapter.py:4008
+handler	TelegramMessageHandler	_handle_command	plugins/platforms/telegram/adapter.py:4012
+handler	TelegramMessageHandler	_handle_location_message	plugins/platforms/telegram/adapter.py:4016
+handler	TelegramMessageHandler	_handle_media_message	plugins/platforms/telegram/adapter.py:4020
+handler	CallbackQueryHandler	_handle_callback_query	plugins/platforms/telegram/adapter.py:4024
+produced	cl:	plugins/platforms/telegram/adapter.py:5623
+produced	cp:	plugins/platforms/telegram/adapter.py:5747
+produced	ea:	plugins/platforms/telegram/adapter.py:5473
+produced	mb:	plugins/platforms/telegram/adapter.py:5944
+produced	mc:	plugins/platforms/telegram/adapter.py:6154
+produced	mg:	plugins/platforms/telegram/adapter.py:5937
+produced	mm:	plugins/platforms/telegram/adapter.py:5928
+produced	mp:	plugins/platforms/telegram/adapter.py:5867
+produced	mpg:	plugins/platforms/telegram/adapter.py:5881
+produced	mpv:	plugins/platforms/telegram/adapter.py:5902
+produced	mx:	plugins/platforms/telegram/adapter.py:5903
+produced	sc:	plugins/platforms/telegram/adapter.py:5531
+produced	update_prompt:	plugins/platforms/telegram/adapter.py:5406
+consumed	cl:	plugins/platforms/telegram/adapter.py:6537
+consumed	cp:	plugins/platforms/telegram/adapter.py:6333
+consumed	ea:	plugins/platforms/telegram/adapter.py:6352
+consumed	gt:	plugins/platforms/telegram/adapter.py:6340
+consumed	mb:	plugins/platforms/telegram/adapter.py:6326
+consumed	mc:	plugins/platforms/telegram/adapter.py:6326
+consumed	mg:	plugins/platforms/telegram/adapter.py:6326
+consumed	mm:	plugins/platforms/telegram/adapter.py:6326
+consumed	mp:	plugins/platforms/telegram/adapter.py:6326
+consumed	mpg:	plugins/platforms/telegram/adapter.py:6326
+consumed	mpv:	plugins/platforms/telegram/adapter.py:6326
+consumed	mx:	plugins/platforms/telegram/adapter.py:6326
+consumed	sc:	plugins/platforms/telegram/adapter.py:6437
+consumed	update_prompt:	plugins/platforms/telegram/adapter.py:6653

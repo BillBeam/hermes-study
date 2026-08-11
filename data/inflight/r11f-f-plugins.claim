@@ -1,0 +1,6 @@
+agent: 片 F · 插件面 L2 结构级理解
+dispatched: 2026-08-11
+signal: RELEASED 片 F 完成信号(任务完成通知,含五条判据全达成、69/69 点名、15 处接缝枚举)。主线已独立复核:(a) 基线 porcelain 0 / HEAD 863e31318 / venv 87 未变;(b) 两道关卡自跑复现其报数 —— citations=24 OK=24 100%、table_anchors 117/117、evidence paired=15 differing=0;(c) 69 个全路径逐条 grep 底稿,missing=0;(d) 独立复核 ■ H-R11F-F-a(清单是可执行面):plugins/memory/byterover/plugin.yaml:6 的 install 值为 curl ... | sh、check 为 brv --version;消费侧 hermes_cli/web_server.py 有 shlex.split(check_cmd)(:5395/:5480/:5552)与 shell=True + executable=/bin/bash(:5365/:5524)—— 成立;(e) 案号并案:H-R11F-F-c 与 H-R11F-D-a、H-R11F-E-c 同一实体,保留 D-a;F-c 贡献了具体后果(byterover 清单里 on_pre_compress 这个不存在的 hook 名从未被任何东西发现),并入时保留该证据;(f) 采纳片 F 的口径裁定:插件自身 README.md 计入地图级 ▲,但按来源分两行报,以保跨轮可比。
+path: notes/r11f-raw-f-*.md
+path: data/r11f/f/*
+path: data/r11f/probes/f_*.py

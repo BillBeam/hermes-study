@@ -1,0 +1,25 @@
+## photon  public+4  private+37
+    2263 async def     add_reaction
+    2293 async def     remove_reaction
+    2108 async def     send_effect
+    2093 async def     send_poll
+## a2a  public+0  private+37
+## whatsapp  public+2  private+10
+    1153 async def     send_location
+    1067 async def     send_poll
+## line  public+0  private+13
+## buzz  public+1  private+22
+     641 async def     send_reaction
+## teams  public+1  private+5
+    1148 async def     send_exec_approval
+## simplex  public+1  private+12
+     860 async def     list_channels
+## mattermost  public+0  private+14
+## email  public+0  private+12
+## irc  public+0  private+6
+## raft  public+2  private+9
+     761 def           report_activity
+     468 property      runtime_session
+## ntfy  public+0  private+5
+## homeassistant  public+0  private+7
+## sms  public+0  private+5

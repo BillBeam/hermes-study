@@ -1,0 +1,4 @@
+# plugins/hermes-achievements/dashboard/plugin_api.py: 6
+# plugins/kanban/dashboard/plugin_api.py: 45
+# TOTAL routes: 51
+# decorator owners: ['router']

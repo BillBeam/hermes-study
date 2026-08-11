@@ -1,0 +1,21 @@
+event	message	handle_message_event	plugins/platforms/slack/adapter.py:1941
+event	app_mention	handle_app_mention	plugins/platforms/slack/adapter.py:1952
+event	app_home_opened	handle_app_home_opened	plugins/platforms/slack/adapter.py:1956
+event	app_context_changed	handle_app_context_changed	plugins/platforms/slack/adapter.py:1960
+event	file_shared	handle_file_shared	plugins/platforms/slack/adapter.py:1967
+event	file_created	handle_file_created	plugins/platforms/slack/adapter.py:1971
+event	file_change	handle_file_change	plugins/platforms/slack/adapter.py:1975
+event	reaction_added	handle_reaction_added	plugins/platforms/slack/adapter.py:1985
+event	reaction_removed	handle_reaction_removed	plugins/platforms/slack/adapter.py:1989
+event	assistant_thread_started	handle_assistant_thread_started	plugins/platforms/slack/adapter.py:1993
+event	assistant_thread_context_changed	handle_assistant_thread_context_changed	plugins/platforms/slack/adapter.py:1997
+event	re:re.compile('.*')	handle_unhandled_event	plugins/platforms/slack/adapter.py:2028
+command	re:_slash_pattern	handle_hermes_command	plugins/platforms/slack/adapter.py:2065
+action	re:_action_id	self._handle_approval_action	plugins/platforms/slack/adapter.py:2081
+action	re:_action_id	self._handle_slash_confirm_action	plugins/platforms/slack/adapter.py:2090
+action	hermes_feedback	self._handle_feedback_action	plugins/platforms/slack/adapter.py:2092
+action	re:_re.compile('^hermes_clarify_choice_\\d+$')	self._handle_clarify_action	plugins/platforms/slack/adapter.py:2098
+action	hermes_clarify_other	self._handle_clarify_action	plugins/platforms/slack/adapter.py:2101
+action	re:_action_id	_make_wrapper(_cb, _plugin_name)	plugins/platforms/slack/adapter.py:2145
+action_loop	_action_id	hermes_approve_once hermes_approve_session hermes_approve_always hermes_deny	plugins/platforms/slack/adapter.py:2075
+action_loop	_action_id	hermes_confirm_once hermes_confirm_always hermes_confirm_cancel	plugins/platforms/slack/adapter.py:2085

@@ -1,0 +1,45 @@
+slash	/approve	plugins/platforms/discord/adapter.py:5562	Approve a pending dangerous command
+slash	/background	plugins/platforms/discord/adapter.py:5593	Run a prompt in the background
+slash	/compress	plugins/platforms/discord/adapter.py:5501	Compress conversation context
+slash	/deny	plugins/platforms/discord/adapter.py:5567	Deny a pending dangerous command
+slash	/help	plugins/platforms/discord/adapter.py:5519	Show available commands
+slash	/insights	plugins/platforms/discord/adapter.py:5523	Show usage insights and analytics
+slash	/model	plugins/platforms/discord/adapter.py:5442	Show or change the model
+slash	/new	plugins/platforms/discord/adapter.py:5434	Start a new conversation
+slash	/personality	plugins/platforms/discord/adapter.py:5471	Set a personality
+slash	/queue	plugins/platforms/discord/adapter.py:5588	Queue a prompt for the next turn (doesn't interrupt)
+slash	/reasoning	plugins/platforms/discord/adapter.py:5447	Show/change reasoning effort, or toggle showing it
+slash	/reload-mcp	plugins/platforms/discord/adapter.py:5528	Reload MCP servers from config
+slash	/reload-skills	plugins/platforms/discord/adapter.py:5532	Re-scan ~/.hermes/skills/ for new or removed skills
+slash	/reset	plugins/platforms/discord/adapter.py:5438	Reset your Hermes session
+slash	/restart	plugins/platforms/discord/adapter.py:5558	Gracefully restart the Hermes gateway
+slash	/resume	plugins/platforms/discord/adapter.py:5510	Resume a previously-named session
+slash	/retry	plugins/platforms/discord/adapter.py:5476	Retry your last message
+slash	/sethome	plugins/platforms/discord/adapter.py:5488	Set this chat as the home channel
+slash	/status	plugins/platforms/discord/adapter.py:5484	Show Hermes session status
+slash	/steer	plugins/platforms/discord/adapter.py:5496	Inject a message after the next tool call (no interrupt)
+slash	/stop	plugins/platforms/discord/adapter.py:5492	Stop the running Hermes agent
+slash	/thread	plugins/platforms/discord/adapter.py:5572	Create a new thread and start a Hermes session in it
+slash	/title	plugins/platforms/discord/adapter.py:5505	Set or show the session title
+slash	/undo	plugins/platforms/discord/adapter.py:5480	Remove the last exchange
+slash	/update	plugins/platforms/discord/adapter.py:5554	Update Hermes Agent to the latest version
+slash	/usage	plugins/platforms/discord/adapter.py:5515	Show token usage for this session
+slash	/voice	plugins/platforms/discord/adapter.py:5536	Toggle voice reply mode
+event	on_message	plugins/platforms/discord/adapter.py:1345
+event	on_ready	plugins/platforms/discord/adapter.py:1329
+event	on_voice_state_update	plugins/platforms/discord/adapter.py:1349
+view	ChoicePickerView	plugins/platforms/discord/adapter.py:9076
+view	ClarifyChoiceView	plugins/platforms/discord/adapter.py:9167
+view	ExecApprovalView	plugins/platforms/discord/adapter.py:8372
+view	ModelPickerView	plugins/platforms/discord/adapter.py:8746
+view	SlashConfirmView	plugins/platforms/discord/adapter.py:8535
+view	UpdatePromptView	plugins/platforms/discord/adapter.py:8650
+button	Allow Once	plugins/platforms/discord/adapter.py:8495
+button	Allow Session	plugins/platforms/discord/adapter.py:8501
+button	Always Allow	plugins/platforms/discord/adapter.py:8507
+button	Deny	plugins/platforms/discord/adapter.py:8513
+button	Approve Once	plugins/platforms/discord/adapter.py:8617
+button	Always Approve	plugins/platforms/discord/adapter.py:8623
+button	Cancel	plugins/platforms/discord/adapter.py:8629
+button	Yes	plugins/platforms/discord/adapter.py:8719
+button	No	plugins/platforms/discord/adapter.py:8725

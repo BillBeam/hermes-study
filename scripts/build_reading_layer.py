@@ -376,9 +376,12 @@ BANNER = ("<!-- 本文件由 scripts/build_reading_layer.py 生成,请勿直接�
 
 
 def build_quickread(corpus, refs):
-    out = [BANNER, "", "# 快读层 · 21 章 TL;DR 合集",
+    # 章数从落点表算,不写死(R11F:原为字面量 "21",加第 22 章时标题会静默过期,
+    # 而三份产物是**逐字比对**的,过期的是标题这一行、比对照样绿)。
+    n_ch = len(corpus.order)
+    out = [BANNER, "", f"# 快读层 · {n_ch} 章 TL;DR 合集",
            "",
-           "> **这份文档是什么**:《设计蓝图》21 个成品章的 TL;DR 逐字汇编,按装订章序排列。",
+           f"> **这份文档是什么**:《设计蓝图》{n_ch} 个成品章的 TL;DR 逐字汇编,按装订章序排列。",
            "> 用途是**一口气读完拿到全貌**——每章的 TL;DR 本来就是照「读这一段就有全貌」写的,",
            "> 把它们接起来就是一条不下钻的快读路径。",
            ">",
@@ -738,7 +741,7 @@ def build_index(corpus, refs):
     out.append("## 未被任何问题指向的章")
     out.append("")
     if not unpointed:
-        out.append("**没有**——21 章每一章都至少被一个问题入口指到。")
+        out.append(f"**没有**——{len(corpus.order)} 章每一章都至少被一个问题入口指到。")
     else:
         out.append("以下章没有出现在上面任何一条问题里。列出来而不是掩盖,"
                    "因为「查不到」和「没有」对读者是两回事:")

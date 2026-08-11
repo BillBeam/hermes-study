@@ -1,0 +1,15 @@
+plugins/platforms/discord/__init__.py	3
+plugins/platforms/discord/adapter.py	10138
+plugins/platforms/discord/ffmpeg_utils.py	43
+plugins/platforms/discord/plugin.yaml	34
+plugins/platforms/discord/recovery.py	112
+plugins/platforms/discord/voice_mixer.py	387
+plugins/platforms/slack/__init__.py	3
+plugins/platforms/slack/adapter.py	9088
+plugins/platforms/slack/block_kit.py	688
+plugins/platforms/slack/plugin.yaml	45
+plugins/platforms/telegram/__init__.py	3
+plugins/platforms/telegram/adapter.py	10147
+plugins/platforms/telegram/plugin.yaml	35
+plugins/platforms/telegram/telegram_ids.py	51
+plugins/platforms/telegram/telegram_network.py	305

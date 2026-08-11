@@ -1,0 +1,51 @@
+### image_gen  ABC=ImageGenProvider  (agent/image_gen_provider.py)
+methods on ABC: generate*, name*, capabilities, default_model, display_name, get_setup_schema, is_available, list_models   (* = @abstractmethod)
+  deepinfra     class=DeepInfraImageGenProvider base=ImageGenProvider
+    generate=IMPL name=IMPL capabilities=OVR default_model=OVR display_name=OVR get_setup_schema=OVR is_available=OVR list_models=OVR
+    EXTRA: (none)
+  fal           class=FalImageGenProvider base=ImageGenProvider
+    generate=IMPL name=IMPL capabilities=OVR default_model=OVR display_name=OVR get_setup_schema=OVR is_available=OVR list_models=OVR
+    EXTRA: (none)
+  krea          class=KreaImageGenProvider base=ImageGenProvider
+    generate=IMPL name=IMPL capabilities=OVR default_model=OVR display_name=OVR get_setup_schema=OVR is_available=OVR list_models=OVR
+    EXTRA: (none)
+  openai        class=OpenAIImageGenProvider base=ImageGenProvider
+    generate=IMPL name=IMPL capabilities=OVR default_model=OVR display_name=OVR get_setup_schema=OVR is_available=OVR list_models=OVR
+    EXTRA: (none)
+  openai-codex  class=OpenAICodexImageGenProvider base=ImageGenProvider
+    generate=IMPL name=IMPL capabilities=OVR default_model=OVR display_name=OVR get_setup_schema=OVR is_available=OVR list_models=OVR
+    EXTRA: (none)
+  openrouter    class=OpenRouterCompatImageProvider base=ImageGenProvider
+    generate=IMPL name=IMPL capabilities=OVR default_model=OVR display_name=OVR get_setup_schema=OVR is_available=OVR list_models=OVR
+    EXTRA: _resolve_model, _resolve_model_chain, _resolve_runtime
+  xai           class=XAIImageGenProvider base=ImageGenProvider
+    generate=IMPL name=IMPL capabilities=OVR default_model=- display_name=OVR get_setup_schema=OVR is_available=OVR list_models=OVR
+    EXTRA: (none)
+
+### video_gen  ABC=VideoGenProvider  (agent/video_gen_provider.py)
+methods on ABC: generate*, name*, capabilities, default_model, display_name, get_setup_schema, is_available, list_models   (* = @abstractmethod)
+  deepinfra     class=DeepInfraVideoGenProvider base=OpenAICompatibleVideoGenProvider
+    generate=- name=- capabilities=OVR default_model=- display_name=OVR get_setup_schema=OVR is_available=- list_models=OVR
+    EXTRA: (none)
+  fal           class=FALVideoGenProvider base=VideoGenProvider
+    generate=IMPL name=IMPL capabilities=OVR default_model=OVR display_name=OVR get_setup_schema=OVR is_available=OVR list_models=OVR
+    EXTRA: (none)
+  xai           class=XAIVideoGenProvider base=VideoGenProvider
+    generate=IMPL name=IMPL capabilities=OVR default_model=OVR display_name=OVR get_setup_schema=OVR is_available=OVR list_models=OVR
+    EXTRA: (none)
+  [mixin] OpenAICompatibleVideoGenProvider
+    generate=IMPL name=- capabilities=- default_model=- display_name=- get_setup_schema=- is_available=OVR list_models=-
+    EXTRA: _api_key, _base_url, _create_and_poll
+
+### browser  ABC=BrowserProvider  (agent/browser_provider.py)
+methods on ABC: close_session*, create_session*, emergency_cleanup*, is_available*, name*, display_name, get_setup_schema, is_configured, provider_name   (* = @abstractmethod)
+  browser-use   class=BrowserUseBrowserProvider base=BrowserProvider
+    close_session=IMPL create_session=IMPL emergency_cleanup=IMPL is_available=IMPL name=IMPL display_name=OVR get_setup_schema=OVR is_configured=- provider_name=-
+    EXTRA: _get_config, _get_config_or_none, _headers
+  browserbase   class=BrowserbaseBrowserProvider base=BrowserProvider
+    close_session=IMPL create_session=IMPL emergency_cleanup=IMPL is_available=IMPL name=IMPL display_name=OVR get_setup_schema=OVR is_configured=- provider_name=-
+    EXTRA: _get_config, _get_config_or_none
+  firecrawl     class=FirecrawlBrowserProvider base=BrowserProvider
+    close_session=IMPL create_session=IMPL emergency_cleanup=IMPL is_available=IMPL name=IMPL display_name=OVR get_setup_schema=OVR is_configured=- provider_name=-
+    EXTRA: _api_url, _headers
+

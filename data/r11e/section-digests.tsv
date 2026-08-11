@@ -1,7 +1,7 @@
 chapter	section	sha256	section_lines
 chapters/r1-what-is-hermes-agent.md	1. 从一个场景说起:你对着 Telegram 发了一句话	ea11c66e04a6cebe0500251b1f0f01583df556370be0e9bf2734485f1c351b88	22
 chapters/r1-what-is-hermes-agent.md	2. 全景:七个部件如何拼在一起	105a33b5ceee0624095e4bb23270913b0534bfd25665027966fbda4cb3a3aab1	38
-chapters/r1-what-is-hermes-agent.md	3. 全仓地图:8,530 个文件都归了类	9758ab5538eded4fee2d66ba007f1f1c510ae6a4a3b4d8e95badab8b9fb9220b	65
+chapters/r1-what-is-hermes-agent.md	3. 全仓地图:8,530 个文件都归了类	c6154b051ecdfa9ad1f11cd39626c6ac9c0d709609dff1743ebde0787e776821	65
 chapters/r1-what-is-hermes-agent.md	4. 一个要提前知道的"坑":地图会骗你,代码不会	ee6232854bcda28b15e130571835c60174e4db1d799d82036048fa50ef42af30	20
 chapters/r1-what-is-hermes-agent.md	5. 为什么值得逐条读透(而不是"看个大概")	0eaf8323b9a09788180d9ef8f96d82bb44e451fc0e91d5e4608febaf9a6a2b3a	20
 chapters/r1-what-is-hermes-agent.md	6. 阅读路线	08568e0b715d0d220ebbdf2865a7ed98fc51a33816c91a18ca1cf69f6780c883	21
@@ -33,12 +33,17 @@ chapters/r11b-the-unwritten-layer.md	3. 逐机制	89a7e876a811c5904c8a52eaad51be
 chapters/r11b-the-unwritten-layer.md	4. 可迁移的设计原则	3dce834d155820142a32d1928da4f233cc1ca37b0a89e4bbc304133d4c411a4a	22
 chapters/r11b-the-unwritten-layer.md	5. 地图与代码的出入	ae9076b2fed6078326dfa8189dfc78f101da0085b74297a4360fec15b1144781	21
 chapters/r11b-the-unwritten-layer.md	TL;DR(快读路径)	f7d99da59334438e9850f67ccf845d6638339383bab37620eecb0ad1f89506b1	16
+chapters/r11f-plugin-surface.md	1. 从一个场景说起:一个声明了钩子的插件,什么都没发生	34c5ee93a6d91a25a287cc11c460025032232870b0e5510e61f58bb4f5223788	53
+chapters/r11f-plugin-surface.md	2. 全景:一个插件从磁盘到生效	82fb97891e8ec4de44ea3a5c78bcac36cfe9ab853c36168434fc8bc1de8befb3	42
+chapters/r11f-plugin-surface.md	3. 逐机制	bf5461b443d53ff948ac9b4a0225804e3095a95ec0b25cfac630b777265eaf8b	329
+chapters/r11f-plugin-surface.md	4. 可迁移的设计原则(造你自己的插件系统时怎么做)	a92ebb5a2b73b1fb9724dad2be0be191b70a5d6a01bbf4b53ccfde385a37d8ed	28
+chapters/r11f-plugin-surface.md	TL;DR(快读路径:读这一段就有全貌)	51b59d045848c3943a98fcce23b0698c7c2d46ca6b68a6fca6a6cd8e2e5bc804	24
 chapters/r2-turn-loop-and-model-access.md	1. 从一个场景说起:一句话背后的一轮循环	ad78c7b851b0f1b2d7ac02d8dcafe9fb3116f666bb1e5881cfa298464d709239	30
 chapters/r2-turn-loop-and-model-access.md	2. 全景:一个 turn 的生命周期	7c53780d486874156137df87deea5aa7fda25c314a8ae55fceecea37b3cbd00f	31
-chapters/r2-turn-loop-and-model-access.md	3. 逐机制	6f3d602495b9f70dfd93943d228e3ed75696a898aa3a8ebb4ef070bc6484b5f4	623
+chapters/r2-turn-loop-and-model-access.md	3. 逐机制	59020e3a271ce06bc099b1791618639965e81e7d83ec2d97b3b4ea8abf412287	632
 chapters/r2-turn-loop-and-model-access.md	4. 可迁移的设计原则(造你自己的 harness 时怎么做)	ff826bdf4ba5601cd0500144bfd3e7c1775c20a26cbb0a7b6851363bdeb84433	19
 chapters/r2-turn-loop-and-model-access.md	5. 地图与代码的出入	741f9834790f56a77f7b86afa76d67fa0d387d426e8c4f7f3a85a646214d601b	26
-chapters/r2-turn-loop-and-model-access.md	TL;DR(快读路径:读这一段就有全貌)	59576a3b9de678e6b3e0b2ee318f7bcf29d6639c8b881a4fb0e13ec5dbe95f57	30
+chapters/r2-turn-loop-and-model-access.md	TL;DR(快读路径:读这一段就有全貌)	72fcea515bd846f2b2a57a7d3e52361550cc6b20bc6457d6dc6445babb5f91d6	55
 chapters/r3-tool-infrastructure.md	1. 从一个场景说起:一次工具调用要过多少道关	205ccd49c8926410a72e1a2db7b9460f3aa454c8c5c0bce33197f71e4cc753b7	17
 chapters/r3-tool-infrastructure.md	2. 全景:工具系统的四大块	2d299b0839d6758dea6e8e5b08c1ae20a4517e88236c767625c524f2505ba767	32
 chapters/r3-tool-infrastructure.md	3. 逐机制	f83bacee2a06b9a8869c6b6a204b71104e21491b375a78da0f339f0d6138c09c	265

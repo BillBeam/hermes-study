@@ -1,0 +1,68 @@
+== discord: declared=5 literal=34 undeclared=30
+   DISCORD_ALLOWED_CHANNELS	plugins/platforms/discord/adapter.py:386
+   DISCORD_ALLOWED_ROLES	plugins/platforms/discord/adapter.py:385
+   DISCORD_ALLOW_ANY_ATTACHMENT	plugins/platforms/discord/adapter.py:6155
+   DISCORD_ALLOW_BOTS	plugins/platforms/discord/adapter.py:392  (间接:常量表)
+   DISCORD_ALLOW_MENTION_EVERYONE	plugins/platforms/discord/adapter.py:493  (间接:常量表)
+   DISCORD_ALLOW_MENTION_REPLIED_USER	plugins/platforms/discord/adapter.py:496  (间接:常量表)
+   DISCORD_ALLOW_MENTION_ROLES	plugins/platforms/discord/adapter.py:494  (间接:常量表)
+   DISCORD_ALLOW_MENTION_USERS	plugins/platforms/discord/adapter.py:495  (间接:常量表)
+   DISCORD_APPROVAL_MENTIONS	plugins/platforms/discord/adapter.py:7035
+   DISCORD_AUTO_THREAD	plugins/platforms/discord/adapter.py:7755
+   DISCORD_BOTS_REQUIRE_INLINE_MENTION	plugins/platforms/discord/adapter.py:6368
+   DISCORD_COMMAND_SYNC_POLICY	plugins/platforms/discord/adapter.py:2748
+   DISCORD_FREE_RESPONSE_CHANNELS	plugins/platforms/discord/adapter.py:389
+   DISCORD_HIDE_SLASH_COMMANDS	plugins/platforms/discord/adapter.py:5737
+   DISCORD_HISTORY_BACKFILL	plugins/platforms/discord/adapter.py:6445
+   DISCORD_HISTORY_BACKFILL_LIMIT	plugins/platforms/discord/adapter.py:6461
+   DISCORD_IGNORED_CHANNELS	plugins/platforms/discord/adapter.py:387
+   DISCORD_IGNORE_NO_MENTION	plugins/platforms/discord/adapter.py:1482
+   DISCORD_MAX_ATTACHMENT_BYTES	plugins/platforms/discord/adapter.py:6166
+   DISCORD_MISSED_MESSAGE_BACKFILL	plugins/platforms/discord/adapter.py:2104
+   DISCORD_MISSED_MESSAGE_BACKFILL_CHANNELS	plugins/platforms/discord/adapter.py:390  (间接:常量表)
+   DISCORD_MISSED_MESSAGE_BACKFILL_LIMIT	plugins/platforms/discord/adapter.py:2147
+   DISCORD_MISSED_MESSAGE_BACKFILL_MAX_DISPATCHES	plugins/platforms/discord/adapter.py:2160
+   DISCORD_MISSED_MESSAGE_BACKFILL_WINDOW_SECONDS	plugins/platforms/discord/adapter.py:2134
+   DISCORD_NO_THREAD_CHANNELS	plugins/platforms/discord/adapter.py:388
+   DISCORD_PROXY	plugins/platforms/discord/adapter.py:1295  (间接:常量表)
+   DISCORD_REACTIONS	plugins/platforms/discord/adapter.py:2966
+   DISCORD_REPLY_TO_MODE	plugins/platforms/discord/adapter.py:10045
+   DISCORD_REQUIRE_MENTION	plugins/platforms/discord/adapter.py:6140
+   DISCORD_THREAD_REQUIRE_MENTION	plugins/platforms/discord/adapter.py:6436
+== telegram: declared=5 literal=24 undeclared=20
+   TELEGRAM_ALLOWED_CHATS	plugins/platforms/telegram/adapter.py:7862
+   TELEGRAM_ALLOWED_TOPICS	plugins/platforms/telegram/adapter.py:7901
+   TELEGRAM_ALLOW_BOTS	plugins/platforms/telegram/adapter.py:10033
+   TELEGRAM_EXCLUSIVE_BOT_MENTIONS	plugins/platforms/telegram/adapter.py:7816
+   TELEGRAM_FREE_RESPONSE_CHATS	plugins/platforms/telegram/adapter.py:7821
+   TELEGRAM_FREE_RESPONSE_TOPICS	plugins/platforms/telegram/adapter.py:7835
+   TELEGRAM_GROUP_ALLOWED_CHATS	plugins/platforms/telegram/adapter.py:1043
+   TELEGRAM_GROUP_ALLOWED_USERS	plugins/platforms/telegram/adapter.py:1042
+   TELEGRAM_GUEST_MODE	plugins/platforms/telegram/adapter.py:7807
+   TELEGRAM_IGNORED_THREADS	plugins/platforms/telegram/adapter.py:7909
+   TELEGRAM_MENTION_PATTERNS	plugins/platforms/telegram/adapter.py:7931
+   TELEGRAM_OBSERVE_UNMENTIONED_GROUP_MESSAGES	plugins/platforms/telegram/adapter.py:7798
+   TELEGRAM_PROXY	plugins/platforms/telegram/adapter.py:3819
+   TELEGRAM_REACTIONS	plugins/platforms/telegram/adapter.py:9805
+   TELEGRAM_REPLY_TO_MODE	plugins/platforms/telegram/adapter.py:10084
+   TELEGRAM_REQUIRE_MENTION	plugins/platforms/telegram/adapter.py:7781
+   TELEGRAM_WEBHOOK_HOST	plugins/platforms/telegram/adapter.py:4055
+   TELEGRAM_WEBHOOK_PORT	plugins/platforms/telegram/adapter.py:4047  (间接:常量表)
+   TELEGRAM_WEBHOOK_SECRET	plugins/platforms/telegram/adapter.py:4069
+   TELEGRAM_WEBHOOK_URL	plugins/platforms/telegram/adapter.py:4033
+== slack: declared=7 literal=21 undeclared=15
+   SLACK_ALLOWED_CHANNELS	plugins/platforms/slack/adapter.py:8386
+   SLACK_ALLOW_BOTS	plugins/platforms/slack/adapter.py:3099
+   SLACK_AVAILABLE	plugins/platforms/slack/adapter.py:306  (间接:常量表)
+   SLACK_DEDUP_TTL_SECONDS	plugins/platforms/slack/adapter.py:748
+   SLACK_DISABLE_DMS	plugins/platforms/slack/adapter.py:8371
+   SLACK_FREE_RESPONSE_CHANNELS	plugins/platforms/slack/adapter.py:8348
+   SLACK_IGNORED_CHANNELS	plugins/platforms/slack/adapter.py:2418
+   SLACK_IGNORE_OTHER_USER_MENTIONS	plugins/platforms/slack/adapter.py:8285
+   SLACK_MENTION_PATTERNS	plugins/platforms/slack/adapter.py:8429
+   SLACK_REACTIONS	plugins/platforms/slack/adapter.py:3744
+   SLACK_REACTION_TRIGGERS	plugins/platforms/slack/adapter.py:4966
+   SLACK_REACTION_TRIGGER_TARGET	plugins/platforms/slack/adapter.py:4991
+   SLACK_REQUIRE_MENTION	plugins/platforms/slack/adapter.py:8245
+   SLACK_REQUIRE_MENTION_CHANNELS	plugins/platforms/slack/adapter.py:8405
+   SLACK_STRICT_MENTION	plugins/platforms/slack/adapter.py:8262

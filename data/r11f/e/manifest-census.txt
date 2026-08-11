@@ -1,0 +1,59 @@
+parser read-set (_parse_manifest, AST): author, description, kind, name, provides_hooks, provides_tools, requires_env, version
+
+plugins/browser/browser_use/plugin.yaml
+    keys: name, version, description, author, kind, provides_browser_providers
+    provides_browser_providers=[browser-use]
+plugins/browser/browserbase/plugin.yaml
+    keys: name, version, description, author, kind, provides_browser_providers
+    provides_browser_providers=[browserbase]
+plugins/browser/firecrawl/plugin.yaml
+    keys: name, version, description, author, kind, provides_browser_providers
+    provides_browser_providers=[firecrawl]
+plugins/google_meet/plugin.yaml
+    keys: name, version, description, author, kind, platforms, provides_tools, hooks
+    provides_tools=[meet_join, meet_leave, meet_status, meet_transcript, meet_say]; hooks=[on_session_end]; platforms=[linux, macos]
+plugins/image_gen/deepinfra/plugin.yaml
+    keys: name, version, description, author, kind, requires_env
+    requires_env=[DEEPINFRA_API_KEY]
+plugins/image_gen/fal/plugin.yaml
+    keys: name, version, description, author, kind, requires_env
+    requires_env=[FAL_KEY]
+plugins/image_gen/krea/plugin.yaml
+    keys: name, version, description, author, kind, requires_env
+    requires_env=[KREA_API_KEY]
+plugins/image_gen/openai/plugin.yaml
+    keys: name, version, description, author, kind, requires_env
+    requires_env=[OPENAI_API_KEY]
+plugins/image_gen/openai-codex/plugin.yaml
+    keys: name, version, description, author, kind
+plugins/image_gen/openrouter/plugin.yaml
+    keys: name, version, description, author, kind, requires_env
+    requires_env=[OPENROUTER_API_KEY]
+plugins/image_gen/xai/plugin.yaml
+    keys: name, version, description, author, kind, requires_env
+    requires_env=[XAI_API_KEY]
+plugins/spotify/plugin.yaml
+    keys: name, version, description, author, kind, provides_tools
+    provides_tools=[spotify_playback, spotify_devices, spotify_queue, spotify_search, spotify_playlists, spotify_albums, spotify_library]
+plugins/video_gen/deepinfra/plugin.yaml
+    keys: name, version, description, author, kind, requires_env
+    requires_env=[DEEPINFRA_API_KEY]
+plugins/video_gen/fal/plugin.yaml
+    keys: name, version, description, author, kind, requires_env
+    requires_env=[FAL_KEY]
+plugins/video_gen/xai/plugin.yaml
+    keys: name, version, description, author, kind, requires_env
+    requires_env=[XAI_API_KEY]
+
+manifests: 15   distinct top-level keys: 10
+  READ   author                       x15
+  READ   description                  x15
+  UNREAD hooks                        x1
+  READ   kind                         x15
+  READ   name                         x15
+  UNREAD platforms                    x1
+  UNREAD provides_browser_providers   x3
+  READ   provides_tools               x2
+  READ   requires_env                 x9
+  READ   version                      x15
+UNREAD keys in slice E: 3 -> hooks, platforms, provides_browser_providers

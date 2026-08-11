@@ -1,0 +1,14 @@
+    requires_env=[XAI_API_KEY]
+
+manifests: 15   distinct top-level keys: 10
+  READ   author                       x15
+  READ   description                  x15
+  UNREAD hooks                        x1
+  READ   kind                         x15
+  READ   name                         x15
+  UNREAD platforms                    x1
+  UNREAD provides_browser_providers   x3
+  READ   provides_tools               x2
+  READ   requires_env                 x9
+  READ   version                      x15
+UNREAD keys in slice E: 3 -> hooks, platforms, provides_browser_providers

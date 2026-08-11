@@ -1,0 +1,4 @@
+registry._resolve(None) -> ThirdPartyBrowserUse
+browser_tool._get_cloud_provider() -> None
+registered under 'browser-use': ThirdPartyBrowserUse
+same object ? False

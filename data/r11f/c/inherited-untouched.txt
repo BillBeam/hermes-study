@@ -1,0 +1,100 @@
+ 3217 def           _acquire_platform_lock
+ 3325 def           _apply_topic_recovery
+ 5174 def           _can_merge_text_debounce_events
+ 6492 def           _cleanup_finished_session_task
+ 5298 def           _discard_text_debounce
+ 5477 async def     _dispatch_active_session_command
+ 5459 async def     _drain_pending_after_session_command
+ 3684 def           _ea_escape
+ 5014 def           _final_delivery_adapter
+ 5255 async def     _flush_text_debounce
+ 5268 async def     _flush_text_debounce_now
+ 3716 staticmethod  _format_choice_page
+ 3691 def           _format_exec_approval
+ 3602 def           _get_ephemeral_system_ttl_default
+ 5760 staticmethod  _get_human_delay
+ 5349 def           _heal_stale_session_lock
+ 3416 def           _history_media_paths_for_session
+ 4009 staticmethod  _is_animation_url
+ 5156 def           _is_queue_text_debounce_candidate
+ 3382 def           _is_sender_authorized
+ 4981 staticmethod  _is_timeout_error
+ 3157 def           _mark_connected
+ 3164 def           _mark_disconnected
+ 4176 def           _mark_streaming_tts_completed_turn
+ 4417 staticmethod  _mask_json_string_media
+ 4366 staticmethod  _mask_protected_spans
+ 5134 staticmethod  _merge_caption
+ 3209 async def     _notify_fatal_error
+ 4266 async def     _notify_media_delivery_failure
+ 5786 async def     _process_message_background
+ 5203 async def     _queue_text_debounce
+ 3283 def           _release_platform_lock
+ 5312 def           _release_session_guard
+ 4962 async def     _run_processing_hook
+ 3626 def           _schedule_ephemeral_delete
+ 5332 def           _session_task_is_stale
+ 3170 def           _set_fatal_error
+ 3139 def           _should_auto_tts_for_chat
+ 5376 def           _start_session_processing
+ 4763 async def     _stop_typing_refresh
+ 3891 async def     _stop_typing_with_metadata
+ 4191 def           _streaming_tts_turn_completed
+ 4167 def           _streaming_tts_turn_key
+ 5193 def           _text_debounce_delay
+ 5149 def           _text_debounce_store
+ 3675 staticmethod  _truncate_preview
+ 4992 def           _unwrap_ephemeral
+ 3177 def           _write_runtime_status_safe
+ 4159 async def     abort_streaming_tts
+ 4137 async def     begin_streaming_tts
+ 6581 def           build_source
+ 6512 async def     cancel_background_tasks
+ 5408 async def     cancel_session_processing
+ 3525 async def     create_handoff_thread
+ 3581 async def     delete_message
+ 2884 property      enforces_own_access_policy
+ 4015 staticmethod  extract_images
+ 4593 staticmethod  extract_local_files
+ 4457 staticmethod  extract_media
+ 3132 property      fatal_error_code
+ 3128 property      fatal_error_message
+ 3136 property      fatal_error_retryable
+ 4352 staticmethod  filter_local_delivery_paths
+ 4339 staticmethod  filter_media_delivery_paths
+ 4155 async def     finish_streaming_tts
+ 3065 def           format_tool_event
+ 3114 def           format_tool_preview
+ 6577 def           get_pending_message
+ 3124 property      has_fatal_error
+ 6573 def           has_pending_interrupt
+ 3298 property      is_connected
+ 2859 def           max_message_length_for_chat
+ 2851 property      message_len_fn
+ 2874 def           message_len_fn_for_chat
+ 4796 def           pause_typing_for_chat
+ 4108 async def     play_tts
+ 4888 def           pop_post_delivery_callback
+ 2962 def           prefers_fresh_final_streaming
+ 4091 def           prepare_tts_text
+ 4819 def           register_post_delivery_callback
+ 3044 def           render_message_event
+ 4804 def           resume_typing_for_chat
+ 3002 async def     send_draft
+ 3854 async def     send_private_notice
+ 3745 async def     send_slash_confirm
+ 3368 def           set_authorization_check
+ 3345 def           set_busy_session_handler
+ 3154 def           set_fatal_error_handler
+ 3302 def           set_message_handler
+ 3349 def           set_reaction_handler
+ 3406 def           set_session_store
+ 2658 def           set_status_text
+ 3311 def           set_topic_recovery_fn
+ 2985 def           streaming_overflow_limit
+ 4574 staticmethod  strip_media_directives_for_display
+ 2943 def           supports_draft_streaming
+ 4130 def           supports_streaming_tts
+ 6693 staticmethod  truncate_message
+ 4334 staticmethod  validate_media_delivery_path
+ 4151 async def     write_streaming_tts
