@@ -1,6 +1,6 @@
 agent: 片 D · 插件面 L2 结构级理解
 dispatched: 2026-08-11
-signal: OPEN
+signal: RELEASED 片 D 完成信号(任务完成通知,含五条判据全达成、29/29 点名、六个接缝枚举)。主线已独立复核:(a) 基线 porcelain 0 / HEAD 863e31318 / venv 87 未变;(b) 两道关卡自跑复现其报数 —— citations=51 OK=42 82.4%、table_anchors 67/67、evidence paired=12 differing=0;(c) 29 个全路径逐条 grep 底稿,missing=0;(d) 独立复核 ■ H-R11F-D-a:10 份 plugin.yaml 写 hooks:,加载器 hermes_cli/plugins.py:1664 读的是 provides_hooks,而写 provides_hooks 的 manifest 为 0;grep 到的其余 cfg.get("hooks") 全是用户配置钩子、与清单钩子不同物 —— 缺陷成立。
 path: notes/r11f-raw-d-*.md
 path: data/r11f/d/*
 path: data/r11f/probes/d_*.py

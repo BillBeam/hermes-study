@@ -1,0 +1,52 @@
+file	deco_line	method	path	handler	def_line	async	params
+plugins/hermes-achievements/dashboard/plugin_api.py	999	GET	/achievements	achievements	1000	1	
+plugins/hermes-achievements/dashboard/plugin_api.py	1011	GET	/scan-status	scan_status	1012	1	
+plugins/hermes-achievements/dashboard/plugin_api.py	1016	GET	/recent-unlocks	recent_unlocks	1017	1	
+plugins/hermes-achievements/dashboard/plugin_api.py	1022	GET	/sessions/{session_id}/badges	session_badges	1023	1	session_id:str
+plugins/hermes-achievements/dashboard/plugin_api.py	1037	POST	/rescan	rescan	1038	1	
+plugins/hermes-achievements/dashboard/plugin_api.py	1042	POST	/reset-state	reset_state	1043	1	
+plugins/kanban/dashboard/plugin_api.py	378	GET	/board	get_board	379	0	tenant:Optional[str],include_archived:bool,board:Optional[str],workflow_template_id:Optional[str],current_step_key:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	517	GET	/tasks/{task_id}	get_task	518	0	task_id:str,board:Optional[str],run_state_type:Optional[str],run_state_name:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	621	POST	/tasks	create_task	622	0	payload:CreateTaskBody,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	696	GET	/tasks/{task_id}/attachments	list_task_attachments	697	0	task_id:str,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	712	POST	/tasks/{task_id}/attachments	upload_task_attachment	713	1	task_id:str,file:UploadFile,board:Optional[str],uploaded_by:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	782	GET	/attachments/{attachment_id}	download_attachment	783	0	attachment_id:int,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	809	DELETE	/attachments/{attachment_id}	remove_attachment	810	0	attachment_id:int,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	854	PATCH	/tasks/{task_id}	update_task	855	0	task_id:str,payload:UpdateTaskBody,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1006	DELETE	/tasks/{task_id}	delete_task	1007	0	task_id:str,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1153	POST	/tasks/{task_id}/comments	add_comment	1154	0	task_id:str,payload:CommentBody,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1179	POST	/links	add_link	1180	0	payload:LinkBody,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1192	DELETE	/links	delete_link	1193	0	parent_id:str,child_id:str,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1230	POST	/tasks/bulk	bulk_update	1231	0	payload:BulkTaskBody,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1358	GET	/diagnostics	list_diagnostics	1359	0	board:Optional[str],severity:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1446	GET	/workers/active	list_active_workers	1447	0	board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1507	GET	/runs/{run_id}	get_run_endpoint	1508	0	run_id:int,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1529	GET	/runs/{run_id}/inspect	inspect_run_endpoint	1530	0	run_id:int,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1601	POST	/runs/{run_id}/terminate	terminate_run_endpoint	1602	0	run_id:int,payload:TerminateRunBody,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1657	POST	/tasks/{task_id}/reclaim	reclaim_task_endpoint	1658	0	task_id:str,payload:ReclaimBody,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1695	POST	/tasks/{task_id}/specify	specify_task_endpoint	1696	0	task_id:str,payload:SpecifyBody,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1745	POST	/tasks/{task_id}/reassign	reassign_task_endpoint	1746	0	task_id:str,payload:ReassignBody,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1804	POST	/estimate	estimate_text_endpoint	1805	0	payload:EstimateBody
+plugins/kanban/dashboard/plugin_api.py	1811	POST	/tasks/{task_id}/estimate	estimate_task_endpoint	1812	0	task_id:str,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	1912	GET	/config	get_config	1913	0	
+plugins/kanban/dashboard/plugin_api.py	2001	GET	/home-channels	get_home_channels	2002	0	task_id:Optional[str],board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	2035	POST	/tasks/{task_id}/home-subscribe/{platform}	subscribe_home	2036	0	task_id:str,platform:str,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	2070	DELETE	/tasks/{task_id}/home-subscribe/{platform}	unsubscribe_home	2071	0	task_id:str,platform:str,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	2099	GET	/stats	get_stats	2100	0	board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	2115	GET	/assignees	get_assignees	2116	0	board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	2136	GET	/tasks/{task_id}/log	get_task_log	2137	0	task_id:str,tail:Optional[int],board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	2176	POST	/dispatch	dispatch	2177	0	dry_run:bool,max_n:int,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	2201	GET	/model-options	model_options	2202	0	
+plugins/kanban/dashboard/plugin_api.py	2329	GET	/projects	list_kanban_projects	2330	0	
+plugins/kanban/dashboard/plugin_api.py	2357	GET	/boards	list_boards	2358	0	include_archived:bool
+plugins/kanban/dashboard/plugin_api.py	2400	POST	/boards	create_board_endpoint	2401	0	payload:CreateBoardBody
+plugins/kanban/dashboard/plugin_api.py	2433	PATCH	/boards/{slug}	rename_board	2434	0	slug:str,payload:RenameBoardBody
+plugins/kanban/dashboard/plugin_api.py	2473	DELETE	/boards/{slug}	delete_board	2474	0	slug:str,delete:bool
+plugins/kanban/dashboard/plugin_api.py	2483	POST	/boards/{slug}/switch	switch_board	2484	0	slug:str
+plugins/kanban/dashboard/plugin_api.py	2523	GET	/profiles	list_profile_roster	2524	0	
+plugins/kanban/dashboard/plugin_api.py	2553	PATCH	/profiles/{profile_name}	update_profile_description	2554	0	profile_name:str,payload:DescribeBody
+plugins/kanban/dashboard/plugin_api.py	2586	POST	/profiles/{profile_name}/describe-auto	auto_describe_profile	2587	0	profile_name:str,payload:DescribeAutoBody
+plugins/kanban/dashboard/plugin_api.py	2622	POST	/tasks/{task_id}/decompose	decompose_task_endpoint	2623	0	task_id:str,payload:DecomposeBody,board:Optional[str]
+plugins/kanban/dashboard/plugin_api.py	2673	GET	/orchestration	get_orchestration_settings	2674	0	
+plugins/kanban/dashboard/plugin_api.py	2716	PUT	/orchestration	set_orchestration_settings	2717	0	payload:OrchestrationSettingsBody
+plugins/kanban/dashboard/plugin_api.py	2787	WEBSOCKET	/events	stream_events	2788	1	ws:WebSocket
