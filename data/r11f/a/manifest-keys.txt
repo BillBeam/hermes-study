@@ -1,0 +1,23 @@
+== plugins/platforms/discord/plugin.yaml
+   top_keys(8): author description kind label name optional_env requires_env version
+   requires_env: DISCORD_BOT_TOKEN  [description password prompt url]
+   optional_env: DISCORD_ALLOWED_USERS  [description password prompt]
+   optional_env: DISCORD_ALLOW_ALL_USERS  [description password prompt]
+   optional_env: DISCORD_HOME_CHANNEL  [description password prompt]
+   optional_env: DISCORD_HOME_CHANNEL_NAME  [description password prompt]
+== plugins/platforms/telegram/plugin.yaml
+   top_keys(8): author description kind label name optional_env requires_env version
+   requires_env: TELEGRAM_BOT_TOKEN  [description password prompt url]
+   optional_env: TELEGRAM_ALLOWED_USERS  [description password prompt]
+   optional_env: TELEGRAM_ALLOW_ALL_USERS  [description password prompt]
+   optional_env: TELEGRAM_HOME_CHANNEL  [description password prompt]
+   optional_env: TELEGRAM_HOME_CHANNEL_NAME  [description password prompt]
+== plugins/platforms/slack/plugin.yaml
+   top_keys(8): author description kind label name optional_env requires_env version
+   requires_env: SLACK_BOT_TOKEN  [description password prompt url]
+   requires_env: SLACK_APP_TOKEN  [description password prompt url]
+   optional_env: SLACK_ALLOWED_USERS  [description password prompt]
+   optional_env: SLACK_ALLOW_ALL_USERS  [description password prompt]
+   optional_env: SLACK_HOME_CHANNEL  [description password prompt]
+   optional_env: SLACK_HOME_CHANNEL_NAME  [description password prompt]
+   optional_env: SLACK_THREAD_REQUIRE_MENTION  [description password prompt]

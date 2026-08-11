@@ -1,0 +1,5167 @@
+{
+  "adapters": {
+    "discord": {
+      "abstract_impl": [
+        "connect",
+        "disconnect",
+        "get_chat_info",
+        "send"
+      ],
+      "abstract_miss": [],
+      "attr_detail": {
+        "MAX_MESSAGE_LENGTH": {
+          "annotated": false,
+          "lineno": 991,
+          "value": "2000"
+        },
+        "PLAYBACK_TIMEOUT": {
+          "annotated": false,
+          "lineno": 1002,
+          "value": "120"
+        },
+        "PLAYBACK_TIMEOUT_PADDING": {
+          "annotated": false,
+          "lineno": 1003,
+          "value": "30"
+        },
+        "VOICE_TIMEOUT": {
+          "annotated": false,
+          "lineno": 998,
+          "value": "300"
+        },
+        "_KEEPALIVE_INTERVAL": {
+          "annotated": false,
+          "lineno": 4474,
+          "value": "15"
+        },
+        "_SPLIT_THRESHOLD": {
+          "annotated": false,
+          "lineno": 992,
+          "value": "1900"
+        },
+        "splits_long_messages": {
+          "annotated": false,
+          "lineno": 994,
+          "value": "True"
+        },
+        "supports_code_blocks": {
+          "annotated": false,
+          "lineno": 993,
+          "value": "True"
+        }
+      },
+      "attr_extra": [
+        "MAX_MESSAGE_LENGTH",
+        "PLAYBACK_TIMEOUT",
+        "PLAYBACK_TIMEOUT_PADDING",
+        "VOICE_TIMEOUT",
+        "_KEEPALIVE_INTERVAL",
+        "_SPLIT_THRESHOLD"
+      ],
+      "attr_override": [
+        "splits_long_messages",
+        "supports_code_blocks"
+      ],
+      "attrs": 8,
+      "class": "DiscordAdapter",
+      "detail": {
+        "__init__": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1012,
+          "property": false,
+          "staticmethod": false
+        },
+        "_add_reaction": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2942,
+          "property": false,
+          "staticmethod": false
+        },
+        "_advance_discord_recovery_cursor": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2439,
+          "property": false,
+          "staticmethod": false
+        },
+        "_apply_owner_only_visibility": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 5742,
+          "property": false,
+          "staticmethod": false
+        },
+        "_approval_mention_content": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7028,
+          "property": false,
+          "staticmethod": false
+        },
+        "_auto_create_thread": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6809,
+          "property": false,
+          "staticmethod": false
+        },
+        "_build_slash_event": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 5974,
+          "property": false,
+          "staticmethod": false
+        },
+        "_cache_discord_audio": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7596,
+          "property": false,
+          "staticmethod": false
+        },
+        "_cache_discord_document": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7615,
+          "property": false,
+          "staticmethod": false
+        },
+        "_cache_discord_image": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7577,
+          "property": false,
+          "staticmethod": false
+        },
+        "_cancel_bot_task": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1511,
+          "property": false,
+          "staticmethod": false
+        },
+        "_cancel_liveness_task": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1687,
+          "property": false,
+          "staticmethod": false
+        },
+        "_cancel_voice_timeout": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4340,
+          "property": false,
+          "staticmethod": false
+        },
+        "_canonicalize_app_command_option": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2814,
+          "property": false,
+          "staticmethod": false
+        },
+        "_canonicalize_app_command_payload": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2759,
+          "property": false,
+          "staticmethod": false
+        },
+        "_check_slash_authorization": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4849,
+          "property": false,
+          "staticmethod": false
+        },
+        "_command_sync_mutation_interval_seconds": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2012,
+          "property": false,
+          "staticmethod": false
+        },
+        "_command_sync_skip_reason": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1871,
+          "property": false,
+          "staticmethod": false
+        },
+        "_command_sync_state_key": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1856,
+          "property": false,
+          "staticmethod": false
+        },
+        "_command_sync_state_path": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1828,
+          "property": false,
+          "staticmethod": false
+        },
+        "_config_int": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1139,
+          "property": false,
+          "staticmethod": false
+        },
+        "_config_value": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1119,
+          "property": false,
+          "staticmethod": false
+        },
+        "_create_thread": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6714,
+          "property": false,
+          "staticmethod": false
+        },
+        "_derive_auto_thread_name": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6789,
+          "property": false,
+          "staticmethod": false
+        },
+        "_desired_command_sync_fingerprint": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1859,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_allow_all_users": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6277,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_allow_any_attachment": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6142,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_bots_require_inline_mention": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6349,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_channel_ids_allowed": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4567,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_channel_keys": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6375,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_channel_keys_from_channel": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6386,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_free_response_channels": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6290,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_history_backfill": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6438,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_history_backfill_limit": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6447,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_max_attachment_bytes": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6157,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_message_admission": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1421,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_message_has_active_claim": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2703,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_message_is_persistently_complete": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2690,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_recovery_cursor": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2426,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_recovery_db_path": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2520,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_require_mention": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6133,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discord_thread_require_mention": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6419,
+          "property": false,
+          "staticmethod": false
+        },
+        "_dispatch_discord_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1495,
+          "property": false,
+          "staticmethod": false
+        },
+        "_dispatch_recovered_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2298,
+          "property": false,
+          "staticmethod": false
+        },
+        "_dispatch_thread_session": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6074,
+          "property": false,
+          "staticmethod": false
+        },
+        "_edit_overflow_split": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3437,
+          "property": false,
+          "staticmethod": false
+        },
+        "_enqueue_text_event": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8162,
+          "property": false,
+          "staticmethod": false
+        },
+        "_ensure_missed_message_backfill_task": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2168,
+          "property": false,
+          "staticmethod": false
+        },
+        "_evaluate_slash_authorization": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4744,
+          "property": false,
+          "staticmethod": false
+        },
+        "_existing_command_to_payload": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2791,
+          "property": false,
+          "staticmethod": false
+        },
+        "_extract_discord_retry_after": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1930,
+          "property": false,
+          "staticmethod": true
+        },
+        "_fetch_channel_context": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6467,
+          "property": false,
+          "staticmethod": false
+        },
+        "_finite_positive_config_float": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1129,
+          "property": false,
+          "staticmethod": false
+        },
+        "_flush_text_batch": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 8190,
+          "property": false,
+          "staticmethod": false
+        },
+        "_format_thread_chat_name": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7500,
+          "property": false,
+          "staticmethod": false
+        },
+        "_forum_post_file": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3238,
+          "property": false,
+          "staticmethod": false
+        },
+        "_gate_csv_set": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6237,
+          "property": false,
+          "staticmethod": true
+        },
+        "_gate_env": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6219,
+          "property": false,
+          "staticmethod": false
+        },
+        "_gate_raw": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6226,
+          "property": false,
+          "staticmethod": false
+        },
+        "_gateway_allow_all_users": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6282,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_allow_bots": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6286,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_allowed_channels": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6244,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_allowed_roles": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6269,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_allowed_users": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6256,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_ambient_pcm": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4000,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_discord_command_sync_policy": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2747,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_effective_topic": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7491,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_ignored_channels": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6248,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_no_thread_channels": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6252,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_parent_channel_id": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7467,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_bot_task_done": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1151,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7649,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_thread_create_slash": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6023,
+          "property": false,
+          "staticmethod": false
+        },
+        "_install_voice_mixer": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4026,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_allowed_user": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4590,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_discord_rate_limit": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1954,
+          "property": false,
+          "staticmethod": true
+        },
+        "_is_discord_unknown_interaction": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1988,
+          "property": false,
+          "staticmethod": true
+        },
+        "_is_discord_voice_message_attachment": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6180,
+          "property": false,
+          "staticmethod": true
+        },
+        "_is_down_notice_content": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2474,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_forum_parent": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7477,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_length_overflow_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3424,
+          "property": false,
+          "staticmethod": true
+        },
+        "_is_pairing_approved_user": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4578,
+          "property": false,
+          "staticmethod": false
+        },
+        "_iter_channel_and_thread_messages": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2380,
+          "property": false,
+          "staticmethod": false
+        },
+        "_iter_missed_message_backfill_candidates": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2328,
+          "property": false,
+          "staticmethod": false
+        },
+        "_lead_silence_bytes": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4056,
+          "property": false,
+          "staticmethod": false
+        },
+        "_liveness_loop": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1581,
+          "property": false,
+          "staticmethod": false
+        },
+        "_load_discord_int_config": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3923,
+          "property": false,
+          "staticmethod": false
+        },
+        "_load_playback_timeout": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3943,
+          "property": false,
+          "staticmethod": false
+        },
+        "_load_voice_fx_config": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3883,
+          "property": false,
+          "staticmethod": false
+        },
+        "_load_voice_timeout": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3935,
+          "property": false,
+          "staticmethod": false
+        },
+        "_message_channel_ids": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2538,
+          "property": false,
+          "staticmethod": false
+        },
+        "_message_has_non_down_bot_response": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2482,
+          "property": false,
+          "staticmethod": false
+        },
+        "_message_reference_from_ids": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2998,
+          "property": false,
+          "staticmethod": true
+        },
+        "_missed_message_backfill_channels": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2107,
+          "property": false,
+          "staticmethod": false
+        },
+        "_missed_message_backfill_enabled": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2096,
+          "property": false,
+          "staticmethod": false
+        },
+        "_missed_message_backfill_limit": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2142,
+          "property": false,
+          "staticmethod": false
+        },
+        "_missed_message_backfill_max_dispatches": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2155,
+          "property": false,
+          "staticmethod": false
+        },
+        "_missed_message_backfill_window_seconds": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2129,
+          "property": false,
+          "staticmethod": false
+        },
+        "_normalize_permissions": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2784,
+          "property": false,
+          "staticmethod": true
+        },
+        "_notify_liveness_fatal_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1635,
+          "property": false,
+          "staticmethod": false
+        },
+        "_notify_unauthorized_slash": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4915,
+          "property": false,
+          "staticmethod": false
+        },
+        "_patchable_app_command_payload": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2841,
+          "property": false,
+          "staticmethod": false
+        },
+        "_playback_timeout_for_audio": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3992,
+          "property": false,
+          "staticmethod": false
+        },
+        "_playback_timeout_limit": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3954,
+          "property": false,
+          "staticmethod": false
+        },
+        "_probe_audio_duration_seconds": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3957,
+          "property": false,
+          "staticmethod": false
+        },
+        "_process_voice_input": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4521,
+          "property": false,
+          "staticmethod": false
+        },
+        "_raw_mentioned_user_ids": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6313,
+          "property": false,
+          "staticmethod": false
+        },
+        "_reactions_enabled": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2964,
+          "property": false,
+          "staticmethod": false
+        },
+        "_read_attachment_bytes": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7541,
+          "property": false,
+          "staticmethod": false
+        },
+        "_read_command_sync_state": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1838,
+          "property": false,
+          "staticmethod": false
+        },
+        "_read_websocket_health": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1538,
+          "property": false,
+          "staticmethod": false
+        },
+        "_record_command_sync_attempt": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1890,
+          "property": false,
+          "staticmethod": false
+        },
+        "_record_command_sync_rate_limit": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1903,
+          "property": false,
+          "staticmethod": false
+        },
+        "_record_command_sync_success": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1919,
+          "property": false,
+          "staticmethod": false
+        },
+        "_record_discord_message_seen": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2545,
+          "property": false,
+          "staticmethod": false
+        },
+        "_record_discord_processing_complete": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2617,
+          "property": false,
+          "staticmethod": false
+        },
+        "_record_discord_processing_start": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2599,
+          "property": false,
+          "staticmethod": false
+        },
+        "_record_discord_response": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2636,
+          "property": false,
+          "staticmethod": false
+        },
+        "_record_recovery_attempt": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2578,
+          "property": false,
+          "staticmethod": false
+        },
+        "_record_recovery_scan_complete": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2736,
+          "property": false,
+          "staticmethod": false
+        },
+        "_record_recovery_scan_start": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2723,
+          "property": false,
+          "staticmethod": false
+        },
+        "_refresh_skill_catalog_state": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 5916,
+          "property": false,
+          "staticmethod": false
+        },
+        "_register_skill_group": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 5779,
+          "property": false,
+          "staticmethod": false
+        },
+        "_register_slash_commands": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 5427,
+          "property": false,
+          "staticmethod": false
+        },
+        "_reject_slash": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4866,
+          "property": false,
+          "staticmethod": false
+        },
+        "_remove_reaction": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2953,
+          "property": false,
+          "staticmethod": false
+        },
+        "_reply_reference_for_send": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3013,
+          "property": false,
+          "staticmethod": false
+        },
+        "_reset_voice_timeout": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4345,
+          "property": false,
+          "staticmethod": false
+        },
+        "_resolve_allowed_usernames": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5274,
+          "property": false,
+          "staticmethod": false
+        },
+        "_resolve_channel_prompt": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6128,
+          "property": false,
+          "staticmethod": false
+        },
+        "_resolve_channel_skills": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6116,
+          "property": false,
+          "staticmethod": false
+        },
+        "_resolve_interaction_channel": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6696,
+          "property": false,
+          "staticmethod": false
+        },
+        "_run_missed_message_backfill": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2184,
+          "property": false,
+          "staticmethod": false
+        },
+        "_run_post_connect_initialization": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2020,
+          "property": false,
+          "staticmethod": false
+        },
+        "_run_simple_slash": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5367,
+          "property": false,
+          "staticmethod": false
+        },
+        "_safe_sync_slash_commands": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2850,
+          "property": false,
+          "staticmethod": false
+        },
+        "_self_contained_prompt_content": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7005,
+          "property": false,
+          "staticmethod": false
+        },
+        "_self_is_explicitly_mentioned": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6324,
+          "property": false,
+          "staticmethod": false
+        },
+        "_self_is_raw_mentioned": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6337,
+          "property": false,
+          "staticmethod": false
+        },
+        "_send_file_attachment": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3546,
+          "property": false,
+          "staticmethod": false
+        },
+        "_send_to_forum": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3182,
+          "property": false,
+          "staticmethod": false
+        },
+        "_should_backfill_discord_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2458,
+          "property": false,
+          "staticmethod": false
+        },
+        "_sleep_between_command_sync_mutations": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2015,
+          "property": false,
+          "staticmethod": false
+        },
+        "_snapshot_gate_env": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6208,
+          "property": false,
+          "staticmethod": false
+        },
+        "_start_liveness_probe": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1521,
+          "property": false,
+          "staticmethod": false
+        },
+        "_text_batch_flush_deadline_seconds": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1745,
+          "property": false,
+          "staticmethod": false
+        },
+        "_text_batch_key": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8145,
+          "property": false,
+          "staticmethod": false
+        },
+        "_thread_parent_channel": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6692,
+          "property": false,
+          "staticmethod": false
+        },
+        "_utc_now_iso": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2534,
+          "property": false,
+          "staticmethod": true
+        },
+        "_voice_listen_loop": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4476,
+          "property": false,
+          "staticmethod": false
+        },
+        "_voice_timeout_handler": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4356,
+          "property": false,
+          "staticmethod": false
+        },
+        "_voice_timeout_limit": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3951,
+          "property": false,
+          "staticmethod": false
+        },
+        "_warn_if_fail_closed_default": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4706,
+          "property": false,
+          "staticmethod": false
+        },
+        "_with_discord_recovery_db": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2523,
+          "property": false,
+          "staticmethod": false
+        },
+        "_with_discord_recovery_db_async": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2526,
+          "property": false,
+          "staticmethod": false
+        },
+        "_write_command_sync_state": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1848,
+          "property": false,
+          "staticmethod": false
+        },
+        "cancel_background_tasks": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1706,
+          "property": false,
+          "staticmethod": false
+        },
+        "connect": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1210,
+          "property": false,
+          "staticmethod": false
+        },
+        "create_handoff_thread": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6927,
+          "property": false,
+          "staticmethod": false
+        },
+        "disconnect": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1771,
+          "property": false,
+          "staticmethod": false
+        },
+        "edit_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3322,
+          "property": false,
+          "staticmethod": false
+        },
+        "format_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 5357,
+          "property": false,
+          "staticmethod": false
+        },
+        "format_tool_preview": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1005,
+          "property": false,
+          "staticmethod": false
+        },
+        "get_chat_info": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5235,
+          "property": false,
+          "staticmethod": false
+        },
+        "get_user_voice_channel": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4328,
+          "property": false,
+          "staticmethod": false
+        },
+        "get_voice_channel_context": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4451,
+          "property": false,
+          "staticmethod": false
+        },
+        "get_voice_channel_info": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4400,
+          "property": false,
+          "staticmethod": false
+        },
+        "is_in_voice_channel": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4395,
+          "property": false,
+          "staticmethod": false
+        },
+        "join_voice_channel": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4139,
+          "property": false,
+          "staticmethod": false
+        },
+        "leave_voice_channel": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4196,
+          "property": false,
+          "staticmethod": false
+        },
+        "on_processing_complete": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2980,
+          "property": false,
+          "staticmethod": false
+        },
+        "on_processing_start": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2968,
+          "property": false,
+          "staticmethod": false
+        },
+        "play_ack_in_voice": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4077,
+          "property": false,
+          "staticmethod": false
+        },
+        "play_in_voice_channel": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4232,
+          "property": false,
+          "staticmethod": false
+        },
+        "play_tts": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3749,
+          "property": false,
+          "staticmethod": false
+        },
+        "refresh_skill_group": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 5942,
+          "property": false,
+          "staticmethod": false
+        },
+        "rename_thread": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6866,
+          "property": false,
+          "staticmethod": false
+        },
+        "send": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3027,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_animation": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5064,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_choice_picker": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7419,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_clarify": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7188,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_document": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5153,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_exec_approval": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7042,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_image": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4982,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_image_file": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4965,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_model_picker": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7357,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_multiple_images": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3619,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_slash_confirm": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7144,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_typing": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5171,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_update_prompt": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7315,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_video": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5136,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_voice": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3767,
+          "property": false,
+          "staticmethod": false
+        },
+        "stop_typing": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5225,
+          "property": false,
+          "staticmethod": false
+        },
+        "voice_mixer_active": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4134,
+          "property": false,
+          "staticmethod": false
+        }
+      },
+      "extra": [
+        "_add_reaction",
+        "_advance_discord_recovery_cursor",
+        "_apply_owner_only_visibility",
+        "_approval_mention_content",
+        "_auto_create_thread",
+        "_build_slash_event",
+        "_cache_discord_audio",
+        "_cache_discord_document",
+        "_cache_discord_image",
+        "_cancel_bot_task",
+        "_cancel_liveness_task",
+        "_cancel_voice_timeout",
+        "_canonicalize_app_command_option",
+        "_canonicalize_app_command_payload",
+        "_check_slash_authorization",
+        "_command_sync_mutation_interval_seconds",
+        "_command_sync_skip_reason",
+        "_command_sync_state_key",
+        "_command_sync_state_path",
+        "_config_int",
+        "_config_value",
+        "_create_thread",
+        "_derive_auto_thread_name",
+        "_desired_command_sync_fingerprint",
+        "_discord_allow_all_users",
+        "_discord_allow_any_attachment",
+        "_discord_bots_require_inline_mention",
+        "_discord_channel_ids_allowed",
+        "_discord_channel_keys",
+        "_discord_channel_keys_from_channel",
+        "_discord_free_response_channels",
+        "_discord_history_backfill",
+        "_discord_history_backfill_limit",
+        "_discord_max_attachment_bytes",
+        "_discord_message_admission",
+        "_discord_message_has_active_claim",
+        "_discord_message_is_persistently_complete",
+        "_discord_recovery_cursor",
+        "_discord_recovery_db_path",
+        "_discord_require_mention",
+        "_discord_thread_require_mention",
+        "_dispatch_discord_message",
+        "_dispatch_recovered_message",
+        "_dispatch_thread_session",
+        "_edit_overflow_split",
+        "_enqueue_text_event",
+        "_ensure_missed_message_backfill_task",
+        "_evaluate_slash_authorization",
+        "_existing_command_to_payload",
+        "_extract_discord_retry_after",
+        "_fetch_channel_context",
+        "_finite_positive_config_float",
+        "_flush_text_batch",
+        "_format_thread_chat_name",
+        "_forum_post_file",
+        "_gate_csv_set",
+        "_gate_env",
+        "_gate_raw",
+        "_gateway_allow_all_users",
+        "_get_allow_bots",
+        "_get_allowed_channels",
+        "_get_allowed_roles",
+        "_get_allowed_users",
+        "_get_ambient_pcm",
+        "_get_discord_command_sync_policy",
+        "_get_effective_topic",
+        "_get_ignored_channels",
+        "_get_no_thread_channels",
+        "_get_parent_channel_id",
+        "_handle_bot_task_done",
+        "_handle_message",
+        "_handle_thread_create_slash",
+        "_install_voice_mixer",
+        "_is_allowed_user",
+        "_is_discord_rate_limit",
+        "_is_discord_unknown_interaction",
+        "_is_discord_voice_message_attachment",
+        "_is_down_notice_content",
+        "_is_forum_parent",
+        "_is_length_overflow_error",
+        "_is_pairing_approved_user",
+        "_iter_channel_and_thread_messages",
+        "_iter_missed_message_backfill_candidates",
+        "_lead_silence_bytes",
+        "_liveness_loop",
+        "_load_discord_int_config",
+        "_load_playback_timeout",
+        "_load_voice_fx_config",
+        "_load_voice_timeout",
+        "_message_channel_ids",
+        "_message_has_non_down_bot_response",
+        "_message_reference_from_ids",
+        "_missed_message_backfill_channels",
+        "_missed_message_backfill_enabled",
+        "_missed_message_backfill_limit",
+        "_missed_message_backfill_max_dispatches",
+        "_missed_message_backfill_window_seconds",
+        "_normalize_permissions",
+        "_notify_liveness_fatal_error",
+        "_notify_unauthorized_slash",
+        "_patchable_app_command_payload",
+        "_playback_timeout_for_audio",
+        "_playback_timeout_limit",
+        "_probe_audio_duration_seconds",
+        "_process_voice_input",
+        "_raw_mentioned_user_ids",
+        "_reactions_enabled",
+        "_read_attachment_bytes",
+        "_read_command_sync_state",
+        "_read_websocket_health",
+        "_record_command_sync_attempt",
+        "_record_command_sync_rate_limit",
+        "_record_command_sync_success",
+        "_record_discord_message_seen",
+        "_record_discord_processing_complete",
+        "_record_discord_processing_start",
+        "_record_discord_response",
+        "_record_recovery_attempt",
+        "_record_recovery_scan_complete",
+        "_record_recovery_scan_start",
+        "_refresh_skill_catalog_state",
+        "_register_skill_group",
+        "_register_slash_commands",
+        "_reject_slash",
+        "_remove_reaction",
+        "_reply_reference_for_send",
+        "_reset_voice_timeout",
+        "_resolve_allowed_usernames",
+        "_resolve_channel_prompt",
+        "_resolve_channel_skills",
+        "_resolve_interaction_channel",
+        "_run_missed_message_backfill",
+        "_run_post_connect_initialization",
+        "_run_simple_slash",
+        "_safe_sync_slash_commands",
+        "_self_contained_prompt_content",
+        "_self_is_explicitly_mentioned",
+        "_self_is_raw_mentioned",
+        "_send_file_attachment",
+        "_send_to_forum",
+        "_should_backfill_discord_message",
+        "_sleep_between_command_sync_mutations",
+        "_snapshot_gate_env",
+        "_start_liveness_probe",
+        "_text_batch_flush_deadline_seconds",
+        "_text_batch_key",
+        "_thread_parent_channel",
+        "_utc_now_iso",
+        "_voice_listen_loop",
+        "_voice_timeout_handler",
+        "_voice_timeout_limit",
+        "_warn_if_fail_closed_default",
+        "_with_discord_recovery_db",
+        "_with_discord_recovery_db_async",
+        "_write_command_sync_state",
+        "get_user_voice_channel",
+        "get_voice_channel_context",
+        "get_voice_channel_info",
+        "is_in_voice_channel",
+        "join_voice_channel",
+        "leave_voice_channel",
+        "play_ack_in_voice",
+        "play_in_voice_channel",
+        "refresh_skill_group",
+        "rename_thread",
+        "send_choice_picker",
+        "send_exec_approval",
+        "send_model_picker",
+        "send_update_prompt",
+        "voice_mixer_active"
+      ],
+      "lineno": 976,
+      "methods": 194,
+      "override": [
+        "__init__",
+        "cancel_background_tasks",
+        "create_handoff_thread",
+        "edit_message",
+        "format_message",
+        "format_tool_preview",
+        "on_processing_complete",
+        "on_processing_start",
+        "play_tts",
+        "send_animation",
+        "send_clarify",
+        "send_document",
+        "send_image",
+        "send_image_file",
+        "send_multiple_images",
+        "send_slash_confirm",
+        "send_typing",
+        "send_video",
+        "send_voice",
+        "stop_typing"
+      ],
+      "path": "plugins/platforms/discord/adapter.py"
+    },
+    "slack": {
+      "abstract_impl": [
+        "connect",
+        "disconnect",
+        "get_chat_info",
+        "send"
+      ],
+      "abstract_miss": [],
+      "attr_detail": {
+        "MAX_MESSAGE_LENGTH": {
+          "annotated": false,
+          "lineno": 871,
+          "value": "39000"
+        },
+        "_MARKDOWN_BLOCK_MAX": {
+          "annotated": false,
+          "lineno": 3462,
+          "value": "11500"
+        },
+        "_REACTION_EMOJI_MAP": {
+          "annotated": true,
+          "lineno": 4744,
+          "value": "{'thumbsup': '👍', '+1': '👍', 'thumbsdown': '👎', '-1': '👎', 'white_check_mark': '✅', 'heavy_check_mark': '✅', 'x': '❌', 'no_entry': '⛔', 'warning': '⚠️', 'rotating_light': '🚨', 'eyes': '👀', 'rocket': '🚀', 'tada': '🎉', 'fire': '🔥', 'wave': '👋'}"
+        },
+        "_SLACK_CDN_EXACT_HOSTS": {
+          "annotated": false,
+          "lineno": 8032,
+          "value": "frozenset({'slack.com', 'slack-files.com'})"
+        },
+        "_SLACK_CDN_HOST_SUFFIXES": {
+          "annotated": false,
+          "lineno": 8031,
+          "value": "('.slack.com', '.slack-files.com')"
+        },
+        "_SLASH_CTX_MAX": {
+          "annotated": false,
+          "lineno": 1480,
+          "value": "1000"
+        },
+        "_SLASH_CTX_TTL": {
+          "annotated": false,
+          "lineno": 1477,
+          "value": "120.0"
+        },
+        "splits_long_messages": {
+          "annotated": false,
+          "lineno": 876,
+          "value": "True"
+        },
+        "supports_code_blocks": {
+          "annotated": false,
+          "lineno": 872,
+          "value": "True"
+        },
+        "supports_inchannel_continuable": {
+          "annotated": false,
+          "lineno": 889,
+          "value": "True"
+        },
+        "supports_status_text": {
+          "annotated": false,
+          "lineno": 875,
+          "value": "True"
+        },
+        "typed_command_prefix": {
+          "annotated": false,
+          "lineno": 881,
+          "value": "'!'"
+        }
+      },
+      "attr_extra": [
+        "MAX_MESSAGE_LENGTH",
+        "_MARKDOWN_BLOCK_MAX",
+        "_REACTION_EMOJI_MAP",
+        "_SLACK_CDN_EXACT_HOSTS",
+        "_SLACK_CDN_HOST_SUFFIXES",
+        "_SLASH_CTX_MAX",
+        "_SLASH_CTX_TTL"
+      ],
+      "attr_override": [
+        "splits_long_messages",
+        "supports_code_blocks",
+        "supports_inchannel_continuable",
+        "supports_status_text",
+        "typed_command_prefix"
+      ],
+      "attrs": 12,
+      "class": "SlackAdapter",
+      "detail": {
+        "__init__": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 891,
+          "property": false,
+          "staticmethod": false
+        },
+        "_add_reaction": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3711,
+          "property": false,
+          "staticmethod": false
+        },
+        "_agent_view_context_for_event": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4333,
+          "property": false,
+          "staticmethod": false
+        },
+        "_agent_view_context_key": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4304,
+          "property": false,
+          "staticmethod": true
+        },
+        "_append_feedback_block": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3510,
+          "property": false,
+          "staticmethod": false
+        },
+        "_assistant_suggested_prompts": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4487,
+          "property": false,
+          "staticmethod": false
+        },
+        "_assistant_thread_title_enabled": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4551,
+          "property": false,
+          "staticmethod": false
+        },
+        "_bot_authored_thread_root": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5100,
+          "property": false,
+          "staticmethod": false
+        },
+        "_build_identity_prompt": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3917,
+          "property": false,
+          "staticmethod": false
+        },
+        "_build_thread_session_key": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7791,
+          "property": false,
+          "staticmethod": false
+        },
+        "_cache_agent_view_context": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4310,
+          "property": false,
+          "staticmethod": false
+        },
+        "_cache_assistant_thread_metadata": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4434,
+          "property": false,
+          "staticmethod": false
+        },
+        "_clear_thread_status_quietly": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2394,
+          "property": false,
+          "staticmethod": false
+        },
+        "_close_workspace_clients": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1038,
+          "property": false,
+          "staticmethod": false
+        },
+        "_collect_thread_root_images": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7540,
+          "property": false,
+          "staticmethod": false
+        },
+        "_context_channel_id": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4371,
+          "property": false,
+          "staticmethod": true
+        },
+        "_cron_continuable_surface": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3039,
+          "property": false,
+          "staticmethod": false
+        },
+        "_describe_slack_api_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1391,
+          "property": false,
+          "staticmethod": false
+        },
+        "_describe_slack_download_failure": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1433,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discard_oldest_by_thread_ts": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 1124,
+          "property": false,
+          "staticmethod": false
+        },
+        "_discard_oldest_slack_timestamps": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 1085,
+          "property": false,
+          "staticmethod": false
+        },
+        "_dm_top_level_threads_as_sessions": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3025,
+          "property": false,
+          "staticmethod": false
+        },
+        "_download_slack_file": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 8077,
+          "property": false,
+          "staticmethod": false
+        },
+        "_download_slack_file_bytes": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 8162,
+          "property": false,
+          "staticmethod": false
+        },
+        "_ensure_dm_conversation": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2348,
+          "property": false,
+          "staticmethod": false
+        },
+        "_ensure_socket_watchdog": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1353,
+          "property": false,
+          "staticmethod": false
+        },
+        "_event_declares_bot_sender": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3106,
+          "property": false,
+          "staticmethod": false
+        },
+        "_event_team_id": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4349,
+          "property": false,
+          "staticmethod": true
+        },
+        "_extract_assistant_thread_metadata": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4391,
+          "property": false,
+          "staticmethod": false
+        },
+        "_feedback_block": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3484,
+          "property": false,
+          "staticmethod": false
+        },
+        "_feedback_buttons_enabled": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3477,
+          "property": false,
+          "staticmethod": false
+        },
+        "_fetch_thread_context": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7186,
+          "property": false,
+          "staticmethod": false
+        },
+        "_fetch_thread_parent_text": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7484,
+          "property": false,
+          "staticmethod": false
+        },
+        "_format_thread_context": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7329,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_client": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2339,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_thread_watermark": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7901,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_app_context_changed": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4691,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_app_home_opened": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4712,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_approval_action": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6848,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_assistant_thread_lifecycle_event": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4678,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_clarify_action": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7009,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_feedback_action": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6832,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_slack_file_shared": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5000,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_slack_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5228,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_slack_reaction": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4762,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_slash_command": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7631,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_slash_confirm_action": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6705,
+          "property": false,
+          "staticmethod": false
+        },
+        "_has_active_session_for_thread": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7961,
+          "property": false,
+          "staticmethod": false
+        },
+        "_humanize_user_mentions": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3881,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_block_payload_rejection": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3397,
+          "property": false,
+          "staticmethod": true
+        },
+        "_is_ignored_channel": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2425,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_interactive_user_authorized": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6640,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_retryable_upload_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3369,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_slack_cdn_url": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 8035,
+          "property": false,
+          "staticmethod": false
+        },
+        "_lookup_assistant_thread_metadata": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4457,
+          "property": false,
+          "staticmethod": false
+        },
+        "_mark_thread_rehydration_checked": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7872,
+          "property": false,
+          "staticmethod": false
+        },
+        "_markdown_block_payload": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3464,
+          "property": false,
+          "staticmethod": false
+        },
+        "_markdown_blocks_enabled": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3436,
+          "property": false,
+          "staticmethod": false
+        },
+        "_maybe_blocks": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3518,
+          "property": false,
+          "staticmethod": false
+        },
+        "_metadata_team_id": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2300,
+          "property": false,
+          "staticmethod": true
+        },
+        "_on_socket_mode_task_done": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1359,
+          "property": false,
+          "staticmethod": false
+        },
+        "_on_socket_watchdog_done": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1333,
+          "property": false,
+          "staticmethod": false
+        },
+        "_pop_slash_context": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1483,
+          "property": false,
+          "staticmethod": false
+        },
+        "_post_ephemeral_fallback": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1594,
+          "property": false,
+          "staticmethod": false
+        },
+        "_reactions_enabled": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3742,
+          "property": false,
+          "staticmethod": false
+        },
+        "_record_uploaded_file_thread": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3354,
+          "property": false,
+          "staticmethod": false
+        },
+        "_register_mentioned_thread": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 5085,
+          "property": false,
+          "staticmethod": false
+        },
+        "_remember_channel_team": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1143,
+          "property": false,
+          "staticmethod": false
+        },
+        "_remove_reaction": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3727,
+          "property": false,
+          "staticmethod": false
+        },
+        "_render_message_text": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7122,
+          "property": false,
+          "staticmethod": true
+        },
+        "_resolve_channel_name": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3834,
+          "property": false,
+          "staticmethod": false
+        },
+        "_resolve_download_token": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8052,
+          "property": false,
+          "staticmethod": false
+        },
+        "_resolve_thread_ts": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3123,
+          "property": false,
+          "staticmethod": false
+        },
+        "_resolve_user_is_bot": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3949,
+          "property": false,
+          "staticmethod": false
+        },
+        "_resolve_user_name": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3782,
+          "property": false,
+          "staticmethod": false
+        },
+        "_restart_socket_mode": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1276,
+          "property": false,
+          "staticmethod": false
+        },
+        "_rich_blocks_enabled": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3421,
+          "property": false,
+          "staticmethod": false
+        },
+        "_seed_agent_dm_session": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4641,
+          "property": false,
+          "staticmethod": false
+        },
+        "_seed_assistant_thread_session": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4607,
+          "property": false,
+          "staticmethod": false
+        },
+        "_send_slash_ephemeral": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1521,
+          "property": false,
+          "staticmethod": false
+        },
+        "_set_assistant_suggested_prompts": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4520,
+          "property": false,
+          "staticmethod": false
+        },
+        "_set_assistant_thread_title": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4557,
+          "property": false,
+          "staticmethod": false
+        },
+        "_set_thread_watermark": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7927,
+          "property": false,
+          "staticmethod": false
+        },
+        "_should_wake_on_unmentioned_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5153,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_allow_bots": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3095,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_allowed_channels": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8376,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_disable_dms": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8362,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_free_response_channels": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8344,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_ignore_other_user_mentions": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8269,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_ignored_channels": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2414,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_mention_patterns": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8412,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_message_addressed_to_other_user": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8313,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_message_matches_mention_patterns": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8460,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_message_mentions_self": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8329,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_reaction_trigger_target": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4981,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_reaction_triggers": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4950,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_require_mention": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8233,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_require_mention_channels": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8393,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_strict_mention": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8252,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_thread_require_mention": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8292,
+          "property": false,
+          "staticmethod": false
+        },
+        "_slack_timestamp_sort_key": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1064,
+          "property": false,
+          "staticmethod": true
+        },
+        "_socket_ping_pong_stale": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1245,
+          "property": false,
+          "staticmethod": false
+        },
+        "_socket_transport_connected": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1224,
+          "property": false,
+          "staticmethod": false
+        },
+        "_socket_watchdog_loop": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1295,
+          "property": false,
+          "staticmethod": false
+        },
+        "_start_socket_mode_handler": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1172,
+          "property": false,
+          "staticmethod": false
+        },
+        "_stop_socket_mode_handler": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1187,
+          "property": false,
+          "staticmethod": false
+        },
+        "_thread_rehydration_key": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7854,
+          "property": false,
+          "staticmethod": false
+        },
+        "_thread_watermark_key": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7851,
+          "property": false,
+          "staticmethod": false
+        },
+        "_trim_bot_message_timestamps": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1094,
+          "property": false,
+          "staticmethod": false
+        },
+        "_trim_mentioned_threads": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1100,
+          "property": false,
+          "staticmethod": false
+        },
+        "_trim_oldest_dict_entries": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1108,
+          "property": false,
+          "staticmethod": true
+        },
+        "_update_clarify_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6981,
+          "property": false,
+          "staticmethod": false
+        },
+        "_upload_file": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3161,
+          "property": false,
+          "staticmethod": false
+        },
+        "_warn_if_inchannel_without_flat_reply": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3058,
+          "property": false,
+          "staticmethod": false
+        },
+        "_warn_if_missing_group_dm_scopes": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1644,
+          "property": false,
+          "staticmethod": false
+        },
+        "_warn_if_not_bot_token": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1689,
+          "property": false,
+          "staticmethod": false
+        },
+        "_workspace_event_id": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2330,
+          "property": false,
+          "staticmethod": true
+        },
+        "_workspace_message_marker": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2335,
+          "property": false,
+          "staticmethod": true
+        },
+        "_workspace_thread_key": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4290,
+          "property": false,
+          "staticmethod": true
+        },
+        "connect": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1753,
+          "property": false,
+          "staticmethod": false
+        },
+        "create_handoff_thread": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2221,
+          "property": false,
+          "staticmethod": false
+        },
+        "delete_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2821,
+          "property": false,
+          "staticmethod": false
+        },
+        "disconnect": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2264,
+          "property": false,
+          "staticmethod": false
+        },
+        "edit_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2710,
+          "property": false,
+          "staticmethod": false
+        },
+        "format_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3550,
+          "property": false,
+          "staticmethod": false
+        },
+        "get_chat_info": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4265,
+          "property": false,
+          "staticmethod": false
+        },
+        "on_processing_complete": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3759,
+          "property": false,
+          "staticmethod": false
+        },
+        "on_processing_start": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3746,
+          "property": false,
+          "staticmethod": false
+        },
+        "send": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2439,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_clarify": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6535,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_document": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4197,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_exec_approval": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6348,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_image": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4036,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_image_file": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4005,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_multiple_images": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3214,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_or_update_status": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2667,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_private_notice": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2623,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_slash_confirm": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6454,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_typing": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2849,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_video": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4133,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_voice": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4106,
+          "property": false,
+          "staticmethod": false
+        },
+        "stop_typing": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2946,
+          "property": false,
+          "staticmethod": false
+        }
+      },
+      "extra": [
+        "_add_reaction",
+        "_agent_view_context_for_event",
+        "_agent_view_context_key",
+        "_append_feedback_block",
+        "_assistant_suggested_prompts",
+        "_assistant_thread_title_enabled",
+        "_bot_authored_thread_root",
+        "_build_identity_prompt",
+        "_build_thread_session_key",
+        "_cache_agent_view_context",
+        "_cache_assistant_thread_metadata",
+        "_clear_thread_status_quietly",
+        "_close_workspace_clients",
+        "_collect_thread_root_images",
+        "_context_channel_id",
+        "_cron_continuable_surface",
+        "_describe_slack_api_error",
+        "_describe_slack_download_failure",
+        "_discard_oldest_by_thread_ts",
+        "_discard_oldest_slack_timestamps",
+        "_dm_top_level_threads_as_sessions",
+        "_download_slack_file",
+        "_download_slack_file_bytes",
+        "_ensure_dm_conversation",
+        "_ensure_socket_watchdog",
+        "_event_declares_bot_sender",
+        "_event_team_id",
+        "_extract_assistant_thread_metadata",
+        "_feedback_block",
+        "_feedback_buttons_enabled",
+        "_fetch_thread_context",
+        "_fetch_thread_parent_text",
+        "_format_thread_context",
+        "_get_client",
+        "_get_thread_watermark",
+        "_handle_app_context_changed",
+        "_handle_app_home_opened",
+        "_handle_approval_action",
+        "_handle_assistant_thread_lifecycle_event",
+        "_handle_clarify_action",
+        "_handle_feedback_action",
+        "_handle_slack_file_shared",
+        "_handle_slack_message",
+        "_handle_slack_reaction",
+        "_handle_slash_command",
+        "_handle_slash_confirm_action",
+        "_has_active_session_for_thread",
+        "_humanize_user_mentions",
+        "_is_block_payload_rejection",
+        "_is_ignored_channel",
+        "_is_interactive_user_authorized",
+        "_is_retryable_upload_error",
+        "_is_slack_cdn_url",
+        "_lookup_assistant_thread_metadata",
+        "_mark_thread_rehydration_checked",
+        "_markdown_block_payload",
+        "_markdown_blocks_enabled",
+        "_maybe_blocks",
+        "_metadata_team_id",
+        "_on_socket_mode_task_done",
+        "_on_socket_watchdog_done",
+        "_pop_slash_context",
+        "_post_ephemeral_fallback",
+        "_reactions_enabled",
+        "_record_uploaded_file_thread",
+        "_register_mentioned_thread",
+        "_remember_channel_team",
+        "_remove_reaction",
+        "_render_message_text",
+        "_resolve_channel_name",
+        "_resolve_download_token",
+        "_resolve_thread_ts",
+        "_resolve_user_is_bot",
+        "_resolve_user_name",
+        "_restart_socket_mode",
+        "_rich_blocks_enabled",
+        "_seed_agent_dm_session",
+        "_seed_assistant_thread_session",
+        "_send_slash_ephemeral",
+        "_set_assistant_suggested_prompts",
+        "_set_assistant_thread_title",
+        "_set_thread_watermark",
+        "_should_wake_on_unmentioned_message",
+        "_slack_allow_bots",
+        "_slack_allowed_channels",
+        "_slack_disable_dms",
+        "_slack_free_response_channels",
+        "_slack_ignore_other_user_mentions",
+        "_slack_ignored_channels",
+        "_slack_mention_patterns",
+        "_slack_message_addressed_to_other_user",
+        "_slack_message_matches_mention_patterns",
+        "_slack_message_mentions_self",
+        "_slack_reaction_trigger_target",
+        "_slack_reaction_triggers",
+        "_slack_require_mention",
+        "_slack_require_mention_channels",
+        "_slack_strict_mention",
+        "_slack_thread_require_mention",
+        "_slack_timestamp_sort_key",
+        "_socket_ping_pong_stale",
+        "_socket_transport_connected",
+        "_socket_watchdog_loop",
+        "_start_socket_mode_handler",
+        "_stop_socket_mode_handler",
+        "_thread_rehydration_key",
+        "_thread_watermark_key",
+        "_trim_bot_message_timestamps",
+        "_trim_mentioned_threads",
+        "_trim_oldest_dict_entries",
+        "_update_clarify_message",
+        "_upload_file",
+        "_warn_if_inchannel_without_flat_reply",
+        "_warn_if_missing_group_dm_scopes",
+        "_warn_if_not_bot_token",
+        "_workspace_event_id",
+        "_workspace_message_marker",
+        "_workspace_thread_key",
+        "send_exec_approval",
+        "send_or_update_status"
+      ],
+      "lineno": 855,
+      "methods": 142,
+      "override": [
+        "__init__",
+        "create_handoff_thread",
+        "delete_message",
+        "edit_message",
+        "format_message",
+        "on_processing_complete",
+        "on_processing_start",
+        "send_clarify",
+        "send_document",
+        "send_image",
+        "send_image_file",
+        "send_multiple_images",
+        "send_private_notice",
+        "send_slash_confirm",
+        "send_typing",
+        "send_video",
+        "send_voice",
+        "stop_typing"
+      ],
+      "path": "plugins/platforms/slack/adapter.py"
+    },
+    "telegram": {
+      "abstract_impl": [
+        "connect",
+        "disconnect",
+        "get_chat_info",
+        "send"
+      ],
+      "abstract_miss": [],
+      "attr_detail": {
+        "FALLBACK_ON_FINAL_EDIT_FLOOD": {
+          "annotated": true,
+          "lineno": 653,
+          "value": "True"
+        },
+        "MAX_MESSAGE_LENGTH": {
+          "annotated": false,
+          "lineno": 629,
+          "value": "4096"
+        },
+        "MEDIA_GROUP_WAIT_SECONDS": {
+          "annotated": false,
+          "lineno": 641,
+          "value": "0.8"
+        },
+        "REQUIRES_EDIT_FINALIZE": {
+          "annotated": true,
+          "lineno": 649,
+          "value": "True"
+        },
+        "RESEND_FINAL_ON_EMPTY_STREAM_FALLBACK": {
+          "annotated": true,
+          "lineno": 657,
+          "value": "True"
+        },
+        "RICH_MESSAGE_MAX_BYTES": {
+          "annotated": false,
+          "lineno": 637,
+          "value": "RICH_MESSAGE_MAX_CHARS"
+        },
+        "RICH_MESSAGE_MAX_CHARS": {
+          "annotated": false,
+          "lineno": 634,
+          "value": "32768"
+        },
+        "_BOT_IDENTITY_PROBE_TIMEOUT": {
+          "annotated": false,
+          "lineno": 8091,
+          "value": "15.0"
+        },
+        "_BOT_IDENTITY_TTL_SECONDS": {
+          "annotated": false,
+          "lineno": 7996,
+          "value": "300.0"
+        },
+        "_EA_CMD_BUDGET": {
+          "annotated": false,
+          "lineno": 5437,
+          "value": "3800"
+        },
+        "_EA_CODE_CLOSE": {
+          "annotated": false,
+          "lineno": 5435,
+          "value": "'</pre>\\n\\n'"
+        },
+        "_EA_CODE_OPEN": {
+          "annotated": false,
+          "lineno": 5434,
+          "value": "'<pre>'"
+        },
+        "_EA_HEADER": {
+          "annotated": false,
+          "lineno": 5433,
+          "value": "'⚠️ <b>Command Approval Required</b>\\n\\n'"
+        },
+        "_EA_SMART_DENY_LINE": {
+          "annotated": false,
+          "lineno": 5436,
+          "value": "'\\n\\n<b>Smart DENY:</b> owner override applies to this one operation only.'"
+        },
+        "_FOREIGN_BOT_HANDLE_RE": {
+          "annotated": false,
+          "lineno": 7994,
+          "value": "re.compile('[a-z0-9_]{2,29}bot', re.IGNORECASE)"
+        },
+        "_GENERAL_TOPIC_THREAD_ID": {
+          "annotated": false,
+          "lineno": 642,
+          "value": "'1'"
+        },
+        "_GT_VERB_DISPATCH": {
+          "annotated": false,
+          "lineno": 6697,
+          "value": "{'send': ('send-draft.sh', [], '✓ sent draft', False), 'archive': ('archive.sh', [], '✓ archived', False), 'draft': ('draft-blank.sh', [], '✓ drafted reply', False), 'spam': ('spam.sh', [], '✓ marked spam', False), 'mute': ('mute-add.sh', ['email'], '✓ muted', True), 'mute-domain': ('mute-add.sh', ['domain'], '✓ muted domain', True), 'trust': ('trusted-ops-add.sh', ['email'], '✓ trusted', True), 'trust-domain': ('trusted-ops-add.sh', ['domain'], '✓ trusted domain', True), 'vip': ('vip-add.sh', ['email'], '✓ marked VIP', True), 'vip-domain': ('vip-add.sh', ['domain'], '✓ marked VIP domain', True)}"
+        },
+        "_MODEL_PAGE_SIZE": {
+          "annotated": false,
+          "lineno": 5843,
+          "value": "8"
+        },
+        "_PROVIDER_PAGE_SIZE": {
+          "annotated": false,
+          "lineno": 5720,
+          "value": "10"
+        },
+        "_RICH_CJK_RE": {
+          "annotated": false,
+          "lineno": 1616,
+          "value": "re.compile('[\\u3040-ヿ㐀-䶿一-鿿가-\\ud7af豈-\\ufaff𠀀-\\U000323af]')"
+        },
+        "_RICH_DETAILS_RE": {
+          "annotated": false,
+          "lineno": 1607,
+          "value": "re.compile('<details\\\\b[^>]*>.*?</details>', re.IGNORECASE | re.DOTALL)"
+        },
+        "_RICH_MATH_IN_DETAILS_RE": {
+          "annotated": false,
+          "lineno": 1608,
+          "value": "re.compile('(\\\\$\\\\$.*?\\\\$\\\\$|\\\\\\\\\\\\[.*?\\\\\\\\\\\\]|\\\\\\\\\\\\(.*?\\\\\\\\\\\\)|\\\\\\\\(?:sum|frac|alpha|beta|gamma|delta|theta|lambda|mu|pi|sigma|int|prod|sqrt|lim|infty|begin\\\\{(?:equation|align|matrix|cases)\\\\}))', re.IGNORECASE | re.DOTALL)"
+        },
+        "_SPLIT_THRESHOLD": {
+          "annotated": false,
+          "lineno": 640,
+          "value": "4000"
+        },
+        "_TEXT_BATCH_FAST_DELAY_S": {
+          "annotated": false,
+          "lineno": 666,
+          "value": "0.18"
+        },
+        "_TEXT_BATCH_FAST_LEN": {
+          "annotated": false,
+          "lineno": 665,
+          "value": "320"
+        },
+        "_TEXT_BATCH_SHORT_DELAY_S": {
+          "annotated": false,
+          "lineno": 668,
+          "value": "0.24"
+        },
+        "_TEXT_BATCH_SHORT_LEN": {
+          "annotated": false,
+          "lineno": 667,
+          "value": "1024"
+        },
+        "splits_long_messages": {
+          "annotated": false,
+          "lineno": 631,
+          "value": "True"
+        },
+        "supports_code_blocks": {
+          "annotated": false,
+          "lineno": 630,
+          "value": "True"
+        }
+      },
+      "attr_extra": [
+        "FALLBACK_ON_FINAL_EDIT_FLOOD",
+        "MAX_MESSAGE_LENGTH",
+        "MEDIA_GROUP_WAIT_SECONDS",
+        "RESEND_FINAL_ON_EMPTY_STREAM_FALLBACK",
+        "RICH_MESSAGE_MAX_BYTES",
+        "RICH_MESSAGE_MAX_CHARS",
+        "_BOT_IDENTITY_PROBE_TIMEOUT",
+        "_BOT_IDENTITY_TTL_SECONDS",
+        "_FOREIGN_BOT_HANDLE_RE",
+        "_GENERAL_TOPIC_THREAD_ID",
+        "_GT_VERB_DISPATCH",
+        "_MODEL_PAGE_SIZE",
+        "_PROVIDER_PAGE_SIZE",
+        "_RICH_CJK_RE",
+        "_RICH_DETAILS_RE",
+        "_RICH_MATH_IN_DETAILS_RE",
+        "_SPLIT_THRESHOLD",
+        "_TEXT_BATCH_FAST_DELAY_S",
+        "_TEXT_BATCH_FAST_LEN",
+        "_TEXT_BATCH_SHORT_DELAY_S",
+        "_TEXT_BATCH_SHORT_LEN"
+      ],
+      "attr_override": [
+        "REQUIRES_EDIT_FINALIZE",
+        "_EA_CMD_BUDGET",
+        "_EA_CODE_CLOSE",
+        "_EA_CODE_OPEN",
+        "_EA_HEADER",
+        "_EA_SMART_DENY_LINE",
+        "splits_long_messages",
+        "supports_code_blocks"
+      ],
+      "attrs": 29,
+      "class": "TelegramAdapter",
+      "detail": {
+        "__init__": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 703,
+          "property": false,
+          "staticmethod": false
+        },
+        "_append_observed_note": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8554,
+          "property": false,
+          "staticmethod": true
+        },
+        "_apply_telegram_group_observe_attribution": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8385,
+          "property": false,
+          "staticmethod": false
+        },
+        "_begin_polling_generation": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2133,
+          "property": false,
+          "staticmethod": false
+        },
+        "_bot_identity_is_fresh": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8053,
+          "property": false,
+          "staticmethod": false
+        },
+        "_bot_identity_refresh_loop": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3550,
+          "property": false,
+          "staticmethod": false
+        },
+        "_bot_supports_rich": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1595,
+          "property": false,
+          "staticmethod": false
+        },
+        "_build_message_event": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 9633,
+          "property": false,
+          "staticmethod": false
+        },
+        "_build_model_keyboard": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 5912,
+          "property": false,
+          "staticmethod": false
+        },
+        "_build_provider_keyboard": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 5845,
+          "property": false,
+          "staticmethod": false
+        },
+        "_cache_dm_topic_from_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 9552,
+          "property": false,
+          "staticmethod": false
+        },
+        "_cache_observed_media": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 8432,
+          "property": false,
+          "staticmethod": false
+        },
+        "_cache_replied_media": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 8490,
+          "property": false,
+          "staticmethod": false
+        },
+        "_cancel_pending_delivery_tasks": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4245,
+          "property": false,
+          "staticmethod": false
+        },
+        "_clean_bot_trigger_text": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8303,
+          "property": false,
+          "staticmethod": false
+        },
+        "_clear_reactions": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 9822,
+          "property": false,
+          "staticmethod": false
+        },
+        "_coerce_bool_extra": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1532,
+          "property": false,
+          "staticmethod": false
+        },
+        "_coerce_float_extra": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1545,
+          "property": false,
+          "staticmethod": false
+        },
+        "_compile_mention_patterns": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7927,
+          "property": false,
+          "staticmethod": false
+        },
+        "_compute_single_send_routing": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1796,
+          "property": false,
+          "staticmethod": false
+        },
+        "_content_fits_rich_limits": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1584,
+          "property": false,
+          "staticmethod": false
+        },
+        "_create_dm_topic": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3247,
+          "property": false,
+          "staticmethod": false
+        },
+        "_current_bot_username": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7998,
+          "property": false,
+          "staticmethod": false
+        },
+        "_delete_webhook_best_effort": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2389,
+          "property": false,
+          "staticmethod": false
+        },
+        "_disarm_ptb_retry_loop": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2991,
+          "property": false,
+          "staticmethod": false
+        },
+        "_dm_topic_missing_anchor_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1212,
+          "property": false,
+          "staticmethod": true
+        },
+        "_drain_general_connections_after_pool_timeout": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2324,
+          "property": false,
+          "staticmethod": false
+        },
+        "_drain_polling_connections": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2088,
+          "property": false,
+          "staticmethod": false
+        },
+        "_ea_escape": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 5439,
+          "property": false,
+          "staticmethod": false
+        },
+        "_edit_overflow_split": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5015,
+          "property": false,
+          "staticmethod": false
+        },
+        "_effective_message_thread_id": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 7963,
+          "property": false,
+          "staticmethod": false
+        },
+        "_effective_update_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8773,
+          "property": false,
+          "staticmethod": false
+        },
+        "_enqueue_photo_event": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 9034,
+          "property": false,
+          "staticmethod": false
+        },
+        "_enqueue_text_event": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8917,
+          "property": false,
+          "staticmethod": false
+        },
+        "_ensure_forum_commands": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 8748,
+          "property": false,
+          "staticmethod": false
+        },
+        "_env_float_clamped": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 671,
+          "property": false,
+          "staticmethod": true
+        },
+        "_explicit_bot_mentions_exclude_self": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8252,
+          "property": false,
+          "staticmethod": false
+        },
+        "_extract_bot_mention_usernames": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 8100,
+          "property": false,
+          "staticmethod": false
+        },
+        "_extract_rich_reply_text": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 9617,
+          "property": false,
+          "staticmethod": false
+        },
+        "_fallback_ips": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1428,
+          "property": false,
+          "staticmethod": false
+        },
+        "_flatten_rich_blocks": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 9581,
+          "property": false,
+          "staticmethod": false
+        },
+        "_flatten_rich_inline_text": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 9563,
+          "property": false,
+          "staticmethod": false
+        },
+        "_flush_media_group_event": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 9384,
+          "property": false,
+          "staticmethod": false
+        },
+        "_flush_photo_batch": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 9017,
+          "property": false,
+          "staticmethod": false
+        },
+        "_flush_text_batch": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 8953,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_dm_topic_info": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 9513,
+          "property": false,
+          "staticmethod": false
+        },
+        "_get_general_request_drain_lock": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2317,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_callback_query": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6310,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_choice_picker_callback": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5785,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_command": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 8816,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_gmail_triage_callback": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6710,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_location_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 8850,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_media_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 9055,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_model_picker_callback": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5950,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_polling_conflict": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3054,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_polling_network_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2557,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_sticker": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 9400,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handle_text_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 8783,
+          "property": false,
+          "staticmethod": false
+        },
+        "_handoff_polling_fatal_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3230,
+          "property": false,
+          "staticmethod": false
+        },
+        "_has_telegram_desktop_cjk_rich_garble_shape": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1643,
+          "property": false,
+          "staticmethod": false
+        },
+        "_has_telegram_desktop_details_math_crash_shape": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1627,
+          "property": false,
+          "staticmethod": false
+        },
+        "_instrument_polling_request": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2194,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_bad_request_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1340,
+          "property": false,
+          "staticmethod": true
+        },
+        "_is_callback_user_authorized": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 926,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_group_chat": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7955,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_guest_mention": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8295,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_own_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8637,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_private_dm_topic_send": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 1191,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_reply_to_bot": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8093,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_rich_capability_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1759,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_rich_fallback_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1781,
+          "property": false,
+          "staticmethod": false
+        },
+        "_is_thread_not_found_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1295,
+          "property": false,
+          "staticmethod": true
+        },
+        "_is_transient_typing_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7482,
+          "property": false,
+          "staticmethod": true
+        },
+        "_is_user_authorized_from_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1084,
+          "property": false,
+          "staticmethod": false
+        },
+        "_link_preview_kwargs": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1566,
+          "property": false,
+          "staticmethod": false
+        },
+        "_looks_like_connect_timeout": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1470,
+          "property": false,
+          "staticmethod": true
+        },
+        "_looks_like_network_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1445,
+          "property": false,
+          "staticmethod": true
+        },
+        "_looks_like_polling_conflict": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1436,
+          "property": false,
+          "staticmethod": true
+        },
+        "_looks_like_pool_timeout": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1498,
+          "property": false,
+          "staticmethod": true
+        },
+        "_mark_connected": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 890,
+          "property": false,
+          "staticmethod": false
+        },
+        "_mark_disconnected": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 894,
+          "property": false,
+          "staticmethod": false
+        },
+        "_media_message_type": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8418,
+          "property": false,
+          "staticmethod": false
+        },
+        "_message_matches_mention_patterns": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8284,
+          "property": false,
+          "staticmethod": false
+        },
+        "_message_mentions_bot": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8169,
+          "property": false,
+          "staticmethod": false
+        },
+        "_message_thread_id_for_send": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 1276,
+          "property": false,
+          "staticmethod": false
+        },
+        "_message_thread_id_for_typing": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 1282,
+          "property": false,
+          "staticmethod": false
+        },
+        "_metadata_direct_messages_topic_id": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 1177,
+          "property": false,
+          "staticmethod": false
+        },
+        "_metadata_reply_to_message_id": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 1184,
+          "property": false,
+          "staticmethod": false
+        },
+        "_metadata_thread_id": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 1170,
+          "property": false,
+          "staticmethod": false
+        },
+        "_missing_media_path_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6804,
+          "property": false,
+          "staticmethod": false
+        },
+        "_needs_rich_rendering": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1653,
+          "property": false,
+          "staticmethod": false
+        },
+        "_note_bot_username": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8014,
+          "property": false,
+          "staticmethod": false
+        },
+        "_notification_kwargs": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 911,
+          "property": false,
+          "staticmethod": false
+        },
+        "_notify_clarify_expired": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6285,
+          "property": false,
+          "staticmethod": false
+        },
+        "_observe_bot_identity_from_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8031,
+          "property": false,
+          "staticmethod": false
+        },
+        "_observe_polling_request_result": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2170,
+          "property": false,
+          "staticmethod": false
+        },
+        "_observe_unmentioned_group_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8602,
+          "property": false,
+          "staticmethod": false
+        },
+        "_observed_media_source": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8538,
+          "property": false,
+          "staticmethod": false
+        },
+        "_persist_dm_topic_thread_id": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3392,
+          "property": false,
+          "staticmethod": false
+        },
+        "_photo_batch_key": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 9004,
+          "property": false,
+          "staticmethod": false
+        },
+        "_polling_heartbeat_loop": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2678,
+          "property": false,
+          "staticmethod": false
+        },
+        "_probe_pending_updates": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2792,
+          "property": false,
+          "staticmethod": false
+        },
+        "_prune_stale_dm_topic_binding": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1298,
+          "property": false,
+          "staticmethod": false
+        },
+        "_queue_media_group_event": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 9355,
+          "property": false,
+          "staticmethod": false
+        },
+        "_reactions_enabled": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 9803,
+          "property": false,
+          "staticmethod": false
+        },
+        "_record_polling_progress": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2154,
+          "property": false,
+          "staticmethod": false
+        },
+        "_record_typing_cooldown": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7499,
+          "property": false,
+          "staticmethod": false
+        },
+        "_refresh_bot_identity": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 8066,
+          "property": false,
+          "staticmethod": false
+        },
+        "_reload_dm_topics_from_config": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 9465,
+          "property": false,
+          "staticmethod": false
+        },
+        "_reply_to_message_id_for_send": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 1216,
+          "property": false,
+          "staticmethod": false
+        },
+        "_rich_delivery_enabled": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1675,
+          "property": false,
+          "staticmethod": false
+        },
+        "_rich_eligible": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1679,
+          "property": false,
+          "staticmethod": false
+        },
+        "_rich_message_payload": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1742,
+          "property": false,
+          "staticmethod": false
+        },
+        "_run_post_connect_housekeeping": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3587,
+          "property": false,
+          "staticmethod": false
+        },
+        "_schedule_bot_identity_recheck": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8225,
+          "property": false,
+          "staticmethod": false
+        },
+        "_schedule_polling_progress_verifier": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2292,
+          "property": false,
+          "staticmethod": false
+        },
+        "_schedule_polling_recovery": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2361,
+          "property": false,
+          "staticmethod": false
+        },
+        "_send_message_with_thread_fallback": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5350,
+          "property": false,
+          "staticmethod": false
+        },
+        "_send_with_dm_topic_reply_anchor_retry": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1394,
+          "property": false,
+          "staticmethod": false
+        },
+        "_set_fatal_error": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 898,
+          "property": false,
+          "staticmethod": false
+        },
+        "_set_reaction": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 9807,
+          "property": false,
+          "staticmethod": false
+        },
+        "_set_status_indicator": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4216,
+          "property": false,
+          "staticmethod": false
+        },
+        "_setup_dm_topics": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3466,
+          "property": false,
+          "staticmethod": false
+        },
+        "_should_attempt_rich": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1700,
+          "property": false,
+          "staticmethod": false
+        },
+        "_should_attempt_rich_draft": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 2034,
+          "property": false,
+          "staticmethod": false
+        },
+        "_should_drop_delayed_delivery": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 902,
+          "property": false,
+          "staticmethod": false
+        },
+        "_should_observe_unmentioned_group_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8311,
+          "property": false,
+          "staticmethod": false
+        },
+        "_should_pass_unauthorized_dm_for_pairing": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1050,
+          "property": false,
+          "staticmethod": false
+        },
+        "_should_process_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8654,
+          "property": false,
+          "staticmethod": false
+        },
+        "_should_retry_without_dm_topic_reply_anchor": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 1351,
+          "property": false,
+          "staticmethod": false
+        },
+        "_should_thread_reply": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 4412,
+          "property": false,
+          "staticmethod": false
+        },
+        "_source_from_message_for_auth": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 978,
+          "property": false,
+          "staticmethod": false
+        },
+        "_start_polling_once": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2228,
+          "property": false,
+          "staticmethod": false
+        },
+        "_start_polling_resilient": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2426,
+          "property": false,
+          "staticmethod": false
+        },
+        "_start_post_connect_housekeeping": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 3574,
+          "property": false,
+          "staticmethod": false
+        },
+        "_surface_media_cache_failure": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 8561,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_allowed_chats": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7852,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_allowed_topics": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7891,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_auth_env_configured": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1038,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_exclusive_bot_mentions": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7809,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_free_response_chats": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7818,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_free_response_topics": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7826,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_group_allowed_chats": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7867,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_group_observe_attributed_text": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8368,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_group_observe_channel_prompt": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8373,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_group_observe_shared_source": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8364,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_guest_mode": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7800,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_ignored_threads": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7906,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_is_free_response_topic": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7840,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_media_size_allowed": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6831,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_media_too_large_note": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 6819,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_observe_allowed_chats": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7876,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_observe_unmentioned_group_messages": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7783,
+          "property": false,
+          "staticmethod": false
+        },
+        "_telegram_require_mention": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7774,
+          "property": false,
+          "staticmethod": false
+        },
+        "_text_batch_key": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 8901,
+          "property": false,
+          "staticmethod": false
+        },
+        "_thread_kwargs_for_send": {
+          "abstract": false,
+          "classmethod": true,
+          "is_async": false,
+          "lineno": 1231,
+          "property": false,
+          "staticmethod": false
+        },
+        "_truncate_stream_overflow_preview": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 5000,
+          "property": false,
+          "staticmethod": false
+        },
+        "_try_edit_rich": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1949,
+          "property": false,
+          "staticmethod": false
+        },
+        "_try_send_rich": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 1842,
+          "property": false,
+          "staticmethod": false
+        },
+        "_try_send_rich_draft": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2048,
+          "property": false,
+          "staticmethod": false
+        },
+        "_typing_in_cooldown": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7512,
+          "property": false,
+          "staticmethod": false
+        },
+        "_verify_polling_after_reconnect": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 2900,
+          "property": false,
+          "staticmethod": false
+        },
+        "connect": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3663,
+          "property": false,
+          "staticmethod": false
+        },
+        "create_handoff_thread": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3298,
+          "property": false,
+          "staticmethod": false
+        },
+        "delete_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5217,
+          "property": false,
+          "staticmethod": false
+        },
+        "disconnect": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4295,
+          "property": false,
+          "staticmethod": false
+        },
+        "edit_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4793,
+          "property": false,
+          "staticmethod": false
+        },
+        "ensure_dm_topic": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3316,
+          "property": false,
+          "staticmethod": false
+        },
+        "format_message": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 7600,
+          "property": false,
+          "staticmethod": false
+        },
+        "get_chat_info": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7566,
+          "property": false,
+          "staticmethod": false
+        },
+        "message_len_fn": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 699,
+          "property": true,
+          "staticmethod": false
+        },
+        "on_processing_complete": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 9852,
+          "property": false,
+          "staticmethod": false
+        },
+        "on_processing_start": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 9843,
+          "property": false,
+          "staticmethod": false
+        },
+        "prefers_fresh_final_streaming": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1708,
+          "property": false,
+          "staticmethod": false
+        },
+        "rename_dm_topic": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 3369,
+          "property": false,
+          "staticmethod": false
+        },
+        "send": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4432,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_animation": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7433,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_choice_picker": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5722,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_clarify": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5566,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_document": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7226,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_draft": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5261,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_exec_approval": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5442,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_image": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7332,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_image_file": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7132,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_model_picker": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5648,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_multiple_images": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6996,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_or_update_status": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 4759,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_slash_confirm": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5518,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_typing": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7524,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_update_prompt": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 5389,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_video": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 7281,
+          "property": false,
+          "staticmethod": false
+        },
+        "send_voice": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": true,
+          "lineno": 6845,
+          "property": false,
+          "staticmethod": false
+        },
+        "streaming_overflow_limit": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 1723,
+          "property": false,
+          "staticmethod": false
+        },
+        "supports_draft_streaming": {
+          "abstract": false,
+          "classmethod": false,
+          "is_async": false,
+          "lineno": 5242,
+          "property": false,
+          "staticmethod": false
+        }
+      },
+      "extra": [
+        "_append_observed_note",
+        "_apply_telegram_group_observe_attribution",
+        "_begin_polling_generation",
+        "_bot_identity_is_fresh",
+        "_bot_identity_refresh_loop",
+        "_bot_supports_rich",
+        "_build_message_event",
+        "_build_model_keyboard",
+        "_build_provider_keyboard",
+        "_cache_dm_topic_from_message",
+        "_cache_observed_media",
+        "_cache_replied_media",
+        "_cancel_pending_delivery_tasks",
+        "_clean_bot_trigger_text",
+        "_clear_reactions",
+        "_coerce_bool_extra",
+        "_coerce_float_extra",
+        "_compile_mention_patterns",
+        "_compute_single_send_routing",
+        "_content_fits_rich_limits",
+        "_create_dm_topic",
+        "_current_bot_username",
+        "_delete_webhook_best_effort",
+        "_disarm_ptb_retry_loop",
+        "_dm_topic_missing_anchor_error",
+        "_drain_general_connections_after_pool_timeout",
+        "_drain_polling_connections",
+        "_edit_overflow_split",
+        "_effective_message_thread_id",
+        "_effective_update_message",
+        "_enqueue_photo_event",
+        "_enqueue_text_event",
+        "_ensure_forum_commands",
+        "_env_float_clamped",
+        "_explicit_bot_mentions_exclude_self",
+        "_extract_bot_mention_usernames",
+        "_extract_rich_reply_text",
+        "_fallback_ips",
+        "_flatten_rich_blocks",
+        "_flatten_rich_inline_text",
+        "_flush_media_group_event",
+        "_flush_photo_batch",
+        "_flush_text_batch",
+        "_get_dm_topic_info",
+        "_get_general_request_drain_lock",
+        "_handle_callback_query",
+        "_handle_choice_picker_callback",
+        "_handle_command",
+        "_handle_gmail_triage_callback",
+        "_handle_location_message",
+        "_handle_media_message",
+        "_handle_model_picker_callback",
+        "_handle_polling_conflict",
+        "_handle_polling_network_error",
+        "_handle_sticker",
+        "_handle_text_message",
+        "_handoff_polling_fatal_error",
+        "_has_telegram_desktop_cjk_rich_garble_shape",
+        "_has_telegram_desktop_details_math_crash_shape",
+        "_instrument_polling_request",
+        "_is_bad_request_error",
+        "_is_callback_user_authorized",
+        "_is_group_chat",
+        "_is_guest_mention",
+        "_is_own_message",
+        "_is_private_dm_topic_send",
+        "_is_reply_to_bot",
+        "_is_rich_capability_error",
+        "_is_rich_fallback_error",
+        "_is_thread_not_found_error",
+        "_is_transient_typing_error",
+        "_is_user_authorized_from_message",
+        "_link_preview_kwargs",
+        "_looks_like_connect_timeout",
+        "_looks_like_network_error",
+        "_looks_like_polling_conflict",
+        "_looks_like_pool_timeout",
+        "_media_message_type",
+        "_message_matches_mention_patterns",
+        "_message_mentions_bot",
+        "_message_thread_id_for_send",
+        "_message_thread_id_for_typing",
+        "_metadata_direct_messages_topic_id",
+        "_metadata_reply_to_message_id",
+        "_metadata_thread_id",
+        "_missing_media_path_error",
+        "_needs_rich_rendering",
+        "_note_bot_username",
+        "_notification_kwargs",
+        "_notify_clarify_expired",
+        "_observe_bot_identity_from_message",
+        "_observe_polling_request_result",
+        "_observe_unmentioned_group_message",
+        "_observed_media_source",
+        "_persist_dm_topic_thread_id",
+        "_photo_batch_key",
+        "_polling_heartbeat_loop",
+        "_probe_pending_updates",
+        "_prune_stale_dm_topic_binding",
+        "_queue_media_group_event",
+        "_reactions_enabled",
+        "_record_polling_progress",
+        "_record_typing_cooldown",
+        "_refresh_bot_identity",
+        "_reload_dm_topics_from_config",
+        "_reply_to_message_id_for_send",
+        "_rich_delivery_enabled",
+        "_rich_eligible",
+        "_rich_message_payload",
+        "_run_post_connect_housekeeping",
+        "_schedule_bot_identity_recheck",
+        "_schedule_polling_progress_verifier",
+        "_schedule_polling_recovery",
+        "_send_message_with_thread_fallback",
+        "_send_with_dm_topic_reply_anchor_retry",
+        "_set_reaction",
+        "_set_status_indicator",
+        "_setup_dm_topics",
+        "_should_attempt_rich",
+        "_should_attempt_rich_draft",
+        "_should_drop_delayed_delivery",
+        "_should_observe_unmentioned_group_message",
+        "_should_pass_unauthorized_dm_for_pairing",
+        "_should_process_message",
+        "_should_retry_without_dm_topic_reply_anchor",
+        "_should_thread_reply",
+        "_source_from_message_for_auth",
+        "_start_polling_once",
+        "_start_polling_resilient",
+        "_start_post_connect_housekeeping",
+        "_surface_media_cache_failure",
+        "_telegram_allowed_chats",
+        "_telegram_allowed_topics",
+        "_telegram_auth_env_configured",
+        "_telegram_exclusive_bot_mentions",
+        "_telegram_free_response_chats",
+        "_telegram_free_response_topics",
+        "_telegram_group_allowed_chats",
+        "_telegram_group_observe_attributed_text",
+        "_telegram_group_observe_channel_prompt",
+        "_telegram_group_observe_shared_source",
+        "_telegram_guest_mode",
+        "_telegram_ignored_threads",
+        "_telegram_is_free_response_topic",
+        "_telegram_media_size_allowed",
+        "_telegram_media_too_large_note",
+        "_telegram_observe_allowed_chats",
+        "_telegram_observe_unmentioned_group_messages",
+        "_telegram_require_mention",
+        "_text_batch_key",
+        "_thread_kwargs_for_send",
+        "_truncate_stream_overflow_preview",
+        "_try_edit_rich",
+        "_try_send_rich",
+        "_try_send_rich_draft",
+        "_typing_in_cooldown",
+        "_verify_polling_after_reconnect",
+        "ensure_dm_topic",
+        "rename_dm_topic",
+        "send_choice_picker",
+        "send_exec_approval",
+        "send_model_picker",
+        "send_or_update_status",
+        "send_update_prompt"
+      ],
+      "lineno": 617,
+      "methods": 194,
+      "override": [
+        "__init__",
+        "_ea_escape",
+        "_mark_connected",
+        "_mark_disconnected",
+        "_set_fatal_error",
+        "create_handoff_thread",
+        "delete_message",
+        "edit_message",
+        "format_message",
+        "message_len_fn",
+        "on_processing_complete",
+        "on_processing_start",
+        "prefers_fresh_final_streaming",
+        "send_animation",
+        "send_clarify",
+        "send_document",
+        "send_draft",
+        "send_image",
+        "send_image_file",
+        "send_multiple_images",
+        "send_slash_confirm",
+        "send_typing",
+        "send_video",
+        "send_voice",
+        "streaming_overflow_limit",
+        "supports_draft_streaming"
+      ],
+      "path": "plugins/platforms/telegram/adapter.py"
+    }
+  },
+  "base": {
+    "abstract": [
+      "connect",
+      "disconnect",
+      "get_chat_info",
+      "send"
+    ],
+    "attr_names": [
+      "REQUIRES_EDIT_FINALIZE",
+      "_ACK_EMOJI",
+      "_EA_CMD_BUDGET",
+      "_EA_CODE_CLOSE",
+      "_EA_CODE_OPEN",
+      "_EA_HEADER",
+      "_EA_REASON_LABEL",
+      "_EA_SMART_DENY_LINE",
+      "_FAIL_EMOJI",
+      "_OK_EMOJI",
+      "gateway_runner",
+      "interactive_resume",
+      "splits_long_messages",
+      "supports_async_delivery",
+      "supports_code_blocks",
+      "supports_inchannel_continuable",
+      "supports_status_text",
+      "typed_command_prefix"
+    ],
+    "attrs": 18,
+    "class": "BasePlatformAdapter",
+    "lineno": 2629,
+    "methods": 126,
+    "path": "gateway/platforms/base.py"
+  }
+}

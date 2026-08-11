@@ -1,0 +1,23 @@
+field	entry_line	default	discord	telegram	slack
+name	43	-	'discord'	'telegram'	'slack'
+label	46	-	'Discord'	'Telegram'	'Slack'
+adapter_factory	51	-	_build_adapter	_build_adapter	_build_adapter
+check_fn	54	-	check_discord_requirements	check_telegram_requirements	check_slack_requirements
+validate_config	59	None	—	—	—
+is_connected	64	None	_is_connected	_is_connected	_is_connected
+required_env	67	field(default_factory=list)	['DISCORD_BOT_TOKEN']	['TELEGRAM_BOT_TOKEN']	['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN']
+install_hint	70	''	'Run `hermes setup` to install Discord support.'	'Run `hermes setup` to install Telegram support.'	'Run `hermes setup` to install Slack support.'
+setup_fn	76	None	interactive_setup	interactive_setup	interactive_setup
+source	79	'plugin'	—	—	—
+plugin_name	84	''	—	—	—
+allowed_users_env	88	''	'DISCORD_ALLOWED_USERS'	'TELEGRAM_ALLOWED_USERS'	'SLACK_ALLOWED_USERS'
+allow_all_env	90	''	'DISCORD_ALLOW_ALL_USERS'	'TELEGRAM_ALLOW_ALL_USERS'	'SLACK_ALLOW_ALL_USERS'
+max_message_length	94	0	2000	4096	39000
+pii_safe	98	False	—	—	—
+emoji	102	'🔌'	'🎮'	'✈️'	'💼'
+allow_update_command	106	True	True	True	True
+platform_hint	111	''	—	—	—
+env_enablement_fn	120	None	—	—	—
+apply_yaml_config_fn	136	None	_apply_yaml_config	_apply_yaml_config	_apply_yaml_config
+cron_deliver_env_var	142	''	'DISCORD_HOME_CHANNEL'	'TELEGRAM_HOME_CHANNEL'	'SLACK_HOME_CHANNEL'
+standalone_sender_fn	159	None	_standalone_send	_standalone_send	_standalone_send

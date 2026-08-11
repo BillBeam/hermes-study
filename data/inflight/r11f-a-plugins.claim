@@ -1,6 +1,6 @@
 agent: 片 A · 插件面 L2 结构级理解
 dispatched: 2026-08-11
-signal: OPEN
+signal: RELEASED 片 A 完成信号(任务完成通知,含五条判据全达成、15/15 点名、8 个接缝枚举表)。主线已独立复核:(a) 基线 porcelain 0 / HEAD 863e31318 / venv 87 包未变;(b) 两道关卡自跑复现其报数 —— citations=33 OK=29 87.9%、evidence paired=13 differing=0;(c) 15 个全路径逐个 grep 底稿,missing=0;(d) 独立重写 AST 探针复核 H-R11F-A-d 的全称否定「全仓仅 2 处」—— 自写实现同样得 2,且两处都在本片(discord/adapter.py、discord/voice_mixer.py)。
 path: notes/r11f-raw-a-*.md
 path: data/r11f/a/*
 path: data/r11f/probes/a_*.py
