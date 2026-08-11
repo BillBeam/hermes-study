@@ -18,9 +18,9 @@
 | 产物 | 是什么 | 总字符 | 去代码块正文 | 阅读时长(350 字/分) |
 |---|---|---:|---:|---:|
 | `reading/01-quickread.md` | 21 章 TL;DR 逐字合集,按装订章序 | 20,605 | 20,399 | **58.3 分钟** |
-| `reading/02-principles.md` | 以**原则**为条目重组的设计原则合集 | 75,206 | 75,206 | **214.9 分钟** |
+| `reading/02-principles.md` | 以**原则**为条目重组的设计原则合集 | 75,224 | 75,224 | **214.9 分钟** |
 | `reading/03-problem-index.md` | 以**问题**为入口的倒排索引 | 57,651 | 57,651 | **164.7 分钟** |
-| **三份合计** | | **153,462** | **153,256** | **437.9 分钟 = 7.3 小时** |
+| **三份合计** | | **153,480** | **153,274** | **437.9 分钟 = 7.3 小时** |
 
 口径:总字符 = 文件字节长度(UTF-8 字符数);正文 = 去掉 ```` ``` ```` 围栏块内容后的字符数;
 时长 = 正文 ÷ 350。三份产物里只有快读层含围栏块(206 字符,来自 `chapters/r7` TL;DR
@@ -32,9 +32,9 @@ cd /home/user/hermes-study && python3 scripts/build_reading_layer.py --stats
 
 ```text
 reading/01-quickread.md	total=20605	prose=20399	minutes=58.3
-reading/02-principles.md	total=75206	prose=75206	minutes=214.9
+reading/02-principles.md	total=75224	prose=75224	minutes=214.9
 reading/03-problem-index.md	total=57651	prose=57651	minutes=164.7
-ALL	total=153462	prose=153256	minutes=437.9
+ALL	total=153480	prose=153274	minutes=437.9
 ```
 
 ---
