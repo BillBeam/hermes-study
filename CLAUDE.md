@@ -407,8 +407,10 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   *`EMPTY-GATE` 为什么必须有:一个什么都没比对的关卡也会打印绿字——正是 R8C 记下的那个形状
   (锚点全写在块后的文件,关卡输出 `OK` + 退出码 0,一条都没校验)。本关卡把
   `sections=… products=… links=…` 三个读数**打印出来**,绿必然伴随一个可当场核的 N。*
-  *为什么必须机械化(两次实证):跨章原则清单曾实测 **15/17 失同步**;
-  `chapters/r1-what-is-hermes-agent.md` 的分层手抄数字被修过一次
+  *为什么必须机械化(两次实证,均已回源核对):(a) R11C 片 F 盘点确认
+  **成品章里未同步的过期结论 4 条**(`notes/r11c-raw-pre-binding-inventory.md:35`:
+  `4. **成品章里未同步的过期结论确认 4 条**。最严重的一条是`);
+  (b) 其中最严重的一条 `chapters/r1-what-is-hermes-agent.md` 分层手抄数字被修过一次
   (review-1 阻断-2 / M-2)、**六轮后原样复发**,由它推出的「408 个文件被真正处理过」
   真值是 2,586。两次都不是作者不用心,而是**手抄件不在任何检查面上**:
   `verify_citations.py` 认 `路径:行号`、`verify_evidence_commands.py` 认 ```verify 块、

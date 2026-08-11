@@ -9,10 +9,20 @@
 
 本项目已有两次实证,说明「派生件靠人保持同步」这个方案在本项目的实际节奏下不成立:
 
-  - 跨章原则清单曾实测 **15/17 失同步**(R11C 片 F 盘点);
-  - `chapters/r1-what-is-hermes-agent.md` 的分层手抄数字被修过一次
+  - R11C 片 F 盘点确认**成品章里未同步的过期结论 4 条**
+    (`notes/r11c-raw-pre-binding-inventory.md:35`);
+  - 其中最严重的一条:`chapters/r1-what-is-hermes-agent.md` 的分层手抄数字被修过一次
     (review-1 阻断-2 / M-2),**六轮后原样复发**,由它推出的
     「408 个文件被真正处理过」真值是 2,586 —— 错六倍。
+
+**这两条本身就演示了本关卡要防的东西。** R11E 开工时,本处原写的是
+「跨章原则清单曾实测 **15/17 失同步**」——这个数**在本仓库里找不到出处**:
+全语料唯一的 15/17 是 `notes/r11b-raw-chapter-anchors.md:617` 的 `H-R11B-C-a`,
+量的是 `chapters/r3` 的**引用 UNCHECKED 占比**,与「原则清单失同步」无关;
+而 R11C 片 F 真正做的跨章章号一致性核对结果是 **21/21 一致**。
+搜索面与复核见 `data/r11e/probes/precedent_verification.py`。
+**一个没有出处的数,靠「上一处也这么写」就能一直传下去**——这正是 P08 那条原则,
+只不过这次犯在制度文件里。
 
 两次都不是作者不用心,而是**手抄件不在任何检查面上**:`verify_citations.py` 认
 `路径:行号`,`verify_evidence_commands.py` 认 ```verify 块,`verify_derived_numbers.py`
