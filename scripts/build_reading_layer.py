@@ -440,20 +440,51 @@ def parse_principles_src():
 
 
 def resolve_src(corpus, spec, ctx):
-    """把一条 src 声明解析成 (小节, 逐字首段)。找不到或有歧义一律报错,不猜。"""
+    """把一条 src 声明解析成 (小节, 逐字首段, 条目序号)。找不到或有歧义一律报错,不猜。"""
     sec = corpus.section(spec["rel"], spec["sec"])
     units = split_units(sec)
-    hits = [u for u in units if any(spec["anchor"] in ln for ln in u["lines"])]
+    hits = [(i, u) for i, u in enumerate(units)
+            if any(spec["anchor"] in ln for ln in u["lines"])]
     if not hits:
         raise BuildError(f"{ctx}:在 {spec['rel']} § {spec['sec']} 里找不到段落锚点「{spec['anchor']}」")
     if len(hits) > 1:
         raise BuildError(
             f"{ctx}:段落锚点「{spec['anchor']}」在 {spec['rel']} § {spec['sec']} 里命中 "
             f"{len(hits)} 个条目,有歧义——请把锚点写长到唯一")
-    excerpt = first_paragraph(hits[0]["lines"])
+    idx, unit = hits[0]
+    excerpt = first_paragraph(unit["lines"])
     if not excerpt:
         raise BuildError(f"{ctx}:段落锚点「{spec['anchor']}」命中的条目首段为空")
-    return sec, excerpt
+    return sec, excerpt, idx
+
+
+def merge_ledger(corpus, entries):
+    """合并账:源条目总数 / 被引用数 / 未被引用的逐条清单。
+
+    **口径写死在这里,因为报告要报这两个数。** 「源条目」= 20 个「可迁移的设计原则」小节
+    经 `split_units` 切出的条目(列表项 / `**①…**` 段 / `**(1)…**` 段)。
+    第 1 章没有这一节,故分母是 20 个小节而不是 21 个。
+
+    未被引用的要**逐条列出来**,不是只报一个数:一份自称「把各章原则汇成一份」的合集,
+    如果悄悄漏掉四成源条目,读者无从知道自己漏读了什么 —— 这正是本项目对
+    「负结论必须写搜索面」定下的同一条要求。
+    """
+    total, cited, rows = 0, set(), []
+    for no, rel, _rnd, _t in corpus.order:
+        sec = corpus.principles_section(rel)
+        if sec is None:
+            continue
+        units = split_units(sec)
+        total += len(units)
+        for i, u in enumerate(units):
+            head = next((ln.strip() for ln in u["lines"] if ln.strip()), "")
+            rows.append((no, rel, sec["title"], i, head))
+    for e in entries:
+        for spec in e["src"]:
+            _sec, _ex, idx = resolve_src(corpus, spec, e["id"])
+            cited.add((spec["rel"], spec["sec"], idx))
+    uncited = [r for r in rows if (r[1], r[2], r[3]) not in cited]
+    return total, len(cited), uncited
 
 
 def build_principles(corpus, refs):
@@ -491,8 +522,14 @@ def build_principles(corpus, refs):
         for e in principles:
             if e["family"] != fam:
                 continue
+            # 「印证于 N 章」必须数**不同的章**,不是数 src 声明条数:一条原则可以引同一章的
+            # 两个条目(P01 引了 r2 的两条),那是同一章的两处印证,不是两章。
+            # 第一版数了声明条数,P01 / P04 因此各虚高一章 —— 正是本轮关卡要防的那类手抄数字,
+            # 只不过它这次出在生成器里。两个数都打出来。
+            nch = len({s["rel"] for s in e["src"]})
+            extra = f" / {len(e['src'])} 处" if len(e["src"]) != nch else ""
             out.append(f"- [{e['id']} · {e['title']}](#{github_slug(e['id'] + ' · ' + e['title'], {})})"
-                       f" —— 印证于 {len(e['src'])} 章")
+                       f" —— 印证于 {nch} 章{extra}")
         out.append("")
     if conflicts:
         out.append("**跨章冲突裁定**")
@@ -522,6 +559,39 @@ def build_principles(corpus, refs):
         out.append("")
         for e in conflicts:
             out.extend(render_entry(corpus, e, refs, conflict=True))
+
+    total, ncited, uncited = merge_ledger(corpus, entries)
+    out.append("---")
+    out.append("")
+    out.append("# 附:合并账(本节由脚本算出)")
+    out.append("")
+    out.append(f"**合并前** {total} 条源条目(20 个「可迁移的设计原则」小节切出的条目;"
+               f"第 1 章没有这一节)→ **合并后** {len(principles)} 条原则 + "
+               f"{len(conflicts)} 组冲突裁定。")
+    out.append("")
+    out.append(f"本合集引用到其中 **{ncited}** 条(**{ncited / total * 100:.1f}%**),"
+               f"未引用 **{len(uncited)}** 条。")
+    out.append("")
+    if not uncited:
+        out.append("**没有被漏掉的源条目。** 20 个源小节切出的每一条,都至少被本合集的某一条引用。")
+        out.append("")
+        out.append("这个数不是设计目标,是**改出来的**:本合集第一版只引用了 115 条(68.0%),"
+                   "而漏掉的里面有整整一族(凭据与外发)和四条本轮编辑正文里")
+        out.append("**引用了却没有声明来源**的条目——正是本层要防的手抄形态,只不过它出在编辑侧而不是产物侧。"
+                   "这张表由脚本算出,所以它当场把这件事报了出来。")
+    else:
+        out.append("**未被引用的源条目逐条列在下面。** 一份自称「把各章原则汇成一份」的合集,"
+                   "如果悄悄漏掉一部分源条目,读者无从知道自己漏读了什么;")
+        out.append("列出来读者才能自己判断要不要回源章补。")
+        out.append("")
+        out.append("| 章 | 条目首行(截断) |")
+        out.append("|---|---|")
+        for no, _rel, _sec, _i, head in uncited:
+            cell = head.replace("|", "\\|")
+            if len(cell) > 60:
+                cell = cell[:60] + "…"
+            out.append(f"| 第 {no} 章 | {cell} |")
+    out.append("")
     return "\n".join(out).rstrip() + "\n"
 
 
@@ -554,7 +624,7 @@ def render_entry(corpus, e, refs, conflict=False):
     out.append(f"**{label}**(逐字抽取自成品章,勿手改):")
     out.append("")
     for spec in e["src"]:
-        sec, excerpt = resolve_src(corpus, spec, f"{e['id']}")
+        sec, excerpt, _idx = resolve_src(corpus, spec, f"{e['id']}")
         refs.add((spec["rel"], spec["sec"]))
         ch = corpus.chapter(spec["rel"])
         out.append(f"[第 {ch['no']} 章 · {ch['title']}]({corpus.link(spec['rel'], spec['sec'])})"

@@ -3,3 +3,4 @@ dispatched: R11E 批次一
 signal: OPEN
 path: notes/r11e-raw-handover.md
 path: data/r11e/handover-candidates.tsv
+path: data/r11e/probes/handover_*.py
