@@ -1,0 +1,19 @@
+lazy-install seal: _allow_lazy_installs() = False
+### image_gen: 8 registered
+    deepinfra      display='DeepInfra'                class=DeepInfraImageGenProvider @ plugins/image_gen/deepinfra/__init__.py
+    fal            display='FAL.ai'                   class=FalImageGenProvider @ plugins/image_gen/fal/__init__.py
+    krea           display='Krea'                     class=KreaImageGenProvider @ plugins/image_gen/krea/__init__.py
+    nous           display='Nous Portal'              class=OpenRouterCompatImageProvider @ plugins/image_gen/openrouter/__init__.py
+    openai         display='OpenAI'                   class=OpenAIImageGenProvider @ plugins/image_gen/openai/__init__.py
+    openai-codex   display='OpenAI (Codex auth)'      class=OpenAICodexImageGenProvider @ plugins/image_gen/openai-codex/__init__.py
+    openrouter     display='OpenRouter'               class=OpenRouterCompatImageProvider @ plugins/image_gen/openrouter/__init__.py
+    xai            display='xAI (Grok)'               class=XAIImageGenProvider @ plugins/image_gen/xai/__init__.py
+### video_gen: 3 registered
+    deepinfra      display='DeepInfra'                class=DeepInfraVideoGenProvider @ plugins/video_gen/deepinfra/__init__.py
+    fal            display='FAL'                      class=FALVideoGenProvider @ plugins/video_gen/fal/__init__.py
+    xai            display='xAI'                      class=XAIVideoGenProvider @ plugins/video_gen/xai/__init__.py
+### browser: 3 registered
+    browser-use    display='Browser Use'              class=BrowserUseBrowserProvider @ plugins/browser/browser_use/provider.py
+    browserbase    display='Browserbase'              class=BrowserbaseBrowserProvider @ plugins/browser/browserbase/provider.py
+    firecrawl      display='Firecrawl'                class=FirecrawlBrowserProvider @ plugins/browser/firecrawl/provider.py
+TOTAL providers registered across the three registries: 14

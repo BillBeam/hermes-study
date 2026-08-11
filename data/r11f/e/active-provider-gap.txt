@@ -1,0 +1,6 @@
+image.registry.get_active_provider = 'probe-solo-image'
+image.tool.dispatch = None
+image.tool.calls_get_active_provider = False
+video.registry.get_active_provider = 'probe-solo-video'
+video.tool.calls_get_active_provider = True
+image: registry-active == tool-dispatch ? False
