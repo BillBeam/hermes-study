@@ -740,6 +740,13 @@ scripts/config_table.py    # R8A 新增:从 DEFAULT_CONFIG / OPTIONAL_ENV_VARS �
                            # 抽取配置项全表(不 import 不执行);用前先读它开头的三条告诫
 scripts/render_capabilities.py   # JSON → 附卷渲染
 scripts/render_main_report.py    # JSON → 主卷能力点章节渲染(--compact 出会话消息版)
+scripts/test_totals.py     # R11F 新增(结清 H-R11E-M-c):run_tests.sh 完整日志的
+                           # **唯一汇总口径**。运行器只打印失败清单与零执行清单,
+                           # passed/skipped 藏在进度行括号里,于是各轮各写一次解析、
+                           # 写出了两个数(R11D skipped 132 / R11E 239)。此后共用本脚本。
+                           # 报四类:passed/failed/skipped + 整文件跳过 + 部分跳过 + 零执行;
+                           # 零执行的用例数日志里没有(收集期就失败),给 --baseline 时
+                           # 静态数 def test_ 出下界,不给就只点名不报数 —— 不猜
 scripts/build_reading_layer.py  # R11E 新增:reading/ 三份派生件的**唯一生产者**。
                            # 凡引自成品章的文字一律运行时逐字抽取,不经人手;
                            # --write 写产物 / --restamp 重钉源节 / --stats 报体量与阅读时长
@@ -813,6 +820,22 @@ R8A 同一套 170 个测试文件先后报出 **3,183** 与 **3,190** 两个数,
 
 **报测试通过数时一并记 venv 包数**(R8A 立):`pip list` 去掉两行表头后的条目数。
 R8B 实测 **87 个包**(`[dev]` extra + `aiohttp 3.14.1` + `brotlicffi 1.2.0.1`)。
+
+**汇总用 `scripts/test_totals.py`,不各轮各写一遍(R11F 立,结清 H-R11E-M-c)**:
+
+```bash
+cd /home/user/hermes-agent && HERMES_DISABLE_LAZY_INSTALLS=1 \
+  HERMES_PYTHON=/home/user/hermes-venv/bin/python bash scripts/run_tests.sh \
+  > /home/user/hermes-study/data/rN/tests-full.log 2>&1
+python3 scripts/test_totals.py data/rN/tests-full.log --baseline /home/user/hermes-agent
+```
+
+**日志要留全,不许 `tail`**:R11E 把输出管进 `tail -120`,聚合信息恰好被截掉,
+证据被自己的排版动作弄没了,只好整轮重跑。
+
+**三类"没跑到"分开报,别只报 skipped 总数**:整文件跳过(`passed==0 且 skipped>0`)、
+部分跳过、零执行(连进度行都没有)。三类在一个只看 passed 的读者眼里**都不存在**,
+而它们的成因完全不同 —— 前两类是 pytest 数过的,零执行是收集阶段就死了、pytest 没数出来。
 
 模型凭据不需要,也不得自行配置。
 

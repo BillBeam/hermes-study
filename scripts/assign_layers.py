@@ -605,21 +605,27 @@ RULES = [
     # R6 修订:8 个记忆后端的实现 .py 促升 L1(R6 卡片要求对本簇达 L1 完成标准;
     # 它们是 MemoryProvider ABC 契约的全部生产实现,机制精读才能定案各家取舍)。
     # README/plugin.yaml 留 L2(文档与元数据,结构级即可)。
-    ("plugins/memory/**/README.md", "L2", "R6"),
-    ("plugins/memory/**/plugin.yaml", "L2", "R6"),
     ("plugins/memory/**/*.py", "L1", "R6"),
     ("plugins/memory/*.py", "L1", "R6"),
-    # R11C 结清 H-R11A-f。R11A 有意未改,理由是这 243 个 L2 分散在一条兜底规则与
-    # 两条显式点名规则之间,"只改兜底会留 16 个不一致"。裁定:**那 16 个不是不一致,
-    # 是另一种失败,应当保留可见** —— 于是给两种失败两个不同的 round 值,而不是把
-    # 它们合并成一个数。
+    # ---- R11F:两桶合一,理由是它们记录的那件事已经发生完了 ----
+    # R11C 结清 H-R11A-f 时,把这 243 个 L2 有意拆成**两个 round 值**:
     #   兜底 227 个 / 114,899 行 -> UNCLAIMED:R6 从未点名过它们,是"没人认领"。
-    #   显式 16 个(memory 的 8 个 README + 8 个 plugin.yaml)-> 留 R6:R6 的规则注释
-    #   明写"README/plugin.yaml 留 L2(文档与元数据,结构级即可)",即**点名了却没做**。
-    # 保留 R6 与 R11B 不改那 38 个文件 status 的理由同源:改掉就抹掉了"哪一轮原本
-    # 声称要做"这条线索,而正是这条线索让缺口能被发现。两桶此后各自可数:
-    #   UNCLAIMED|R1-inventoried 与 R6|R1-inventoried。
-    ("plugins/**", "L2", "UNCLAIMED"),
+    #   显式  16 个 / 1,179 行(memory 的 8 README + 8 plugin.yaml)-> 留 R6:
+    #   R6 的规则注释明写"README/plugin.yaml 留 L2(文档与元数据,结构级即可)",
+    #   即**点名了却没做**。
+    # 那条裁定是对的:两种失败长得不一样,合并成一个数就看不出"谁曾声称要做"。
+    #
+    # R11F 把两桶都改写成 R11F,依据不是推翻它,而是**它成立的前提没了**:
+    # 这两个值区分的是"欠账的两种由来",而 R11F 一次把 243 个全部交付,欠账归零。
+    # 沿用 R8D 立、R11A 复述的语义 —— **round 列只写"还在钩上"的轮次**;
+    # 已经读到位的用 status 列表示(此处为 R11F-structure)。留着 R6 会踩中
+    # R11A 那次改判点名的同一个坑:round 列写一个**已收官轮次**的名字,
+    # 按 round 扫过去它不像"没排期",像"早就做完了"。
+    # 线索不靠陈旧数据留存,靠三处**写下来的记录**:本注释、
+    # reports/round-11f-plugin-surface.md §3、data/r11f/probes/round_split_census.py。
+    ("plugins/memory/**/README.md", "L2", "R11F"),
+    ("plugins/memory/**/plugin.yaml", "L2", "R11F"),
+    ("plugins/**", "L2", "R11F"),
     ("tui_gateway/**", "L2", "R10"),
     ("acp_adapter/**", "L2", "R10"),
     ("ui-tui/**", "L2", "R10"),
