@@ -21,6 +21,31 @@
 - **prompt cache(提示缓存)**:LLM 服务商提供的省钱机制——长对话每轮开头那一大段(系统提示 + 历史)
   是重复的,服务商可以缓存它、只对新增部分计费,能省约 75% 的输入成本。但缓存是**逐字节匹配**的:
   历史里改一个字节,缓存就从那里整段失效。
+- **侧车(sidecar)**:本章拿这个既有工程术语当外号,但它在代码里是一个**字面存在的东西**——
+  先把它是什么说死,免得后面几节把它读成一种比喻。**它是一条消息上的第二个内容字段,
+  名字叫 `api_content`。** *与相邻字段的关系*:`content` 存**给人看的干净正文**,
+  `api_content` 存**这条消息当初实际发给模型的那串字节**,而且**只在两者不同时才写**:
+
+  `hermes_state.py:6343 @ 863e313`
+
+  ```
+          ``api_content`` is the exact content string sent to the API for this
+          message when it differs from ``content`` (ephemeral memory/plugin
+          injections, persist overrides).  It is a byte-fidelity sidecar for
+  ```
+
+  *它存在哪里*:内存里它就是消息字典上一个与 `role` / `content` 平级的普通键;
+  落库时它是 `messages` 表里一个与 `content` 并列的**独立列**——下面这行是写库时的列清单,
+  `api_content` 就排在 `active` 与 `display_kind` 中间:
+
+  `hermes_state.py:6403 @ 863e313`
+
+  ```
+                     codex_message_items, platform_message_id, observed, active, api_content, display_kind, display_metadata)
+  ```
+
+  所以**"这条消息没有侧车"是一个合法且常见的状态**(那一列为空),含义是
+  "它发出去的就是 `content` 本身"。这个机制怎么用、为什么非要这样,见 §3.8。
 
 这一章讲的一轮对话,核心是**一个函数驱动的一个 while 循环**,外加挂在它上面的"模型接入层"。最重要的
 五个设计:
@@ -558,8 +583,9 @@ rate-limited provider concurrently.
 整段失效,后面全部重新计费。现在问题来了——每一轮,harness 都要往你的**当前**消息里注入一些东西
 (相关的记忆、插件加的上下文)。这个注入,怎么才能不破坏缓存?
 
-**设计**:关键是一个叫 **api_content 侧车**的机制。"侧车"(sidecar)指:一条消息除了给人看的干净内容,
-再挂一个旁路字段,存"实际发给模型的字节"。注入后的完整字节盖章存进这个侧车,和干净内容并排持久化;
+**设计**:关键是一个叫 **api_content 侧车**的机制(它的字面定义 —— 消息上与 `content` 并列的
+第二个内容字段、`messages` 表里的一个独立列 —— 已在章首的术语锚里给过,这里只讲它怎么用)。
+注入后的完整字节盖章存进这个侧车,和干净内容并排持久化;
 构建请求时,当前消息用侧车的字节、历史消息回放各自侧车里当初发出去的字节——这样**给人看的转录**和
 **发给模型的字节**永久分开,注入永远不改历史,缓存前缀逐字节稳定。组装侧车的那个函数把这条界线
 写进了自己的 docstring:
@@ -575,7 +601,15 @@ rate-limited provider concurrently.
 ```
 
 任何要改写内容的操作(比如从历史里剥掉图片以省空间)必须主动丢掉那条消息的侧车——代价是一次缓存失效,
-但绝不会发出错误的内容。
+但绝不会发出错误的内容。"丢掉"之所以安全,是因为读回时那一列为空就干脆不挂这个键,
+于是回放自动落回 `content`:
+
+`hermes_state.py:7367 @ 863e313`
+
+```python
+            if row["api_content"]:
+                msg["api_content"] = row["api_content"]
+```
 
 第二个机制是**缓存断点**的分配。Anthropic 每次请求最多允许 4 个缓存标记点(cache_control breakpoint)。
 默认布局把它们放在:稳定的系统提示前缀(跨会话都能复用)、系统提示尾部、最近 2 条消息(会话内复用)——

@@ -49,6 +49,31 @@
 - **prompt cache(提示缓存)**:LLM 服务商提供的省钱机制——长对话每轮开头那一大段(系统提示 + 历史)
   是重复的,服务商可以缓存它、只对新增部分计费,能省约 75% 的输入成本。但缓存是**逐字节匹配**的:
   历史里改一个字节,缓存就从那里整段失效。
+- **侧车(sidecar)**:本章拿这个既有工程术语当外号,但它在代码里是一个**字面存在的东西**——
+  先把它是什么说死,免得后面几节把它读成一种比喻。**它是一条消息上的第二个内容字段,
+  名字叫 `api_content`。** *与相邻字段的关系*:`content` 存**给人看的干净正文**,
+  `api_content` 存**这条消息当初实际发给模型的那串字节**,而且**只在两者不同时才写**:
+
+  `hermes_state.py:6343 @ 863e313`
+
+  ```
+          ``api_content`` is the exact content string sent to the API for this
+          message when it differs from ``content`` (ephemeral memory/plugin
+          injections, persist overrides).  It is a byte-fidelity sidecar for
+  ```
+
+  *它存在哪里*:内存里它就是消息字典上一个与 `role` / `content` 平级的普通键;
+  落库时它是 `messages` 表里一个与 `content` 并列的**独立列**——下面这行是写库时的列清单,
+  `api_content` 就排在 `active` 与 `display_kind` 中间:
+
+  `hermes_state.py:6403 @ 863e313`
+
+  ```
+                     codex_message_items, platform_message_id, observed, active, api_content, display_kind, display_metadata)
+  ```
+
+  所以**"这条消息没有侧车"是一个合法且常见的状态**(那一列为空),含义是
+  "它发出去的就是 `content` 本身"。这个机制怎么用、为什么非要这样,见 §3.8。
 
 这一章讲的一轮对话,核心是**一个函数驱动的一个 while 循环**,外加挂在它上面的"模型接入层"。最重要的
 五个设计:

@@ -568,3 +568,12 @@ R11F-fix 按交付问题第 3 项改写了 `chapters/r11f-plugin-surface.md` 的
 ——只读端点跑的是 `check`(argv,不经 shell),`install` 的整串 bash 要走
 `POST /api/memory/providers/{name}/setup`。完整 diff 见
 `reports/round-11f-fix-delivery-issues.md` §3.3。本簇 ■/▲ 计数**不受影响**。
+
+**E-4 · §4.1 报的「175/175 = 100%」是合并账,它不覆盖条目的字段完整性。**
+本轮新增的 P60~P64 五条原则**都没有 `陈述` 字段** —— 它们只有 `合并` 与机器抽取的
+`源出处`,于是这五条把「这条原则说的是什么」整个交给了源章原话,而原则层存在的理由
+恰恰是「脱离 hermes-agent 仍然成立」。§4.1 那个 100% 量的是「源条目有没有落点」,
+**不是**「条目自己写全了没有」,所以它当时是对的、也确实没能报出这件事。
+R11F-fix 已补齐五条 `陈述`(写在编辑源 `data/r11e/principles-src.md`,产物由 `--write` 生成),
+并给 `scripts/verify_reading_layer.py` 加了第三道锁,使同类条目的字段结构不一致**落地即阻断**。
+详见 `reports/round-11f-fix-delivery-issues.md` §5。

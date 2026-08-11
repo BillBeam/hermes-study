@@ -40,10 +40,10 @@ chapters/r11f-plugin-surface.md	4. 可迁移的设计原则(造你自己的插�
 chapters/r11f-plugin-surface.md	TL;DR(快读路径:读这一段就有全貌)	51b59d045848c3943a98fcce23b0698c7c2d46ca6b68a6fca6a6cd8e2e5bc804	24
 chapters/r2-turn-loop-and-model-access.md	1. 从一个场景说起:一句话背后的一轮循环	ad78c7b851b0f1b2d7ac02d8dcafe9fb3116f666bb1e5881cfa298464d709239	30
 chapters/r2-turn-loop-and-model-access.md	2. 全景:一个 turn 的生命周期	7c53780d486874156137df87deea5aa7fda25c314a8ae55fceecea37b3cbd00f	31
-chapters/r2-turn-loop-and-model-access.md	3. 逐机制	6f3d602495b9f70dfd93943d228e3ed75696a898aa3a8ebb4ef070bc6484b5f4	623
+chapters/r2-turn-loop-and-model-access.md	3. 逐机制	59020e3a271ce06bc099b1791618639965e81e7d83ec2d97b3b4ea8abf412287	632
 chapters/r2-turn-loop-and-model-access.md	4. 可迁移的设计原则(造你自己的 harness 时怎么做)	ff826bdf4ba5601cd0500144bfd3e7c1775c20a26cbb0a7b6851363bdeb84433	19
 chapters/r2-turn-loop-and-model-access.md	5. 地图与代码的出入	741f9834790f56a77f7b86afa76d67fa0d387d426e8c4f7f3a85a646214d601b	26
-chapters/r2-turn-loop-and-model-access.md	TL;DR(快读路径:读这一段就有全貌)	59576a3b9de678e6b3e0b2ee318f7bcf29d6639c8b881a4fb0e13ec5dbe95f57	30
+chapters/r2-turn-loop-and-model-access.md	TL;DR(快读路径:读这一段就有全貌)	72fcea515bd846f2b2a57a7d3e52361550cc6b20bc6457d6dc6445babb5f91d6	55
 chapters/r3-tool-infrastructure.md	1. 从一个场景说起:一次工具调用要过多少道关	205ccd49c8926410a72e1a2db7b9460f3aa454c8c5c0bce33197f71e4cc753b7	17
 chapters/r3-tool-infrastructure.md	2. 全景:工具系统的四大块	2d299b0839d6758dea6e8e5b08c1ae20a4517e88236c767625c524f2505ba767	32
 chapters/r3-tool-infrastructure.md	3. 逐机制	f83bacee2a06b9a8869c6b6a204b71104e21491b375a78da0f339f0d6138c09c	265

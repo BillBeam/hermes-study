@@ -439,10 +439,32 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   **锁一防的是忘了同步,锁二防的是不假思索地同步。**
   另有 `ANCHOR-UNRESOLVED`(产物里指向章内小节的链接解析不到真实标题)、
   `UNSTAMPED` / `STALE-STAMP`(引了没钉过的节 / 钉了没人引的节),以及
-  `EMPTY-GATE`(三类比对数任一为 **0** 即失败)。
+  `EMPTY-GATE`(四类比对数任一为 **0** 即失败)。
   *`EMPTY-GATE` 为什么必须有:一个什么都没比对的关卡也会打印绿字——正是 R8C 记下的那个形状
   (锚点全写在块后的文件,关卡输出 `OK` + 退出码 0,一条都没校验)。本关卡把
-  `sections=… products=… links=…` 三个读数**打印出来**,绿必然伴随一个可当场核的 N。*
+  `sections=… products=… links=… entries=…` 四个读数**打印出来**,绿必然伴随一个可当场核的 N。*
+
+  **锁三:同一份产物内,同类条目的字段结构必须一致(R11F-fix 增,落地即阻断)。**
+  `reading/02-principles.md` 的条目分 `P`(原则)与 `C`(冲突裁定)两类,每类各有一组字段
+  (产物里表现为**行首的黑体引导词**)。R11F-fix 实测:64 条 `P` 里 **59 条**有 `陈述`,
+  而 **`P60`~`P64` 一条都没有** —— 它们只有 `合并` 与机器抽取的 `源出处`,
+  于是这五条把「这条原则说的是什么」整个交给了源章的原话。**三道既有锁一条都够不到它**:
+  产物是脚本生成的、锚点逐字抽取、章节钉子全对,而「条目之间长得不一样」不在任何一道的判据里。
+  判据两半互相咬住:
+
+  * **`FIELD-MISSING`**:必备字段集在 `scripts/verify_reading_layer.py` 的 `REQUIRED_FIELDS`
+    里**显式声明**,该类每一条都必须有(声明,不靠嗅探)。
+  * **`FIELD-UNDECLARED`**:一个字段若在某类的**全部**条目里都有,它就必须在声明里。
+    **于是删掉要求并不能转绿** —— 删掉之后它仍然 64/64,立刻以 `FIELD-UNDECLARED` 回来。
+
+  *为什么这一条特意做成「100% ⇒ 必须声明」而不是「≥N% ⇒ 必须声明」:一个带阈值的判据,
+  调阈值本身就是一条转绿的路。代价是它发现不了「59/64」这种**进行中**的漂移,故另加一行
+  **非阻断**提示,把覆盖率 ≥50% 却未声明的字段点名列出(当前:`合并` 49/64 = 77%)。*
+  **覆盖面要如实说**:本锁管的是**字段在不在**,不管字段里写得好不好。
+  「`陈述` 是不是只把源出处换句话说」机器判不了,由
+  `data/r11f-fix/probes/principle_statement_overlap.py` 报两个重复度读数、由人看
+  (它**不改退出码**:一个靠阈值判「写得像不像」的关卡,调阈值又是一条转绿的路)。
+  负控 `data/r11f-fix/probes/principle_fields_negative_control.py`(F1..F4,判据从关卡 import)。
   *为什么必须机械化(两次实证,均已回源核对):(a) R11C 片 F 盘点确认
   **成品章里未同步的过期结论 4 条**(`notes/r11c-raw-pre-binding-inventory.md:35`:
   `4. **成品章里未同步的过期结论确认 4 条**。最严重的一条是`);
@@ -799,6 +821,10 @@ scripts/build_reading_layer.py  # R11E 新增:reading/ 三份派生件的**唯�
 scripts/verify_reading_layer.py # R11E 新增,**落地即阻断**:重建三份产物与库内逐字比对
                            # (PRODUCT-STALE)+ 源节 sha256 钉比对(SECTION-DRIFT)+
                            # 章内锚点解析(ANCHOR-UNRESOLVED)+ 非空绿守卫(EMPTY-GATE)
+                           # R11F-fix 增锁三:原则层条目的字段结构一致性 ——
+                           # REQUIRED_FIELDS 显式声明每类必备字段(FIELD-MISSING),
+                           # 且「全部条目都有的字段必须在声明里」(FIELD-UNDECLARED,无阈值),
+                           # 两半互咬所以删要求不能转绿;另有非阻断的覆盖率提示行
 reading/                   # R11E 新增的**阅读层**(全部派生自 chapters/,勿手改):
                            #   01-quickread.md      快读层:21 章 TL;DR 逐字合集
                            #   02-principles.md     原则层:以**原则**为条目重组,含去重与冲突裁定
