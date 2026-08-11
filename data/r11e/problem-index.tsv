@@ -337,3 +337,11 @@ group	problem	chapter	section	why
 工程方法与项目治理	随代码一起发货的知识库,要不要和代码一样有守门人?	chapters/r11a-ops-and-delivery.md	3.5 随货发出的知识库	183 份技能文档无仓库级校验,作者本机路径随货发出
 工程方法与项目治理	把参数定义从一个一万两千行的主文件里拆出来,值不值得?	chapters/r11b-the-unwritten-layer.md	3.3 薄壳层:回报在第二个消费者	抽象的判据是第二个消费者,而不是代码变整齐了
 工程方法与项目治理	一个项目里没人写、没人读的边角文件,怎么保证它们真被查过?	chapters/r11b-the-unwritten-layer.md	TL;DR(快读路径)	38 个从未被引用过的文件,补读后查出 14 条代码缺陷
+接入与多平台	我要给 agent 接一个新平台/新能力,插件系统要求我实现什么?	chapters/r11f-plugin-surface.md	TL;DR(快读路径:读这一段就有全貌)	一段话给全:目录 + 清单 + 按 kind 分派 + 三种契约载体
+接入与多平台	我要给 agent 接一个新平台/新能力,插件系统要求我实现什么?	chapters/r11f-plugin-surface.md	2. 全景:一个插件从磁盘到生效	从磁盘目录到 register(ctx) 的完整分派图,含 5 种 kind 各自的加载策略
+接入与多平台	我要给 agent 接一个新平台/新能力,插件系统要求我实现什么?	chapters/r11f-plugin-surface.md	3.3 平台适配器:一个契约,22 种实现,三种交互模型	22 家适配器对同一 ABC 的实现面:4 个抽象方法零缺口,分歧全在能力协商与交互注册
+工程方法与项目治理	我在清单/配置里声明了一个东西,但它好像没生效,怎么回事?	chapters/r11f-plugin-surface.md	1. 从一个场景说起:一个声明了钩子的插件,什么都没发生	死声明面的完整因果:写的键没人读、读的键没人写,而错误的钩子名因此从未被发现
+工程方法与项目治理	我在清单/配置里声明了一个东西,但它好像没生效,怎么回事?	chapters/r11f-plugin-surface.md	3.2 契约的三种载体 —— 本章的主线	ABC / 清单声明 / 命名约定三种契约载体,哪一种有强制力、哪两种会静默失效
+安全、权限与边界	配置文件里的字段会不会被当成命令执行?	chapters/r11f-plugin-surface.md	3.4 清单不是数据,是可执行面	清单里的 install/check 是 shell 命令,由只读 GET 端点触发,且不看 plugins.enabled
+工具与执行	一个能力有多个第三方后端时,怎么选用哪一个?	chapters/r11f-plugin-surface.md	3.5 多 provider 池:同一形态,两个域给出不同答案	注册表 + <类别>.provider 配置;并给出同形态两个域行为不一致的实测
+界面与客户端	插件怎么往宿主的 web 服务里挂页面和接口?	chapters/r11f-plugin-surface.md	3.6 web 面插件:把路由挂进别人的服务器	51 条路由的枚举口径,以及插件路由默认继承宿主鉴权这个默认方向

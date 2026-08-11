@@ -20,3 +20,4 @@ chapter	file	round	title
 19	chapters/r10b-desktop-application.md	R10B	桌面应用
 20	chapters/r11a-ops-and-delivery.md	R11A	交付面:从源码到一台跑着的机器
 21	chapters/r11b-the-unwritten-layer.md	R11B	没人写的那一层:harness 边角上的欠账
+22	chapters/r11f-plugin-surface.md	R11F	插件面:一个能力怎么接进来,又怎么悄悄失联
