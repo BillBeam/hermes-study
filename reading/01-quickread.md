@@ -14,7 +14,7 @@
 
 ## 第 1 章 · hermes-agent 是什么:全仓地图与阅读顺序
 
-来源:[`chapters/r1-what-is-hermes-agent.md`](../chapters/r1-what-is-hermes-agent.md#tldr读这一段就有全貌) § TL;DR(读这一段就有全貌)(R1)
+来源:第 1 章 [`chapters/r1-what-is-hermes-agent.md`](../chapters/r1-what-is-hermes-agent.md#tldr读这一段就有全貌) § TL;DR(读这一段就有全貌)(R1)
 
 - **hermes-agent 是一个"个人 AI agent"框架**:同一个 agent 内核,同时以命令行、消息网关(Telegram/
   Discord/Slack 等 ~30 个平台)、终端 UI、桌面应用四种形态运行。它能跨会话学习、派生子 agent、
@@ -37,7 +37,7 @@
 
 ## 第 2 章 · 回合主循环与模型接入
 
-来源:[`chapters/r2-turn-loop-and-model-access.md`](../chapters/r2-turn-loop-and-model-access.md#tldr快读路径读这一段就有全貌) § TL;DR(快读路径:读这一段就有全貌)(R2)
+来源:第 2 章 [`chapters/r2-turn-loop-and-model-access.md`](../chapters/r2-turn-loop-and-model-access.md#tldr快读路径读这一段就有全貌) § TL;DR(快读路径:读这一段就有全貌)(R2)
 
 先锚几个贯穿全章的词:
 - **turn(一轮 / 一个回合)**:用户发一句话,agent 反复"调模型→执行工具→再调模型",直到模型给出不带
@@ -71,7 +71,7 @@
 
 ## 第 3 章 · 工具系统:让 LLM 安全地对真实世界动手
 
-来源:[`chapters/r3-tool-infrastructure.md`](../chapters/r3-tool-infrastructure.md#tldr快读路径读这一段就有全貌) § TL;DR(快读路径:读这一段就有全貌)(R3)
+来源:第 3 章 [`chapters/r3-tool-infrastructure.md`](../chapters/r3-tool-infrastructure.md#tldr快读路径读这一段就有全貌) § TL;DR(快读路径:读这一段就有全貌)(R3)
 
 先锚几个词:
 - **工具(tool)**:agent 能调用的一个动作,比如"读文件""在终端跑命令""搜网页"。模型的回复里可以
@@ -104,7 +104,7 @@ R3 讲的工具系统,可以分成四大块,每块解决一个具体问题:
 
 ## 第 4 章 · 执行环境:一条命令到底在哪、怎么跑起来
 
-来源:[`chapters/r4-execution-environments.md`](../chapters/r4-execution-environments.md#tldr快读路径读这一段就有全貌) § TL;DR(快读路径:读这一段就有全貌)(R4)
+来源:第 4 章 [`chapters/r4-execution-environments.md`](../chapters/r4-execution-environments.md#tldr快读路径读这一段就有全貌) § TL;DR(快读路径:读这一段就有全貌)(R4)
 
 先锚几个词:
 
@@ -139,7 +139,7 @@ R4 讲的执行侧,可以分成三个同心圈:
 
 ## 第 5 章 · 会话状态与持久化
 
-来源:[`chapters/r5-session-state-and-persistence.md`](../chapters/r5-session-state-and-persistence.md#tldr快读路径读这一段就有全貌) § TL;DR(快读路径:读这一段就有全貌)(R5)
+来源:第 5 章 [`chapters/r5-session-state-and-persistence.md`](../chapters/r5-session-state-and-persistence.md#tldr快读路径读这一段就有全貌) § TL;DR(快读路径:读这一段就有全貌)(R5)
 
 先锚几个词:
 
@@ -177,7 +177,7 @@ R5 讲的记忆侧,可以分成五块,每块解决一个具体问题:
 
 ## 第 6 章 · 记忆 provider 生态
 
-来源:[`chapters/r6-memory-provider-ecosystem.md`](../chapters/r6-memory-provider-ecosystem.md#tldr快读路径读这一段就有全貌) § TL;DR(快读路径:读这一段就有全貌)(R6)
+来源:第 6 章 [`chapters/r6-memory-provider-ecosystem.md`](../chapters/r6-memory-provider-ecosystem.md#tldr快读路径读这一段就有全貌) § TL;DR(快读路径:读这一段就有全貌)(R6)
 
 先锚几个词:
 
@@ -212,7 +212,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 7 章 · 网关会话核心与多路复用
 
-来源:[`chapters/r7-gateway-session-core.md`](../chapters/r7-gateway-session-core.md#tldr快读路径) § TL;DR(快读路径)(R7)
+来源:第 7 章 [`chapters/r7-gateway-session-core.md`](../chapters/r7-gateway-session-core.md#tldr快读路径) § TL;DR(快读路径)(R7)
 
 1. **hermes-agent 的网关(gateway)是一个长驻进程**,同时连接 Telegram、Discord、Slack、
    WhatsApp 等 30+ 聊天平台;所有平台的消息汇入同一个 `GatewayRunner`(单文件 27,146 行的
@@ -247,7 +247,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 8 章 · 平台接入面
 
-来源:[`chapters/r7b-platform-integration.md`](../chapters/r7b-platform-integration.md#tldr快读路径) § TL;DR(快读路径)(R7B)
+来源:第 8 章 [`chapters/r7b-platform-integration.md`](../chapters/r7b-platform-integration.md#tldr快读路径) § TL;DR(快读路径)(R7B)
 
 1. **接入面要解决的不是"支持很多平台",而是"支持很多平台**而不把差异漏进内核**"。**
    Hermes 的答案是一层适配器基类 `BasePlatformAdapter`(6,861 行),它把平台差异
@@ -278,7 +278,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 9 章 · 网关外围面与定时调度
 
-来源:[`chapters/r7c-gateway-periphery-and-scheduling.md`](../chapters/r7c-gateway-periphery-and-scheduling.md#tldr快读路径) § TL;DR(快读路径)(R7C)
+来源:第 9 章 [`chapters/r7c-gateway-periphery-and-scheduling.md`](../chapters/r7c-gateway-periphery-and-scheduling.md#tldr快读路径) § TL;DR(快读路径)(R7C)
 
 1. **这一簇不是一条流水线,是一台长跑进程的四个"外部输入面"**:
    人从聊天窗口敲的 **slash 命令**(以 `/` 开头的控制指令,如 `/model`、`/restart`)、
@@ -310,7 +310,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 10 章 · 配置面:一个键从哪里来,到哪里去
 
-来源:[`chapters/r8a-configuration-surface.md`](../chapters/r8a-configuration-surface.md#tldr快读路径) § TL;DR(快读路径)(R8A)
+来源:第 10 章 [`chapters/r8a-configuration-surface.md`](../chapters/r8a-configuration-surface.md#tldr快读路径) § TL;DR(快读路径)(R8A)
 
 1. Hermes 的"配置"其实是**两套互不相干的东西**:一份深度合并的 YAML 字典
    (`config.yaml`),和一堆各读各的环境变量(`.env`)。文档把它们画成一条四级优先级链,
@@ -336,7 +336,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 11 章 · CLI 主干与交互
 
-来源:[`chapters/r8b-cli-trunk-and-interaction.md`](../chapters/r8b-cli-trunk-and-interaction.md#tldr快读路径) § TL;DR(快读路径)(R8B)
+来源:第 11 章 [`chapters/r8b-cli-trunk-and-interaction.md`](../chapters/r8b-cli-trunk-and-interaction.md#tldr快读路径) § TL;DR(快读路径)(R8B)
 
 1. **`hermes` 这条命令的入口不是 `cli.py`。** 打包入口是 `hermes_cli/main.py` 的 `main()`;`cli.py` 里那个同名 `main()` 是**第二层**——交互式对话的入口。搞混这一点,整个文件的读法都会错。
 2. **在 argparse(Python 标准库的命令行参数解析器)跑起来之前,已经有一大堆决定做完了**:UTF-8 修复、`--profile` 手工扫描、要不要开 TUI、鼠标残留抑制、配置桥、日志初始化。原因很实在:**这些决定的结果会影响"读哪一份配置"和"加载哪些模块",所以它们必须早于解析**。代价是主干里有一段**手抄的 argparse**。
@@ -350,7 +350,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 12 章 · dashboard 与 web 面
 
-来源:[`chapters/r8c-dashboard-and-web.md`](../chapters/r8c-dashboard-and-web.md#tldr快读路径) § TL;DR(快读路径)(R8C)
+来源:第 12 章 [`chapters/r8c-dashboard-and-web.md`](../chapters/r8c-dashboard-and-web.md#tldr快读路径) § TL;DR(快读路径)(R8C)
 
 1. **hermes-agent 有一个浏览器管理界面(dashboard)**,后端是 `hermes_cli/web_server.py` ——
    **17,732 行的单个 Python 文件**,135 条内联路由 + 14 个外挂路由模块,共 **123 条已注册路由**。
@@ -374,7 +374,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 13 章 · 自持面
 
-来源:[`chapters/r8d-self-custody.md`](../chapters/r8d-self-custody.md#tldr快读路径) § TL;DR(快读路径)(R8D)
+来源:第 13 章 [`chapters/r8d-self-custody.md`](../chapters/r8d-self-custody.md#tldr快读路径) § TL;DR(快读路径)(R8D)
 
 1. 前十二章讲的都是**怎么服务一个回合**——收到消息、调模型、跑工具、写状态。
    这一章讲的是**另一件事**:hermes 是一个**装在别人机器上、要活很久的软件**,
@@ -400,7 +400,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 14 章 · 能力的组织、扩展与委派
 
-来源:[`chapters/r9a-capability-organization.md`](../chapters/r9a-capability-organization.md#tldr快读路径) § TL;DR(快读路径)(R9A)
+来源:第 14 章 [`chapters/r9a-capability-organization.md`](../chapters/r9a-capability-organization.md#tldr快读路径) § TL;DR(快读路径)(R9A)
 
 1. **这一簇回答一个问题:一个 agent 怎么长出新能力,又怎么把活分给别的 agent。**
    四条线——**skills**(把知识做成可安装的包)、**学习闭环**(把用过的经验固化成新 skill)、
@@ -423,7 +423,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 15 章 · 多模态交付面
 
-来源:[`chapters/r9b-multimodal-delivery.md`](../chapters/r9b-multimodal-delivery.md#tldr快读路径) § TL;DR(快读路径)(R9B)
+来源:第 15 章 [`chapters/r9b-multimodal-delivery.md`](../chapters/r9b-multimodal-delivery.md#tldr快读路径) § TL;DR(快读路径)(R9B)
 
 1. **这一簇是 agent 的"感官与嘴巴"**:出图、出视频、说话、听话、看图、在终端里画东西。
    46 个文件 27,325 行,占全仓 L1 精读量的约 5%。
@@ -445,7 +445,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 16 章 · 对外接驳面
 
-来源:[`chapters/r9c-external-interfaces.md`](../chapters/r9c-external-interfaces.md#tldr快读路径) § TL;DR(快读路径)(R9C)
+来源:第 16 章 [`chapters/r9c-external-interfaces.md`](../chapters/r9c-external-interfaces.md#tldr快读路径) § TL;DR(快读路径)(R9C)
 
 1. **这一簇是什么**:agent 与外部世界之间那层"账"——模型能力从哪些**非主路径**接进来(传输层、
    中继、Copilot)、密钥从哪里**取**(外部密码管理器)、钱怎么**算**(额度与计费)、
@@ -470,7 +470,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 17 章 · 工具面:守卫装在哪一层
 
-来源:[`chapters/r9d-tool-surface-and-guard-placement.md`](../chapters/r9d-tool-surface-and-guard-placement.md#tldr快读路径) § TL;DR(快读路径)(R9D)
+来源:第 17 章 [`chapters/r9d-tool-surface-and-guard-placement.md`](../chapters/r9d-tool-surface-and-guard-placement.md#tldr快读路径) § TL;DR(快读路径)(R9D)
 
 1. 这一簇是 **agent 的手脚**:读写文件、管看板、排定时任务、发消息、查网页、接语言服务器。
    它是本学习项目 L1 精读的**最后一片**(49 文件 / 26,434 行)。
@@ -491,7 +491,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 18 章 · 客户端接驳面
 
-来源:[`chapters/r10-client-interface-layer.md`](../chapters/r10-client-interface-layer.md#tldr快读路径) § TL;DR(快读路径)(R10)
+来源:第 18 章 [`chapters/r10-client-interface-layer.md`](../chapters/r10-client-interface-layer.md#tldr快读路径) § TL;DR(快读路径)(R10)
 
 1. **hermes 的内核是一个 Python 进程,它自己不画界面。** 界面有四种:终端 UI、编辑器、
    浏览器仪表盘、Electron 桌面端。每种都通过**自己的一条协议缝**接进同一个内核。
@@ -512,7 +512,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 19 章 · 桌面应用
 
-来源:[`chapters/r10b-desktop-application.md`](../chapters/r10b-desktop-application.md#tldr快读路径) § TL;DR(快读路径)(R10B)
+来源:第 19 章 [`chapters/r10b-desktop-application.md`](../chapters/r10b-desktop-application.md#tldr快读路径) § TL;DR(快读路径)(R10B)
 
 1. **这一章讲的是「同一个 agent 内核,如何长出第三张脸」。** 前面的章节讲过命令行(CLI)、
    终端界面(TUI)、网页仪表盘;这里是 **Electron 桌面应用** —— 一个把网页技术
@@ -538,7 +538,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 20 章 · 交付面:从源码到一台跑着的机器
 
-来源:[`chapters/r11a-ops-and-delivery.md`](../chapters/r11a-ops-and-delivery.md#tldr快读路径) § TL;DR(快读路径)(R11A)
+来源:第 20 章 [`chapters/r11a-ops-and-delivery.md`](../chapters/r11a-ops-and-delivery.md#tldr快读路径) § TL;DR(快读路径)(R11A)
 
 1. 前面几章讲的是这个 agent **运行时**怎么工作。本章讲一件完全不同的事:
    **这堆源码怎么变成一台正在跑的机器**——被验证(CI)、被打包(发布 / Nix)、
@@ -560,7 +560,7 @@ fail-open),让"云 SaaS"和"本地数学"这两个极端能安全共存在同一
 
 ## 第 21 章 · 没人写的那一层:harness 边角上的欠账
 
-来源:[`chapters/r11b-the-unwritten-layer.md`](../chapters/r11b-the-unwritten-layer.md#tldr快读路径) § TL;DR(快读路径)(R11B)
+来源:第 21 章 [`chapters/r11b-the-unwritten-layer.md`](../chapters/r11b-the-unwritten-layer.md#tldr快读路径) § TL;DR(快读路径)(R11B)
 
 1. **harness**(承载 agent 运行的那套外壳程序:管模型调用、工具执行、会话状态、
    对外接驳)有一层**没人写的边角**——每个平台的私有协议适配、CLI 的转发薄壳、

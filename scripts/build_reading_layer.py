@@ -392,7 +392,10 @@ def build_quickread(corpus, refs):
         out.append("")
         out.append(f"## 第 {no} 章 · {title}")
         out.append("")
-        out.append(f"来源:[`{rel}`]({corpus.link(rel, sec['title'])}) § {sec['title']}({rnd})")
+        # 章号与文件名写在**同一行**:`verify_chapter_order.py` 只在同一行同时看到
+        # 「第 N 章」与某份成品章的文件名时才判得动,分两行写会记 UNVERIFIABLE(它不猜)。
+        out.append(f"来源:第 {no} 章 [`{rel}`]({corpus.link(rel, sec['title'])})"
+                   f" § {sec['title']}({rnd})")
         out.append("")
         body = [ln.rstrip() for ln in sec["lines"][1:]]
         while body and not body[0]:

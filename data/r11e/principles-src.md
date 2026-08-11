@@ -632,6 +632,7 @@ family: 冲突裁定
 src: chapters/r9a-capability-organization.md § 4. 可迁移的设计原则 ¶ 不要用名单当安全判据
 src: chapters/r8d-self-custody.md § 5. 可迁移的设计原则 ¶ 跨域转发凭据用白名单
 src: chapters/r9c-external-interfaces.md § 4. 可迁移的设计原则 ¶ 把"这个凭据发给谁"当成一个显式决策点
+src: chapters/r11b-the-unwritten-layer.md § 4. 可迁移的设计原则 ¶ 静态名单守破坏性分支时
 conflict-with: P06
 ruling: 判据是名单枚举的域**封不封闭**。枚举信道(主机、头名)是安全判据;枚举标识(工具名、插件名、类目文案)不是。
 
