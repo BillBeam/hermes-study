@@ -30,11 +30,32 @@
 抬到「**声明了的必被查**」,不是「正文里所有可复算数都被查了」。要扩覆盖面,
 就得把声明补到更多地方去 —— 而补声明这个动作本身是可见的、可被评审的。
 
+## 写入腿(R11F 增):`--sync --since <rev>`
+
+R11D 只造了**校验腿**。于是一次台账变更之后,作者要么手工键入新值,要么留着关卡红着 ——
+而**手工键入正是本关卡要治的病**(正文里出现第二份手抄件)。R11F 把写入腿补上。
+
+**两个值都由复算产生,一个都不许手键**:
+
+  * **新值** = 当前工作树 `data/ledger.tsv` 复算;
+  * **旧值** = `git show <rev>:data/ledger.tsv` 复算 —— 不存历史状态文件、不猜正文里
+    哪个数字是旧值。要替换的那个 token 必须**恰好等于旧真值**,否则拒绝改。
+
+守卫(任何一条不满足就跳过并报出,不猜):
+
+  1. 只在该声明覆盖的区段内替换;
+  2. 旧值必须在区段内**出现且只出现一次**(两种写法 `5944` / `5,944` 合并计数);
+  3. 新值必须在区段内**尚未出现**(已同步过就不重复动);
+  4. 旧值不得同时是**同一条声明里另一个键**的真值(否则替换会张冠李戴)。
+
     python3 scripts/verify_derived_numbers.py                 # 默认扫 chapters/*.md
     python3 scripts/verify_derived_numbers.py --list          # 打印全部键的当前真值
+    python3 scripts/verify_derived_numbers.py --sync --since main   # 复算旧值并就地同步
     python3 scripts/verify_derived_numbers.py chapters/*.md notes/*.md
 """
+import contextlib
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -51,15 +72,17 @@ QUOTE = re.compile(r"^\s*>")
 INLINE_CODE = re.compile(r"`[^`]*`")
 
 
-def truth():
+def truth(ledger_text=None):
     """从 data/ledger.tsv 复算全部可复算键。
 
     data/ledger.tsv 是 CRLF 行尾 —— 不剥 CR,layer/status 两列永远匹配不上,
     而那正是 CLAUDE.md 拿来当反例的形状(安静地打出 0)。
+
+    传 ledger_text 则从那份文本复算(`--sync` 用它复算**旧**真值),不读工作树。
     """
     files, lines = {}, {}
     inv_files = inv_lines = tot_files = tot_lines = 0
-    with LEDGER.open(encoding="utf-8") as fh:
+    with _ledger_lines(ledger_text) as fh:
         next(fh)
         for raw in fh:
             row = raw.rstrip("\r\n").split("\t")
@@ -92,9 +115,87 @@ def truth():
     return out
 
 
+@contextlib.contextmanager
+def _ledger_lines(ledger_text):
+    if ledger_text is None:
+        with LEDGER.open(encoding="utf-8") as fh:
+            yield fh
+    else:
+        yield iter(ledger_text.split("\n"))
+
+
+def ledger_at(rev):
+    """取某个 rev 的 data/ledger.tsv 原文。旧真值由它复算,不存历史状态文件。"""
+    return subprocess.run(
+        ["git", "-C", str(STUDY), "show", f"{rev}:data/ledger.tsv"],
+        capture_output=True, text=True, check=True).stdout
+
+
 def forms(n):
     """一个数在正文里的两种合法写法:563 与 522,207。"""
     return {str(n), f"{n:,}"}
+
+
+def sync(targets, old_vals, new_vals):
+    """把区段内的旧真值就地换成新真值。两个值都来自复算;不满足守卫就跳过并报出。"""
+    changes, skipped = [], []
+    for path in targets:
+        rel = str(path.resolve().relative_to(STUDY)) if path.is_absolute() else str(path)
+        text = path.read_text(encoding="utf-8")
+        lines = text.split("\n")
+        in_fence, edits = False, []
+        for i, line in enumerate(lines):
+            if FENCE.match(line):
+                in_fence = not in_fence
+                continue
+            if in_fence or QUOTE.match(line):
+                continue
+            m = MARKER.search(INLINE_CODE.sub("", line))
+            if not m:
+                continue
+            keys = m.group("keys").split()
+            body_start = i + 1
+            while body_start < len(lines) and not lines[body_start].strip():
+                body_start += 1
+            body_end = body_start
+            while body_end < len(lines) and lines[body_end].strip():
+                body_end += 1
+            region = "\n".join(lines[body_start:body_end])
+            sibling_truths = {old_vals.get(k) for k in keys} | {new_vals.get(k) for k in keys}
+            for key in keys:
+                if key not in new_vals or key not in old_vals:
+                    continue
+                new, old = new_vals[key], old_vals[key]
+                if old == new:
+                    continue
+                if any(f in region for f in forms(new)):
+                    continue                                    # 守卫 3:已同步
+                hits = sum(region.count(f) for f in forms(old))
+                if hits == 0:
+                    skipped.append(f"[SKIP] {rel}:{i + 1} {key} 旧真值 {old:,} 在区段内找不到,"
+                                   f"不猜该改哪个数")
+                    continue
+                if sum(1 for v in sibling_truths if v == old) > 1:
+                    skipped.append(f"[SKIP] {rel}:{i + 1} {key} 旧真值 {old:,} 同时是同一条"
+                                   f"声明里另一个键的真值,替换会张冠李戴")
+                    continue
+                # 同一个派生值在一段里出现多次是**正常的**:r1 那段既写「仍有 5,944 个文件」,
+                # 又写「8,530 − 5,944 = 2,586」。第一版要求"恰好 1 次",于是这一条永远同步不了,
+                # 而只换其中一处会把那句算式改成错的。真正的护栏是上面那条**同声明内不撞值**,
+                # 撞不上就说明这段里每一次 old 都是这个键 —— 全换。
+                edits.append((body_start, body_end, key, old, new, hits))
+        for body_start, body_end, key, old, new, hits in edits:
+            done = 0
+            for j in range(body_start, body_end):
+                for f_old, f_new in ((f"{old:,}", f"{new:,}"), (str(old), str(new))):
+                    while f_old in lines[j]:
+                        lines[j] = lines[j].replace(f_old, f_new, 1)
+                        done += 1
+                        changes.append(f"  {rel}:{j + 1}  {key}  {f_old} -> {f_new}")
+            assert done == hits, f"{key}: 预期换 {hits} 处,实换 {done} 处"
+        if edits:
+            path.write_text("\n".join(lines), encoding="utf-8")
+    return changes, skipped
 
 
 def region_after(lines, idx):
@@ -110,7 +211,11 @@ def region_after(lines, idx):
 
 
 def main(argv):
-    args = [a for a in argv[1:] if not a.startswith("--")]
+    raw = argv[1:]
+    # `--since <rev>` 的那个 rev 不是目标文件 —— 第一版漏了这一条,于是 `main` 被
+    # 当成一份要扫的 md,报 FileNotFoundError。
+    skip_idx = {k + 1 for k, a in enumerate(raw) if a == "--since"}
+    args = [a for k, a in enumerate(raw) if not a.startswith("--") and k not in skip_idx]
     vals = truth()
     if "--list" in argv[1:]:
         for k in sorted(vals):
@@ -118,6 +223,25 @@ def main(argv):
         return 0
 
     targets = [Path(a) for a in args] or sorted((STUDY / "chapters").glob("*.md"))
+
+    if "--sync" in argv[1:]:
+        rev = None
+        for k, a in enumerate(argv[1:]):
+            if a == "--since" and k + 2 <= len(argv[1:]):
+                rev = argv[1:][k + 1]
+        if not rev:
+            print("FAIL: --sync 必须带 --since <rev>(旧真值由该 rev 的台账复算,不手键)",
+                  file=sys.stderr)
+            return 2
+        old = truth(ledger_at(rev))
+        changes, skipped = sync(targets, old, vals)
+        for s in skipped:
+            print(s)
+        print(f"synced={len(changes)}  skipped={len(skipped)}  (旧真值复算自 {rev})")
+        for c in changes:
+            print(c)
+        return 0
+
     fails, declared, ok = [], 0, 0
 
     for path in targets:
