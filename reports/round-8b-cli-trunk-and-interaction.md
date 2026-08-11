@@ -176,7 +176,7 @@ H-2 问"浅合并的实际影响面有多大",答案比预期小得多也精确�
 | ■-R8B-02 | 浅合并受害面 = 4 子树 / 24 叶,**14 个真出事** | AST 穷举 + 实跑 14→1,含无配置对照组 |
 | ■-R8B-03 | `display.compact` 是**死配置**:`compact is not None` 恒为真 | `cli.py:4223` 标注 `bool = False`;全仓仅两处生产构造,均传真 bool |
 | ■-R8B-04 | 启动"工具被禁用"提示**从未显示过**,且与"一切正常"不可区分 | 生产方 `env_vars` vs 消费方 `missing_vars`;`doctor.py:2548` 是跟上了的对照 |
-| ■-R8B-05 | `/whoami` **有注册、无分发**,`/help` 列出但敲不出来 | `commands.py:181` 无 surface 限定;`cli.py` 全文零匹配 |
+| ■-R8B-05 | `/whoami` **有注册、无分发**,`/help` 列出但敲不出来 | `hermes_cli/commands.py:181` 无 surface 限定;`cli.py` 全文零匹配 |
 | ■-R8B-06 | `/undo` 非法参数**直接退出 CLI 会话** | `cli.py` 中 `process_command` 声明 `-> bool` 却有裸 `return`;调用点 `if not …: self._should_exit = True; app.exit()` |
 | ■-R8B-08 | mixin 与 `cli.py` 之间有一个**35 个方法名的隐式跨文件接口**,无任何声明 | AST 实测:mixin 内 `self.X()` 调用 74 个不同方法名,其中 **35 个 mixin 自己没定义**,且**全部 35 个都在 `cli.py` 里** |
 | ■-R8B-09 | **`refs/remotes` 为空的仓库里 `hermes -w` 清理会强删分支 → 本次会话提交全部丢失**(**主线端到端实跑复现**) | `_worktree_has_unpushed_commits` 在无 remote-tracking ref 时 `return False`(`cli.py:1808`),清理据此走到 `git branch -D`(`cli.py:2107`);**同函数每条错误路径都 `return True`(fail-safe),唯独这一条 fail-open**。实跑:生产函数返回 `False` 而 `git log` 同时数出 3 个未推送提交,执行清理两命令后文件、分支、可达性全失。**触发面比"纯本地仓库"更宽**:有 remote 但从未 fetch 同样命中 |
@@ -489,3 +489,22 @@ OK: every code-block-backed citation matches the baseline
    (「35 个方法名的隐式跨文件接口」)撞号,现改号为 ■-R8B-12。**
    本报告正文那条**保持 ■-R8B-08 不动**(先占号方)。详见
    `reports/round-8-fix-review-1.md` 勘误第 1 条与 `notes/r8b-90-handover-rulings.md` §1.0。
+
+---
+
+## 勘误(R11D:锚点寻址补全)
+
+本节记录 **1 处锚点寻址补全**,依据是 CLAUDE.md「**锚点寻址修正是第四类改动,
+与『行号漂移』同级**」(R11D 裁定,结清 H-R11C-D-f)。这些锚点原写作**裸文件名**
+(即只有文件名、没有目录部分),在基线 `863e313` 里**恰好一个**文件的路径以该串结尾(按目录边界匹配),
+故就地补成全路径。
+
+**改的只是「地址怎么写出来」,不是「它指向谁」**:所指的那一段源码一个字没变,
+候选唯一因此不存在猜测空间。多候选的锚点(`__init__.py` 171 个、`base.py` 9 个)**一处未动**。
+**补全之外,本报告正文一个字未改。**
+
+下表左为原样、右为补全后(行号为本报告行号,列表本身是声明式非源码块,不作断言):
+
+```text
+:179   commands.py:181  ->  hermes_cli/commands.py:181
+```

@@ -30,7 +30,7 @@ R11B 做过一次「后轮覆盖前轮已证伪结论」普查,命中 2 条,但�
    R3 定的成品章硬标准把改判写进正文,于是短语必然出现在章里 —— 所以**短语命中不等于污染,
    必须逐处读**;反过来,**零真污染这个结论的可信度就等于这 16 处我逐处读过**。
 2. **判据 2(可复算指标的第二份手抄件)命中 2 处,且正是主线给的正控。**
-   `chapters/r1-what-is-hermes-agent.md:103-104` 的分层表 L1 / L2 两行是手抄件,
+   `chapters/r1-what-is-hermes-agent.md:103-104 @ 25c612f` 的分层表 L1 / L2 两行是手抄件,
    与 `data/ledger.tsv` 复算值不符(L1 手抄 511 / 479,923,真值 563 / 522,207;
    L2 手抄 2,183 / 713,923,真值 2,131 / 671,639),而同章 `:98` 明写「**下表是当前值,不是历史快照**」。
    **同章 `:112` 还留着上一次同样错误的检讨**(review-1 阻断-2:早先印的是 R1 期那一版 412 / 382,770)
@@ -229,7 +229,7 @@ E-26	chapters=59	institutional=32	[负控] r4-90 自检 grep 的 `iron` 误匹�
 | `chapters/r7b-platform-integration.md:835`(E-16) | **非污染** | 「**为什么从 ▲ 降到 ◇。** 本章初稿写的是……」—— 正在讲改判 |
 | `chapters/r6-memory-provider-ecosystem.md:497,503`(E-17) | **非污染** | 497 是引号内的原说法,503 紧接着说「把 1/5 说成三家都不符……会让下一轮带着一个放大三倍的判断开工」 |
 | `chapters/r6-memory-provider-ecosystem.md:496,505`(E-20) | **非污染** | 496 引原说法,505 是「**错误二:加载器不是"只读 description"**」 |
-| `chapters/r1-what-is-hermes-agent.md:21`:`- **规模**:全仓 8,530 个文件、260 万行文本。Python 是主体(核心逻辑),TypeScript 是界面层,`(E-27) | **非污染** | 写的是「8,530 个文件、260 万行」,正是阻断-3 改判后的正确值 |
+| `chapters/r1-what-is-hermes-agent.md:21 @ 25c612f`:`- **规模**:全仓 8,530 个文件、260 万行文本。Python 是主体(核心逻辑),TypeScript 是界面层,`(E-27) | **非污染** | 写的是「8,530 个文件、260 万行」,正是阻断-3 改判后的正确值 |
 | `chapters/*` 的 E-04 八处 | **非污染(短语误吞)** | 八处讲的都是别的「静默丢」(会话历史 / memory hooks / 网关 wake / 审批出口),与 `approvals.deny` 无关 |
 
 三处最能说明「命中 ≠ 污染」的原文:
@@ -262,7 +262,7 @@ E-26	chapters=59	institutional=32	[负控] r4-90 自检 grep 的 `iron` 误匹�
 E-05(`没有第三个`)6 处、E-04(`静默抹掉`)3 处、E-28 1 处,其余 32 处是 E-26 负控。
 E-05 的 6 处全部是「负结论的成本」这条纪律**拿它当反例**,方向与改判一致:
 
-`CLAUDE.md:344 @ 863e313`
+`CLAUDE.md:344 @ 25c612f`
 
 ```
 - **负结论的成本(R8-fix,review-1 附录 A-1/A-2)**:"全仓没有 X""没有第三个调用方"
@@ -303,7 +303,7 @@ R8C 在同一节里逐字引了被推翻的那句原文:
 
 `CLAUDE.md` 的同一句已由 R11B 挂上更正节:
 
-`CLAUDE.md:351 @ 863e313`
+`CLAUDE.md:351 @ 25c612f`
 
 ```
   > **R11B 更正**:此处原写"把用户的 `approvals.deny` **静默抹掉**"。该定性已被 **R8C 推翻**
@@ -348,7 +348,7 @@ data/r11c/dispatch-brief.md:0
 
 ### 4.1 为什么判据 1 抓不到正控(先回答派工书的那个问题)
 
-派工书给的正控是 `chapters/r1-what-is-hermes-agent.md:98-123` 的分层表整段过期。
+派工书给的正控是 `chapters/r1-what-is-hermes-agent.md:98-123 @ 25c612f` 的分层表整段过期。
 **用 §2 的清单去搜,一定搜不到它**,原因有三层,每一层都得说清:
 
 1. **案号法**:成品章按制度不写案号(读数见下),
@@ -418,20 +418,20 @@ STALE chapters/r1-what-is-hermes-agent.md:119 R1-inventoried 手抄邻域=[408, 
 
 ### 4.3 三处命中的原文
 
-`chapters/r1-what-is-hermes-agent.md:98 @ 863e313`
+`chapters/r1-what-is-hermes-agent.md:98 @ 25c612f`
 
 ```
 五个层(`data/ledger.tsv` 台账,`scripts/verify_ledger.py` 校验)。**下表是当前值,不是历史快照**
 ```
 
-`chapters/r1-what-is-hermes-agent.md:103-104 @ 863e313`
+`chapters/r1-what-is-hermes-agent.md:103-104 @ 25c612f`
 
 ```
 | **L1 机制精读** | harness 核心机制,要逐行读透、能凭笔记重实现 | 511 | 479,923 |
 | **L2 结构级理解** | 支撑性代码,画得出结构、定位得到功能,不逐行 | 2,183 | 713,923 |
 ```
 
-`chapters/r1-what-is-hermes-agent.md:118-119 @ 863e313`
+`chapters/r1-what-is-hermes-agent.md:118-119 @ 25c612f`
 
 ```
 **不**回答"它学过没有"。后者在台账的 `status` 列里,当前仍有 **8,122 个文件 / 2,236,870 行**
@@ -440,7 +440,7 @@ STALE chapters/r1-what-is-hermes-agent.md:119 R1-inventoried 手抄邻域=[408, 
 
 **同一个 8,122 在 `CLAUDE.md` 里是对的**,因为它在那里是一句**历史陈述**:
 
-`CLAUDE.md:219 @ 863e313`
+`CLAUDE.md:219 @ 25c612f`
 
 ```
   R7 起这条线索中断了五轮,期间实际仍有 8,122 个文件从未开工。*
@@ -459,13 +459,13 @@ STALE chapters/r1-what-is-hermes-agent.md:119 R1-inventoried 手抄邻域=[408, 
 
 章里紧挨着分层表的那段引用块,写的就是这张表**上一次**过期时的检讨:
 
-`chapters/r1-what-is-hermes-agent.md:112 @ 863e313`
+`chapters/r1-what-is-hermes-agent.md:112 @ 25c612f`
 
 ```
 > 早先本章印的是 R1 期那一版(412 / 382,770 与 2,282 / 811,076),**却以现在时陈述**——
 ```
 
-`chapters/r1-what-is-hermes-agent.md:114 @ 863e313`
+`chapters/r1-what-is-hermes-agent.md:114 @ 25c612f`
 
 ```
 > 现已改为从台账取值(review-1 阻断-2 / M-2)。**教训**:凡是能被脚本算出来的数,
@@ -526,7 +526,7 @@ cd "$(git rev-parse --show-toplevel)" && python3 data/r11c/e-reversal-propagatio
 
 (b) 的两条:
 
-`CLAUDE.md:98 @ 863e313`
+`CLAUDE.md:98 @ 25c612f`
 
 ```
   `py mdx md yaml yml toml c h sh json tsx ts mjs js nix rs txt`(见
@@ -688,10 +688,10 @@ cd "$(git rev-parse --show-toplevel)" && python3 data/r11c/e-reversal-propagatio
 
 | # | 位置 | 现状 | 应改成 | 依据 | 改法归属 |
 |---|---|---|---|---|---|
-| P-1 | `chapters/r1-what-is-hermes-agent.md:103`:`| **L1 机制精读** | harness 核心机制,要逐行读透、能凭笔记重实现 | 511 | 479,923 |` | L1 = 511 / 479,923 | 563 / 522,207 | `data/ledger.tsv` 复算(§4.2) | `chapters/` 直接改正文 |
-| P-2 | `chapters/r1-what-is-hermes-agent.md:104`:`| **L2 结构级理解** | 支撑性代码,画得出结构、定位得到功能,不逐行 | 2,183 | 713,923 |` | L2 = 2,183 / 713,923 | 2,131 / 671,639 | 同上 | `chapters/` 直接改正文 |
-| P-3 | `chapters/r1-what-is-hermes-agent.md:118`:`**不**回答"它学过没有"。后者在台账的 `status` 列里,当前仍有 **8,122 个文件 / 2,236,870 行**` | 8,122 / 2,236,870,且推出「408 个文件被处理过」 | 5,944 / 1,495,470,推出 **2,586** | 同上 | `chapters/` 直接改正文 |
-| P-4 | `chapters/r1-what-is-hermes-agent.md:111`:`> L1 的轨迹是 412(R1)→ 436(R6)→ 446(R7C)→ 461(R8A)→ **511**(R8B),L2 相应递减。` | 轨迹停在 R8B | 轨迹应续到当前(563) | 同上 | `chapters/` 直接改正文 |
+| P-1 | `chapters/r1-what-is-hermes-agent.md:103 @ 25c612f`:`| **L1 机制精读** | harness 核心机制,要逐行读透、能凭笔记重实现 | 511 | 479,923 |` | L1 = 511 / 479,923 | 563 / 522,207 | `data/ledger.tsv` 复算(§4.2) | `chapters/` 直接改正文 |
+| P-2 | `chapters/r1-what-is-hermes-agent.md:104 @ 25c612f`:`| **L2 结构级理解** | 支撑性代码,画得出结构、定位得到功能,不逐行 | 2,183 | 713,923 |` | L2 = 2,183 / 713,923 | 2,131 / 671,639 | 同上 | `chapters/` 直接改正文 |
+| P-3 | `chapters/r1-what-is-hermes-agent.md:118 @ 25c612f`:`**不**回答"它学过没有"。后者在台账的 `status` 列里,当前仍有 **8,122 个文件 / 2,236,870 行**` | 8,122 / 2,236,870,且推出「408 个文件被处理过」 | 5,944 / 1,495,470,推出 **2,586** | 同上 | `chapters/` 直接改正文 |
+| P-4 | `chapters/r1-what-is-hermes-agent.md:111 @ 25c612f`:`> L1 的轨迹是 412(R1)→ 436(R6)→ 446(R7C)→ 461(R8A)→ **511**(R8B),L2 相应递减。` | 轨迹停在 R8B | 轨迹应续到当前(563) | 同上 | `chapters/` 直接改正文 |
 | P-5 | `data/r10/dispatch-brief.md:52`:`  而漏掉的那个会在坏 YAML 下把用户的审批黑名单静默抹掉。` | 「静默抹掉」 | 「截断落盘 —— 有 stderr 告警、有带时间戳逐字备份」 | R8C 改判(§3.1) | 派工书是历史派工记录,建议照 `reports/` 的办法挂勘误,不静默改写 |
 
 **P-1…P-4 建议同时改掉病根,而不只是改数**(否则第三次发作只是时间问题)。
@@ -740,8 +740,8 @@ cd "$(git rev-parse --show-toplevel)" && git -C /home/user/hermes-agent status -
 
 | 移交项 | 去向 | 锚点 + 现象 |
 |---|---|---|
-| **H-R11C-E-a** | R12 装订前(**必须**,否则蓝图第一章印错数) | `chapters/r1-what-is-hermes-agent.md:103`:`| **L1 机制精读** | harness 核心机制,要逐行读透、能凭笔记重实现 | 511 | 479,923 |` —— 分层表 L1/L2 两行是手抄件,与 `data/ledger.tsv` 复算值(563 / 522,207;2,131 / 671,639)不符,而同段明写「下表是当前值」。**第二次发作**,第一次是 review-1 阻断-2 |
-| **H-R11C-E-b** | R12 装订前(**必须**) | `chapters/r1-what-is-hermes-agent.md:118`:`**不**回答"它学过没有"。后者在台账的 `status` 列里,当前仍有 **8,122 个文件 / 2,236,870 行**` —— 真值 5,944 / 1,495,470;由它推出的「408 个文件被真正处理过」真值是 2,586,**错了六倍**,且这是「全仓无黑洞」的唯一可观测指标 |
+| **H-R11C-E-a** | R12 装订前(**必须**,否则蓝图第一章印错数) | `chapters/r1-what-is-hermes-agent.md:103 @ 25c612f`:`| **L1 机制精读** | harness 核心机制,要逐行读透、能凭笔记重实现 | 511 | 479,923 |` —— 分层表 L1/L2 两行是手抄件,与 `data/ledger.tsv` 复算值(563 / 522,207;2,131 / 671,639)不符,而同段明写「下表是当前值」。**第二次发作**,第一次是 review-1 阻断-2 |
+| **H-R11C-E-b** | R12 装订前(**必须**) | `chapters/r1-what-is-hermes-agent.md:118 @ 25c612f`:`**不**回答"它学过没有"。后者在台账的 `status` 列里,当前仍有 **8,122 个文件 / 2,236,870 行**` —— 真值 5,944 / 1,495,470;由它推出的「408 个文件被真正处理过」真值是 2,586,**错了六倍**,且这是「全仓无黑洞」的唯一可观测指标 |
 | **H-R11C-E-c** | 立关卡的那一轮 | `scripts/verify_ledger.py:1`:`#!/usr/bin/env python3` —— 全项目**没有任何关卡**覆盖「正文里可复算指标的第二份手抄件」这个形状:`verify_ledger.py` 只校验台账自身,`verify_citations.py` 只校验带锚点的引用,而这张表没有锚点。判据已实现为 `data/r11c/e-reversal-propagation-derived.py`,建议收进 `scripts/` |
 | **H-R11C-E-d** | 接手派工书模板的那一轮 | `data/r10/dispatch-brief.md:52`:`  而漏掉的那个会在坏 YAML 下把用户的审批黑名单静默抹掉。` —— 把 R8C 已推翻的「静默」定性写进了派工书;R10B 起该段被改写、那半句是**掉了**而不是**被改正**,故机制上仍会复发 |
 | **H-R11C-E-e** | 修锚点的那一轮(与片 D 同族) | `notes/r11b-raw-rulings-census.md:783`:`| 「H-R8D-c 后果更轻」 | `notes/r9a-h-r8d-c-env-loader-lock.md:700` 的 `「后果更轻」的前提被推翻` | `后果更轻` / `_SECRET_SOURCES` 在 R9B 及以后 | **0 命中**:R9B 的引用是在改锚点行号,不涉及定性 |` —— 表内锚点 `:700` 的真实位置是 `:730`,差 30 行;它至今记 TABLE-UNCHECKED,**R11B / R11C 两轮引用关卡都没读过它** |
@@ -799,7 +799,7 @@ OK: every paired ```verify command reproduces its pasted output
 3. `data/r11c/e-reversal-propagation-derived.py` —— 判据 2(可复算指标的第二份手抄件),
    运行期从 `data/ledger.tsv` 复算,不预设答案;`--blast` 报过期值传播半径(两个口径)。
 
-**关键结论**:正控(`chapters/r1-what-is-hermes-agent.md:98-123` 分层表)**被判据 2 抓到**,
+**关键结论**:正控(`chapters/r1-what-is-hermes-agent.md:98-123 @ 25c612f` 分层表)**被判据 2 抓到**,
 判据 1 抓不到 —— 原因逐层写在 §4.1。判据 2 另外抓出正控**未提及**的第三处
 (`:118` 的 `R1-inventoried` 剩余量,错 2,178 个文件,由它推出的进度判断错六倍)。
 

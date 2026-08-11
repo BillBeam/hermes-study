@@ -123,7 +123,7 @@ TIMEOUT = int(os.environ.get("HERMES_EVIDENCE_TIMEOUT", "900"))
 
 R11A 派工书说 `scripts/hermes-gateway` 不受引用校验保护。**说反了**:
 
-`scripts/verify_citations.py:254 @ 863e313`
+`scripts/verify_citations.py:261 @ 863e313`
 
 ```python
     "base", "dashboard", "finish", "hermes", "hermes-gateway",

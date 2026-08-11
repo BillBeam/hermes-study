@@ -23,7 +23,7 @@
   ```
 - **规模**:约 200 LOC(iteration_budget.py 62 行 + 循环判定 + finalizer 兜底 + chat_completion_helpers.handle_max_iterations);逻辑不复杂但语义微妙(refund、grace、父子独立)。
 - **学习价值**:高 — '只在耗尽时通知一次、给一次无工具 summary 机会'是对'预算压力提示导致模型摆烂'这一真实失效模式的直接回应;refund 机制(execute_code/redirect 重建不计费)也是预算设计里少见的细节。同时它是死代码教训:grace 标志位保留在 while 条件里但全仓库无人置 True。
-- **▲ 文档不符**:AGENTS.md:351-353 宣称循环带'a one-turn grace call',但 _budget_grace_call 仅在 agent/agent_init.py:892 初始化为 False,全仓库(含 _budget_exhausted_injected)无任何置 True 代码——grace 分支永远不可达,实际兜底走 finalize_turn 的 summary 调用。且 AGENTS.md:328 与 agent/iteration_budget.py:5 docstring 都称默认 500,实际 run_agent.py:446 / agent_init.py:470 构造默认是 90,500 只是 cli.py:475 的 CLI 配置默认。
+- **▲ 文档不符**:AGENTS.md:351-353 宣称循环带'a one-turn grace call',但 _budget_grace_call 仅在 agent/agent_init.py:892 初始化为 False,全仓库(含 _budget_exhausted_injected)无任何置 True 代码——grace 分支永远不可达,实际兜底走 finalize_turn 的 summary 调用。且 AGENTS.md:328 与 agent/iteration_budget.py:5 docstring 都称默认 500,实际 run_agent.py:446 / agent/agent_init.py:470 构造默认是 90,500 只是 cli.py:475 的 CLI 配置默认。
 
 #### 2. 三级用户介入:interrupt(硬停)/ steer(不打断注入)/ redirect(只取消模型请求)
 
@@ -48,14 +48,14 @@
           if _redirect_text:
               _apply_active_turn_redirect(agent, messages, _redirect_text)
   ```
-- **规模**:约 150 LOC 核心(conversation_loop.py:122-201 + 循环内 5 处 preserve_redirect 分支);不变式推理密集(80 行注释记录事故复盘),复杂度高。
+- **规模**:约 150 LOC 核心(agent/conversation_loop.py:122-201 + 循环内 5 处 preserve_redirect 分支);不变式推理密集(80 行注释记录事故复盘),复杂度高。
 - **学习价值**:高 — 注释里写明的两条不变式(裸思维链绝不序列化回可回放内容;脚手架走 api_content 侧车不进转录)来自真实生产事故(2026-07 四个会话被 prefill 判定砖死),是'中断-重定向'机制最容易踩的坑的一手记录。
-- **▲ 文档不符**:website/docs/developer-guide/agent-loop.md:124 称中断后 'No partial response is injected into conversation history',与代码相反:redirect 显式把可见部分响应作为 checkpoint(api_content)注入 messages,partial_stream_recovery(conversation_loop.py:6597-6615)还把已流出的部分文本直接提升为 final_response。
+- **▲ 文档不符**:website/docs/developer-guide/agent-loop.md:124 称中断后 'No partial response is injected into conversation history',与代码相反:redirect 显式把可见部分响应作为 checkpoint(api_content)注入 messages,partial_stream_recovery(agent/conversation_loop.py:6597-6615)还把已流出的部分文本直接提升为 final_response。
 
 #### 4. TurnRetryState:单次 API 尝试的一次性恢复守卫矩阵  **[◇未见于文档]**
 
 - **解决**:内层重试循环对同一次模型调用要做十几种截然不同的恢复(按提供商 OAuth 刷新、429 凭据池、压缩重启、续写重启、思维签名剥离、图片缩放、llama.cpp 语法回退等),这些守卫曾是散落在 2400 行循环体里的约 16 个裸布尔局部变量,极易漏置或误复用。
-- **实现**:TurnRetryState 是 dependency-free 的 dataclass,把守卫收敛为一个对象:每类恢复分支由一个 *_attempted 布尔保证每次尝试至多触发一次,4 个 restart_with_* 字段作为循环体外读取的重启信号(压缩/续写/内容过滤故障转移/redirect)。每次外层迭代新建实例(conversation_loop.py:2133),retry_count/max_retries 等 while 力学变量刻意留作普通局部变量;__iter__ 提供 (name, value) 遍历便于测试。
+- **实现**:TurnRetryState 是 dependency-free 的 dataclass,把守卫收敛为一个对象:每类恢复分支由一个 *_attempted 布尔保证每次尝试至多触发一次,4 个 restart_with_* 字段作为循环体外读取的重启信号(压缩/续写/内容过滤故障转移/redirect)。每次外层迭代新建实例(agent/conversation_loop.py:2133),retry_count/max_retries 等 while 力学变量刻意留作普通局部变量;__iter__ 提供 (name, value) 遍历便于测试。
 - **证据**:`agent/turn_retry_state.py:43` · `agent/turn_retry_state.py:83` · `agent/conversation_loop.py:2133`
   ```
       codex_auth_retry_attempted: bool = False
@@ -77,7 +77,7 @@
   ```
 - **规模**:约 400 LOC(run_agent.py:6026-6434 流状态管理 + 循环内 _use_streaming 决策);并发正确性推理复杂度高。
 - **学习价值**:高 — '流式当健康检查用'颠覆了'没人看就不用流'的直觉,解决了 SSE ping 挂死这类难排查问题;单调令牌 + thread-local 的单写者栅栏是解决重试/流竞态的干净方案,可直接移植到任何流式 harness。
-- **▲ 文档不符**:website/docs/developer-guide/agent-loop.md:108 称 API 请求包在 _interruptible_api_call() 里;实际主循环默认全部走 _interruptible_streaming_api_call(conversation_loop.py:2348-2394),非流式仅是显式禁用/特例回退。
+- **▲ 文档不符**:website/docs/developer-guide/agent-loop.md:108 称 API 请求包在 _interruptible_api_call() 里;实际主循环默认全部走 _interruptible_streaming_api_call(agent/conversation_loop.py:2348-2394),非流式仅是显式禁用/特例回退。
 
 #### 6. 空响应六级恢复阶梯  **[◇未见于文档]**
 
@@ -89,7 +89,7 @@
                           _turn_exit_reason = "partial_stream_recovery"
                           _recovered = agent._strip_think_blocks(_partial_streamed).strip()
   ```
-- **规模**:约 320 LOC(conversation_loop.py:6588-6903)+ 分散的计数器复位点;分支逻辑与失效模式知识密集。
+- **规模**:约 320 LOC(agent/conversation_loop.py:6588-6903)+ 分散的计数器复位点;分支逻辑与失效模式知识密集。
 - **学习价值**:高 — 这是对'模型静默失败'最完整的分层处置样本:每一级都对应一类真实失效(#9400 弱模型工具后沉默、mimo 永远填 reasoning 字段导致守卫失效等),且展示了合成消息如何标记为脚手架避免毒化持久转录。
 
 #### 7. 截断续写(指数放大输出预算)与 dropped tool-call 再提示  **[◇未见于文档]**
@@ -131,7 +131,7 @@
                       )
                       final_response = None
   ```
-- **规模**:约 230 LOC(conversation_loop.py:7037-7206 + finalizer 保底分支);三道门共享同一 pending-candidate 契约。
+- **规模**:约 230 LOC(agent/conversation_loop.py:7037-7206 + finalizer 保底分支);三道门共享同一 pending-candidate 契约。
 - **学习价值**:高 — 'stop 是提案不是决定'的闸门架构 + '被扣下的答案必须显式建档、预算耗尽时按出处恢复'的 response-loss 防护,是 agent 停止条件工程里最值得抄的完整方案;三道门复用同一契约也展示了如何做可插拔的终局策略。
 
 #### 10. TurnContext 回合前奏 + api_content『persist-what-you-send』侧车  **[◇未见于文档]**
@@ -155,7 +155,7 @@
               _hit_local = bool(tb_module_names & _LOCAL_PROCESSING_MODULES)
               _hit_api = bool(tb_module_names & _API_CALL_MODULES)
   ```
-- **规模**:约 95 LOC(conversation_loop.py:7215-7308);技巧新颖但实现紧凑。
+- **规模**:约 95 LOC(agent/conversation_loop.py:7215-7308);技巧新颖但实现紧凑。
 - **学习价值**:中 — 用 traceback 途经模块集合做'可重试性'分诊,是在无法给所有异常打类型标签的现实约束下的实用发明;'确定性错误不烧预算'这一原则适用于一切重试系统。
 
 #### 12. 活动心跳与 kanban 带外 steer 注入(_touch_activity)  **[◇未见于文档]**
@@ -173,11 +173,11 @@
 **本子系统文档-代码冲突(5 条):**
 
 - 宣称:AGENTS.md:351-353:'The core loop is inside run_conversation() — entirely synchronous, with interrupt checks, budget tracking, and a one-turn grace call'(并在 355-357 展示含 _budget_grace_call 的 while 条件)
-  实际:_budget_grace_call 仅在 agent/agent_init.py:892 被初始化为 False,全仓库(含 _budget_exhausted_injected)没有任何将其置 True 的代码——grace-call 分支永远不可达,是死脚手架;实际的预算耗尽兜底是 finalize_turn 经 handle_max_iterations 追加 user 消息并发起一次无工具 summary 调用(turn_finalizer.py:127-141)。(证据:`agent/agent_init.py:892`)
+  实际:_budget_grace_call 仅在 agent/agent_init.py:892 被初始化为 False,全仓库(含 _budget_exhausted_injected)没有任何将其置 True 的代码——grace-call 分支永远不可达,是死脚手架;实际的预算耗尽兜底是 finalize_turn 经 handle_max_iterations 追加 user 消息并发起一次无工具 summary 调用(agent/turn_finalizer.py:127-141)。(证据:`agent/agent_init.py:892`)
 - 宣称:AGENTS.md:328:'max_iterations: int = 500, # tool-calling iterations (shared with subagents)';agent/iteration_budget.py:5 docstring 同样称'parent's cap comes from max_iterations (default 500)'
   实际:AIAgent.__init__(run_agent.py:446)与 init_agent(agent/agent_init.py:470)的默认值都是 90;500 只是 CLI 配置层的 max_turns 默认(cli.py:475),直接构造 AIAgent 的程序化调用者得到 90 而非 500。(证据:`run_agent.py:446`)
 - 宣称:website/docs/developer-guide/agent-loop.md:124:中断时'No partial response is injected into conversation history'
-  实际:redirect 路径显式把已展示的部分响应降级为 checkpoint 注入 messages(api_content 侧车,conversation_loop.py:164-197);partial_stream_recovery(conversation_loop.py:6594-6615)更把已流式送出的部分文本直接提升为最终答复。(证据:`agent/conversation_loop.py:183`)
+  实际:redirect 路径显式把已展示的部分响应降级为 checkpoint 注入 messages(api_content 侧车,agent/conversation_loop.py:164-197);partial_stream_recovery(agent/conversation_loop.py:6594-6615)更把已流式送出的部分文本直接提升为最终答复。(证据:`agent/conversation_loop.py:183`)
 - 宣称:website/docs/developer-guide/agent-loop.md:108:'API requests are wrapped in _interruptible_api_call() which runs the actual HTTP call in a background thread'
   实际:主循环默认永远优先流式路径 _interruptible_streaming_api_call——即使没有任何流式消费者——以获得 90s 陈旧流检测/60s 读超时;非流式 _interruptible_api_call 只是禁用流或特例(ACP、MoA 无消费者、Mock)时的回退。(证据:`agent/conversation_loop.py:2348`)
 - 宣称:website/docs/developer-guide/agent-loop.md:133-134:'Multiple tool calls → executed concurrently via ThreadPoolExecutor;Exception: tools marked as interactive (e.g., clarify) force sequential execution'
@@ -193,7 +193,7 @@
 #### 13. 多 api_mode 抽象与统一分发 (chat_completions / anthropic_messages / codex_responses / bedrock_converse)
 
 - **解决**:同一个 agent loop 要驱动 OpenAI-wire、Anthropic 原生 Messages、OpenAI Responses、AWS Bedrock Converse 四种完全不同的线协议,还要在 fallback/切换时动态换协议。若把 provider 差异散落在 loop 里会不可维护。
-- **实现**:wire 协议抽象成 agent.api_mode 字符串。determine_api_mode()(hermes_cli/providers.py:671)按 host-mandated → Nous 双线 → transport 表 → bedrock 顺序解析;_dispatch_nonstreaming_api_request()(chat_completion_helpers.py:451)按 api_mode 分派到 _run_codex_stream / _anthropic_messages_create / bedrock converse / MoA / OpenAI 五条路径,把各 adapter 的返回统一 normalize 成 OpenAI 风格 SimpleNamespace 供 loop 消费。每个 adapter 文件(codex_responses_adapter/gemini_native_adapter/bedrock_adapter)负责 messages/tools/response 双向翻译。
+- **实现**:wire 协议抽象成 agent.api_mode 字符串。determine_api_mode()(hermes_cli/providers.py:671)按 host-mandated → Nous 双线 → transport 表 → bedrock 顺序解析;_dispatch_nonstreaming_api_request()(agent/chat_completion_helpers.py:451)按 api_mode 分派到 _run_codex_stream / _anthropic_messages_create / bedrock converse / MoA / OpenAI 五条路径,把各 adapter 的返回统一 normalize 成 OpenAI 风格 SimpleNamespace 供 loop 消费。每个 adapter 文件(codex_responses_adapter/gemini_native_adapter/bedrock_adapter)负责 messages/tools/response 双向翻译。
 - **证据**:`agent/chat_completion_helpers.py:467` · `hermes_cli/providers.py:684` · `agent/bedrock_adapter.py:741`
   ```
       if agent.api_mode == "codex_responses":
@@ -227,12 +227,12 @@
   ```
 - **规模**:394 行,纯函数无状态
 - **学习价值**:高 — prompt cache 断点预算的精细分配(静态前缀 vs 滚动窗口 vs tools)+ 跨 provider 信封差异处理,是省 75% 输入成本的关键工程,细节极多值得深挖。
-- **▲ 文档不符**:context-compression-and-caching.md 只描述旧的 "system_and_3" 布局(断点1=system + 最后3条),没有描述代码里默认的 静态前缀切分 + 末尾2条 的新布局(prompt_caching.py:1-8 与 348-364 明确说明静态前缀存在时用 前缀+system尾+末2条)。
+- **▲ 文档不符**:context-compression-and-caching.md 只描述旧的 "system_and_3" 布局(断点1=system + 最后3条),没有描述代码里默认的 静态前缀切分 + 末尾2条 的新布局(agent/prompt_caching.py:1-8 与 348-364 明确说明静态前缀存在时用 前缀+system尾+末2条)。
 
 #### 16. 凭据池轮换 (多 key/OAuth 池、状态机、冷却 TTL、跨进程同步、按状态码分级)  **[▲文档不符]**
 
 - **解决**:同一 provider 可能有多把 API key 或多个 OAuth 账号;某把 key 被 429/401/402/billing 打死后要冷却并轮换到下一把,且要区分瞬时限流与真实计费耗尽,还要处理唯一 key 不能轮换、失败身份匹配不上任何 entry 时不能误伤健康 key、多 entry 共享同一 runtime key 要一起标死等边界。
-- **实现**:CredentialPool(credential_pool.py:633)持有 PooledCredential 列表,mark_exhausted_and_rotate() 按 credential_id/api_key_hint 定位失败 entry;_exhausted_ttl() 按状态码分级冷却(401 短、429/默认基线、sole_credential 时瞬时限流缩短但 billing 保持满 bench);_unmatched_rotation_streak 上限一圈防 OAuth 401 无限空转(#70401);同一 runtime_api_key 的 sibling entry 一起标 exhausted;_available_entries() 在选择前从 credentials 文件/auth.json 同步其它进程刷新的 token(anthropic/nous/openai-codex/xai-oauth),Codex 还会 live-probe quota 是否提前 reopen(#43747)。策略经 get_pool_strategy() 读 fill_first/round_robin/least_used/random。
+- **实现**:CredentialPool(agent/credential_pool.py:633)持有 PooledCredential 列表,mark_exhausted_and_rotate() 按 credential_id/api_key_hint 定位失败 entry;_exhausted_ttl() 按状态码分级冷却(401 短、429/默认基线、sole_credential 时瞬时限流缩短但 billing 保持满 bench);_unmatched_rotation_streak 上限一圈防 OAuth 401 无限空转(#70401);同一 runtime_api_key 的 sibling entry 一起标 exhausted;_available_entries() 在选择前从 credentials 文件/auth.json 同步其它进程刷新的 token(anthropic/nous/openai-codex/xai-oauth),Codex 还会 live-probe quota 是否提前 reopen(#43747)。策略经 get_pool_strategy() 读 fill_first/round_robin/least_used/random。
 - **证据**:`agent/credential_pool.py:332` · `agent/credential_pool.py:2077` · `agent/credential_pool.py:2132`
   ```
       if error_code == 401:
@@ -246,7 +246,7 @@
 #### 17. 错误分类器 (FailoverReason 枚举驱动恢复策略)  **[◇未见于文档]**
 
 - **解决**:一个 API 错误可能意味着换 key、换模型、压缩上下文、降级图片、剥离 replay blob、退避重试或直接放弃——retry loop 不该自己去反复解析原始异常。
-- **实现**:classify_api_error()(error_classifier.py:623)把异常归一成 ClassifiedError,携带 reason(FailoverReason 枚举,含 auth/billing/rate_limit/upstream_rate_limit/overloaded/context_overflow/image_too_large/invalid_encrypted_content/thinking_signature/oauth_long_context_beta_forbidden 等 20+ 类)和 retryable/should_compress/should_rotate_credential/should_fallback 四个动作提示位;_classify_by_status/_classify_402/_classify_400/_classify_by_message 分层判定,还能识别 OpenRouter upstream 错误把 upstream provider 名剥出来。
+- **实现**:classify_api_error()(agent/error_classifier.py:623)把异常归一成 ClassifiedError,携带 reason(FailoverReason 枚举,含 auth/billing/rate_limit/upstream_rate_limit/overloaded/context_overflow/image_too_large/invalid_encrypted_content/thinking_signature/oauth_long_context_beta_forbidden 等 20+ 类)和 retryable/should_compress/should_rotate_credential/should_fallback 四个动作提示位;_classify_by_status/_classify_402/_classify_400/_classify_by_message 分层判定,还能识别 OpenRouter upstream 错误把 upstream provider 名剥出来。
 - **证据**:`agent/error_classifier.py:90` · `agent/error_classifier.py:36` · `agent/error_classifier.py:118`
   ```
       retryable: bool = True
@@ -260,7 +260,7 @@
 #### 18. Fallback model 链 (turn-scoped 多级 provider/model 切换 + 池重绑 + 缓存重评估)  **[▲文档不符]**
 
 - **解决**:主模型持续报错时要按配置的 (provider, model) 链逐个切换,换 provider 时要重建 client、换 wire 协议、重绑凭据池防止污染主 provider、按新模型重评 prompt cache 与 context window,并对 rate_limit/billing 做指数退避冷却防止 replay 风暴。
-- **实现**:try_activate_fallback()(chat_completion_helpers.py:1730)推进 _fallback_index 走 _fallback_chain;经 backend_identity.should_skip_candidate 跳过解析到同一后端的条目;经 resolve_provider_client 建新 client;rate_limit/billing/upstream_rate_limit 时 _rate_limited_until 按 60s*2^n 上限 4h 退避;换 provider 时清掉主 pool 再 load_pool(fb_provider)(#33163);anthropic 目标建原生 client,其余换 OpenAI client 并保留 default_headers;重评 _anthropic_prompt_cache_policy、更新 context_compressor、rewrite_prompt_model_identity 保持自我认知同步。
+- **实现**:try_activate_fallback()(agent/chat_completion_helpers.py:1730)推进 _fallback_index 走 _fallback_chain;经 backend_identity.should_skip_candidate 跳过解析到同一后端的条目;经 resolve_provider_client 建新 client;rate_limit/billing/upstream_rate_limit 时 _rate_limited_until 按 60s*2^n 上限 4h 退避;换 provider 时清掉主 pool 再 load_pool(fb_provider)(#33163);anthropic 目标建原生 client,其余换 OpenAI client 并保留 default_headers;重评 _anthropic_prompt_cache_policy、更新 context_compressor、rewrite_prompt_model_identity 保持自我认知同步。
 - **证据**:`agent/chat_completion_helpers.py:1756` · `agent/chat_completion_helpers.py:1946` · `agent/chat_completion_helpers.py:2020`
   ```
               backoff_count = getattr(agent, "_rate_limit_backoff_count", 0)
@@ -274,7 +274,7 @@
 #### 19. 辅助 LLM 路由 (auxiliary_client:压缩/视觉/标题/搜索的独立 provider 链)  **[▲文档不符]**
 
 - **解决**:压缩、视觉、web 抽取、会话搜索、标题生成等副 LLM 任务不应污染主对话模型的凭据/上下文,又要能默认复用用户主模型、支持 per-task 覆盖、有自己的 fallback 链、健康度缓存和并发上限。
-- **实现**:_resolve_auto()(auxiliary_client.py:5391)优先用主 provider+主模型跑副任务,失败才走 openrouter→nous→custom→api-key 探测链(_get_provider_chain:3594);MoA 虚拟 provider 会解析成真实 aggregator;402 打过的 provider 进 _aux_unhealthy_until 缓存 10 分钟跳过;_try_configured_fallback_chain 读 auxiliary.<task>.fallback_chain 并用 backend_identity 的 FailureScope 区分 model 级 vs credential 级失败;per-task max_concurrency 用 BoundedSemaphore 限流;辅助 client 有专用的 Codex/Anthropic/Bedrock adapter shim。
+- **实现**:_resolve_auto()(agent/auxiliary_client.py:5391)优先用主 provider+主模型跑副任务,失败才走 openrouter→nous→custom→api-key 探测链(_get_provider_chain:3594);MoA 虚拟 provider 会解析成真实 aggregator;402 打过的 provider 进 _aux_unhealthy_until 缓存 10 分钟跳过;_try_configured_fallback_chain 读 auxiliary.<task>.fallback_chain 并用 backend_identity 的 FailureScope 区分 model 级 vs credential 级失败;per-task max_concurrency 用 BoundedSemaphore 限流;辅助 client 有专用的 Codex/Anthropic/Bedrock adapter shim。
 - **证据**:`agent/auxiliary_client.py:3607` · `agent/auxiliary_client.py:3635` · `agent/auxiliary_client.py:5167`
   ```
       return [
@@ -326,7 +326,7 @@
 #### 23. 用量归一与定价 (跨 4 种 usage 形状 + 官方定价快照 + Codex reset credit 兑换)  **[◇未见于文档]**
 
 - **解决**:Anthropic/Codex Responses/OpenAI Chat/各 OpenAI-兼容代理的 usage 字段形状各异(cache read/write、reasoning token 藏在不同嵌套里),要归一成统一 token 桶算成本;Codex 账号还有"banked reset credit"可兑换以恢复配额窗口。
-- **实现**:normalize_usage()(usage_pricing.py:1205)按 api_mode 分三支解析,OpenAI 支还回退读 Anthropic 风格顶层字段(OpenRouter/Vercel 代理 Claude)和 DeepSeek 的 prompt_cache_hit_tokens,reasoning token 同时读 output_tokens_details 和 completion_tokens_details 两种形状;get_pricing_entry 优先官方 docs 快照 _OFFICIAL_DOCS_PRICING 再 metadata/OpenRouter。account_usage.py 的 redeem_codex_reset_credit() 复刻 Codex CLI:GET usage 读 banked 数与窗口使用率,未耗尽则拒绝(除非 --force),POST consume 带 uuid 幂等键兑换。
+- **实现**:normalize_usage()(agent/usage_pricing.py:1205)按 api_mode 分三支解析,OpenAI 支还回退读 Anthropic 风格顶层字段(OpenRouter/Vercel 代理 Claude)和 DeepSeek 的 prompt_cache_hit_tokens,reasoning token 同时读 output_tokens_details 和 completion_tokens_details 两种形状;get_pricing_entry 优先官方 docs 快照 _OFFICIAL_DOCS_PRICING 再 metadata/OpenRouter。account_usage.py 的 redeem_codex_reset_credit() 复刻 Codex CLI:GET usage 读 banked 数与窗口使用率,未耗尽则拒绝(除非 --force),POST consume 带 uuid 幂等键兑换。
 - **证据**:`agent/usage_pricing.py:1261` · `agent/account_usage.py:670`
   ```
               cache_read_tokens = _to_int(
@@ -362,7 +362,7 @@
 #### 26. Anthropic OAuth / Claude Code 身份伪装与凭据刷新  **[◇未见于文档]**
 
 - **解决**:用 Anthropic OAuth/setup-token 访问时,Anthropic 按 user-agent 与 header 路由,缺 Claude Code 指纹会间歇 500;还要区分 sk-ant OAuth token、第三方代理 key、MiniMax/Kimi 的 Bearer-auth 端点,并支持从 keychain/文件读 Claude Code 凭据、PKCE 刷新 OAuth token。
-- **实现**:build_anthropic_client()(anthropic_adapter.py:777)按 base_url/key 形状选 auth:Kimi coding 端点强制 User-Agent claude-code/0.1.0;_requires_bearer_auth 端点走 auth_token;OAuth token 走 auth_token + anthropic-beta + user-agent claude-code/<ver> (external, cli) + x-app cli 指纹;并清 env 填入的 api_key 防 x-api-key 与 Bearer 双认证。read_claude_code_credentials 从 keychain/文件读,refresh_anthropic_oauth_pure 做 PKCE 刷新;max_retries=0 把重试交给外层 loop 以尊重 Retry-After。
+- **实现**:build_anthropic_client()(agent/anthropic_adapter.py:777)按 base_url/key 形状选 auth:Kimi coding 端点强制 User-Agent claude-code/0.1.0;_requires_bearer_auth 端点走 auth_token;OAuth token 走 auth_token + anthropic-beta + user-agent claude-code/<ver> (external, cli) + x-app cli 指纹;并清 env 填入的 api_key 防 x-api-key 与 Bearer 双认证。read_claude_code_credentials 从 keychain/文件读,refresh_anthropic_oauth_pure 做 PKCE 刷新;max_retries=0 把重试交给外层 loop 以尊重 Retry-After。
 - **证据**:`agent/anthropic_adapter.py:891` · `agent/anthropic_adapter.py:863`
   ```
           kwargs["auth_token"] = api_key
@@ -425,7 +425,7 @@
   ```
 - **规模**:prompt_builder.py 中约 300 行(扫描/发现/加载/截断)+ threat_patterns 共享库;复杂度中
 - **学习价值**:中 — 优先级链、随窗口缩放的截断预算、注入前威胁扫描三件套是上下文文件注入的完整答案;'截断时留 read_file 恢复路径'的细节值得抄。
-- **▲ 文档不符**:website/docs/user-guide/configuration.md:2303 称 AGENTS.md 为 'Recursive directory walk'、:2311 称 'AGENTS.md is hierarchical: if subdirectories also have AGENTS.md, all are combined'——代码中 _load_agents_md 明确 'top-level only (no recursive walk)'(prompt_builder.py:2062),子目录 AGENTS.md 只由 SubdirectoryHintTracker 在工具调用时懒发现并注入 tool result,并非启动时合并;:2313 'capped at context_file_max_chars characters (default 20,000)' 也与动态默认(null→随窗口 20K-500K)相悖,同文档 :671 自己都写了动态默认。
+- **▲ 文档不符**:website/docs/user-guide/configuration.md:2303 称 AGENTS.md 为 'Recursive directory walk'、:2311 称 'AGENTS.md is hierarchical: if subdirectories also have AGENTS.md, all are combined'——代码中 _load_agents_md 明确 'top-level only (no recursive walk)'(agent/prompt_builder.py:2062),子目录 AGENTS.md 只由 SubdirectoryHintTracker 在工具调用时懒发现并注入 tool result,并非启动时合并;:2313 'capped at context_file_max_chars characters (default 20,000)' 也与动态默认(null→随窗口 20K-500K)相悖,同文档 :671 自己都写了动态默认。
 
 #### 30. 渐进式子目录上下文发现
 
@@ -691,7 +691,7 @@
   ```
 - **规模**:hermes_state_search.py 2230 + session_search_tool.py 1161 行;高复杂度(三索引、查询路由、重建状态机)
 - **学习价值**:高 — 纯 SQLite 零 LLM 的跨会话记忆检索完整实现:三索引路由、FTS5 查询消毒、lineage 去重、自动化会话降权、bookends 低成本预览,是 agent 长期记忆检索层的高质量参照。
-- **▲ 文档不符**:README.md:26 与 website/docs/index.mdx:123 宣称 'FTS5 session search with LLM summarization for cross-session recall',但代码明确 'No LLM calls anywhere'(session_search_tool.py:23,模块史注明 summary LLM 路径已在合并重构时移除);website/docs/user-guide/sessions.md:551 也写明 'No LLM calls, no summarization' —— README/index 的 LLM summarization 属过期宣称。
+- **▲ 文档不符**:README.md:26 与 website/docs/index.mdx:123 宣称 'FTS5 session search with LLM summarization for cross-session recall',但代码明确 'No LLM calls anywhere'(tools/session_search_tool.py:23,模块史注明 summary LLM 路径已在合并重构时移除);website/docs/user-guide/sessions.md:551 也写明 'No LLM calls, no summarization' —— README/index 的 LLM summarization 属过期宣称。
 
 #### 48. 辅助模型记忆检索查询改写(query_rewrite)  **[◇未见于文档]**
 
@@ -846,7 +846,7 @@
   ```
 - **规模**:approval.py 4557 行,全仓最重的安全模块;含数百行反混淆 shell 词法分析
 - **学习价值**:高 — 这是完整的『危险操作审批栈』教科书:不可绕底线/用户 deny/LLM guardian/人审四层清晰分离,拒绝消息面向 LLM 心理学设计(点名 retry/rephrase/换路径三种规避),审批等待与 watchdog/批处理 deadline 的交互都有工业级处理。
-- **▲ 文档不符**:website/docs/user-guide/security.md:101 声称 hardline 模式列表『kept in sync with tools/approval.py::UNRECOVERABLE_BLOCKLIST』,但代码中不存在该符号——实际符号是 HARDLINE_PATTERNS(approval.py:434)。
+- **▲ 文档不符**:website/docs/user-guide/security.md:101 声称 hardline 模式列表『kept in sync with tools/approval.py::UNRECOVERABLE_BLOCKLIST』,但代码中不存在该符号——实际符号是 HARDLINE_PATTERNS(tools/approval.py:434)。
 
 #### 58. Tirith 外部二进制预执行扫描集成(自动安装+签名校验+熔断)
 
@@ -873,7 +873,7 @@
   ```
 - **规模**:url_safety.py 874 行,含 sync/async 双 transport 注入与既有 client 就地加固
 - **学习价值**:高 — connect-time DNS pinning 是多数 agent 框架缺失的一层——预检式 SSRF 防护在 rebinding 面前形同虚设;IPv4-mapped IPv6 与 CGNAT 这两个 Python ipaddress 盲区的显式处理也是高价值细节。
-- **▲ 文档不符**:security.md:665 声称 allow_private_urls=true 后『no longer reject RFC 1918 / loopback / link-local / CGNAT / cloud-metadata destinations』,但代码里云元数据 IP/主机名与整个 169.254.0.0/16 link-local 段在开关开启时仍然无条件封禁(url_safety.py:487-493、436-439);security.md:654 称 DNS 失败一律 fail-closed,而代码在配置了代理且主机名非字面 IP 时 fail-open 放行由代理解析(url_safety.py:466-472)。
+- **▲ 文档不符**:security.md:665 声称 allow_private_urls=true 后『no longer reject RFC 1918 / loopback / link-local / CGNAT / cloud-metadata destinations』,但代码里云元数据 IP/主机名与整个 169.254.0.0/16 link-local 段在开关开启时仍然无条件封禁(tools/url_safety.py:487-493、436-439);security.md:654 称 DNS 失败一律 fail-closed,而代码在配置了代理且主机名非字面 IP 时 fail-open 放行由代理解析(tools/url_safety.py:466-472)。
 
 #### 60. 内容级威胁模式库与技能安装信任分级(threat_patterns + skills_guard)
 
@@ -926,7 +926,7 @@
   ```
 - **规模**:mcp_tool.py 7230 行(全仓最大工具文件)+ mcp_schema_cache/watchdog/osv_check 约 500 行,极高复杂度
 - **学习价值**:高 — 把 MCP 当不受信第三方对待的全套客户端侧防御在一处:spawn 前供应链检查、描述注入扫描、命名撞车 fail-closed、进程生命周期兜底,是接入外部工具生态时的威胁清单模板。其中 pre-spawn OSV 恶意包预检与描述注入扫描在官方文档均无记载。
-- **▲ 文档不符**:cli-commands.md 只记载了手动 `hermes security audit` 的 OSV 扫描;stdio MCP 每次启动前自动执行的 OSV 恶意包预检(mcp_tool.py:2398-2422)与工具描述注入扫描(_scan_mcp_description)在 README/AGENTS.md/website 文档中均未提及。
+- **▲ 文档不符**:cli-commands.md 只记载了手动 `hermes security audit` 的 OSV 扫描;stdio MCP 每次启动前自动执行的 OSV 恶意包预检(tools/mcp_tool.py:2398-2422)与工具描述注入扫描(_scan_mcp_description)在 README/AGENTS.md/website 文档中均未提及。
 
 **本子系统文档-代码冲突(4 条):**
 
@@ -1043,7 +1043,7 @@
   ```
 - **规模**:docker.py 2029 行;复杂度高(安全参数 × 复用状态机 × egress 指纹)
 - **学习价值**:高 — 标签化容器身份 + 复用指纹 + 启动期 reaper 是把『容器当持久 VM 用』做对的完整工程;egress 标签防降级复用这类跨特性一致性问题尤其值得学。
-- **▲ 文档不符**:website/docs/user-guide/features/tools.md:88 声称 'The container is stopped and removed on shutdown',但默认 persist_across_processes=True 下 cleanup() 是 no-op,容器在 Hermes 退出后继续运行,只被下次启动的 orphan reaper 按空闲策略回收(docker.py:1961-1966,cleanup 的 docstring 自己也承认这一点)。
+- **▲ 文档不符**:website/docs/user-guide/features/tools.md:88 声称 'The container is stopped and removed on shutdown',但默认 persist_across_processes=True 下 cleanup() 是 no-op,容器在 Hermes 退出后继续运行,只被下次启动的 orphan reaper 按空闲策略回收(tools/environments/docker.py:1961-1966,cleanup 的 docstring 自己也承认这一点)。
 
 #### 71. iron-proxy egress 强制接入:MITM CA 注入 + per-provider 代理 token
 
@@ -1550,7 +1550,7 @@ gateway/ 是 hermes-agent 的常驻消息网关:单个 asyncio 进程同时连�
 #### 104. 回合租约 SessionTurnLeaseRegistry(按 resolved session_id 串行化转写)  **[◇未见于文档]**
 
 - **解决**:busy 守卫都按路由键(routing key)加锁,但 /resume、Telegram topic tip-walk、异步委托 pinning 会让多个路由键映射到同一个 session_id——两个回合在两份 agent 对象上并发写同一转写,产生永久 user;user 交替楔子(#64934)。
-- **实现**:在会话解析定案之后、加载转写之前,按 resolved session_id 申请 asyncio 租约(run.py:16584),路由键守卫保证同键消息到不了这里,所以只有别名键路由才会真正竞争;超时 fail-open 返回 degraded token(宁可退回旧的不串行行为也不楔死会话);token 记 (owner_key, generation),release 做身份校验保证陈旧 unwind 不会释放新回合的租约;压缩中途轮换 session_id 时 rebind() 把同一把锁登记到新 id 下,关闭 rotation-alias 窗口;注册表上限 512、只驱逐 idle 项。
+- **实现**:在会话解析定案之后、加载转写之前,按 resolved session_id 申请 asyncio 租约(gateway/run.py:16584),路由键守卫保证同键消息到不了这里,所以只有别名键路由才会真正竞争;超时 fail-open 返回 degraded token(宁可退回旧的不串行行为也不楔死会话);token 记 (owner_key, generation),release 做身份校验保证陈旧 unwind 不会释放新回合的租约;压缩中途轮换 session_id 时 rebind() 把同一把锁登记到新 id 下,关闭 rotation-alias 窗口;注册表上限 512、只驱逐 idle 项。
 - **证据**:`gateway/run.py:16584-16589` · `gateway/turn_lease.py:190-192` · `gateway/turn_lease.py:29-33`
   ```
               _lease_token = await _lease_registry.acquire(
@@ -1573,7 +1573,7 @@ gateway/ 是 hermes-agent 的常驻消息网关:单个 asyncio 进程同时连�
   ```
 - **规模**:pairing.py 905 行 + run.py 接入约 70 行;中等复杂度,安全设计对标 OWASP/NIST SP 800-63-4
 - **学习价值**:中 — 自助码 + owner 带外批准的授权握手可直接移植到任何 bot;『grant 镜像进运营者自己的 allowlist、开放网关不因配对被锁死』体现了对配置事实源漂移的深思。
-- **▲ 文档不符**:gateway-internals.md:104-108 描述为『Admin: /pair → Gateway 给 admin 一个码 → 新用户回码即配对』;代码里不存在 /pair 命令,方向相反:陌生用户 DM 自动收到码(run.py:14479-14500),owner 在 CLI 上 `hermes pairing approve` 批准。用户文档 messaging/index.md:344-358 与代码一致,开发者文档写反了。
+- **▲ 文档不符**:gateway-internals.md:104-108 描述为『Admin: /pair → Gateway 给 admin 一个码 → 新用户回码即配对』;代码里不存在 /pair 命令,方向相反:陌生用户 DM 自动收到码(gateway/run.py:14479-14500),owner 在 CLI 上 `hermes pairing approve` 批准。用户文档 messaging/index.md:344-358 与代码一致,开发者文档写反了。
 
 #### 106. 多层授权联合与 upstream 委托(含 busy 路径同等鉴权)  **[▲文档不符]**
 
@@ -2362,7 +2362,7 @@ Hermes 的界面层围绕一个中心事实组织:tui_gateway 是唯一的 UI �
 #### 158. hermes update 多阶段自愈更新管线(git 主路径)  **[▲文档不符]**
 
 - **解决**:源码检出式安装(~/.hermes/hermes-agent)在用户机器上自更新时,任何一步失败(坏 commit 过了 CI、依赖装一半、终端断线、gateway 占用 venv)都可能把 CLI 直接砖掉。harness 需要一个'永远可回退、可续传'的更新事务。
-- **实现**:入口 `_cmd_update_impl`(update_cmd.py:3564,~1900 行)串起完整事务:Windows 并发 hermes.exe/venv 持有者守卫(exit 2)→ pre-update snapshot → 暂停 Windows gateway → `git fetch` + `merge --ff-only`(失败则 reset --hard origin/branch)→ 关键 9 文件 `py_compile` 语法守卫,失败自动 `git reset --hard <pre_pull_sha>` 回滚 → 子进程 import 探针(`_validate_critical_modules_import`,只把 FIRST_PARTY_MODULE_ROOTS 的 ImportError 视为坏树)→ 分层依赖安装(`.[all]` 失败则逐 extra 重试,见 main.py:_install_python_dependencies_with_optional_fallback)→ 断点续传 marker(`_write_update_incomplete_marker`,下次启动由 `_recover_from_interrupted_install` 续装)→ 清 __pycache__ + importlib.reload 更新敏感模块 → lazy 后端刷新 → gateway 恢复/重启。另有 SIGHUP→SIG_IGN + update.log 镜像防终端断线,`_normalize_managed_eol`/`_discard_lockfile_churn` 消除 EOL/lockfile 噪声脏树。
+- **实现**:入口 `_cmd_update_impl`(hermes_cli/update_cmd.py:3564,~1900 行)串起完整事务:Windows 并发 hermes.exe/venv 持有者守卫(exit 2)→ pre-update snapshot → 暂停 Windows gateway → `git fetch` + `merge --ff-only`(失败则 reset --hard origin/branch)→ 关键 9 文件 `py_compile` 语法守卫,失败自动 `git reset --hard <pre_pull_sha>` 回滚 → 子进程 import 探针(`_validate_critical_modules_import`,只把 FIRST_PARTY_MODULE_ROOTS 的 ImportError 视为坏树)→ 分层依赖安装(`.[all]` 失败则逐 extra 重试,见 main.py:_install_python_dependencies_with_optional_fallback)→ 断点续传 marker(`_write_update_incomplete_marker`,下次启动由 `_recover_from_interrupted_install` 续装)→ 清 __pycache__ + importlib.reload 更新敏感模块 → lazy 后端刷新 → gateway 恢复/重启。另有 SIGHUP→SIG_IGN + update.log 镜像防终端断线,`_normalize_managed_eol`/`_discard_lockfile_churn` 消除 EOL/lockfile 噪声脏树。
 - **证据**:`hermes_cli/update_cmd.py:94-97` · `hermes_cli/update_cmd.py:4013-4015` · `hermes_cli/main.py:9011-9013` · `hermes_cli/update_cmd.py:174-175`
   ```
   _UPDATE_CRITICAL_FILES = (
@@ -2377,7 +2377,7 @@ Hermes 的界面层围绕一个中心事实组织:tui_gateway 是唯一的 UI �
 #### 159. Windows ZIP 两阶段替换更新回退路径  **[◇未见于文档]**
 
 - **解决**:Windows 上杀毒/NTFS 过滤驱动会让 git 文件 I/O 直接报 Invalid argument,git 路径不可用;而逐目录覆盖式解压更新一旦中断会留下 agent/ 新、tools/ 旧的'每个文件都合法但整树不可启动'的半更新状态。
-- **实现**:`_update_via_zip`(update_cmd.py:725)从 GitHub 下载分支 ZIP,先做 zip-slip realpath 校验并拒绝 symlink 成员(防更新镜像被投毒后经解压植入任意文件);拒绝非 main 的 --branch(静态归档无法尊重分支);预检磁盘空间(staging 拷贝 ×1.2 余量);然后两阶段替换(#76104):phase 1 把所有顶级 entry 拷到同文件系统 staging 路径,phase 2 用 rename 逐个换入,任一失败则回滚所有已换入项并 `_discard_staged` 清理残留,保证'要么全部生效要么原样保留'。保留集 {venv, node_modules, .git, .env} 不动。
+- **实现**:`_update_via_zip`(hermes_cli/update_cmd.py:725)从 GitHub 下载分支 ZIP,先做 zip-slip realpath 校验并拒绝 symlink 成员(防更新镜像被投毒后经解压植入任意文件);拒绝非 main 的 --branch(静态归档无法尊重分支);预检磁盘空间(staging 拷贝 ×1.2 余量);然后两阶段替换(#76104):phase 1 把所有顶级 entry 拷到同文件系统 staging 路径,phase 2 用 rename 逐个换入,任一失败则回滚所有已换入项并 `_discard_staged` 清理残留,保证'要么全部生效要么原样保留'。保留集 {venv, node_modules, .git, .env} 不动。
 - **证据**:`hermes_cli/update_cmd.py:784-788` · `hermes_cli/update_cmd.py:832-834` · `hermes_cli/update_cmd.py:841-846`
   ```
                   mode = (member.external_attr >> 16) & 0o170000
@@ -2580,3 +2580,51 @@ Hermes 的界面层围绕一个中心事实组织:tui_gateway 是唯一的 UI �
 4. **未处理项(如实申报)**:本附卷 170 条能力点里,review-1 只抽核了 2 条(即上面 M-8 那两处),
    **其余 168 条的代码摘录未经第二方复核**;`data/capability-mining.json` 同样未复核。
    这是本附卷当前最大的未验面。
+
+---
+
+## 勘误(R11D:锚点寻址补全)
+
+本节记录 **30 处锚点寻址补全**,依据是 CLAUDE.md「**锚点寻址修正是第四类改动,
+与『行号漂移』同级**」(R11D 裁定,结清 H-R11C-D-f)。这些锚点原写作**裸文件名**
+(即只有文件名、没有目录部分),在基线 `863e313` 里**恰好一个**文件的路径以该串结尾(按目录边界匹配),
+故就地补成全路径。
+
+**改的只是「地址怎么写出来」,不是「它指向谁」**:所指的那一段源码一个字没变,
+候选唯一因此不存在猜测空间。多候选的锚点(`__init__.py` 171 个、`base.py` 9 个)**一处未动**。
+**补全之外,本报告正文一个字未改。**
+
+下表左为原样、右为补全后(行号为本报告行号,列表本身是声明式非源码块,不作断言):
+
+```text
+:26    agent_init.py:470                ->  agent/agent_init.py:470
+:51    conversation_loop.py:122-201     ->  agent/conversation_loop.py:122-201
+:53    conversation_loop.py:6597-6615   ->  agent/conversation_loop.py:6597-6615
+:58    conversation_loop.py:2133        ->  agent/conversation_loop.py:2133
+:80    conversation_loop.py:2348-2394   ->  agent/conversation_loop.py:2348-2394
+:92    conversation_loop.py:6588-6903   ->  agent/conversation_loop.py:6588-6903
+:134   conversation_loop.py:7037-7206   ->  agent/conversation_loop.py:7037-7206
+:158   conversation_loop.py:7215-7308   ->  agent/conversation_loop.py:7215-7308
+:176   turn_finalizer.py:127-141        ->  agent/turn_finalizer.py:127-141
+:180   conversation_loop.py:164-197     ->  agent/conversation_loop.py:164-197
+:180   conversation_loop.py:6594-6615   ->  agent/conversation_loop.py:6594-6615
+:196   chat_completion_helpers.py:451   ->  agent/chat_completion_helpers.py:451
+:230   prompt_caching.py:1-8            ->  agent/prompt_caching.py:1-8
+:235   credential_pool.py:633           ->  agent/credential_pool.py:633
+:249   error_classifier.py:623          ->  agent/error_classifier.py:623
+:263   chat_completion_helpers.py:1730  ->  agent/chat_completion_helpers.py:1730
+:277   auxiliary_client.py:5391         ->  agent/auxiliary_client.py:5391
+:329   usage_pricing.py:1205            ->  agent/usage_pricing.py:1205
+:365   anthropic_adapter.py:777         ->  agent/anthropic_adapter.py:777
+:428   prompt_builder.py:2062           ->  agent/prompt_builder.py:2062
+:694   session_search_tool.py:23        ->  tools/session_search_tool.py:23
+:849   approval.py:434                  ->  tools/approval.py:434
+:876   url_safety.py:487-493            ->  tools/url_safety.py:487-493
+:876   url_safety.py:466-472            ->  tools/url_safety.py:466-472
+:929   mcp_tool.py:2398-2422            ->  tools/mcp_tool.py:2398-2422
+:1046  docker.py:1961-1966              ->  tools/environments/docker.py:1961-1966
+:1553  run.py:16584                     ->  gateway/run.py:16584
+:1576  run.py:14479-14500               ->  gateway/run.py:14479-14500
+:2365  update_cmd.py:3564               ->  hermes_cli/update_cmd.py:3564
+:2380  update_cmd.py:725                ->  hermes_cli/update_cmd.py:725
+```

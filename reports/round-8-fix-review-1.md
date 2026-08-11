@@ -34,7 +34,7 @@ R8B 此前只在分支上,main 头是 `fae9b3a`(Merge round 8A)——评审位�
 1. **把校验器从代码侧扩到文档侧**(M-16a)。此前 `verify_citations.py` 只校验紧跟围栏块的引用,
    于是"文档-代码冲突"定案的**文档侧锚点**——几乎总写成 `>` 引用块——**从未被任何机器校验覆盖**。
    评审位随手抽 5 条文档锚点,**5 条全漂**。扩面后脚本**当场独立抓出**其中一条
-   (`ADDING_A_PLATFORM.md:135 → :125`),它自己付得起自己。
+   (`gateway/platforms/ADDING_A_PLATFORM.md:135 → :125`),它自己付得起自己。
 
 2. **发现并修正一条被关闭的负结论**(M-19)。R8B 写"H-7 关闭",而漏掉的那个调用方
    会在坏 YAML 下把用户的 `approvals.deny` 静默抹掉。本卡把它重开、复核了**全部五个**同类写入点,
@@ -192,7 +192,7 @@ $ grep -rn "atomic_yaml_write(config_path\|atomic_yaml_write(get_config_path" --
 | `config.py:4995`(`config set`) | 内联 try/except → 打印 YAML 错误 + `sys.exit(1)` | ✅ fail-closed |
 | `config.py:5123`(`config unset`) | 同上 | ✅ |
 | `auth.py:7397`(`_reset_config_provider`) | `if not config: return`(`:7389`) | ✅ |
-| `credential_lifecycle.py:174` | 内联 try/except → `return []` | ✅ |
+| `hermes_cli/credential_lifecycle.py:174` | 内联 try/except → `return []` | ✅ |
 | **`auth.py:7329`** | **无任何检查** | ❌ **整文件截断** |
 
 **这张表才是这条定案的价值。** 仓库里有**四种**把这个洞堵上的写法,其中一种
@@ -270,11 +270,11 @@ r7b 的 ▲1 已按此扩写为逐分句判定。
 | M-4 | 阻断 | **采纳** | 同章 `:94` "26 万行" → "260 万行" |
 | M-4a | 阻断 | **采纳并加重** | `notes/r7b-90-*.md` B-4 由 ▲ 降 ◇、锚点 `:105`→`:103`/`:113`;`chapters/r7b-*.md` 同改。**加重**:该小节实为**五个**交互方法,其中 `send_clarify`(`base.py:3780`)与 `send_slash_confirm`(`:3745`)**确有基类桩**,只有三个没有——评审位只提三个,漏了"两个有桩"这半边,而正是这半边让"文档从不说破分界"这个 ◇ 立得住 |
 | M-4b | 阻断 | **采纳** | `chapters/r6-*.md` 与 `notes/r6-90-*.md`:改为"5 家声明、仅 hindsight 一家不符",移除 byterover / openviking |
-| M-4c | 阻断 | **采纳** | `chapters/r4-*.md` 与 `notes/r4-90-*.md` 定案 1:两键分开、给出 `docker.py:1961` 三态分支与 `:2011` 的 bind-mount 判定,撤销"同一页自打脸"的定性 |
+| M-4c | 阻断 | **采纳** | `chapters/r4-*.md` 与 `notes/r4-90-*.md` 定案 1:两键分开、给出 `tools/environments/docker.py:1961` 三态分支与 `:2011` 的 bind-mount 判定,撤销"同一页自打脸"的定性 |
 | M-5 | 建议 | **采纳** | 全部十一章 **90 处**裸文件名补目录(脚本改写 + 逐条验证目标存在且行号在范围内);复核后**零裸文件名**。`hermes_state.py` 等真在仓库根的保持原样 |
 | M-6 | 建议 | **采纳** | 同上,**151 处**补 `@ 863e313`;现十一章 **331/332** 带 SHA(余 1 处为一行三锚点的并列写法,已改成主锚点带 SHA) |
 | M-7 | 建议 | **采纳** | `chapters/r7b-*.md` 判定顺序表由围栏块改为缩进列表,引用移到列表后并配真源码块 |
-| M-8 | 建议 | **采纳** | `reports/round-1-capabilities-full.md`:`models_dev.py:11`→`:12`、`tool_result_storage.py:172-178`→`:171-175`;**并改脚本**:MISMATCH 现列出该行全部候选引用并声明"漂的可能是另一个" |
+| M-8 | 建议 | **采纳** | `reports/round-1-capabilities-full.md`:`agent/models_dev.py:11`→`:12`、`tools/tool_result_storage.py:172-178`→`:171-175`;**并改脚本**:MISMATCH 现列出该行全部候选引用并声明"漂的可能是另一个" |
 | M-9 | 建议 | **采纳** | `chapters/r7c-*.md:167-169` 改为"2 条注册项 / 三个可敲名",附 AST 复算(69+23+2=94) |
 | M-10 | 建议 | **采纳** | `chapters/r7-*.md` 与 `notes/r7-20-*.md:28` 两处 17 → **18** |
 | M-11 | 建议 | **部分驳回(附反证)** | 发现成立(四数不构成划分),**但评审位给的替换措辞本身是错的**:它写"另有 **9** 个插件平台不占枚举位",而它自己上一段列了 **10** 个名字(a2a / buzz / google_chat / irc / line / ntfy / photon / raft / simplex / teams)。实测:枚举 24 = 本机 1 + 内建 9 + 中继 1 + 插件 13;13 个枚举位对应 **12** 个目录(`WECOM` 与 `WECOM_CALLBACK` 共用 `wecom`),12 + 10 = 22 ✓,按 9 算是 21,对不上。`chapters/r7b-*.md:18-22` 按实测数改写 |
@@ -283,7 +283,7 @@ r7b 的 ▲1 已按此扩写为逐分句判定。
 | M-14 | 建议 | **采纳** | `chapters/r2-*.md:180` 改为"云端默认 180/120 / provider 配置可覆盖 / 本地端点放宽到 900 秒"三档 |
 | M-15 | 建议 | **部分驳回(附反证)** | 采纳"定口径 + 脚本化 + 附卷豁免",**但评审位的字数不成立**:它报 R7C/R8A/R8B 为 21/21/23,实测在"句末句号不计"口径下三份**都正好 20**,只有 `round-1-survey` 是 23。差额来自是否把句末 `。` 计入。本卡明确选"不计"并把理由写进脚本与 CLAUDE.md(20 字上限若还要为必打的句号收费,实际就是 19 字)。新增 `scripts/verify_report_headline.py`;历史例外 1 份显式列名并在其勘误节点名,名单封闭 |
 | M-16 | 建议 | **采纳** | CLAUDE.md 定稿关卡范围改为"**全部 `chapters/`** + 本轮 `notes/` 与 `reports/`" |
-| M-16a | 建议 | **采纳** | `scripts/verify_citations.py` 扩面到引用块(含换行重排的摘录);五处文档锚点全改:`tools-runtime.md:96→:91`、`prompt-assembly.md:39→:38`、`ADDING_A_PLATFORM.md:135→:125`(**脚本自动抓到**)、`:66-70→:58-61`、`cua_backend.py:2050-2053→:2058` 等三处 |
+| M-16a | 建议 | **采纳** | `scripts/verify_citations.py` 扩面到引用块(含换行重排的摘录);五处文档锚点全改:`tools-runtime.md:96→:91`、`prompt-assembly.md:39→:38`、`gateway/platforms/ADDING_A_PLATFORM.md:135→:125`(**脚本自动抓到**)、`:66-70→:58-61`、`tools/computer_use/cua_backend.py:2050-2053→:2058` 等三处 |
 | M-16b | 建议 | **采纳并加重** | 评审位说三处继承,**实为四处**——`notes/r3-90-*.md` 里出现两次(`:13` 表格 + `:43` 正文),加上两份 R1 报告。四处同改 |
 | M-16c | 建议 | **采纳(改法与评审位不同,附理由)** | 驳回"脚本嗅探非源码块"的做法(猜出来的豁免会削弱阻断性关卡),改为**作者显式声明**:新增 ```` ```verify ```` 等语言标记;`notes/r3-90-*.md:30`、`notes/r7b-90-*.md:262` 两处改标记,并把命令改成**真能重跑复现**的写法 |
 | M-16d | 建议 | **采纳** | `notes/r4-90-*.md` 定案 8 换成词界版 grep 并标 ```` ```verify ````,写明原命令为何重跑不出零命中;同时升为 CLAUDE.md 规矩 |
@@ -426,3 +426,39 @@ r7b 的 ▲1 已按此扩写为逐分句判定。
 
    *为什么不是「删掉它就完事」:派工书对这一类明令 —— 正当处置只有修好它、
    声明它不是可重跑命令、或点名留下说明修不了三种,**删掉是第四种,不许用。***
+
+---
+
+## 勘误(R11D:锚点寻址补全)
+
+本节记录 **7 处锚点寻址补全**,依据是 CLAUDE.md「**锚点寻址修正是第四类改动,
+与『行号漂移』同级**」(R11D 裁定,结清 H-R11C-D-f)。这些锚点原写作**裸文件名**
+(即只有文件名、没有目录部分),在基线 `863e313` 里**恰好一个**文件的路径以该串结尾(按目录边界匹配),
+故就地补成全路径。
+
+**改的只是「地址怎么写出来」,不是「它指向谁」**:所指的那一段源码一个字没变,
+候选唯一因此不存在猜测空间。多候选的锚点(`__init__.py` 171 个、`base.py` 9 个)**一处未动**。
+**补全之外,本报告正文一个字未改。**
+
+以下逐处对照,左为原样、右为补全后(行号为本报告行号,清单本身不作断言):
+
+> :37    ADDING_A_PLATFORM.md:135        ->  gateway/platforms/ADDING_A_PLATFORM.md:135
+> :195   credential_lifecycle.py:174     ->  hermes_cli/credential_lifecycle.py:174
+> :273   docker.py:1961                  ->  tools/environments/docker.py:1961
+> :277   models_dev.py:11                ->  agent/models_dev.py:11
+> :277   tool_result_storage.py:172-178  ->  tools/tool_result_storage.py:172-178
+> :286   ADDING_A_PLATFORM.md:135        ->  gateway/platforms/ADDING_A_PLATFORM.md:135
+> :286   cua_backend.py:2050-2053        ->  tools/computer_use/cua_backend.py:2050-2053
+
+**这一份为什么用引用块而不是像另外八份那样用 ```` ```text ````(R11D 记,顺带留个证据)。**
+本报告 `:414` 有一句**缩进散文**里写着 ```` ```verify ```` 这几个字(标准的四反引号转义写法,
+markdown 本身完全正确),而 `scripts/verify_citations.py` 认围栏的判据是
+**「行首(可带空白)三个反引号」**——
+它把这句散文当成了一个**围栏开头**,于是从 `:414` 到文件末尾整段的奇偶被翻转:
+此后本报告的正文对关卡而言全在「围栏内」,一条锚点也扫不到。
+后果是一个**声明式非源码块在这里失效** —— 首版把上表写成 ```` ```text ````,
+那个 ```` ``` ```` 反而**闭合**了 `:414` 起的幻影围栏,块内 7 行被当散文扫,
+关卡 `citations` 当场从 742 涨到 749(全部记 UNCHECKED)。
+引用块没有这个问题:`>` 在两种奇偶状态下都不被扫描,所以这一份改用引用块。
+**同形状在 `reviews/review-1-full-corpus.md:1313` 还有一处**(一句缩进散文里提到 ```` ```mermaid ````),
+见 `reviews/review-1-anchor-corrections.md` 附录三与 `notes/r11d-raw-anchor-completion.md`。

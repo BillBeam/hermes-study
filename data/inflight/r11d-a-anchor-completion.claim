@@ -1,0 +1,9 @@
+agent: 片 A · 其三 —— reports/ 与 reviews/ 70 处坏锚点按 R11D 裁定执行
+dispatched: 2026-08-10 (R11D 批次一)
+signal: RELEASED 片 A 完成信号(任务完成通知:reports/ 补全 56 处、reviews/ 走附录 0 处、四条自校验读数、并移交 H-R11D-A-a 围栏缺陷)
+path: notes/r11d-raw-anchor-completion.md
+path: reviews/review-1-anchor-corrections.md
+path: reports/round-*.md
+path: reviews/review-1-full-corpus.md
+path: data/r11d/probes/anchor_*
+path: data/r11d/anchor-*

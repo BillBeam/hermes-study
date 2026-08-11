@@ -1,0 +1,22 @@
+chapter	file	round	title
+1	chapters/r1-what-is-hermes-agent.md	R1	hermes-agent 是什么:全仓地图与阅读顺序
+2	chapters/r2-turn-loop-and-model-access.md	R2	回合主循环与模型接入
+3	chapters/r3-tool-infrastructure.md	R3	工具系统:让 LLM 安全地对真实世界动手
+4	chapters/r4-execution-environments.md	R4	执行环境:一条命令到底在哪、怎么跑起来
+5	chapters/r5-session-state-and-persistence.md	R5	会话状态与持久化
+6	chapters/r6-memory-provider-ecosystem.md	R6	记忆 provider 生态
+7	chapters/r7-gateway-session-core.md	R7	网关会话核心与多路复用
+8	chapters/r7b-platform-integration.md	R7B	平台接入面
+9	chapters/r7c-gateway-periphery-and-scheduling.md	R7C	网关外围面与定时调度
+10	chapters/r8a-configuration-surface.md	R8A	配置面:一个键从哪里来,到哪里去
+11	chapters/r8b-cli-trunk-and-interaction.md	R8B	CLI 主干与交互
+12	chapters/r8c-dashboard-and-web.md	R8C	dashboard 与 web 面
+13	chapters/r8d-self-custody.md	R8D	自持面
+14	chapters/r9a-capability-organization.md	R9A	能力的组织、扩展与委派
+15	chapters/r9b-multimodal-delivery.md	R9B	多模态交付面
+16	chapters/r9c-external-interfaces.md	R9C	对外接驳面
+17	chapters/r9d-tool-surface-and-guard-placement.md	R9D	工具面:守卫装在哪一层
+18	chapters/r10-client-interface-layer.md	R10	客户端接驳面
+19	chapters/r10b-desktop-application.md	R10B	桌面应用
+20	chapters/r11a-ops-and-delivery.md	R11A	交付面:从源码到一台跑着的机器
+21	chapters/r11b-the-unwritten-layer.md	R11B	没人写的那一层:harness 边角上的欠账

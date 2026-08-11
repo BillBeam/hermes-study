@@ -1,0 +1,38 @@
+语料:钉在 df6d450;已剔除本轮承载文件
+
+[1] 不可解析锚点按目录(AMBIGUOUS/UNIQUE-SUFFIX/NOT-IN-TREE/ABSPATH)
+  chapters      10
+  notes       1058
+  reports      147
+  reviews       37
+
+[2] chapters/ 内不可解析锚点逐条(10 处)
+  chapters/r7b-platform-integration.md:226	base.py:5584	AMBIGUOUS	9 个候选
+  chapters/r7b-platform-integration.md:229	base.py:5611	AMBIGUOUS	9 个候选
+  chapters/r7b-platform-integration.md:230	base.py:5627	AMBIGUOUS	9 个候选
+  chapters/r7b-platform-integration.md:231	base.py:5656	AMBIGUOUS	9 个候选
+  chapters/r7b-platform-integration.md:232	base.py:5711	AMBIGUOUS	9 个候选
+  chapters/r7b-platform-integration.md:233	base.py:5715	AMBIGUOUS	9 个候选
+  chapters/r7b-platform-integration.md:234	base.py:5731	AMBIGUOUS	9 个候选
+  chapters/r7b-platform-integration.md:235	base.py:5746	AMBIGUOUS	9 个候选
+  chapters/r8b-cli-trunk-and-interaction.md:197	server.py:5811	AMBIGUOUS	4 个候选
+  chapters/r9a-capability-organization.md:430	creating-skills.md:178	AMBIGUOUS	2 个候选
+
+[3] 镜像型歧义(候选恰为 website/docs + zh-Hans 两份)按目录
+  chapters       1
+  notes        200
+  reports       50
+  reviews       10
+
+[4] 自引锚点  来源目录 -> 被指向目录
+  被指向合计: {'chapters': 101, 'data': 37, 'notes': 198, 'reports': 72, 'reviews': 15, 'scripts': 192}  总计 615
+  指向 chapters/ 的,按来源: {'notes': 60, 'reports': 7, 'reviews': 34}
+  来源是 chapters/ 的,按目标: {'scripts': 3}
+  其中以 scripts/ 开头的,按归属: {'只基线有': 138, '只本仓库有': 54}
+  扣掉只在基线里的 scripts/ 后,真自引 = 477
+
+[5] chapters/ 内跨章裸文件名引用(不带行号):8 处 / 6 个被引文件
+
+[6] 案号:宽口径不同号 355;移交普查正则可见 178;看不见 177 个不同号 / 276 次出现
+
+[7] chapters/ 的 ```verify 块:1 个,分布 {'chapters/r9d-tool-surface-and-guard-placement.md': 1}

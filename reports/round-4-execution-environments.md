@@ -55,7 +55,7 @@ backend/browser_route/schema/vision_routing/permissions/doctor)+ interrupt / clo
 - `r4-90-doc-conflict-rulings.md` + `r4-95-tests.md`(定案 + 测试记录)。
 
 其中 3 篇由子代理并行深挖(远端后端 / 浏览器 / computer_use),主线逐条抽查关键行号(permissions.py:34-35、
-cua_backend.py:1-11、schema.py:14-16、vision_routing.py:1-20、base.py 快照段、docker.py persist no-op 等
+tools/computer_use/cua_backend.py:1-11、tools/computer_use/schema.py:14-16、tools/computer_use/vision_routing.py:1-20、base.py 快照段、docker.py persist no-op 等
 均逐字命中);r4-01/r4-02/r4-50 与全部定案由主线亲自精读复核。
 
 **成品章 `chapters/r4-execution-environments.md`**(新可读性标准,GitHub 可渲染 Mermaid):三个同心圈——
@@ -117,3 +117,24 @@ R4 学了执行环境的"进程与文件持久化",R5 自然上升到"一整个�
 
 无阻塞事项。真跑模型仍需任一 provider 凭据(见 R1 报告 §1.5),纯代码学习与测试不依赖它;本轮
 venv + `.[dev]` + daytona/modal/ssh 下测试全绿。
+
+---
+
+## 勘误(R11D:锚点寻址补全)
+
+本节记录 **3 处锚点寻址补全**,依据是 CLAUDE.md「**锚点寻址修正是第四类改动,
+与『行号漂移』同级**」(R11D 裁定,结清 H-R11C-D-f)。这些锚点原写作**裸文件名**
+(即只有文件名、没有目录部分),在基线 `863e313` 里**恰好一个**文件的路径以该串结尾(按目录边界匹配),
+故就地补成全路径。
+
+**改的只是「地址怎么写出来」,不是「它指向谁」**:所指的那一段源码一个字没变,
+候选唯一因此不存在猜测空间。多候选的锚点(`__init__.py` 171 个、`base.py` 9 个)**一处未动**。
+**补全之外,本报告正文一个字未改。**
+
+下表左为原样、右为补全后(行号为本报告行号,列表本身是声明式非源码块,不作断言):
+
+```text
+:58    cua_backend.py:1-11     ->  tools/computer_use/cua_backend.py:1-11
+:58    schema.py:14-16         ->  tools/computer_use/schema.py:14-16
+:58    vision_routing.py:1-20  ->  tools/computer_use/vision_routing.py:1-20
+```

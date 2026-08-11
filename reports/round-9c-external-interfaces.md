@@ -274,13 +274,13 @@ schema 承诺的"本地绝对路径"在该模块内**没有任何后端能兑现
 | # | 条目 | 主线复核方式与结果 |
 |---|---|---|
 | 1 | H-R9A-a 全链 | 三个本地实验:302 泄漏、主机校验判通过、公共防线有效(True→False) |
-| 2 | A ■-1 `codex_app_server_session.py:619` | 重跑复现:无审批 0.00s / 排空后 3.00s 空转;最坏一档错因被替换成 `'turn timed out after 3.0s'` 且触发会话退休 |
-| 3 | B ■-1 `chat_completion_helpers.py:2172` | 静态对读:传输侧 3 处处理 `effect_disposition`,摘要路径副本 0 处,而副本注释自称 "mirror that sanitization here" |
+| 2 | A ■-1 `agent/transports/codex_app_server_session.py:619` | 重跑复现:无审批 0.00s / 排空后 3.00s 空转;最坏一档错因被替换成 `'turn timed out after 3.0s'` 且触发会话退休 |
+| 3 | B ■-1 `agent/chat_completion_helpers.py:2172` | 静态对读:传输侧 3 处处理 `effect_disposition`,摘要路径副本 0 处,而副本注释自称 "mirror that sanitization here" |
 | 4 | B ■-6 `transports/__init__.py:53` | 实跑:`get_transport('anthropic')` 返回 `None`,契约方法直接 `AttributeError` |
-| 5 | F ■-1 `microsoft_graph_client.py:139` | MockTransport 实跑:令牌被发往响应体指定的 `http://attacker.example`,且第二页真的被取回 |
-| 6 | F ■-2 `billing_usage.py:270` | 实跑:主开关关闭下 `credits_tracker` 返回 `None`(守卫生效),`billing_usage` 造出完整 `status='depleted'` / 已花 $20 假账,推翻其 docstring 的 "can never" |
+| 5 | F ■-1 `tools/microsoft_graph_client.py:139` | MockTransport 实跑:令牌被发往响应体指定的 `http://attacker.example`,且第二页真的被取回 |
+| 6 | F ■-2 `agent/billing_usage.py:270` | 实跑:主开关关闭下 `credits_tracker` 返回 `None`(守卫生效),`billing_usage` 造出完整 `status='depleted'` / 已花 $20 假账,推翻其 docstring 的 "can never" |
 | 7 | E ▲-2 出站 webhook 载荷 | 静态全链:`_TOP_LEVEL_PAYLOAD_KEYS` 仅四键、`result` 不在其中 → 完整工具输出逐字进 `extra`;文档只说 "tool inputs and event metadata" |
-| 8 | D ■-1 `op_cache.json` | 全仓对读:`bws_cache` 出现在 **4 个守卫点**,`op_cache` 出现在 **0 个**;而 `file_safety.py:281-283` 的注释正记着 Bitwarden 那次同样的疏漏 |
+| 8 | D ■-1 `op_cache.json` | 全仓对读:`bws_cache` 出现在 **4 个守卫点**,`op_cache` 出现在 **0 个**;而 `agent/file_safety.py:281-283` 的注释正记着 Bitwarden 那次同样的疏漏 |
 
 ### 6.3 结构性结论
 
@@ -429,3 +429,26 @@ CLAUDE.md 已知的 6 条必然失败用例,本轮范围内一条都没碰到。
 2. **必须按 §3.2 的六项收口**,尤其第 2 项(分层未被搬动)与第 4 项(点名覆盖率)。
 3. 落实 R9A 移交归 R9D 的五条(H-R9A-b / c / e / f / g)与本轮的 H-R9C-a / b。
 4. 显式宣告 R12 前置是否满足。
+
+---
+
+## 勘误(R11D:锚点寻址补全)
+
+本节记录 **5 处锚点寻址补全**,依据是 CLAUDE.md「**锚点寻址修正是第四类改动,
+与『行号漂移』同级**」(R11D 裁定,结清 H-R11C-D-f)。这些锚点原写作**裸文件名**
+(即只有文件名、没有目录部分),在基线 `863e313` 里**恰好一个**文件的路径以该串结尾(按目录边界匹配),
+故就地补成全路径。
+
+**改的只是「地址怎么写出来」,不是「它指向谁」**:所指的那一段源码一个字没变,
+候选唯一因此不存在猜测空间。多候选的锚点(`__init__.py` 171 个、`base.py` 9 个)**一处未动**。
+**补全之外,本报告正文一个字未改。**
+
+下表左为原样、右为补全后(行号为本报告行号,列表本身是声明式非源码块,不作断言):
+
+```text
+:277   codex_app_server_session.py:619  ->  agent/transports/codex_app_server_session.py:619
+:278   chat_completion_helpers.py:2172  ->  agent/chat_completion_helpers.py:2172
+:280   microsoft_graph_client.py:139    ->  tools/microsoft_graph_client.py:139
+:281   billing_usage.py:270             ->  agent/billing_usage.py:270
+:283   file_safety.py:281-283           ->  agent/file_safety.py:281-283
+```

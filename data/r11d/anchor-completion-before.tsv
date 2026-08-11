@@ -1,0 +1,197 @@
+file	line	citation	class	target
+reports/round-1-capabilities-full.md	26	agent_init.py:470	BASELINE-ONE	agent/agent_init.py
+reports/round-1-capabilities-full.md	51	conversation_loop.py:122	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-capabilities-full.md	53	conversation_loop.py:6597	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-capabilities-full.md	58	conversation_loop.py:2133	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-capabilities-full.md	80	conversation_loop.py:2348	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-capabilities-full.md	92	conversation_loop.py:6588	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-capabilities-full.md	134	conversation_loop.py:7037	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-capabilities-full.md	158	conversation_loop.py:7215	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-capabilities-full.md	176	turn_finalizer.py:127	BASELINE-ONE	agent/turn_finalizer.py
+reports/round-1-capabilities-full.md	180	conversation_loop.py:164	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-capabilities-full.md	180	conversation_loop.py:6594	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-capabilities-full.md	196	chat_completion_helpers.py:451	BASELINE-ONE	agent/chat_completion_helpers.py
+reports/round-1-capabilities-full.md	230	prompt_caching.py:1	BASELINE-ONE	agent/prompt_caching.py
+reports/round-1-capabilities-full.md	235	credential_pool.py:633	BASELINE-ONE	agent/credential_pool.py
+reports/round-1-capabilities-full.md	249	error_classifier.py:623	BASELINE-ONE	agent/error_classifier.py
+reports/round-1-capabilities-full.md	263	chat_completion_helpers.py:1730	BASELINE-ONE	agent/chat_completion_helpers.py
+reports/round-1-capabilities-full.md	277	auxiliary_client.py:5391	BASELINE-ONE	agent/auxiliary_client.py
+reports/round-1-capabilities-full.md	329	usage_pricing.py:1205	BASELINE-ONE	agent/usage_pricing.py
+reports/round-1-capabilities-full.md	365	anthropic_adapter.py:777	BASELINE-ONE	agent/anthropic_adapter.py
+reports/round-1-capabilities-full.md	388	context-compression-and-caching.md:396	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	390	provider-runtime.md:180	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	392	provider-runtime.md:196	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	428	prompt_builder.py:2062	BASELINE-ONE	agent/prompt_builder.py
+reports/round-1-capabilities-full.md	526	configuration.md:840	AMBIGUOUS	4 个候选(BASELINE)
+reports/round-1-capabilities-full.md	598	turn_context.py:588	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	609	turn_context.py:588	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	694	session_search_tool.py:23	BASELINE-ONE	tools/session_search_tool.py
+reports/round-1-capabilities-full.md	753	sessions.md:551	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	753	memory.md:190	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	757	turn_context.py:588	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	780	registry.py:216	AMBIGUOUS	5 个候选(BASELINE)
+reports/round-1-capabilities-full.md	780	registry.py:220	AMBIGUOUS	5 个候选(BASELINE)
+reports/round-1-capabilities-full.md	849	approval.py:434	BASELINE-ONE	tools/approval.py
+reports/round-1-capabilities-full.md	876	security.md:665	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	876	url_safety.py:487	BASELINE-ONE	tools/url_safety.py
+reports/round-1-capabilities-full.md	876	security.md:654	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	876	url_safety.py:466	BASELINE-ONE	tools/url_safety.py
+reports/round-1-capabilities-full.md	929	mcp_tool.py:2398	BASELINE-ONE	tools/mcp_tool.py
+reports/round-1-capabilities-full.md	1046	docker.py:1961	BASELINE-ONE	tools/environments/docker.py
+reports/round-1-capabilities-full.md	1156	session-storage.md:28	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1172	session-storage.md:177	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1302	session-storage.md:177	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1304	session-storage.md:13	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1504	gateway-internals.md:78	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1504	session.py:1103	AMBIGUOUS	3 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1520	gateway-internals.md:86	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1520	base.py:5736	AMBIGUOUS	9 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1553	run.py:16584	BASELINE-ONE	gateway/run.py
+reports/round-1-capabilities-full.md	1576	gateway-internals.md:104	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1576	run.py:14479	BASELINE-ONE	gateway/run.py
+reports/round-1-capabilities-full.md	1576	messaging/index.md:344	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1592	gateway-internals.md:94	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1604	cron-internals.md:132	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1660	messaging/index.md:344	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1687	delegation.md:158	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1699	delegation.md:303	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1800	kanban.md:297	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1800	kanban.md:64	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1832	delegation.md:158	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1834	delegation.md:303	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1876	cron.md:135	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1900	cron.md:264	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1914	cron-internals.md:216	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	1951	cron-internals.md:272	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	2010	cron-internals.md:216	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	2365	update_cmd.py:3564	BASELINE-ONE	hermes_cli/update_cmd.py
+reports/round-1-capabilities-full.md	2380	update_cmd.py:725	BASELINE-ONE	hermes_cli/update_cmd.py
+reports/round-1-capabilities-full.md	2406	doctor.py:708	AMBIGUOUS	3 个候选(BASELINE)
+reports/round-1-capabilities-full.md	2414	user-guide/security.md:767	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	2539	user-guide/security.md:767	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-capabilities-full.md	2572	tools-runtime.md:96	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-survey.md	125	conversation_loop.py:122	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-survey.md	128	conversation_loop.py:6588	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-survey.md	131	conversation_loop.py:7037	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-survey.md	133	conversation_loop.py:7215	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-survey.md	450	prompt_caching.py:1	BASELINE-ONE	agent/prompt_caching.py
+reports/round-1-survey.md	470	turn_context.py:588	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-survey.md	481	turn_context.py:588	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-survey.md	493	session_search_tool.py:23	BASELINE-ONE	tools/session_search_tool.py
+reports/round-1-survey.md	507	registry.py:216	AMBIGUOUS	5 个候选(BASELINE)
+reports/round-1-survey.md	507	registry.py:220	AMBIGUOUS	5 个候选(BASELINE)
+reports/round-1-survey.md	566	delegation.md:158	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-survey.md	580	cron-internals.md:216	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-survey.md	588	conversation_loop.py:164	BASELINE-ONE	agent/conversation_loop.py
+reports/round-1-survey.md	591	context-compression-and-caching.md:396	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-survey.md	592	provider-runtime.md:180	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-survey.md	593	provider-runtime.md:196	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-survey.md	599	turn_context.py:588	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-survey.md	609	session-storage.md:177	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-survey.md	610	session-storage.md:13	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-1-survey.md	722	tools-runtime.md:96	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-10-client-interface-layer.md	311	events.py:16	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-10-client-interface-layer.md	311	tools.py:10	AMBIGUOUS	6 个候选(BASELINE)
+reports/round-10-client-interface-layer.md	312	auth.py:51	AMBIGUOUS	5 个候选(BASELINE)
+reports/round-10-client-interface-layer.md	312	edit_approval.py:267	BASELINE-ONE	acp_adapter/edit_approval.py
+reports/round-10-client-interface-layer.md	312	entry.py:247	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-10-client-interface-layer.md	495	sqlite.org:443	NOT-IN-TREE	
+reports/round-10-client-interface-layer.md	520	sqlite.org:443	NOT-IN-TREE	
+reports/round-10b-desktop-application.md	155	127.0.0.1:18789	NOT-IN-TREE	
+reports/round-10b-desktop-application.md	155	sqlite.org:443	NOT-IN-TREE	
+reports/round-10b-desktop-application.md	155	api.openai.com:443	NOT-IN-TREE	
+reports/round-10b-desktop-application.md	156	homeassistant.local:8123	NOT-IN-TREE	
+reports/round-10b-desktop-application.md	156	x.test:80	NOT-IN-TREE	
+reports/round-10b-desktop-application.md	156	n.lineno:4	NOT-IN-TREE	
+reports/round-10b-desktop-application.md	161	build.sh:4	BASELINE-ONE	native/fts5_cjk/build.sh
+reports/round-10b-desktop-application.md	179	sqlite.org:443	NOT-IN-TREE+IN-BLOCK	
+reports/round-10b-desktop-application.md	180	127.0.0.1:18789	NOT-IN-TREE+IN-BLOCK	
+reports/round-10b-desktop-application.md	181	api.openai.com:443	NOT-IN-TREE+IN-BLOCK	
+reports/round-10b-desktop-application.md	182	homeassistant.local:8123	NOT-IN-TREE+IN-BLOCK	
+reports/round-10b-desktop-application.md	183	example.rs:443	NOT-IN-TREE+IN-BLOCK	
+reports/round-2-turn-loop.md	77	conversation_loop.py:2330	BASELINE-ONE	agent/conversation_loop.py
+reports/round-3-tool-infrastructure.md	99	tools.md:88	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-4-execution-environments.md	57	permissions.py:34	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-4-execution-environments.md	58	cua_backend.py:1	BASELINE-ONE	tools/computer_use/cua_backend.py
+reports/round-4-execution-environments.md	58	schema.py:14	BASELINE-ONE	tools/computer_use/schema.py
+reports/round-4-execution-environments.md	58	vision_routing.py:1	BASELINE-ONE	tools/computer_use/vision_routing.py
+reports/round-4-execution-environments.md	87	tools.md:88	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-4-execution-environments.md	93	tools.md:148	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-7-gateway-session-core.md	43	session.py:1058	AMBIGUOUS	3 个候选(BASELINE)
+reports/round-7b-platform-integration.md	94	gateway-internals.md:86	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-7c-gateway-periphery-and-scheduling.md	103	agent/run_agent.py:3710	NOT-IN-TREE	
+reports/round-7c-gateway-periphery-and-scheduling.md	106	webhooks.md:453	AMBIGUOUS	3 个候选(BASELINE)
+reports/round-8-fix-review-1.md	37	ADDING_A_PLATFORM.md:135	BASELINE-ONE	gateway/platforms/ADDING_A_PLATFORM.md
+reports/round-8-fix-review-1.md	192	config.py:4995	AMBIGUOUS	4 个候选(BASELINE)
+reports/round-8-fix-review-1.md	193	config.py:5123	AMBIGUOUS	4 个候选(BASELINE)
+reports/round-8-fix-review-1.md	194	auth.py:7397	AMBIGUOUS	5 个候选(BASELINE)
+reports/round-8-fix-review-1.md	195	credential_lifecycle.py:174	BASELINE-ONE	hermes_cli/credential_lifecycle.py
+reports/round-8-fix-review-1.md	196	auth.py:7329	AMBIGUOUS	5 个候选(BASELINE)
+reports/round-8-fix-review-1.md	199	auth.py:7397	AMBIGUOUS	5 个候选(BASELINE)
+reports/round-8-fix-review-1.md	233	tools-runtime.md:96	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-8-fix-review-1.md	240	gateway-internals.md:86	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-8-fix-review-1.md	267	base.py:5711	AMBIGUOUS	9 个候选(BASELINE)
+reports/round-8-fix-review-1.md	271	base.py:3780	AMBIGUOUS	9 个候选(BASELINE)
+reports/round-8-fix-review-1.md	273	docker.py:1961	BASELINE-ONE	tools/environments/docker.py
+reports/round-8-fix-review-1.md	277	models_dev.py:11	BASELINE-ONE	agent/models_dev.py
+reports/round-8-fix-review-1.md	277	tool_result_storage.py:172	BASELINE-ONE	tools/tool_result_storage.py
+reports/round-8-fix-review-1.md	286	tools-runtime.md:96	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-8-fix-review-1.md	286	prompt-assembly.md:39	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-8-fix-review-1.md	286	ADDING_A_PLATFORM.md:135	BASELINE-ONE	gateway/platforms/ADDING_A_PLATFORM.md
+reports/round-8-fix-review-1.md	286	cua_backend.py:2050	BASELINE-ONE	tools/computer_use/cua_backend.py
+reports/round-8-fix-review-1.md	411	config.py:3112	AMBIGUOUS	4 个候选(BASELINE)
+reports/round-8a-configuration-surface.md	341	faq.md:96	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-8a-configuration-surface.md	362	config.py:3611	AMBIGUOUS	4 个候选(BASELINE)
+reports/round-8a-configuration-surface.md	376	config.py:3183	AMBIGUOUS	4 个候选(BASELINE)
+reports/round-8a-configuration-surface.md	428	env_loader.py:477	BASELINE-ONE	hermes_cli/env_loader.py
+reports/round-8a-configuration-surface.md	439	127.0.0.1:18789	NOT-IN-TREE	
+reports/round-8b-cli-trunk-and-interaction.md	67	server.py:5811	AMBIGUOUS+IN-BLOCK	4 个候选(BASELINE)
+reports/round-8b-cli-trunk-and-interaction.md	178	doctor.py:2548	AMBIGUOUS	3 个候选(BASELINE)
+reports/round-8b-cli-trunk-and-interaction.md	179	commands.py:181	BASELINE-ONE	hermes_cli/commands.py
+reports/round-8b-cli-trunk-and-interaction.md	417	auth.py:7329	AMBIGUOUS	5 个候选(BASELINE)
+reports/round-9a-capability-organization.md	179	creating-skills.md:178	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-9a-capability-organization.md	260	curator.py:1644	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-9c-external-interfaces.md	197	adapter.py:471	AMBIGUOUS	24 个候选(BASELINE)
+reports/round-9c-external-interfaces.md	277	codex_app_server_session.py:619	BASELINE-ONE	agent/transports/codex_app_server_session.py
+reports/round-9c-external-interfaces.md	278	chat_completion_helpers.py:2172	BASELINE-ONE	agent/chat_completion_helpers.py
+reports/round-9c-external-interfaces.md	279	transports/__init__.py:53	AMBIGUOUS	2 个候选(BASELINE)
+reports/round-9c-external-interfaces.md	280	microsoft_graph_client.py:139	BASELINE-ONE	tools/microsoft_graph_client.py
+reports/round-9c-external-interfaces.md	281	billing_usage.py:270	BASELINE-ONE	agent/billing_usage.py
+reports/round-9c-external-interfaces.md	283	file_safety.py:281	BASELINE-ONE	agent/file_safety.py
+reviews/review-1-full-corpus.md	153	base.py:5711	AMBIGUOUS	9 个候选(BASELINE)
+reviews/review-1-full-corpus.md	181	gateway-internals.md:86	AMBIGUOUS	2 个候选(BASELINE)
+reviews/review-1-full-corpus.md	460	tools.md:88	AMBIGUOUS	2 个候选(BASELINE)
+reviews/review-1-full-corpus.md	461	tools.md:88	AMBIGUOUS	2 个候选(BASELINE)
+reviews/review-1-full-corpus.md	517	__init__.py:686	AMBIGUOUS	171 个候选(BASELINE)
+reviews/review-1-full-corpus.md	524	base.py:781	AMBIGUOUS	9 个候选(BASELINE)
+reviews/review-1-full-corpus.md	548	memory_manager.py:347	AMBIGUOUS	2 个候选(BASELINE)
+reviews/review-1-full-corpus.md	562	r4-execution-environments.md:112	STUDY-ONE+IN-BLOCK	chapters/r4-execution-environments.md
+reviews/review-1-full-corpus.md	563	r7b-platform-integration.md:471	STUDY-ONE+IN-BLOCK	chapters/r7b-platform-integration.md
+reviews/review-1-full-corpus.md	603	round-1-capabilities-full.md:342	STUDY-ONE+IN-BLOCK	reports/round-1-capabilities-full.md
+reviews/review-1-full-corpus.md	604	round-1-capabilities-full.md:826	STUDY-ONE+IN-BLOCK	reports/round-1-capabilities-full.md
+reviews/review-1-full-corpus.md	715	session_context.py:74	BASELINE-ONE	gateway/session_context.py
+reviews/review-1-full-corpus.md	726	session_context.py:46	BASELINE-ONE	gateway/session_context.py
+reviews/review-1-full-corpus.md	1029	tools-runtime.md:96	AMBIGUOUS	2 个候选(BASELINE)
+reviews/review-1-full-corpus.md	1030	prompt-assembly.md:31	AMBIGUOUS	2 个候选(BASELINE)
+reviews/review-1-full-corpus.md	1031	ADDING_A_PLATFORM.md:135	BASELINE-ONE	gateway/platforms/ADDING_A_PLATFORM.md
+reviews/review-1-full-corpus.md	1032	ADDING_A_PLATFORM.md:66	BASELINE-ONE	gateway/platforms/ADDING_A_PLATFORM.md
+reviews/review-1-full-corpus.md	1033	tool.py:1330	BASELINE-ONE	tools/computer_use/tool.py
+reviews/review-1-full-corpus.md	1033	cua_backend.py:2050	BASELINE-ONE	tools/computer_use/cua_backend.py
+reviews/review-1-full-corpus.md	1183	base.py:5711	AMBIGUOUS	9 个候选(BASELINE)
+reviews/review-1-full-corpus.md	1187	ADDING_A_PLATFORM.md:103	BASELINE-ONE	gateway/platforms/ADDING_A_PLATFORM.md
+reviews/review-1-full-corpus.md	1189	docker.py:1958	BASELINE-ONE	tools/environments/docker.py
+reviews/review-1-full-corpus.md	1193	models_dev.py:11	BASELINE-ONE	agent/models_dev.py
+reviews/review-1-full-corpus.md	1193	tool_result_storage.py:172	BASELINE-ONE	tools/tool_result_storage.py
+reviews/review-1-full-corpus.md	1195	session_context.py:74	BASELINE-ONE	gateway/session_context.py
+reviews/review-1-full-corpus.md	1197	approval.py:3767	BASELINE-ONE	tools/approval.py
+reviews/review-1-full-corpus.md	1202	tools-runtime.md:96	AMBIGUOUS	2 个候选(BASELINE)
+reviews/review-1-full-corpus.md	1202	prompt-assembly.md:39	AMBIGUOUS	2 个候选(BASELINE)
+reviews/review-1-full-corpus.md	1202	ADDING_A_PLATFORM.md:135	BASELINE-ONE	gateway/platforms/ADDING_A_PLATFORM.md
+reviews/review-1-full-corpus.md	1202	cua_backend.py:2050	BASELINE-ONE	tools/computer_use/cua_backend.py
+reviews/review-1-full-corpus.md	1203	tools-runtime.md:96	AMBIGUOUS	2 个候选(BASELINE)
+reviews/review-1-full-corpus.md	1206	gateway-internals.md:9	AMBIGUOUS	2 个候选(BASELINE)
+reviews/review-1-full-corpus.md	1211	env_loader.py:669	BASELINE-ONE	hermes_cli/env_loader.py
+reviews/review-1-full-corpus.md	1334	tools.md:88	AMBIGUOUS+IN-BLOCK	2 个候选(BASELINE)
+reviews/review-1-full-corpus.md	1340	configuration.md:1646	AMBIGUOUS+IN-BLOCK	4 个候选(BASELINE)
+reviews/review-1-full-corpus.md	1606	config_defaults.py:2129	BASELINE-ONE+IN-BLOCK	hermes_cli/config_defaults.py
+reviews/review-1-full-corpus.md	1606	config.py:4660	AMBIGUOUS+IN-BLOCK	4 个候选(BASELINE)

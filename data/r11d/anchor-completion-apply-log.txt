@@ -1,0 +1,80 @@
+== 负控:待改写位置 vs 严格围栏口径 ==
+  落在严格围栏内部的待改写位置:0  (必须为 0)
+  两种口径分歧的围栏行(宽口径认、严格口径不认):1
+    ('reports/round-8-fix-review-1.md', 414, '```` ```verify ```` 块会被真跑一遍,「非零退出 + 有 stderr」判 `EVIDENCE-RUN')
+== 普查(RESOLVED 不计) ==
+    86  AMBIGUOUS
+    57  BASELINE-ONE
+    10  NOT-IN-TREE
+     5  NOT-IN-TREE+IN-BLOCK
+     1  AMBIGUOUS+IN-BLOCK
+
+== reports/ 落盘补全 ==
+   30  reports/round-1-capabilities-full.md
+        :26  agent_init.py:470  ->  agent/agent_init.py:470
+        :51  conversation_loop.py:122-201  ->  agent/conversation_loop.py:122-201
+        :53  conversation_loop.py:6597-6615  ->  agent/conversation_loop.py:6597-6615
+        :58  conversation_loop.py:2133  ->  agent/conversation_loop.py:2133
+        :80  conversation_loop.py:2348-2394  ->  agent/conversation_loop.py:2348-2394
+        :92  conversation_loop.py:6588-6903  ->  agent/conversation_loop.py:6588-6903
+        :134  conversation_loop.py:7037-7206  ->  agent/conversation_loop.py:7037-7206
+        :158  conversation_loop.py:7215-7308  ->  agent/conversation_loop.py:7215-7308
+        :176  turn_finalizer.py:127-141  ->  agent/turn_finalizer.py:127-141
+        :180  conversation_loop.py:164-197  ->  agent/conversation_loop.py:164-197
+        :180  conversation_loop.py:6594-6615  ->  agent/conversation_loop.py:6594-6615
+        :196  chat_completion_helpers.py:451  ->  agent/chat_completion_helpers.py:451
+        :230  prompt_caching.py:1-8  ->  agent/prompt_caching.py:1-8
+        :235  credential_pool.py:633  ->  agent/credential_pool.py:633
+        :249  error_classifier.py:623  ->  agent/error_classifier.py:623
+        :263  chat_completion_helpers.py:1730  ->  agent/chat_completion_helpers.py:1730
+        :277  auxiliary_client.py:5391  ->  agent/auxiliary_client.py:5391
+        :329  usage_pricing.py:1205  ->  agent/usage_pricing.py:1205
+        :365  anthropic_adapter.py:777  ->  agent/anthropic_adapter.py:777
+        :428  prompt_builder.py:2062  ->  agent/prompt_builder.py:2062
+        :694  session_search_tool.py:23  ->  tools/session_search_tool.py:23
+        :849  approval.py:434  ->  tools/approval.py:434
+        :876  url_safety.py:487-493  ->  tools/url_safety.py:487-493
+        :876  url_safety.py:466-472  ->  tools/url_safety.py:466-472
+        :929  mcp_tool.py:2398-2422  ->  tools/mcp_tool.py:2398-2422
+        :1046  docker.py:1961-1966  ->  tools/environments/docker.py:1961-1966
+        :1553  run.py:16584  ->  gateway/run.py:16584
+        :1576  run.py:14479-14500  ->  gateway/run.py:14479-14500
+        :2365  update_cmd.py:3564  ->  hermes_cli/update_cmd.py:3564
+        :2380  update_cmd.py:725  ->  hermes_cli/update_cmd.py:725
+    7  reports/round-1-survey.md
+        :125  conversation_loop.py:122-201  ->  agent/conversation_loop.py:122-201
+        :128  conversation_loop.py:6588-6903  ->  agent/conversation_loop.py:6588-6903
+        :131  conversation_loop.py:7037-7206  ->  agent/conversation_loop.py:7037-7206
+        :133  conversation_loop.py:7215-7308  ->  agent/conversation_loop.py:7215-7308
+        :450  prompt_caching.py:1-8  ->  agent/prompt_caching.py:1-8
+        :493  session_search_tool.py:23  ->  tools/session_search_tool.py:23
+        :588  conversation_loop.py:164-197  ->  agent/conversation_loop.py:164-197
+    1  reports/round-10-client-interface-layer.md
+        :312  edit_approval.py:267  ->  acp_adapter/edit_approval.py:267
+    1  reports/round-10b-desktop-application.md
+        :161  build.sh:4-6  ->  native/fts5_cjk/build.sh:4-6
+    1  reports/round-2-turn-loop.md
+        :77  conversation_loop.py:2330-2331  ->  agent/conversation_loop.py:2330-2331
+    3  reports/round-4-execution-environments.md
+        :58  cua_backend.py:1-11  ->  tools/computer_use/cua_backend.py:1-11
+        :58  schema.py:14-16  ->  tools/computer_use/schema.py:14-16
+        :58  vision_routing.py:1-20  ->  tools/computer_use/vision_routing.py:1-20
+    7  reports/round-8-fix-review-1.md
+        :37  ADDING_A_PLATFORM.md:135  ->  gateway/platforms/ADDING_A_PLATFORM.md:135
+        :195  credential_lifecycle.py:174  ->  hermes_cli/credential_lifecycle.py:174
+        :273  docker.py:1961  ->  tools/environments/docker.py:1961
+        :277  models_dev.py:11  ->  agent/models_dev.py:11
+        :277  tool_result_storage.py:172-178  ->  tools/tool_result_storage.py:172-178
+        :286  ADDING_A_PLATFORM.md:135  ->  gateway/platforms/ADDING_A_PLATFORM.md:135
+        :286  cua_backend.py:2050-2053  ->  tools/computer_use/cua_backend.py:2050-2053
+    1  reports/round-8a-configuration-surface.md
+        :428  env_loader.py:477  ->  hermes_cli/env_loader.py:477
+    1  reports/round-8b-cli-trunk-and-interaction.md
+        :179  commands.py:181  ->  hermes_cli/commands.py:181
+    5  reports/round-9c-external-interfaces.md
+        :277  codex_app_server_session.py:619  ->  agent/transports/codex_app_server_session.py:619
+        :278  chat_completion_helpers.py:2172  ->  agent/chat_completion_helpers.py:2172
+        :280  microsoft_graph_client.py:139  ->  tools/microsoft_graph_client.py:139
+        :281  billing_usage.py:270  ->  agent/billing_usage.py:270
+        :283  file_safety.py:281-283  ->  agent/file_safety.py:281-283
+  小计:57 处 / 10 份
