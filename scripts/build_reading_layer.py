@@ -265,6 +265,24 @@ class Corpus:
             raise BuildError(f"{rel} 里没有 H2 小节「{title}」;相近的:{near}")
         return ch["by_title"][title]
 
+    def heading(self, rel, title):
+        """按**任意层级**的标题定位,返回 (标题, 它所在的 H2 小节)。
+
+        问题索引要指到**小节**,而各章真正的小节粒度是 H3(`### 3.7 …`);
+        只认 H2 会把读者送到一个几千字的 `## 3. 逐机制` 门口。锚点因此按 H3 自己算,
+        而**钉子仍钉在它所在的那个 H2 上**——`h2_sections` 本来就把 H3 子节含在内,
+        所以 H3 改了 H2 的钉子一样会炸,而钉子数不会随索引条数膨胀。
+        """
+        ch = self.chapter(rel)
+        if title not in ch["slugs"]:
+            near = "、".join(t for t in ch["slugs"] if t[:5] == title[:5]) or "(无相近标题)"
+            raise BuildError(f"{rel} 里没有标题「{title}」;相近的:{near}")
+        for sec in ch["sections"]:
+            if title == sec["title"] or any(
+                    re.match(r"^#{1,6} " + re.escape(title) + r"\s*$", ln) for ln in sec["lines"]):
+                return title, sec
+        raise BuildError(f"{rel} 的标题「{title}」不在任何 H2 小节内(疑为章标题 H1)")
+
     def link(self, rel, title=None):
         ch = self.chapter(rel)
         base = f"../{rel}"
@@ -620,11 +638,11 @@ def build_index(corpus, refs):
             out.append(f"### {key[1]}")
             out.append("")
             for chapter, section, why in rows[key]:
-                sec = corpus.section(chapter, section)
-                refs.add((chapter, section))
+                title, sec = corpus.heading(chapter, section)
+                refs.add((chapter, sec["title"]))
                 ch = corpus.chapter(chapter)
-                out.append(f"- [第 {ch['no']} 章 · {ch['title']} § {sec['title']}]"
-                           f"({corpus.link(chapter, section)}) —— {why}")
+                out.append(f"- [第 {ch['no']} 章 · {ch['title']} § {title}]"
+                           f"({corpus.link(chapter, title)}) —— {why}")
             out.append("")
 
     # 未被任何问题指向的章,必须显式列出(验收项 3)
