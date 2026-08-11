@@ -1,0 +1,339 @@
+group	problem	chapter	section	why
+模型与推理调用	一轮对话里 agent 反复调模型、执行工具,这个循环该怎么组织?	chapters/r2-turn-loop-and-model-access.md	TL;DR(快读路径:读这一段就有全貌)	五个最重要的设计一次给全:恢复阶梯、三级介入、多协议、凭据池、缓存侧车
+模型与推理调用	一轮对话里 agent 反复调模型、执行工具,这个循环该怎么组织?	chapters/r2-turn-loop-and-model-access.md	1. 从一个场景说起:一句话背后的一轮循环	一次具体请求的走法,并点破主循环不在名字最像的那个文件里
+模型与推理调用	一轮对话里 agent 反复调模型、执行工具,这个循环该怎么组织?	chapters/r2-turn-loop-and-model-access.md	2. 全景:一个 turn 的生命周期	三层嵌套骨架:外层循环、内层重试、工具批次内并发
+模型与推理调用	模型一直在调工具不给最终答复,怎么让它停、停的时候怎么收场?	chapters/r2-turn-loop-and-model-access.md	3.1 预算:两道闸,和一次"最后的总结"	调用数与可退款预算双上限,耗尽时用一次无工具总结兜底而不中途施压
+模型与推理调用	模型调用挂在那里不返回,怎么发现挂死并且救回来?	chapters/r2-turn-loop-and-model-access.md	3.3 调用模型:为什么永远用流式	默认永远流式是为了拿到多久没新字这个健康信号,含三档超时与连败熔断
+模型与推理调用	我想随时换模型服务商,循环里要不要为每一家写一套?	chapters/r2-turn-loop-and-model-access.md	3.4 模型有很多种:一个字符串搞定协议分流	一个 api_mode 字符串分流四种线协议,细节收进各自适配器
+模型与推理调用	长对话的 prompt 缓存老是失效,哪些操作会把它弄脏?	chapters/r2-turn-loop-and-model-access.md	3.8 prompt cache:靠"侧车"守住字节稳定这条命脉	把发给模型的字节和给人看的转录分开存,注入永远不改写历史
+模型与推理调用	长对话的 prompt 缓存老是失效,哪些操作会把它弄脏?	chapters/r5-session-state-and-persistence.md	3.6 prompt 装配:按"变化概率"分层保缓存	系统提示按变化概率分三层,时间戳只到日期精度以求全天字节稳定
+模型与推理调用	长对话的 prompt 缓存老是失效,哪些操作会把它弄脏?	chapters/r5-session-state-and-persistence.md	3.7 长期记忆:常驻 + 召回 + 三道防注入	内建记忆在会话开始冻结成快照,中途写入落盘但不改系统提示
+模型与推理调用	长对话的 prompt 缓存老是失效,哪些操作会把它弄脏?	chapters/r9a-capability-organization.md	3.1 skills:能力包,以及三处被绕开的守卫	按变化频率给提示词分层,索引放在易变段的最前面
+模型与推理调用	我要自己写回合循环,有哪些坑必须一开始就知道?	chapters/r2-turn-loop-and-model-access.md	4. 可迁移的设计原则(造你自己的 harness 时怎么做)	七条与代码解耦的原则,含恢复是阶梯不是重试、切换即全量状态同步
+模型与推理调用	同一个 provider 在两个文件里有两套名字,归一化顺序反了会怎样?	chapters/r8d-self-custody.md	3.3 身份:先认出这是谁,再谈怎么调用它	两套命名空间互为逆映射,复合顺序是无注释的隐式契约
+模型与推理调用	让多个模型各答一遍再合并,工具副作用会不会被执行 N 次?	chapters/r9a-capability-organization.md	3.4 MoA:多个模型各答一遍,以及一套跑不到的代码	参谋不传工具、只取文本,以及两套语义相反的实现
+模型与推理调用	一个功能会成倍烧 token,代码里到底有没有预算闸?	chapters/r9a-capability-organization.md	3.4 MoA:多个模型各答一遍,以及一套跑不到的代码	只有并发与长度旋钮,没有一处拿累计花费比阈值
+模型与推理调用	几家模型服务商的线上协议都不一样,主循环怎么才能不必知道?	chapters/r9c-external-interfaces.md	3.1 传输层:一个抽象,和三份互相抄的能力表	传输层抽象加 api_mode 选型,以及动态发现的代价
+模型与推理调用	插件要用模型,是插件注入一个 provider,还是宿主把模型借给它?	chapters/r9c-external-interfaces.md	2. 全景	全景图旁专门纠正这个方向,并指出注册新 provider 另有一条路
+模型与推理调用	模型的内部推理内容,会不会漏给用户、或者把整条回复吃空?	chapters/r9d-tool-surface-and-guard-placement.md	3.6 回合周边:上下文传播与清理	同一个输入在流式路径泄露、在非流式路径清空
+模型与推理调用	推理模型思考几十秒不吐字,被判成流断了还会静默删历史?	chapters/r11b-the-unwritten-layer.md	3.5 一张表决定了会不会静默丢历史	超时地板表是静态名单,新模型上架无人提醒更新
+工具与执行	模型一次请求了五个工具,能不能全都并发跑?	chapters/r2-turn-loop-and-model-access.md	3.9 工具批次:分段调度,不是无脑并发	按只读性、文件目标重叠、交互性切成并行段与屏障段,保持模型原始顺序
+工具与执行	两个并发的动作改同一个文件,后写的把先写的覆盖了怎么办?	chapters/r2-turn-loop-and-model-access.md	3.9 工具批次:分段调度,不是无脑并发	单个 agent 一批工具内的读写路径重叠,靠分段调度串行化
+工具与执行	两个并发的动作改同一个文件,后写的把先写的覆盖了怎么办?	chapters/r4-execution-environments.md	3.8 两个支撑件:跨代理文件新鲜度 + V4A 补丁	跨子代理的读后写覆盖,靠进程级注册表记读时间戳与全局最后写者
+工具与执行	模型说要调一个工具,从收到到执行完中间要过哪些关?	chapters/r3-tool-infrastructure.md	TL;DR(快读路径:读这一段就有全貌)	四大块与贯穿全章的把外部输入全部当不可信这一哲学
+工具与执行	模型说要调一个工具,从收到到执行完中间要过哪些关?	chapters/r3-tool-infrastructure.md	1. 从一个场景说起:一次工具调用要过多少道关	一次终端调用的七段固定管线,从参数纠偏到结果改写
+工具与执行	模型说要调一个工具,从收到到执行完中间要过哪些关?	chapters/r3-tool-infrastructure.md	2. 全景:工具系统的四大块	四大块的关系图:窄腰决定看得见什么,安全防线横切在执行之前
+工具与执行	工具越加越多,怎么自动发现又不让每个 agent 都看见全部?	chapters/r3-tool-infrastructure.md	3.1 窄腰:注册(工具存在)和暴露(对谁可见)是两层	语法树静态发现做零维护清单,toolset 单独管对谁可见
+工具与执行	多步工具链每步一次模型往返太慢太贵,能让模型写脚本一次跑完吗?	chapters/r3-tool-infrastructure.md	3.5 execute_code:让 LLM 写脚本调工具,但不给它钥匙	RPC 边界、一次性 token、环境洗净、审批跨线程传播四层保证
+工具与执行	同一份工具 schema,换一家服务商整条请求就被拒了怎么办?	chapters/r3-tool-infrastructure.md	3.7 schema 经济:清洗、限长、渐进披露	清洗只作用于发出去的副本,参数改名靠两侧独立重算做无损往返
+工具与执行	一个工具吐回几 MB 输出,直接进上下文就撑爆了怎么办?	chapters/r3-tool-infrastructure.md	3.7 schema 经济:清洗、限长、渐进披露	三层限长:工具内预截断、单结果落盘换预览、整回合按大小兜底
+工具与执行	接了几千个工具,光工具名就吃掉几万 token,怎么办?	chapters/r3-tool-infrastructure.md	3.7 schema 经济:清洗、限长、渐进披露	渐进披露用三个桥接工具替代大批工具,核心工具永不参与折叠
+工具与执行	agent 说要跑一条命令,这条命令到底落在哪台机器、怎么跑起来?	chapters/r4-execution-environments.md	TL;DR(快读路径:读这一段就有全貌)	三个同心圈:统一假象、各后端的真实差异、两个 GUI 面
+工具与执行	agent 说要跑一条命令,这条命令到底落在哪台机器、怎么跑起来?	chapters/r4-execution-environments.md	1. 从一个场景说起:一条 `pip install` 命令的一生	一条安装命令的六步走法,本机与天边的云沙箱走法完全一样
+工具与执行	agent 说要跑一条命令,这条命令到底落在哪台机器、怎么跑起来?	chapters/r4-execution-environments.md	2. 全景:一条命令的执行骨架	执行骨架图:哪几步所有后端共享,后端唯一要填的是哪一格
+工具与执行	上一条命令切了目录、导出了变量,下一条为什么看不到?	chapters/r4-execution-environments.md	3.1 统一假象:spawn-per-call + 会话快照重放	每命令一个新进程加会话快照重放,含原子写、临时名唯一、按名过滤三处事故
+工具与执行	本机是真进程、云沙箱只是一次阻塞调用,等待和中断怎么只写一遍?	chapters/r4-execution-environments.md	3.2 一个极窄的协议,兼容两类完全不同的后端	一个四方法的鸭子类型协议,阻塞调用用线程加真管道降维成进程
+工具与执行	我想让 agent 的环境闲着不烧钱、下次开工时东西还在,怎么做?	chapters/r4-execution-environments.md	3.3 七种后端、两种范式,和"空闲休眠"的四种真相	空闲休眠底下其实是四种不同的物理机制:拍快照、停机、真 idle 计时
+工具与执行	沙箱里改的文件要同步回本机,中途失败、撞改、超大压缩包怎么办?	chapters/r4-execution-environments.md	3.4 文件进出沙箱:一套事务性同步引擎	正向全成才提交且失败不推进限速钟,反向四层护栏加信号延迟
+工具与执行	模型写的命令里有与号和末尾后台符,直接丢给 bash 会出什么事?	chapters/r4-execution-environments.md	3.5 终端的 shell 语义修补:每一处对准一类真实故障	后台化优先级低于与号这个陷阱及其幂等改写,还有 sudo 密码走标准输入
+工具与执行	agent 起了个后台服务,进程重启后还认得它吗?杀的时候会杀错吗?	chapters/r4-execution-environments.md	3.6 后台进程注册表:崩溃恢复、防误杀、刷屏熔断	检查点做崩溃恢复、内核启动时刻防 PID 复用误杀、strike 熔断防刷屏
+工具与执行	harness 进程重启了,那个装了一堆依赖的容器该留还是该删?	chapters/r4-execution-environments.md	3.7 Docker 跨进程复用 + 孤儿回收(以及一处文档定案)	默认跨进程持久、清理对容器空操作,孤儿回收只碰够老且已退出的
+工具与执行	让 agent 去网页上点按钮,弹出一个原生对话框就卡死了怎么办?	chapters/r4-execution-environments.md	3.9 浏览器自动化栈:一个受监管的浏览器	监督器用对话桥把阻塞式原生对话框转成可编程记录加策略
+工具与执行	有些活只有 GUI 没有 API,能让 agent 操作桌面又不抢我的鼠标吗?	chapters/r4-execution-environments.md	3.10 computer_use:像人一样操作桌面,但不抢你的鼠标	后台投递不抢光标焦点,控制外包给驱动进程,结果区分传输成功与语义生效
+工具与执行	我要自己实现执行层,哪几件事必须一开始就定下来?	chapters/r4-execution-environments.md	4. 可迁移的设计原则(造你自己的执行层时怎么做)	七条:在哪跑与怎么跑解耦、极窄协议吸收差异、持久化落在会话边界
+工具与执行	一次工具调用要跑好几分钟,模型该等着还是先返回?	chapters/r9a-capability-organization.md	3.3 委派:本簇唯一一个守卫问到位的扩展面	顶层一律后台、子 agent 一律同步,理由还是提示词缓存
+工具与执行	一次工具调用要跑好几分钟,模型该等着还是先返回?	chapters/r9b-multimodal-delivery.md	3.3 长任务怎么等:同一簇里的两个相反答案	同一簇里两个相反答案,以及带 job id 再叫一次的写法
+工具与执行	同一个能力有十几家供应商,怎么组织才不用每家写一遍?	chapters/r9b-multimodal-delivery.md	2. 全景	provider 抽象加 registry 注册表加 tool 工具层的三段式
+工具与执行	模型读的说明书说支持本地文件路径,实现却只认 URL,怎么防?	chapters/r9b-multimodal-delivery.md	1. 从一个场景说起:一句"帮我把这张图做成视频"	用一次「把图做成视频」把 schema 与实现的接缝演出来
+工具与执行	模型读的说明书说支持本地文件路径,实现却只认 URL,怎么防?	chapters/r9b-multimodal-delivery.md	4.1 展开第 7 条:本簇 15 条问题里,多数是"副本漂了"	四份副本各写给谁,而模型只读得到 schema 那一份
+工具与执行	工具超时了,该给模型抛一个异常还是给它一句话?	chapters/r9b-multimodal-delivery.md	3.3 长任务怎么等:同一簇里的两个相反答案	把超时翻译成带 job id 的下一步动作,而不是死胡同
+工具与执行	工具超时了,该给模型抛一个异常还是给它一句话?	chapters/r9b-multimodal-delivery.md	4. 可迁移的设计原则	把「给 agent 的错误要写成下一步动作」列成可迁移原则
+工具与执行	代码里要调用出图能力,该走给模型用的那个工具层吗?	chapters/r9b-multimodal-delivery.md	3.5 虚拟宠物:3,653 行到底是什么	宠物资产工厂复用 provider 层却绕开工具层的理由
+工具与执行	agent 刚改完文件就去取诊断,拿到的是上一版的错误,怎么办?	chapters/r9d-tool-surface-and-guard-placement.md	3.2 LSP 子系统:本轮设计质量最高的一块	用文档版本号而非时间戳,一次变更让旧结果全部失效
+工具与执行	等不到结果的时候,该返回「没问题」还是返回「不知道」?	chapters/r9d-tool-surface-and-guard-placement.md	3.2 LSP 子系统:本轮设计质量最高的一块	超时返回 None 而不是空列表,两者对模型是不同信息
+工具与执行	等不到结果的时候,该返回「没问题」还是返回「不知道」?	chapters/r9d-tool-surface-and-guard-placement.md	4. 可迁移的设计原则	把它列成本簇最该抄走的一行设计
+会话、状态与上下文	agent 正忙时又来一条消息,该打断、排队还是塞进正在跑的回合?	chapters/r2-turn-loop-and-model-access.md	3.2 三级用户介入:停 / 补 / 纠	停、补、纠三级破坏性递减,取消后怎么原地重建这一轮
+会话、状态与上下文	agent 正忙时又来一条消息,该打断、排队还是塞进正在跑的回合?	chapters/r7-gateway-session-core.md	3.4 忙时策略 —— interrupt / queue / steer / redirect 与自动降级	网关侧四选一的决策序,含带活跃子代理与压缩飞行中两个自动降级
+会话、状态与上下文	agent 正忙时又来一条消息,该打断、排队还是塞进正在跑的回合?	chapters/r7b-platform-integration.md	3.2 第一层守卫:释放锁比获取锁难得多	适配器侧的忙时决策树,以及审批类命令为什么必须绕过守卫
+会话、状态与上下文	agent 正忙时又来一条消息,该打断、排队还是塞进正在跑的回合?	chapters/r7c-gateway-periphery-and-scheduling.md	3.8 带外输入:什么时候可以打断,什么时候必须排队	判据是这条输入能不能等到下一轮:等不了就 steer,等得了就排队
+会话、状态与上下文	一轮对话有十几种结束方式,怎么保证每种都存了库、收了尾?	chapters/r2-turn-loop-and-model-access.md	3.11 收尾:所有路径共享的单一咽喉	所有结束路径汇入单一咽喉,交付即记录的不变式在这里校验并修复
+会话、状态与上下文	昨天的对话今天怎么接着聊,数据到底存在哪、怎么恢复?	chapters/r5-session-state-and-persistence.md	TL;DR(快读路径:读这一段就有全貌)	记忆侧五块,以及两条暗线:缓存不变量高于一切、进提示的一切都是攻击面
+会话、状态与上下文	昨天的对话今天怎么接着聊,数据到底存在哪、怎么恢复?	chapters/r5-session-state-and-persistence.md	1. 从一个场景说起:一句"继续昨天那个"的一生	一句继续昨天那个要走的五步:找回、重建提示、可能又压缩、检索、落盘
+会话、状态与上下文	昨天的对话今天怎么接着聊,数据到底存在哪、怎么恢复?	chapters/r5-session-state-and-persistence.md	2. 全景:记忆侧的五块与数据流	装配、落盘、压缩、检索、长期记忆五块之间的数据流图
+会话、状态与上下文	多个进程共用一个 SQLite,写不进去的时候该重试多久?	chapters/r5-session-state-and-persistence.md	3.1 会话库:一个 SQLite 文件扛住多进程 + 恶劣文件系统 + 崩溃	时间预算制而非次数制,并按业务重要性分转录、常规、心跳三档
+会话、状态与上下文	给消息表加一列,怎么才能不写迁移又不让老库崩?	chapters/r5-session-state-and-persistence.md	3.2 声明式 schema:加一列只改一处	声明式真源加启动期列 diff 再补列;改主键这类写成每次启动的幂等愈合
+会话、状态与上下文	对话快撑爆上下文窗口了,怎么压缩才不丢正在做的事?	chapters/r5-session-state-and-persistence.md	3.3 上下文压缩:满了怎么优雅地忘	五步算法、触发只认真实 token、密钥红线强制、会话级持久锁防孤儿分叉
+会话、状态与上下文	压缩之后 agent 像失忆,或者把已经做完的事又做一遍,为什么?	chapters/r5-session-state-and-persistence.md	3.4 交接摘要为什么会说错话:三个真实事故	三个真实事故:任务被压掉、完成回合被切开、角色交替把会话永久毒化
+会话、状态与上下文	agent 要搜自己几个月前的对话,中文短词和任意子串怎么搜得到?	chapters/r5-session-state-and-persistence.md	3.5 跨会话检索:三个索引各管一类查询	三个索引按查询形状路由加全表扫描兜底,召回给的是会话级三明治
+会话、状态与上下文	项目根目录里的那些约定文件是怎么进到系统提示里的?	chapters/r5-session-state-and-persistence.md	3.6 prompt 装配:按"变化概率"分层保缓存	四个约定文件按优先级首中即停、超长按窗口比例截断、注入前过威胁扫描
+会话、状态与上下文	我想让 agent 跨会话记住用户的偏好,这套记忆该怎么接进来、存在哪?	chapters/r5-session-state-and-persistence.md	3.7 长期记忆:常驻 + 召回 + 三道防注入	内建记忆冻结成会话起点快照,外部后端当一条可以宕机的慢速旁路
+会话、状态与上下文	我想让 agent 跨会话记住用户的偏好,这套记忆该怎么接进来、存在哪?	chapters/r6-memory-provider-ecosystem.md	3.1 统一插口:一个 ABC + "一次只挂一个"	插口契约只规定注入、召回、摄入、工具、关闭五件事的时机与形状
+会话、状态与上下文	agent 把我的文件改坏了,怎么一键回到它动手之前?	chapters/r5-session-state-and-persistence.md	3.8 检查点:文件的时间机器(和会话是两回事)	外置影子 git 拍文件快照,与会话是两套系统,回滚时联动撤销一个回合
+会话、状态与上下文	我要给 agent 做持久层,哪些约束必须先定下来?	chapters/r5-session-state-and-persistence.md	4. 可迁移的设计原则(造你自己的持久层时怎么做)	七条:单一事实源要扛敌意环境、写重试分档、缓存不变量高于一切
+会话、状态与上下文	我要把长期记忆做成可插拔的,插口该规定什么、不该规定什么?	chapters/r6-memory-provider-ecosystem.md	TL;DR(快读路径:读这一段就有全貌)	四块:统一插口、八种外接大脑、三条贯穿的纪律、MCP 登录
+会话、状态与上下文	我要把长期记忆做成可插拔的,插口该规定什么、不该规定什么?	chapters/r6-memory-provider-ecosystem.md	2. 全景:一个插座,八种大脑	一个插座八种大脑的关系图,装载器与编排器各管什么
+会话、状态与上下文	我要把长期记忆做成可插拔的,插口该规定什么、不该规定什么?	chapters/r6-memory-provider-ecosystem.md	3.1 统一插口:一个 ABC + "一次只挂一个"	七个必答方法、一次只挂一个外部后端、坏 schema 不许毒化工具集
+会话、状态与上下文	记忆后端有云 SaaS 也有纯本地,我该选哪种、各自的代价是什么?	chapters/r6-memory-provider-ecosystem.md	3.2 智能在哪:从本地数学到云 SaaS 的光谱	从本地相位向量数学到云端模型抽取的光谱,两极各自的能力与代价
+会话、状态与上下文	每轮都要把对话写给外部记忆服务,怎么写才不拖慢回复又不丢?	chapters/r6-memory-provider-ecosystem.md	3.3 三档写路径:按"每轮写的价值 × 崩溃容忍度"选	缓冲到会话边界、单写者队列、SQLite 写后台三档,按崩溃容忍度选
+会话、状态与上下文	召回要打网络、延迟秒级,怎么既有个性化开场又每轮零等待?	chapters/r6-memory-provider-ecosystem.md	3.4 读路径:上一轮生产、这一轮消费	单槽缓存上一轮生产这一轮消费,只有第一轮允许有界等待,含读后写栅栏
+会话、状态与上下文	我要做一个插件层,让第三方后端挂进来又拖不垮主流程,该定哪些规矩?	chapters/r6-memory-provider-ecosystem.md	4. 可迁移的设计原则(造你自己的记忆/插件层时怎么做)	七条:记忆是增益不是依赖、写离线三档、失败方向按发起者分层
+会话、状态与上下文	一个进程要同时接待几十场对话,怎么保证它们互不串线?	chapters/r7-gateway-session-core.md	TL;DR(快读路径)	会话键、任务局部身份、回合租约三层配合,外加四条看护线
+会话、状态与上下文	一个进程要同时接待几十场对话,怎么保证它们互不串线?	chapters/r7-gateway-session-core.md	2. 全景	入站到会话键到租约到回合到流式桥到看护线的全景图
+会话、状态与上下文	同一个人在私聊、群、话题里说话,怎么决定这属于哪一场对话?	chapters/r7-gateway-session-core.md	3.1 确定性会话键 —— 多路复用的地基	纯函数拍键的三条隔离规则,以及别名翻转、预期线程等三个平台边角
+会话、状态与上下文	两条消息同时进来,一条的身份被另一条覆盖了,怎么防?	chapters/r7-gateway-session-core.md	3.2 "我是谁"与"我的东西在哪"——contextvars 与 SessionState	身份放任务局部变量,入口先重置再绑定;状态按清理时机分三层
+会话、状态与上下文	两个窗口恢复了同一场会话,转录被交错写坏了怎么办?	chapters/r7-gateway-session-core.md	3.3 回合租约与 run generation —— 写序与迟到者	按最终会话 id 加锁、身份检查释放、超时降级不串行化、单调代数丢弃迟到者
+会话、状态与上下文	后台任务两小时后才跑完,结果怎么回到原来那场对话里?	chapters/r7-gateway-session-core.md	3.7 带外注入 —— wake 的两条路	唤醒的两条路,共同原则是回注必须走真实入口、不造第三条特权通道
+会话、状态与上下文	每条消息都重新装配一个 agent 太贵,缓存住又会吃光内存怎么办?	chapters/r7-gateway-session-core.md	3.8 每会话 agent 缓存 —— 复用与逐出	上限加空闲逐出加会话过期联动,复用判据是一个配置签名哈希
+会话、状态与上下文	我要写一个同时服务几十场对话的 agent 服务,并发上先防哪些坑?	chapters/r7-gateway-session-core.md	4. 可迁移的设计原则	十条:纯函数拍键、锁的键必须等于归属键、可打断的工作一律配单调代数
+会话、状态与上下文	上一次会话摸索出来的经验,下一次怎么还能用得上?	chapters/r9a-capability-organization.md	3.2 学习闭环:把文件系统当数据库	后台复盘写成 skill 目录,下次扫描磁盘即进索引
+会话、状态与上下文	agent 的学习产出该存数据库还是直接写成文件?代价是什么?	chapters/r9a-capability-organization.md	3.2 学习闭环:把文件系统当数据库	文件系统当存储的四项好处,与没有事务这一项代价
+会话、状态与上下文	agent 的学习产出该存数据库还是直接写成文件?代价是什么?	chapters/r9a-capability-organization.md	2. 全景	全景图点明四条线共用磁盘这一个底座
+会话、状态与上下文	上百份能力文档怎么塞进系统提示词而不把上下文撑爆?	chapters/r9a-capability-organization.md	3.1 skills:能力包,以及三处被绕开的守卫	三层渐进披露:索引 5,376 字符对正文 83.7 万字符
+会话、状态与上下文	上百份能力文档怎么塞进系统提示词而不把上下文撑爆?	chapters/r9a-capability-organization.md	4. 可迁移的设计原则	把渐进披露与「那 60 字是路由信号」写成可迁移原则
+会话、状态与上下文	上百份能力文档怎么塞进系统提示词而不把上下文撑爆?	chapters/r11a-ops-and-delivery.md	3.5 随货发出的知识库	只捡顶层 SKILL.md、刻意跳过支撑目录的裁剪规则
+会话、状态与上下文	用户发了一张超长截图,之后每一轮请求都 400,怎么救?	chapters/r9b-multimodal-delivery.md	3.1 图片进历史:一个把会话彻底焊死的故障	不可变历史下进历史前主动缩图,两个维度各留余量
+会话、状态与上下文	跨进程的派工总线,怎么防止两个 agent 抢到同一张卡?	chapters/r9d-tool-surface-and-guard-placement.md	3.3 看板、待办与定时:审批模型的形状	WAL 加 BEGIN IMMEDIATE 加 CAS,四线程同抢一赢三拒
+会话、状态与上下文	用户切换 profile,上一个 profile 的状态没清干净怎么办?	chapters/r10b-desktop-application.md	3.2 状态层:86 个模块,和一次「软切换」漏掉的 12 个	软切换只清 5 个 store,漏掉 12 个纯事件驱动模块
+接入与多平台	用户在聊天软件里发一句话,到 agent 回复,中间要经过哪些环节?	chapters/r1-what-is-hermes-agent.md	1. 从一个场景说起:你对着 Telegram 发了一句话	从 Telegram 一句话串起网关、内核、工具、执行、存储、学习六步
+接入与多平台	用户在聊天软件里发一句话,到 agent 回复,中间要经过哪些环节?	chapters/r7-gateway-session-core.md	1. 从一个场景说起	网关侧逐步走法:适配器归一化、忙时守卫、鉴权、拍会话键、跑回合
+接入与多平台	用户在聊天软件里发一句话,到 agent 回复,中间要经过哪些环节?	chapters/r7b-platform-integration.md	1. 从一个场景说起:一条消息的旅程,和四种搞砸的方式	适配器侧的同一段旅程,外加四种把它搞砸的方式
+接入与多平台	模型在一个字一个字地吐,聊天软件里那条消息怎么平滑生长又不被限流?	chapters/r7-gateway-session-core.md	3.5 流式桥 —— 从模型 token 流到聊天软件里那条会动的消息	类型化事件、同步路由、投递引擎三层,含限速编辑、补代码围栏、终稿去重
+接入与多平台	我要支持很多聊天平台,又不想让差异漏进内核,该怎么抽象?	chapters/r7b-platform-integration.md	TL;DR(快读路径)	三条接入成本曲线,能力位,以及把能力位从方法变成数据的那一步
+接入与多平台	我要支持很多聊天平台,又不想让差异漏进内核,该怎么抽象?	chapters/r7b-platform-integration.md	2. 全景	三条血统汇入同一个基类,基类只向网关暴露一个入口和一组能力位
+接入与多平台	我要支持很多聊天平台,又不想让差异漏进内核,该怎么抽象?	chapters/r7b-platform-integration.md	3.1 能力位:把"平台差异"变成可询问的问题	能力位默认全取最保守,而且说谎也不挂:抛异常就是第二道降级信号
+接入与多平台	我要支持很多聊天平台,又不想让差异漏进内核,该怎么抽象?	chapters/r9d-tool-surface-and-guard-placement.md	3.4 消息外发:谁决定收件人	一种目标语法、每平台一套 ID 正则、三级发送回落与分块
+接入与多平台	一条回复里有 emoji,平台却说超长拒收,该怎么数长度、怎么切?	chapters/r7b-platform-integration.md	3.1 能力位:把"平台差异"变成可询问的问题	长度按 UTF-16 码元计,截断要二分找不劈开字符的最长前缀
+接入与多平台	客户端每次都重发全部历史又不给会话 ID,怎么认出这是同一段对话?	chapters/r7b-platform-integration.md	3.4 api_server:把无状态协议接到有状态 agent 上	哈希系统提示加第一句话造确定性会话 ID,零客户端改造,并交代撞车代价
+接入与多平台	我不想为每个平台写适配器,能不能把接平台这件事整体外包?	chapters/r7b-platform-integration.md	3.6 relay:把"接平台"整体外包	握手时传一个能力描述符,能力位变成数据;含信任边界上的取值归一化
+接入与多平台	接很多平台时,抽象、并发、安全上有哪些现成判据可以直接抄?	chapters/r7b-platform-integration.md	4. 可迁移的设计原则	24 条判据,分抽象、并发、健壮性、安全、文档五组
+接入与多平台	消息发出去了但确认丢了,到底该不该重发?	chapters/r7c-gateway-periphery-and-scheduling.md	3.4 投递面:一条回复怎么变成聊天窗口里的一条消息	不消除歧义而是暴露给人:重发打恢复标记,预算只花在当前发得出去的通道
+接入与多平台	一个平台配了专属频道变量,却永远收不到定时任务的投递?	chapters/r8c-dashboard-and-web.md	5. 地图与代码的出入	内建平台有 home 频道变量却不在投递名单里
+接入与多平台	多个进程都想监听唤醒词,而麦克风只有一个,怎么办?	chapters/r9b-multimodal-delivery.md	3.4 语音链路:从一声"嘿"到一句回话	用文件锁做跨进程单麦克风租约,不自己发明注册协议
+接入与多平台	agent 说话时用户插一句要能打断,怎么不让它被自己的声音打断?	chapters/r9b-multimodal-delivery.md	3.4 语音链路:从一声"嘿"到一句回话	把噪底标定挪到提交合成之后、播放开始之前的安静窗口
+接入与多平台	两家引擎的灵敏度参数方向相反,怎么给用户一个统一语义?	chapters/r9b-multimodal-delivery.md	3.4 语音链路:从一声"嘿"到一句回话	统一成「越高越严」,内部各自取反或做线性映射
+接入与多平台	平台边缘那些每家一套的私有协议适配器,和共享层怎么分工?	chapters/r11b-the-unwritten-layer.md	2. 全景	全景图画出边缘、共享层与那条该走却没走的虚线
+配置与凭据	一把 API 密钥被限流或过期了,怎么自动换一把又不把好钥匙标死?	chapters/r2-turn-loop-and-model-access.md	3.5 凭据池:多把钥匙的状态机	三态状态机加按失败语义分级的冷却,失败归因必须带上失败方身份
+配置与凭据	密钥看着完全正确,服务商却一直报 401,该往哪儿查?	chapters/r2-turn-loop-and-model-access.md	3.5 凭据池:多把钥匙的状态机	一次性刷新令牌被两个进程同时消费,输的那个触发整条令牌链失效
+配置与凭据	密钥看着完全正确,服务商却一直报 401,该往哪儿查?	chapters/r8a-configuration-surface.md	3.8 环境变量那一侧唯一的一条好规则:凭据的 ASCII 清洗	从 PDF 或网页复制的密钥带不可见字符;另有方向键把转义序列写进密钥
+配置与凭据	密钥看着完全正确,服务商却一直报 401,该往哪儿查?	chapters/r8a-configuration-surface.md	5. 地图与代码的出入(本簇定案)	▲-3:读凭据的公共函数有两个方向相反的版本,挑错一个就是持续 401
+配置与凭据	接一个要 OAuth 登录的 MCP 服务器,token 存哪、回调怎么收、过期怎么办?	chapters/r6-memory-provider-ecosystem.md	3.8 MCP OAuth:协议全托 SDK,harness 只做三块胶水	协议全托给 SDK,自己只做存储、回调接收、生命周期三块胶水
+配置与凭据	我在配置里写的键为什么不生效,而且一句提示都没有?	chapters/r6-memory-provider-ecosystem.md	本轮真正的系统性风险:一个拼错了却不报错的键名	清单里的键名拼错成非 schema 键,解析器静默丢弃,五家插件无一写对
+配置与凭据	我在配置里写的键为什么不生效,而且一句提示都没有?	chapters/r8a-configuration-surface.md	3.2 头条:同一份文件,两个装载器,合并语义不同	一条完全正确的命令被告知不是已知键,还附赠一个会把配置弄坏的建议
+配置与凭据	我在配置里写的键为什么不生效,而且一句提示都没有?	chapters/r8b-cli-trunk-and-interaction.md	3.1 死法一:值漂移(上一轮已定案,此处只作对照)	死法一值漂移:遗留键被默认值播种,用户没设过这个判断永久失真
+配置与凭据	我在配置里写的键为什么不生效,而且一句提示都没有?	chapters/r8b-cli-trunk-and-interaction.md	3.2 死法二:层级错位 —— 同一条命令,不同入口给出不同的世界	死法二层级错位:键只存在于一份默认值里,另一个入口读到的是空
+配置与凭据	我在配置里写的键为什么不生效,而且一句提示都没有?	chapters/r8b-cli-trunk-and-interaction.md	3.3 死法三:读它的代码根本跑不到	死法三:读它的那半句代码根本跑不到,而它看起来完全正常
+配置与凭据	配置文件和环境变量里都设了同一件事,到底谁说了算?	chapters/r8a-configuration-surface.md	TL;DR(快读路径)	两套互不相干的系统,文档画的那条四级优先级链在代码里并不存在
+配置与凭据	配置文件和环境变量里都设了同一件事,到底谁说了算?	chapters/r8a-configuration-surface.md	2. 全景:两套东西,一个名字	三条桥的方向,含顶层标量反过来变成环境变量这条反直觉的
+配置与凭据	我照文档配好了、功能也正常,诊断命令却说没配,该信谁?	chapters/r8a-configuration-surface.md	1. 从一个场景说起:我照着文档配了,机器人也好了,面板却说没配	面板读的是改名前的旧变量,兼容分支双重失效,两个诊断命令互相拆台
+配置与凭据	我只改了一个子键,同级的默认值全没了怎么办?	chapters/r8a-configuration-surface.md	3.1 深合并:为什么"改一个键"不该弄丢它的兄弟	递归深合并保住兄弟键,YAML 里的空段解析成 None 也当作没写
+配置与凭据	我只改了一个子键,同级的默认值全没了怎么办?	chapters/r8b-cli-trunk-and-interaction.md	3.2 死法二:层级错位 —— 同一条命令,不同入口给出不同的世界	浅合并的危害取决于读取点兜底能否重建:十四个内置人格被一次增补顶掉
+配置与凭据	同一个配置键,命令行和网关读出来的值不一样,为什么?	chapters/r8a-configuration-surface.md	3.2 头条:同一份文件,两个装载器,合并语义不同	两个装载器各带一份默认值、合并语义还不同,实测同一份文件两个结果
+配置与凭据	用户把配置文件编辑坏了,进程该退回默认值还是保持现状?	chapters/r8a-configuration-surface.md	3.3 解析失败:退回"上一次好的",而不是退回默认值	退回默认值等于把拒绝名单这类限制性规则自己拆了,所以退回上一次好的
+配置与凭据	改了个无关的显示选项,API 密钥就被明文写进配置文件了,怎么防?	chapters/r8a-configuration-surface.md	3.4 读写不对称:读的时候展开密钥,写的时候必须把它变回去	读时展开必须配写时逆变换,并给出值有没有被改动过的三条判据
+配置与凭据	明明改了配置却不生效,重启一下就好了,该往哪儿查?	chapters/r8a-configuration-surface.md	3.5 缓存:键必须覆盖全部输入,而不只是最显眼那个	缓存键只覆盖了最显眼的输入;重启就好了是缓存键不完整的典型征兆
+配置与凭据	配置格式升级了,两年前的老配置怎么自动迁上来?	chapters/r8a-configuration-surface.md	3.6 版本迁移:一张表、一个下限、一个不推进的版本号	表驱动加支持下限,跳号合法;配表的形状与删除安全性两类测试
+配置与凭据	迁移屏幕上说加了十五个键,文件里一个都没有,怎么回事?	chapters/r8a-configuration-surface.md	3.6 版本迁移:一张表、一个下限、一个不推进的版本号	两个各自正确的设计相撞:默认值不落盘的不变式无声吃掉了那一步的写入
+配置与凭据	我关掉了一个工具集,重启之后它又回来了,为什么?	chapters/r8a-configuration-surface.md	3.7 工具集配置:一个"从子集反推"的坑,和它的修法	从复合工具集反推子集,让关掉的重新算启用;修法是换判据不是改数据
+配置与凭据	schema 要演进,该改用户的文件还是读的时候归一化?	chapters/r8a-configuration-surface.md	3.11 两个领域子模式给出的两条额外答案	两种策略的取舍表:旧形状寿命、动不动用户文件、失败面、各自适合什么
+配置与凭据	配置系统该怎么设计,才不会让用户配了却不生效?	chapters/r8a-configuration-surface.md	4. 可迁移的设计原则	二十条判据,含把键的说明做成数据结构必填字段那个对照实验
+配置与凭据	改配置的接口有键名黑名单,另一个入口没有,会发生什么?	chapters/r8c-dashboard-and-web.md	3.4 本章的主题:同一件事有两份实现,只有一份带守卫	无名单的写入口,加上顶层标量在 import 时进环境变量
+配置与凭据	用户删掉一个 API key,怎么保证不会顺手把 OAuth 授权也撤了?	chapters/r8d-self-custody.md	3.4 凭据:散在六个存储里的东西,谁管它们的生老病死	一次字符串等值比较独力承担这条契约
+配置与凭据	删了 .env 里的密钥,下次启动它又回来了,怎么让删除粘得住?	chapters/r8d-self-custody.md	3.4 凭据:散在六个存储里的东西,谁管它们的生老病死	删除时另打抑制标记,以及多实例模式下它失效的边界
+配置与凭据	哪些能力应该默认关闭?一个 harness 的默认配置该包含什么?	chapters/r9b-multimodal-delivery.md	3.6 默认关闭是一种设计	三重默认关闭,以及花钱、占设备、装依赖这条判据
+配置与凭据	API key 不想写进配置文件,能从外部密钥管理器取吗?	chapters/r9c-external-interfaces.md	3.4 密钥来源:钥匙不放在配置里,以及一份没进名单的明文缓存	三种来源的统一契约,以及它为何管不了「发给谁」
+配置与凭据	给子进程传环境变量的助手函数,会不会把别的 profile 的 token 漏进去?	chapters/r9c-external-interfaces.md	3.4 密钥来源:钥匙不放在配置里,以及一份没进名单的明文缓存	为隔离而写的助手却从进程全局取放行清单,方向搞反了
+配置与凭据	同一个仓库里两处都要接 OAuth,一处手写一处用 SDK,怎么选?	chapters/r11b-the-unwritten-layer.md	3.4 同一个仓库,两套 OAuth,选择相反且都对	对手方是一家还是任意一家,决定手写还是全托
+配置与凭据	一个配置项「存在但只生效一半」,怎么会这样?	chapters/r11b-the-unwritten-layer.md	5. 地图与代码的出入	环境变量能覆盖 portal 主机,而二维码模板写死了生产域名
+安全、权限与边界	用户开了免确认模式,模型要跑一条删根命令,该不该放行?	chapters/r3-tool-infrastructure.md	3.2 安全防线之一:命令审批的"地板优先于开关"	审批是有序短路链,硬底线与 sudo 守卫都排在任何便利开关之前
+安全、权限与边界	agent 要去抓一个 URL,怎么防止它被 DNS 骗去读云元数据?	chapters/r3-tool-infrastructure.md	3.3 安全防线之二:SSRF 双层防护,挡住 DNS 欺骗	URL 预检加连接时 IP 钉扎两层,并交代配了代理的沙箱那处妥协
+安全、权限与边界	抓回来的网页里藏着忽略之前的指令,进上下文之前该做什么?	chapters/r3-tool-infrastructure.md	3.4 安全防线之三:把外部内容当攻击面	威胁模式库按攻击类分三档作用域,技能安装用信任乘裁决的二维矩阵
+安全、权限与边界	抓回来的网页里藏着忽略之前的指令,进上下文之前该做什么?	chapters/r5-session-state-and-persistence.md	3.6 prompt 装配:按"变化概率"分层保缓存	项目上下文文件注入前过威胁扫描,命中就整份换成 BLOCKED 占位符
+安全、权限与边界	抓回来的网页里藏着忽略之前的指令,进上下文之前该做什么?	chapters/r5-session-state-and-persistence.md	3.7 长期记忆:常驻 + 召回 + 三道防注入	召回记忆的三道围栏:铸造权归 harness、可见流剥块、写入与载入各扫一次
+安全、权限与边界	抓回来的网页里藏着忽略之前的指令,进上下文之前该做什么?	chapters/r6-memory-provider-ecosystem.md	3.5 防自污染:围栏铸造权 + 写口清洗	注入口剥掉 provider 自带的围栏标签,写口清洗防止召回内容被反刍回存
+安全、权限与边界	抓回来的网页里藏着忽略之前的指令,进上下文之前该做什么?	chapters/r9d-tool-surface-and-guard-placement.md	3.5 检索与浏览器:不可信输入的边界	untrusted 包装白名单只有两个名字,x_search 不在其中
+安全、权限与边界	抓回来的网页里藏着忽略之前的指令,进上下文之前该做什么?	chapters/r9d-tool-surface-and-guard-placement.md	3.2 LSP 子系统:本轮设计质量最高的一块	语言服务器的诊断消息同样按不可信输入处理的理由
+安全、权限与边界	接了一个第三方 MCP 工具服务器,它的名字、描述、进程该怎么设防?	chapters/r3-tool-infrastructure.md	3.6 把外部工具当"不可信输入":MCP 客户端侧的七道防护	命名撞车一律跳过、恶意包预检、父死看门狗三道最有代表性的防护
+安全、权限与边界	我要给 agent 造工具系统,安全上必须先立哪几条规矩?	chapters/r3-tool-infrastructure.md	4. 可迁移的设计原则(造你自己的工具系统时怎么做)	七条:地板优先于开关、防 TOCTOU 要两层、凭据隔离靠边界而不靠信任
+安全、权限与边界	选了远端沙箱后端,是不是就自动有网络出口管控了?	chapters/r4-execution-environments.md	3.3 七种后端、两种范式,和"空闲休眠"的四种真相	出口代理只接线在 Docker 后端,出口管控与选哪个后端是正交的两件事
+安全、权限与边界	用一个小模型改写用户输入,它被提示注入劫持了怎么办?	chapters/r6-memory-provider-ecosystem.md	3.6 查询改写:辅助模型做"不可信输入→受限输出"	输入侧声明为纯数据,输出侧五道确定性形状闸,任一不过就退回原话
+安全、权限与边界	模型在回复里写了一个文件路径,harness 就把文件发了出去,怎么设防?	chapters/r7b-platform-integration.md	3.5 模型想发一个文件:一条被反复加固的外泄边界	八步判定顺序,符号链接必须在任何包含性检查之前解析
+安全、权限与边界	陌生人给机器人发私信,怎么挡住又能让机主批准他?	chapters/r7c-gateway-periphery-and-scheduling.md	3.2 授权与配对:一个"或"出来的 14 层,和一条只能从外面开的门	十四层或逻辑加门只能从外面开;锁定检查必须排在查找待批条目之前
+安全、权限与边界	陌生人给机器人发私信,怎么挡住又能让机主批准他?	chapters/r8a-configuration-surface.md	3.10 配对批准:门只能从外面开,而钥匙捅穿了封装	两把钥匙共用同一个锁芯,分叉长在两层薄壳里,而薄壳没人测
+安全、权限与边界	撤销了一个人的访问,他下一条消息照样被放行,为什么?	chapters/r8a-configuration-surface.md	3.10 配对批准:门只能从外面开,而钥匙捅穿了封装	撤销要写两个地方,而其中一半的失败被吞掉,返回值只反映另一半
+安全、权限与边界	用户合法需要在配置里写任意命令,这种地方怎么做安全校验?	chapters/r8a-configuration-surface.md	3.11 两个领域子模式给出的两条额外答案	闭世界白名单在定义上写不出来,只能钉死已知的坏形状并承认不完备
+安全、权限与边界	浏览器管理界面上批准一台设备接入,这条最敏感的操作靠什么拦住陌生人?	chapters/r8c-dashboard-and-web.md	1. 从一个场景说起:你在手机上点了"允许"	演一遍配对批准的完整请求,点出这条路由自己没有鉴权
+安全、权限与边界	浏览器管理界面上批准一台设备接入,这条最敏感的操作靠什么拦住陌生人?	chapters/r8c-dashboard-and-web.md	3.3 回到 approve_pairing:它到底靠什么	逐层给出它的真实保护来源,以及这个结论的脆弱前提
+安全、权限与边界	我给 HTTP 服务加了鉴权中间件,它却比别的中间件晚跑,顺序谁说了算?	chapters/r8c-dashboard-and-web.md	3.1 中间件的顺序:一处连作者都写反了的地方	讲清后注册先执行的栈语义,以及作者把顺序写反的后果
+安全、权限与边界	管理界面绑到 0.0.0.0 之后就只剩本机令牌保护了,该怎么办?	chapters/r8c-dashboard-and-web.md	3.2 一把锁的两种形态:绑哪儿决定用哪把	让绑定地址自动决定鉴权模式,而且没配好就拒绝启动
+安全、权限与边界	WebSocket 升级请求会不会经过我给 HTTP 装的那套中间件?	chapters/r8c-dashboard-and-web.md	2. 全景	全景图点明 WS 完全绕过六层中间件、另有一套守卫
+安全、权限与边界	免鉴权白名单用前缀匹配,会不会把 /loginXYZ 这种路径也放进去?	chapters/r8c-dashboard-and-web.md	3.4 本章的主题:同一件事有两份实现,只有一份带守卫	同一个函数里两张豁免表,一张精确一张前缀,以及当前暴露面
+安全、权限与边界	OAuth 里的 state 和 PKCE 的 verifier,能不能用同一个随机串?	chapters/r8c-dashboard-and-web.md	3.4 本章的主题:同一件事有两份实现,只有一份带守卫	同仓两条 OAuth 实现的对照,PKCE 退化成裸授权码流程
+安全、权限与边界	守卫写好了却有一条路不问它,这种漏接怎么数出来?	chapters/r8d-self-custody.md	4. 一条贯穿本章的线:守卫存在,但有一条路不问它	把四处并排,指出这是本章真正的分析产出
+安全、权限与边界	守卫写好了却有一条路不问它,这种漏接怎么数出来?	chapters/r8d-self-custody.md	4.1 四个实例	四个实例:写路径、审批策略、插件装载、CVSS 分档
+安全、权限与边界	守卫写好了却有一条路不问它,这种漏接怎么数出来?	chapters/r8d-self-custody.md	4.2 这四处的共同点	把「有没有这个机制」换成「有几条路,每条都问过吗」
+安全、权限与边界	守卫写好了却有一条路不问它,这种漏接怎么数出来?	chapters/r8c-dashboard-and-web.md	3.4 本章的主题:同一件事有两份实现,只有一份带守卫	同一件事两份实现、只有一份带守卫的五个标本
+安全、权限与边界	守卫写好了却有一条路不问它,这种漏接怎么数出来?	chapters/r8c-dashboard-and-web.md	4. 可迁移的设计原则	数一遍「绕过它也能做到同一件事」的路径有几条
+安全、权限与边界	守卫写好了却有一条路不问它,这种漏接怎么数出来?	chapters/r9c-external-interfaces.md	4. 可迁移的设计原则	给防线做覆盖率普查:25 个出网点只接了 2 个
+安全、权限与边界	守卫写了、看起来也在守,但那个条件永远不成立,怎么发现?	chapters/r11b-the-unwritten-layer.md	3.1 守卫装在错的层:一条永远不成立的 if	响应钩子里读下一跳恒为空,实测守卫打印 SKIPPED
+安全、权限与边界	守卫写了、看起来也在守,但那个条件永远不成立,怎么发现?	chapters/r8d-self-custody.md	4.1 四个实例	供应链审计的分档也是恒为假,八行不可达、一律返回未知
+安全、权限与边界	用环境变量关掉安全层图 CI 干净,会有什么后果?	chapters/r8d-self-custody.md	5. 可迁移的设计原则	测试接缝会变成生产旁路:能设环境变量的正是要防的人
+安全、权限与边界	怎么让第三方插件的安装和执行分开,不至于装上就跑起来?	chapters/r8d-self-custody.md	3.5 准入:第三方代码怎么进到这个进程里	装/启用/发现三段准入,启用默认为否、非 TTY 直接判否
+安全、权限与边界	主机白名单加上了,对方回一个 302 凭据还是会出去,怎么办?	chapters/r8d-self-custody.md	3.4 凭据:散在六个存储里的东西,谁管它们的生老病死	跨域重定向改用头白名单,只放行两个头、其余一律丢弃
+安全、权限与边界	主机白名单加上了,对方回一个 302 凭据还是会出去,怎么办?	chapters/r9c-external-interfaces.md	4. 可迁移的设计原则	主机校验与重定向防护是两件事、缺一不可的实测依据
+安全、权限与边界	第三方能力包里写的 shell 片段,会直接在我的机器上跑吗?	chapters/r9a-capability-organization.md	1. 从一个场景说起:你装了一个「查天气」的 skill	把 SKILL.md 的内联 shell 记号放进一次完整的加载走法里
+安全、权限与边界	第三方能力包里写的 shell 片段,会直接在我的机器上跑吗?	chapters/r9a-capability-organization.md	3.1 skills:能力包,以及三处被绕开的守卫	内联 shell 不经审批闸,而安全扫描器不认识这个记号
+安全、权限与边界	skill 声明自己需要某个环境变量,就能拿到我的模型 API key 吗?	chapters/r9a-capability-organization.md	3.1 skills:能力包,以及三处被绕开的守卫	GHSA 事故的因果经过,以及透传名单短路密钥清洗的机制
+安全、权限与边界	让 agent 生一个子 agent 去干活,会不会成为绕开审批的后门?	chapters/r9a-capability-organization.md	3.3 委派:本簇唯一一个守卫问到位的扩展面	深度上限、只减不增的工具集,以及默认拒绝的审批回调
+安全、权限与边界	限制 agent 出网的那个开关,到底能管住多少流量?	chapters/r9a-capability-organization.md	3.6 出网约束:一个名字很唬人、边界很窄的东西	把 egress 的真实边界缩到默认关闭、只对 Docker 沙箱生效
+安全、权限与边界	用名单当安全判据,为什么在扩展面上必然会漏?	chapters/r9a-capability-organization.md	5.3 结构性结论:守卫都在,判据是名单	五道守卫排成一张表,给出名单式判据失效的结构性理由
+安全、权限与边界	一个带凭据的请求,它的目的地到底是谁决定的?	chapters/r9c-external-interfaces.md	1. 从一个场景说起:一次分页读邮件	分页 nextLink 让响应体决定令牌发往哪台主机的实测
+安全、权限与边界	一个带凭据的请求,它的目的地到底是谁决定的?	chapters/r9c-external-interfaces.md	4. 可迁移的设计原则	把目的地可信度分成本地配置、入站消息、远端响应三档
+安全、权限与边界	一个带凭据的请求,它的目的地到底是谁决定的?	chapters/r9a-capability-organization.md	5.3 结构性结论:守卫都在,判据是名单	一次子串判定让入站事件把网关的令牌引到攻击者主机
+安全、权限与边界	一个带凭据的请求,它的目的地到底是谁决定的?	chapters/r11b-the-unwritten-layer.md	3.1 守卫装在错的层:一条永远不成立的 if	最边缘的平台适配器手写了一份带原 bug 的重定向守卫
+安全、权限与边界	为了少 shell 一次,密钥被明文缓存到磁盘,agent 自己读得到吗?	chapters/r9c-external-interfaces.md	3.4 密钥来源:钥匙不放在配置里,以及一份没进名单的明文缓存	两个同型缓存文件,一个有四处守卫,另一个零守卫
+安全、权限与边界	为了少 shell 一次,密钥被明文缓存到磁盘,agent 自己读得到吗?	chapters/r9d-tool-surface-and-guard-placement.md	3.1 文件读写:两张不同的表,和一扇没上锁的门	禁读清单的普查读数:bws_cache 七处、op_cache 零处
+安全、权限与边界	agent 把运行状态 POST 给我配的 webhook,载荷里到底装了什么?	chapters/r9c-external-interfaces.md	3.3 观测与外发:三条通道,以及为什么它们不算同一类问题	提到顶层的键只有四个,工具的完整输出原样进 extra
+安全、权限与边界	agent 把运行状态 POST 给我配的 webhook,载荷里到底装了什么?	chapters/r9c-external-interfaces.md	5. 地图与代码的出入	把这类「风险提示把风险说小了」单独列成一类 ▲
+安全、权限与边界	出站端点没做主机校验,这到底算不算安全缺陷?	chapters/r9c-external-interfaces.md	3.3 观测与外发:三条通道,以及为什么它们不算同一类问题	三条外发通道逐条判定,给出「目的地由谁决定」这条判准
+安全、权限与边界	开发用的假数据夹具,会不会显示到真实账号上?	chapters/r9c-external-interfaces.md	3.5 计费:一句 "never" 和一个绕过它的第二消费者	双钥匙守卫被第二个消费者绕过,docstring 的 never 不成立
+安全、权限与边界	用 isalnum() 去实现一个只允许 ASCII 的名字契约,会出什么事?	chapters/r9c-external-interfaces.md	3.4 密钥来源:钥匙不放在配置里,以及一份没进名单的明文缓存	Python 的 Unicode 语义放行全角名字,可伪造来源标签
+安全、权限与边界	模型被禁止读凭据文件,它换一个工具就读到了,该怎么防?	chapters/r9d-tool-surface-and-guard-placement.md	1. 从一个场景说起:一次回合里,三件被明令禁止的事都办成了	三件被明令禁止的事各换一扇门就办成了的完整演示
+安全、权限与边界	模型被禁止读凭据文件,它换一个工具就读到了,该怎么防?	chapters/r9d-tool-surface-and-guard-placement.md	3.1 文件读写:两张不同的表,和一扇没上锁的门	patch 只查写禁不查读禁,把明文密钥做成 diff 递给模型
+安全、权限与边界	读禁和写禁是两张表,新增一个敏感文件怎么保证两边都加上?	chapters/r9d-tool-surface-and-guard-placement.md	3.1 文件读写:两张不同的表,和一扇没上锁的门	auth.json 漏进写禁表,而文档在「永远阻止」标题下点名它
+安全、权限与边界	定时任务不带模型回合直接跑脚本,审批闸还在路径上吗?	chapters/r9d-tool-surface-and-guard-placement.md	3.3 看板、待办与定时:审批模型的形状	no_agent 档没有回合,提示词扫描与危险命令闸一起落空
+安全、权限与边界	不想让 agent 自己决定给谁发消息,不注册那个工具就够了吗?	chapters/r9d-tool-surface-and-guard-placement.md	3.4 消息外发:谁决定收件人	禁令绑在工具注册上,cronjob 的 deliver 参数一跳绕过
+安全、权限与边界	守卫认的是工具名,还是这次操作实际做了什么?	chapters/r9d-tool-surface-and-guard-placement.md	2. 全景	全景图里五条虚线,每条都是效果发生而守卫没被触发
+安全、权限与边界	守卫认的是工具名,还是这次操作实际做了什么?	chapters/r9d-tool-surface-and-guard-placement.md	3.7 把这个形态数一遍:它是普遍的,还是我挑出来的?	AST 普查 17 处按工具名列举的常量,排除挑选偏差
+安全、权限与边界	守卫认的是工具名,还是这次操作实际做了什么?	chapters/r9d-tool-surface-and-guard-placement.md	4. 可迁移的设计原则	把守卫下沉到收口点,而不是在每个工具入口各判一次
+安全、权限与边界	守卫认的是工具名,还是这次操作实际做了什么?	chapters/r10-client-interface-layer.md	4. 可迁移的设计原则	缝越多守卫要重写越多遍,收口点让新缝自动被覆盖
+安全、权限与边界	把审批权交给外部编辑器,两边权限模型对不齐会怎样?	chapters/r10-client-interface-layer.md	3.2 缝二:编辑器的 ACP —— 审批权第一次交给了外部程序	ACP 的「永久拒绝」被映射成一次性拒绝,下次照样问
+安全、权限与边界	验了 JWT 签名就放行,声明里的信息没拿来限权,会怎样?	chapters/r10-client-interface-layer.md	3.3 缝三与缝四:同一个能力,四个名字	一个令牌可触发别的 profile 的任务:认证与授权少一次绑定
+安全、权限与边界	界面层能不能直接开进程?危险能力该关在哪一侧?	chapters/r10b-desktop-application.md	3.1 边界:渲染层不开进程,这是整个安全模型的本钱	渲染层零进程启动的普查,以及桥作为唯一可枚举的出口
+安全、权限与边界	界面层能不能直接开进程?危险能力该关在哪一侧?	chapters/r10b-desktop-application.md	2. 全景	全景图点明渲染进程与主进程之间只有一座桥
+安全、权限与边界	一段名字叫 verify 的代码,失败分支是重新自签,这算校验吗?	chapters/r10b-desktop-application.md	3.4 供应链:安装器把信任交给了网络	codesign 失败即匿名重签,以及先看失败分支的审阅法
+安全、权限与边界	平台推来一个图片 URL,我出网去下载它,这一步有多危险?	chapters/r11b-the-unwritten-layer.md	1. 从一个场景说起:一条带图的消息进来	用一次带图消息把 SSRF 的威胁模型演成具体的五步
+可靠性、故障与恢复	不同服务商用不同状态码表达同一种失败,怎么统一处理?	chapters/r2-turn-loop-and-model-access.md	3.6 失败恢复:一个分类器,四个恢复开关	一个分类器把各家错误折叠成失败原因加四个正交的恢复开关
+可靠性、故障与恢复	主模型挂了要切备用,除了换个模型名还得同步什么?	chapters/r2-turn-loop-and-model-access.md	3.7 故障转移:切模型 = 换一整套运行时状态	切换是一次全量运行时状态同步,漏掉任何一项都对应一个编号事故
+可靠性、故障与恢复	模型执行完工具后返回了空响应,循环该怎么接住?	chapters/r2-turn-loop-and-model-access.md	3.10 空响应恢复:一个六级阶梯	六级恢复阶梯,每级配一次性守卫,放弃时的哨兵带着不许持久化的标记
+可靠性、故障与恢复	一次可用性探测抖了一下,整组工具就从 agent 里消失了怎么办?	chapters/r3-tool-infrastructure.md	3.1 窄腰:注册(工具存在)和暴露(对谁可见)是两层	探测结果缓存 30 秒再加 60 秒瞬断宽限,只有持续失败才如实反映宕机
+可靠性、故障与恢复	会话库放在网络盘上或者断过电,打开后一条会话都看不到了怎么办?	chapters/r5-session-state-and-persistence.md	3.1 会话库:一个 SQLite 文件扛住多进程 + 恶劣文件系统 + 崩溃	日志模式启用要信返回值、坏库改名隔离不删除、打开期分级自修复且不碰数据
+可靠性、故障与恢复	一个记忆后端卡了五分钟,整个界面还显示 agent 在跑,怎么防?	chapters/r6-memory-provider-ecosystem.md	1. 从一个场景说起:一个配错的 daemon 卡了 298 秒	298 秒事故逼出的两道围栏:写路径必须离线、读路径 8 秒就放弃
+可靠性、故障与恢复	一个记忆后端卡了五分钟,整个界面还显示 agent 在跑,怎么防?	chapters/r6-memory-provider-ecosystem.md	3.7 失败方向:自动路径 fail-open,模型路径 fail-visible	自动路径静默降级,模型显式调用的工具路径返回结构化错误
+可靠性、故障与恢复	agent 十分钟没动静,到底是在干活还是已经死了?	chapters/r7-gateway-session-core.md	3.6 看护面 —— 单一进度钟上的四条线	四条看护线共用 agent 自报的活动时间戳,看门狗特意跑在事件循环之外
+可靠性、故障与恢复	会话永久卡死,一直提示正在中断,只能重启进程,怎么防?	chapters/r7b-platform-integration.md	3.2 第一层守卫:释放锁比获取锁难得多	三个字典构成守卫,难点在释放:清空事件但保留键那个中间态是支点
+可靠性、故障与恢复	会话永久卡死,一直提示正在中断,只能重启进程,怎么防?	chapters/r7b-platform-integration.md	3.3 两个把进程搞挂的 issue,都出在释放路径	递归排水把进程打成段错误,两个各自正确的保守策略合起来是死锁
+可靠性、故障与恢复	定时任务执行到一半进程崩了,重启后会不会跑两次?	chapters/r7c-gateway-periphery-and-scheduling.md	3.3 定时调度:一句话撑起"最多跑一次"	执行前先推进下次触发时间,选最多一次;错过的塌缩成一次并有宽限窗
+可靠性、故障与恢复	从损坏的库里救回两万条消息,紧接着的清理又把它们全删了?	chapters/r8d-self-custody.md	3.2 自我修复:在 import 跑起来之前就得能自救	先合成占位父行再删孤儿,重建计数不进清理统计
+可靠性、故障与恢复	跑多图任务时整个进程都卡了,连无关的定时任务都慢,该限什么?	chapters/r9b-multimodal-delivery.md	3.2 CPU 突发闸:限流要限在真正被耗尽的资源上	限流限在 CPU 而不是请求数,LLM 调用故意不限并发
+可靠性、故障与恢复	审批之后界面卡了十分钟,最后报 turn 超时,完成通知去哪了?	chapters/r9c-external-interfaces.md	3.6 Codex 传输:一个把自己完成通知吃掉的排空循环	排空循环抄漏了终止条件那一支,真实错因被替换
+可靠性、故障与恢复	内外两层超时,外层比内层还短,会发生什么?	chapters/r9d-tool-surface-and-guard-placement.md	3.2 LSP 子系统:本轮设计质量最高的一块	注释写对了不变式却没断言它,一个文档化配置就能打破
+可靠性、故障与恢复	原子写声称失败时会清掉临时文件,实际却残留了,为什么?	chapters/r9d-tool-surface-and-guard-placement.md	3.1 文件读写:两张不同的表,和一扇没上锁的门	shell 单引号里的反斜杠不是转义,trap 删的是别的文件名
+可靠性、故障与恢复	agent 反问用户,而这个平台根本没有回复通道,回合会怎样?	chapters/r9d-tool-surface-and-guard-placement.md	3.6 回合周边:上下文传播与清理	阻塞满默认一小时,而没有任何通道能解锁它
+可靠性、故障与恢复	同一份重试策略客户端一份服务端一份,重试会不会重复扣款?	chapters/r10b-desktop-application.md	3.3 同一件事写两遍:本章缺陷的主形状	幂等钥匙的复用标记零读取点,重试会新铸一把钥匙
+可靠性、故障与恢复	最需要能跑的那条排障命令,偏偏在环境不正常时崩掉,怎么设计?	chapters/r11b-the-unwritten-layer.md	4. 可迁移的设计原则	八处无保护调用点,正确姿态是每个探测块独立降级
+部署、运维与升级	我想在一个进程里跑两套人格,会不会串会话、抢 token、抢端口?	chapters/r7-gateway-session-core.md	3.9 多 profile 多路复用 —— 一进程多人格	键命名空间隔离、凭据独占声明、端口只允许默认档案持有并启动即失败
+部署、运维与升级	一台 7x24 的长跑 agent 进程,除了聊天还会被谁驱动?	chapters/r7c-gateway-periphery-and-scheduling.md	TL;DR(快读路径)	四个外部输入面加一个输出面,以及横切所有机制的生命周期簇
+部署、运维与升级	一台 7x24 的长跑 agent 进程,除了聊天还会被谁驱动?	chapters/r7c-gateway-periphery-and-scheduling.md	1. 从一个场景说起:一台网关的一天	用一天里的五个时刻把五个问题演出来
+部署、运维与升级	一台 7x24 的长跑 agent 进程,除了聊天还会被谁驱动?	chapters/r7c-gateway-periphery-and-scheduling.md	2. 全景	全景图:所有输入先过授权,所有输出汇到投递面
+部署、运维与升级	进程跑在没有 SSH 的地方,怎么从聊天窗口运维它?	chapters/r7c-gateway-periphery-and-scheduling.md	3.1 slash 命令面:给没有 SSH 的进程开的运维通道	注册表、实现、分发三处分离,忙时策略字段决定哪几条命令能打断回合
+部署、运维与升级	部署脚本发来终止信号,正在跑的回合怎么办?超时被强杀怎么办?	chapters/r7c-gateway-periphery-and-scheduling.md	3.5 运行态与关停:和外部监督者赛跑	三层计时器要和外部监督者对齐,关停声明必须在长时间排水之前发出
+部署、运维与升级	机器空着却一直不休眠,而单元测试全绿,问题出在哪?	chapters/r7c-gateway-periphery-and-scheduling.md	3.6 缩容到零:纯函数写对了,调用方喂错了	纯函数把语义外包给调用方,调用方拿了一个名字对、含义完全不同的字段
+部署、运维与升级	长跑进程的运维面该怎么设计,才不会自己骗自己?	chapters/r7c-gateway-periphery-and-scheduling.md	4. 可迁移的设计原则	九条:纯函数要配输入契约、执行前推进、记录层永不驱动决策层
+部署、运维与升级	升级到一半崩了,连修复命令都敲不进去怎么办?	chapters/r8b-cli-trunk-and-interaction.md	5.1 修复命令必须能在"被自己搞坏的环境"里跑起来	入口第一个导入用 try 兜住,把砖化降级成少一个平台优化
+部署、运维与升级	升级到一半崩了,连修复命令都敲不进去怎么办?	chapters/r8d-self-custody.md	3.2 自我修复:在 import 跑起来之前就得能自救	救援代码只用标准库,把「装到一半」建模成四种状态
+部署、运维与升级	进程要替换自己的源码,旧模块还在内存里,怎么才能不崩?	chapters/r8d-self-custody.md	1. 从一个场景说起:你敲下 `hermes update`	把升级这一刻会撞上的四类问题一次性演出来
+部署、运维与升级	进程要替换自己的源码,旧模块还在内存里,怎么才能不崩?	chapters/r8d-self-custody.md	3.1 自我更新:进程在替换自己的时候还活着	让一个返回值同时满足新旧两种调用约定,及其平台代价
+部署、运维与升级	两个终端同时敲了升级命令,先查后写的那把锁挡得住吗?	chapters/r8d-self-custody.md	3.1 自我更新:进程在替换自己的时候还活着	64 个进程对齐启动,三次分别有 7/1/2 个同时认为拿到锁
+部署、运维与升级	一条只是查版本的命令,会不会在用户机器上建出一堆目录?	chapters/r8d-self-custody.md	3.2 自我修复:在 import 跑起来之前就得能自救	快路径下家目录一个文件都不建的实测副产品
+部署、运维与升级	升级命令的退出码 2 到底什么意思?自动化能照文档写吗?	chapters/r8d-self-custody.md	6. 地图与代码的出入	文档把退出码含义写反,照它写的重试脚本会去清工作区
+部署、运维与升级	我的程序要装在用户机器上活很久,除了处理请求还得干哪些事?	chapters/r8d-self-custody.md	2. 全景	自持、身份、准入、边界四组职责,以及它们的依赖关系
+部署、运维与升级	下载回来的脚本和二进制,怎么保证它没被掉包?	chapters/r10b-desktop-application.md	3.4 供应链:安装器把信任交给了网络	安装器从公网取脚本就执行,整个 crate 零散列校验
+部署、运维与升级	下载回来的脚本和二进制,怎么保证它没被掉包?	chapters/r11a-ops-and-delivery.md	3.3 发布:"制品"比你想的少	整条发布链只有 TLS,唯一做哈希的是依赖锁文件
+部署、运维与升级	一行 curl 管道 bash,到底替我做了多少事?	chapters/r11a-ops-and-delivery.md	1. 从一个场景说起:你敲了那行 `curl | bash`	三千多行脚本要处理的平台差异,以及一处自相矛盾的提示
+部署、运维与升级	改一行 Dockerfile 的注释,CI 该跑什么?怎么只跑相关的?	chapters/r11a-ops-and-delivery.md	3.1 CI 不是"跑测试",是一个分类器加一道门	lane 分类器的设计倾向,以及一个扩展名造成的覆盖洞
+部署、运维与升级	某个 CI job 变红了,合并按钮却还是绿的,这是怎么回事?	chapters/r11a-ops-and-delivery.md	3.1 CI 不是"跑测试",是一个分类器加一道门	分支保护只认汇总 job,手写 needs 漏一个就等于没有
+部署、运维与升级	一个容器里要跑两个必须共存的服务,谁负责重启挂掉的那个?	chapters/r11a-ops-and-delivery.md	3.2 容器里跑的不是一个进程,是一棵监督树	s6 监督树的目录约定,两个长驻服务并列各自只依赖 base
+部署、运维与升级	Windows 和 POSIX 两个安装器,文档说的安装器行为指哪一个?	chapters/r11a-ops-and-delivery.md	3.4 一件事写两遍:两个安装器	两份安装器 stage 名只有两处对得上,开关面也不同
+部署、运维与升级	一个叫 all 的依赖 extra,真的会把全部可选依赖装进来吗?	chapters/r11a-ops-and-delivery.md	5. 地图与代码的出入	递归展开只含 11 个 extra,而仓库共定义 45 个
+部署、运维与升级	我要照着搭一条交付链,从 CI 到容器到安装器该有哪几环?	chapters/r11a-ops-and-delivery.md	2. 全景	三条主干:验证与发布、落到机器、发货内容,在用户机器汇合
+界面与客户端	命令在帮助里列着,敲下去却说未知命令,怎么回事?	chapters/r8a-configuration-surface.md	3.9 命令注册表:一份定义,四个各自过滤的视图	一份定义派生四个各自过滤的视图,有多少条命令要先问对谁而言
+界面与客户端	命令在帮助里列着,敲下去却说未知命令,怎么回事?	chapters/r8b-cli-trunk-and-interaction.md	4.3 同一个形状的另一副面孔:两份必须手工对齐的名单	注册表决定用户看到什么、分发链决定用户能做什么,两者靠人对齐
+界面与客户端	敲下一条命令到进入对话,中间到底有多少人在做决定?	chapters/r8b-cli-trunk-and-interaction.md	TL;DR(快读路径)	入口不是那个最像的文件,而且解析参数之前已经做完一大堆决定
+界面与客户端	敲下一条命令到进入对话,中间到底有多少人在做决定?	chapters/r8b-cli-trunk-and-interaction.md	2. 全景	左半边决定用什么配置怎么启动,右半边决定一次交互怎么跑完
+界面与客户端	档案参数决定读哪份配置,可模块导入时就已经读了配置,怎么办?	chapters/r8b-cli-trunk-and-interaction.md	1. 从一个场景说起:`hermes -p work chat` 敲下去之后	在参数解析之前手工扫一遍 argv,以及这一手欠下的带值参数名单债
+界面与客户端	我只是敲了 --help,帮助文本却被打印了两遍,为什么?	chapters/r8b-cli-trunk-and-interaction.md	5.2 `SystemExit` 里,退出码是唯一能分开"我打印完了"和"我失败了"的信息	正常完成和失败用同一个异常类型表达,只有退出码能把两者分开
+界面与客户端	我要写一个 CLI 入口,启动顺序和那些手抄名单该怎么处理?	chapters/r8b-cli-trunk-and-interaction.md	6. 可迁移的设计原则	八条:入口顺序是资源、手抄名单要对账、except 作用域要和注释一样窄
+界面与客户端	文档说不支持某种界面语言,而语言包其实是齐的,怎么会这样?	chapters/r9b-multimodal-delivery.md	4.1 展开第 7 条:本簇 15 条问题里,多数是"副本漂了"	文档少列一种语言还顺带断言它回落英语,而译文叶子键齐全
+界面与客户端	后台网关重启后客户端重连成功,界面却再也收不到消息了?	chapters/r10-client-interface-layer.md	1. 从一个场景说起:你按下 Ctrl+C,然后网关重启了	订阅开关被重置,而唯一的开启点挂在只跑一次的初始化里
+界面与客户端	一个内核要同时接终端、编辑器、浏览器和桌面端,该给几套协议?	chapters/r10-client-interface-layer.md	2. 全景:一个内核,四条缝	四条缝的协议、体量与接口面全表,以及穷举而非抽样的判据
+界面与客户端	协议里的方法越加越多,怎么知道哪些其实已经没人调了?	chapters/r10-client-interface-layer.md	3.1 缝一:终端的 JSON-RPC —— 144 个方法,82 个被用到	144 个方法只有 82 个被终端调用,19 个全仓无调用方
+界面与客户端	什么时候自己重写一个渲染器或者布局引擎才是对的?	chapters/r10-client-interface-layer.md	3.4 为什么要自己养一个渲染器和一个布局引擎	为绕开打包器死锁而重写,并把范围框在实际用到的那一小块
+界面与客户端	桌面端从输入框到内核,中间要穿过哪几层?	chapters/r10b-desktop-application.md	1. 从一个场景说起:你在桌面端敲下一句话	一次输入穿过输入区、状态层、说话人、事件分派、渲染五层
+界面与客户端	界面里有些字符串没翻译,直接显示成程序标识符,类型检查为什么没拦?	chapters/r10b-desktop-application.md	3.3 同一件事写两遍:本章缺陷的主形状	开放式类型对「少了哪个键」毫无意见
+工程方法与项目治理	我要造一个 agent harness,整体该切成哪几块、各块负责什么?	chapters/r1-what-is-hermes-agent.md	TL;DR(读这一段就有全貌)	五句话给出内核、工具、执行、存储、网关的分工与全仓规模
+工程方法与项目治理	我要造一个 agent harness,整体该切成哪几块、各块负责什么?	chapters/r1-what-is-hermes-agent.md	2. 全景:七个部件如何拼在一起	一张图加一张表把七个部件与它们的一句话职责对上
+工程方法与项目治理	面对一个几百万行的陌生仓库,怎么保证没有角落被漏掉?	chapters/r1-what-is-hermes-agent.md	3. 全仓地图:8,530 个文件都归了类	用五层台账把全部文件归层,各层行数加总必须等于全仓总行数
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r1-what-is-hermes-agent.md	4. 一个要提前知道的"坑":地图会骗你,代码不会	立下以代码为准的铁律,并给出一个死代码被当现役特性介绍的实例
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r2-turn-loop-and-model-access.md	5. 地图与代码的出入	回合循环簇的逐条定案:循环位置、迭代上限、并发方式、缓存布局
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r3-tool-infrastructure.md	5. 地图与代码的出入	工具簇定案:安全文档符号名普遍滞后,机制描述大体正确
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r4-execution-environments.md	5. 地图与代码的出入	执行侧定案:是什么层面大体对,默认值、触发时机、覆盖边界普遍滞后
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r5-session-state-and-persistence.md	5. 地图与代码的出入	持久层定案:版本号、默认值、数量、层位系统性滞后,且三处文档自相矛盾
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r6-memory-provider-ecosystem.md	5. 地图与代码的出入	八个记忆后端 README 全部落后于代码,最易腐烂的是表格类宣称
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r7-gateway-session-core.md	5.1 文档写错了(▲ 三处)	网关核心三处 ▲,含会话键示例值与 DM 配对方向写反
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r7-gateway-session-core.md	5.2 文档整块没写(◇)	缩容到零的网关侧整块代码有、文档无,是本簇最大的地图空白
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r7b-platform-integration.md	5. 地图与代码的出入	24 条定案,以及 ▲ 为什么必须连整句整段一起判
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r7c-gateway-periphery-and-scheduling.md	5. 地图与代码的出入	41 条定案挑四类讲:照着做不到的清单、差 900 倍的默认值、幽灵状态
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r8a-configuration-surface.md	5. 地图与代码的出入(本簇定案)	配置面九条 ▲,含文档那条四级优先级链在代码里根本不存在
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r8b-cli-trunk-and-interaction.md	7. 地图与代码的出入(本簇定案)	本簇定案,含文档教用户设的那个键其读取分支是死代码
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r9d-tool-surface-and-guard-placement.md	5. 地图与代码的出入	用「前件成不成立」判定,并按定稿时的快照拆判三类
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r10b-desktop-application.md	6. 地图与代码的出入	整句整段一并判定,两处因此被降级或被撤销
+工程方法与项目治理	文档和代码对不上时该信谁,冲突要怎么记录才不白费?	chapters/r8d-self-custody.md	6. 地图与代码的出入	文档字面为真但显著保守时,记 ◎ 而不是 ▲ 的理由
+工程方法与项目治理	只看博客大概了解 agent 够不够,哪些坑不读代码永远想不到?	chapters/r1-what-is-hermes-agent.md	5. 为什么值得逐条读透(而不是"看个大概")	用空响应、凭据过期、prompt cache 三例说明机制的存在本身最容易漏掉
+工程方法与项目治理	我第一次读这本书,该从哪一章开始、按什么顺序往下?	chapters/r1-what-is-hermes-agent.md	6. 阅读路线	按依赖顺序给出推荐路线,每一章配一句话主题
+工程方法与项目治理	书里这些结论凭什么可信,我怎么自己复核其中一条?	chapters/r1-what-is-hermes-agent.md	7. 这本书怎么写、凭什么可信	三条方法约束:每个断言配行号、测试当规格跑、文档冲突记录在案
+工程方法与项目治理	注释和 docstring 会不会说谎?有没有可复用的判据?	chapters/r7-gateway-session-core.md	5.3 代码内注释也会说谎(源码级漂移)	三处源码级漂移:名字骗人、示例与自述数字对不上、返回值语义早已退化
+工程方法与项目治理	注释和 docstring 会不会说谎?有没有可复用的判据?	chapters/r7-gateway-session-core.md	5.5 本簇的元规律	归纳出用户文档常比开发者文档新等三条腐烂规律
+工程方法与项目治理	注释和 docstring 会不会说谎?有没有可复用的判据?	chapters/r7b-platform-integration.md	5. 地图与代码的出入	路径腐烂:代码注释里指向的文件已搬家,比文档腐烂更难发现
+工程方法与项目治理	注释和 docstring 会不会说谎?有没有可复用的判据?	chapters/r7c-gateway-periphery-and-scheduling.md	5. 地图与代码的出入	时间腐烂:模块注释里出现将来时或具体计数,基本可断定已过期
+工程方法与项目治理	模块写好了、测试也绿,怎么确认它真的被接线调用过?	chapters/r7-gateway-session-core.md	5.4 最重的一级:接线级落差	整个内存监控模块零生产调用点,给出沿启动路径找调用点的核查法
+工程方法与项目治理	模块写好了、测试也绿,怎么确认它真的被接线调用过?	chapters/r7c-gateway-periphery-and-scheduling.md	3.6 缩容到零:纯函数写对了,调用方喂错了	纯函数没写错,调用方喂了一个名字对、含义完全不同的字段
+工程方法与项目治理	模块写好了、测试也绿,怎么确认它真的被接线调用过?	chapters/r8b-cli-trunk-and-interaction.md	3.3 死法三:读它的代码根本跑不到	读配置的那半句因为参数默认值不是 None 而永远跑不到
+工程方法与项目治理	模块写好了、测试也绿,怎么确认它真的被接线调用过?	chapters/r8a-configuration-surface.md	4. 可迁移的设计原则	原则十二:配置键默认值撞上硬编码兜底值时,验证必然给出假阳性
+工程方法与项目治理	怎么才能让文档不腐烂,除了靠自觉还有别的手段吗?	chapters/r7b-platform-integration.md	合起来说明了什么	有测试守着的契约文档全仓最准,没测试守着的贡献了六条 ▲
+工程方法与项目治理	怎么才能让文档不腐烂,除了靠自觉还有别的手段吗?	chapters/r7c-gateway-periphery-and-scheduling.md	4. 可迁移的设计原则	第九条给出佐证:没把文档写进断言的这一簇贡献了 21 条文档矛盾
+工程方法与项目治理	怎么才能让文档不腐烂,除了靠自觉还有别的手段吗?	chapters/r9a-capability-organization.md	5.2 一份没有腐烂的文档	带版本号的契约文档,六项可证伪断言全部成立
+工程方法与项目治理	功能坏了,现象却和一切正常长得一模一样,这类静默失败怎么抓?	chapters/r7c-gateway-periphery-and-scheduling.md	3.7 三次同样的手滑:读一个不存在的字段	取默认值、or 空串、MagicMock 三件套叠加,读错字段毫无声响
+工程方法与项目治理	功能坏了,现象却和一切正常长得一模一样,这类静默失败怎么抓?	chapters/r8a-configuration-surface.md	1. 从一个场景说起:我照着文档配了,机器人也好了,面板却说没配	双重死代码让面板漏显示,而漏显示看起来就像用户自己没配
+工程方法与项目治理	功能坏了,现象却和一切正常长得一模一样,这类静默失败怎么抓?	chapters/r8b-cli-trunk-and-interaction.md	4.1 故事:一个从来没显示过的启动提示	异常被 except 吞掉,且它只在有东西要显示时才抛,于是永远看不见
+工程方法与项目治理	同一个语义在仓库里有好几份实现,怎么防止它们悄悄分叉?	chapters/r8b-cli-trunk-and-interaction.md	4.2 三个独立实例	改对了但只改了 N-1 个消费方的三个独立实例与各自症状
+工程方法与项目治理	同一个语义在仓库里有好几份实现,怎么防止它们悄悄分叉?	chapters/r8b-cli-trunk-and-interaction.md	4.3 同一个形状的另一副面孔:两份必须手工对齐的名单	五份必须手工对齐的名单,其中一份已让命令列得出来却敲不出去
+工程方法与项目治理	同一个语义在仓库里有好几份实现,怎么防止它们悄悄分叉?	chapters/r8a-configuration-surface.md	4. 可迁移的设计原则	原则十六把十七项同一语义多份实现摊开数,同步失败十五项
+工程方法与项目治理	同一个语义在仓库里有好几份实现,怎么防止它们悄悄分叉?	chapters/r9b-multimodal-delivery.md	4.1 展开第 7 条:本簇 15 条问题里,多数是"副本漂了"	四份副本写给四个读者,三例漂移的共同形状与实操修法
+工程方法与项目治理	同一个语义在仓库里有好几份实现,怎么防止它们悄悄分叉?	chapters/r9c-external-interfaces.md	3.2 「同一份知识写第二遍」—— 这一轮把病因看清了	仓库已有钉住副本的测试惯例,而漂的那份不在它的作用域内
+工程方法与项目治理	同一个语义在仓库里有好几份实现,怎么防止它们悄悄分叉?	chapters/r10b-desktop-application.md	3.3 同一件事写两遍:本章缺陷的主形状	重试清单、错误文案、语言包三处两份实现零绑定
+工程方法与项目治理	同一个语义在仓库里有好几份实现,怎么防止它们悄悄分叉?	chapters/r10b-desktop-application.md	3.5 渲染分派表:5 行永远命不中	工具名映射表跨语言腐烂,5 行永远命不中
+工程方法与项目治理	同一个语义在仓库里有好几份实现,怎么防止它们悄悄分叉?	chapters/r10b-desktop-application.md	4. 可迁移的设计原则	一份规则只允许有一个实现,做不到就要一条机器能查的绑定
+工程方法与项目治理	同一个语义在仓库里有好几份实现,怎么防止它们悄悄分叉?	chapters/r11b-the-unwritten-layer.md	3.2 手抄的名单一定会漂	手抄名单必漂的三个实例,以及生成或核对测试这条判据
+工程方法与项目治理	同一个语义在仓库里有好几份实现,怎么防止它们悄悄分叉?	chapters/r11a-ops-and-delivery.md	4. 可迁移的设计原则	把「同一事实写两遍」的地方各写一条断言钉死
+工程方法与项目治理	拆巨型文件时,哪些语句一搬家含义就变了?	chapters/r8b-cli-trunk-and-interaction.md	4.4 同一段代码搬了个家,含义就变了 —— 一个已发货的 bug	global 的含义取决于代码住在哪个模块,搬家不报错只会安静地写错变量
+工程方法与项目治理	两处实现不一致却一直没出事,是不是就可以先不管?	chapters/r8b-cli-trunk-and-interaction.md	4.5 一个反例:靠"每处再防一次"撑住的不一致	不出事的原因是三处各自又防了一次,纵深防御把不一致藏了起来
+工程方法与项目治理	一个两万行的单文件该怎么拆?拆分和安全又有什么关系?	chapters/r8c-dashboard-and-web.md	3.5 一个 17,732 行的文件正在往外拆	按功能簇往外拆,是让守卫能被复用的前提
+工程方法与项目治理	测试全绿,可它其实什么都没验,这种情况怎么发现?	chapters/r9c-external-interfaces.md	4. 可迁移的设计原则	测试替身重抄了被测逻辑,断言只是在验证复制本身
+工程方法与项目治理	测试全绿,可它其实什么都没验,这种情况怎么发现?	chapters/r8d-self-custody.md	3.1 自我更新:进程在替换自己的时候还活着	更新锁的 25 个测试全是顺序语义,并发缺陷测不出来
+工程方法与项目治理	测试全绿,可它其实什么都没验,这种情况怎么发现?	chapters/r8c-dashboard-and-web.md	5. 地图与代码的出入	本该守住 cron 投递名单的那个回归测试类是空的
+工程方法与项目治理	测试全绿,可它其实什么都没验,这种情况怎么发现?	chapters/r10-client-interface-layer.md	3.1 缝一:终端的 JSON-RPC —— 144 个方法,82 个被用到	模块主路径永久走回落分支,模块还在、测试还绿
+工程方法与项目治理	测试全绿,可它其实什么都没验,这种情况怎么发现?	chapters/r11b-the-unwritten-layer.md	5. 地图与代码的出入	一个全仓没人抛的异常,配了一个永远会通过的测试
+工程方法与项目治理	仓库根上几个看着像批处理功能的文件,到底是不是产品功能?	chapters/r9a-capability-organization.md	3.5 研究管线:它不是产品功能	三条判据把研究管线与产品功能分开,并附一条实跑缺陷
+工程方法与项目治理	文档里 15 个默认值有 14 个是对的,剩下那个错的怎么被发现?	chapters/r9a-capability-organization.md	5.1 本簇的 ▲(文档与代码矛盾)	高准确率的文档让其中唯一的那个错误更难被发现
+工程方法与项目治理	仓库里有个三千多行的宠物包,它到底是不是游戏?要不要读?	chapters/r9b-multimodal-delivery.md	3.5 虚拟宠物:3,653 行到底是什么	它是头像形态的状态指示灯,55% 是一次性资产工厂
+工程方法与项目治理	文件名字像是出图链路的一部分,实际跟出图无关,该怎么办?	chapters/r9b-multimodal-delivery.md	5. 地图与代码的出入	命名承诺的归属与真实调用图的出入,代价等同文档说错话
+工程方法与项目治理	怎么知道一个可选依赖没装,而不是等它在半夜炸?	chapters/r9c-external-interfaces.md	3.1 传输层:一个抽象,和三份互相抄的能力表	一个为优雅降级写的 except,把自己代码的 import bug 也吞了
+工程方法与项目治理	怎么知道一个可选依赖没装,而不是等它在半夜炸?	chapters/r10-client-interface-layer.md	4. 可迁移的设计原则	同一个缺失依赖,一处静默不跑 96 个用例、一处只错一条
+工程方法与项目治理	我怀疑自己只是在挑刺,怎么证明一个缺陷形态是普遍的?	chapters/r9d-tool-surface-and-guard-placement.md	3.7 把这个形态数一遍:它是普遍的,还是我挑出来的?	AST 机械枚举 17 处同类常量,把人工实例放回分布里
+工程方法与项目治理	同一个仓库里两份文档互相矛盾,该以哪一份为准?	chapters/r10-client-interface-layer.md	5. 地图与代码的出入	地图自己和自己打架的首例,以及指向不存在清单的文档
+工程方法与项目治理	别人给的结论有没有真跑起来验证过?怎么读出一份分析的限度?	chapters/r10-client-interface-layer.md	6. 本章的限度(必须一起读)	把没跑过的、没装 SDK 的、不在本章的四条限度写进正文
+工程方法与项目治理	fork 了别人的 MIT 代码,许可声明还在吗?	chapters/r10-client-interface-layer.md	3.4 为什么要自己养一个渲染器和一个布局引擎	整个包零许可声明、没有 LICENSE 文件、也没有 license 字段
+工程方法与项目治理	读一个几十万行的仓库,哪些文件只需要知悉用途?交付到什么程度?	chapters/r10b-desktop-application.md	5. 方法论:本项目第一次量出 L3 的成本	先定判据再动手,这一层交「形态账」而不是一份目录
+工程方法与项目治理	随代码一起发货的知识库,要不要和代码一样有守门人?	chapters/r11a-ops-and-delivery.md	3.5 随货发出的知识库	183 份技能文档无仓库级校验,作者本机路径随货发出
+工程方法与项目治理	把参数定义从一个一万两千行的主文件里拆出来,值不值得?	chapters/r11b-the-unwritten-layer.md	3.3 薄壳层:回报在第二个消费者	抽象的判据是第二个消费者,而不是代码变整齐了
+工程方法与项目治理	一个项目里没人写、没人读的边角文件,怎么保证它们真被查过?	chapters/r11b-the-unwritten-layer.md	TL;DR(快读路径)	38 个从未被引用过的文件,补读后查出 14 条代码缺陷

@@ -1,0 +1,120 @@
+        if _lazy_install_target() is None:
+            try:
+                from hermes_cli.config import get_managed_system
+    
+                managed_by = get_managed_system()
+            except Exception:
+                managed_by = ""  # config unreadable — proceed with the install
+            if managed_by:
+                raise FeatureUnavailable(
+                    feature, missing,
+                    f"unsupported on {managed_by}-managed installs: this build's "
+                    f"packages come from {managed_by}, so Hermes cannot install "
+                    f"them at runtime. Add the dependencies for {feature!r} via "
+                    f"{managed_by} (or run a pip/uv install of Hermes instead)."
+                )
+    
+        # Validate every spec against the allowlist + safety regex. Belt and
+        # braces — the keys-in-LAZY_DEPS check above already constrains this.
+        for spec in missing:
+            if not _spec_is_safe(spec):
+                raise FeatureUnavailable(
+                    feature, missing,
+                    f"refusing to install unsafe spec {spec!r}"
+                )
+    
+        if not _allow_lazy_installs():
+>           raise FeatureUnavailable(
+                feature, missing,
+                "lazy installs disabled (security.allow_lazy_installs=false)"
+            )
+E           tools.lazy_deps.FeatureUnavailable: Feature 'search.parallel' unavailable: lazy installs disabled (security.allow_lazy_installs=false). To enable manually: uv pip install 'parallel-web==0.4.2'  (or: pip install 'parallel-web==0.4.2').
+
+tools/lazy_deps.py:898: FeatureUnavailable
+
+During handling of the above exception, another exception occurred:
+
+self = <tests.tools.test_web_tools_config.TestParallelClientConfig object at 0x7fa660b99ed0>
+
+    def test_singleton_returns_same_instance(self):
+        """Second call returns cached client."""
+        with patch.dict(os.environ, {"PARALLEL_API_KEY": "test-key"}):
+            from tools.web_tools import _get_parallel_client
+>           client1 = _get_parallel_client()
+                      ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/tools/test_web_tools_config.py:300: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+plugins/web/parallel/provider.py:85: in _get_sync_client
+    _ensure_parallel_sdk_installed()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _ensure_parallel_sdk_installed() -> None:
+        """Trigger lazy install of the parallel SDK if it isn't present.
+    
+        Mirrors the lazy-deps pattern used by the legacy implementation.
+        Swallows benign ImportError from the lazy_deps helper itself; if the
+        SDK is genuinely missing the subsequent ``from parallel import ...``
+        raises ImportError that the caller can handle.
+        """
+        try:
+            from tools.lazy_deps import ensure as _lazy_ensure
+    
+            _lazy_ensure("search.parallel", prompt=False)
+        except ImportError:
+            pass
+        except Exception as exc:  # noqa: BLE001 — surface install hint as ImportError
+>           raise ImportError(str(exc))
+E           ImportError: Feature 'search.parallel' unavailable: lazy installs disabled (security.allow_lazy_installs=false). To enable manually: uv pip install 'parallel-web==0.4.2'  (or: pip install 'parallel-web==0.4.2').
+
+plugins/web/parallel/provider.py:61: ImportError
+=========================== short test summary info ============================
+FAILED tests/tools/test_web_tools_config.py::TestParallelClientConfig::test_creates_client_with_key
+FAILED tests/tools/test_web_tools_config.py::TestParallelClientConfig::test_singleton_returns_same_instance
+========================= 2 failed, 36 passed in 2.81s =========================
+
+=== 31 files with test failures (75 tests failed) ===
+  tests/acp/test_auth.py  (1 test failed)
+  tests/acp/test_edit_approval.py  (1 test failed)
+  tests/agent/test_auxiliary_transport_autodetect.py  (1 test failed)
+  tests/agent/test_auxiliary_named_custom_providers.py  (1 test failed)
+  tests/agent/test_nous_portal_anthropic_wire.py  (2 tests failed)
+  tests/agent/test_set_runtime_main_custom_provider.py  (1 test failed)
+  tests/agent/test_vision_routing_31179.py  (2 tests failed)
+  tests/gateway/test_webhook_adapter.py  (1 test failed)
+  tests/gateway/test_wecom_callback.py  (2 tests failed)
+  tests/hermes_cli/test_approvals_suggest.py  (1 test failed)
+  tests/hermes_cli/test_browser_connect_dual_stack.py  (1 test failed)
+  tests/hermes_cli/test_gateway_service.py  (1 test failed)
+  tests/hermes_cli/test_migrate_xai.py  (1 test failed)
+  tests/hermes_cli/test_xai_provider_labels.py  (1 test failed)
+  tests/plugins/memory/test_hindsight_provider.py  (6 tests failed)
+  tests/plugins/video_gen/test_fal_plugin.py  (5 tests failed)
+  tests/run_agent/test_nous_fallback_unavailable.py  (1 test failed)
+  tests/run_agent/test_switch_model_reasoning_override.py  (2 tests failed)
+  tests/run_agent/test_streaming.py  (3 tests failed)
+  tests/test_state_db_malformed_repair.py  (1 test failed)
+  tests/tools/test_approval.py  (1 test failed)
+  tests/run_agent/test_run_agent.py  (1 test failed)
+  tests/tools/test_daytona_environment.py  (15 tests failed)
+  tests/tools/test_execution_flag_detection.py  (2 tests failed)
+  tests/tools/test_image_generation.py  (2 tests failed)
+  tests/tools/test_lazy_deps_durable_target.py  (1 test failed)
+  tests/tools/test_managed_media_gateways.py  (1 test failed)
+  tests/tools/test_modal_snapshot_isolation.py  (2 tests failed)
+  tests/tools/test_ssh_environment.py  (5 tests failed)
+  tests/tools/test_video_generation_tool_surface_matrix.py  (8 tests failed)
+  tests/tools/test_web_tools_config.py  (2 tests failed)
+=== 12 files where no tests ran (collection/import error, timeout before collection, etc.) ===
+  tests/acp/test_events.py
+  tests/acp/test_mcp_e2e.py
+  tests/acp/test_permissions.py
+  tests/acp/test_named_provider_catalogs.py
+  tests/acp/test_entry.py
+  tests/acp/test_ping_suppression.py
+  tests/acp/test_tools.py
+  tests/acp/test_server.py
+  tests/acp_adapter/test_acp_commands.py
+  tests/acp_adapter/test_acp_images.py
+  tests/acp_adapter/test_acp_mcp_discovery.py
+  tests/gateway/test_teams.py

@@ -46,10 +46,13 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
 
   ```bash
   python3 scripts/verify_citations.py /home/user/hermes-agent \
-      chapters/*.md notes/rN-*.md reports/round-N-*.md
+      chapters/*.md reading/*.md notes/rN-*.md reports/round-N-*.md
   ```
 
-  即 **`chapters/` 全部** + **本轮的 `notes/` 与 `reports/`**。
+  即 **`chapters/` 全部** + **`reading/` 全部** + **本轮的 `notes/` 与 `reports/`**。
+  *`reading/` 于 R11E 并入(实测有 1 处基线锚点随 `chapters/r7` 的 TL;DR 被逐字带进快读层):
+  派生件虽由脚本生成、源正确则派生正确,但它带着基线锚点进了语料,
+  而**语料里带锚点却不在检查面上的东西,正是本项目反复栽的那一类**。*
   *扩面理由(review-1 建议-3 / M-16 实测):原规则是"本轮 notes + chapters",于是
   `chapters/r4-*.md` 里一处无法解析的裸文件名从 R4 起**从未被跑到过**,一直红到 R8B。
   成品章是要装订进 R12 的东西,任何一轮改坏了都得当轮发现。*
@@ -311,6 +314,29 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   改法:机械口径只保留一条**没有解释空间**的(「该案最后一次出现在移交表还是定案表」),
   词根命中改为**只入 REVIEW 队列、不改判**,并把命中的词与原文一起打出来让否定语境当场可见。
   **判开闭是人的事,普查的事是别让任何一条从眼前消失。***
+- **派工书必须落库(R11E 定,结清 H-R11C-C-b 的可核验性那一半)**:凡派发子代理的轮次,
+  把该轮派工书的**约束条款与产出要求**写进 `data/rN/dispatch-brief.md`。
+  *理由:R10 / R10B / R11A / R11B / R11C **连续五轮**都留了这份文件,R11D 与 R11E 起初都没留。
+  于是 `H-R11C-C-b`(要求把「证据块不得依赖另一个块产生的文件」写进下一轮派工书)
+  在 R11E 被判为**无法机械核验**——一条以「写进派工书」为结清条件的移交项,
+  遇上一个不落库派工书的轮次就永远停在「查不了」,而这与
+  「白名单外的锚点连分母都进不去」是同一物种。誊录即可,不必是原文,
+  但**会被后续轮次核验的那部分(约束条款、产出要求、给定的判据)必须在**。*
+- **移交表必须有机器可读的处置列(R11E 定,部分结清 `H-R11D-C-a`)**:一轮的移交/定案表,
+  除散文结论外要有一列**取值封闭**的处置字段(R11E 的实做是
+  `data/r11e/handover-candidates.tsv` 的 `verdict` 列,五选一:`本轮结清` / `本轮部分结清` /
+  `不归属本轮·转R12装订` / `不归属本轮·转内容轮` / `存疑·交主线裁定`)。
+  *理由:R11D 记下机械口径把「已处置」等同「已结清」——处置表一写,表里的号全变
+  CLOSED,**哪怕结论是「转 X」**,于是 R11D 那 100 条「转 X」在账面上消失了。
+  一列封闭取值让「处置了」与「结清了」在机器眼里分开。*
+  **注意这只结清了一半**:普查器本身仍不读这一列,改普查器的那一轮要接着做(见下条收件人纪律)。
+- **移交项的收件人必须是条件,不能是序数(R11E 定)**:去向不许写「下一轮」「下一个动
+  `scripts/` 的轮次」这类**序数式**收件人,要写成**条件式**——「任何一轮改动
+  `scripts/verify_citations.py` 时,必须同批处理本条」。
+  *理由(R11E 实测):R11D 有 **25 条**移交把收件人写成「下一轮」。落到的这一轮是阅读层轮,
+  于是它们**字面上全部命中**(本轮确实动了 `scripts/`、确实加了制度条、确实有开工杂项)、
+  **实质上一条没做**(改动面里没有 `verify_citations.py`、没有台账、没有历史 `notes/`)。
+  一个在被写下的那一刻就把自己交给未知对象的收件人,不是收件人。*
 - **案号纪律(R11B 定)**:**片内铸号必须带片标识**(如 `H-R11B-A-a`),不得与主线号同域;
   一个案号**只指一个实体**。*理由(R11B 实测):39 个移交号对应 100 个实体,净多铸 61,
   人工核实真撞号 35。`H-R10B-a` 被 3 处独立铸造,R11A 写「结清」只结清了三分之一,
@@ -343,10 +369,10 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
 
   ```bash
   python3 scripts/verify_evidence_commands.py \
-      chapters/*.md notes/rN-*.md reports/round-N-*.md
+      chapters/*.md reading/*.md notes/rN-*.md reports/round-N-*.md
   ```
 
-  即 **`chapters/` 全部** + **本轮的 `notes/` 与 `reports/`**,并在报告里报
+  即 **`chapters/` 全部** + **`reading/` 全部** + **本轮的 `notes/` 与 `reports/`**,并在报告里报
   `paired / unpaired / differing` 三个数。
   *强制范围为什么不含历史轮次的 `notes/`(R11A 定,实测):历史底稿里的取证命令有相当一部分
   **在新容器里原理上就跑不出原值**——它们指向上一轮会话的临时目录(如 `/home/user/r10b-ts/`)、
@@ -381,6 +407,59 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   *理由:r4-90 写进定案的自检 grep 用 `iron` 匹配到了 `env`**`iron`**`ment`,
   重跑对每个文件都命中,与它声称的"零命中"相反。结论是对的,命令是错的——
   **一条重跑给出相反结果的命令比不写更糟**:读者要么以为结论错了,要么以为自己环境不对。*
+- **派生阅读层不得手抄(R11E 定,落地即阻断)**:`reading/` 下的派生件(快读层合集 /
+  原则层合集 / 问题索引)**唯一真源是 `chapters/`**,由 `scripts/build_reading_layer.py`
+  **生成**——不许手写产物,也不许直接编辑产物。每轮 commit 前必须跑到退出码 0:
+
+  ```bash
+  python3 scripts/verify_reading_layer.py
+  ```
+
+  **两道锁,分工不同。锁一(产物钉)**:重建三份产物、与库内文件**逐字**比对,
+  不一致记 `PRODUCT-STALE`。**锁二(源节钉)**:每个被派生件引用到的成品章小节,
+  按「H2 标题 + 节正文」算一个 sha256 钉在 `data/r11e/section-digests.tsv`,
+  对不上记 `SECTION-DRIFT`,且**生产者自己也拒绝构建**。
+  只有锁一时,作者可以一句 `--write` 把源章的新内容刷进产物,
+  **而没有任何人重新读过那一段**——源章改了、产物跟着改了,却没人判断过
+  「这条原则是否还成立、这个问题索引是否还指对地方」。锁二让「我重读过了」
+  成为一次**显式的、会进 diff 的**动作(`--restamp`)。
+  **锁一防的是忘了同步,锁二防的是不假思索地同步。**
+  另有 `ANCHOR-UNRESOLVED`(产物里指向章内小节的链接解析不到真实标题)、
+  `UNSTAMPED` / `STALE-STAMP`(引了没钉过的节 / 钉了没人引的节),以及
+  `EMPTY-GATE`(三类比对数任一为 **0** 即失败)。
+  *`EMPTY-GATE` 为什么必须有:一个什么都没比对的关卡也会打印绿字——正是 R8C 记下的那个形状
+  (锚点全写在块后的文件,关卡输出 `OK` + 退出码 0,一条都没校验)。本关卡把
+  `sections=… products=… links=…` 三个读数**打印出来**,绿必然伴随一个可当场核的 N。*
+  *为什么必须机械化(两次实证,均已回源核对):(a) R11C 片 F 盘点确认
+  **成品章里未同步的过期结论 4 条**(`notes/r11c-raw-pre-binding-inventory.md:35`:
+  `4. **成品章里未同步的过期结论确认 4 条**。最严重的一条是`);
+  (b) 其中最严重的一条 `chapters/r1-what-is-hermes-agent.md` 分层手抄数字被修过一次
+  (review-1 阻断-2 / M-2)、**六轮后原样复发**,由它推出的「408 个文件被真正处理过」
+  真值是 2,586。两次都不是作者不用心,而是**手抄件不在任何检查面上**:
+  `verify_citations.py` 认 `路径:行号`、`verify_evidence_commands.py` 认 ```verify 块、
+  `verify_derived_numbers.py` 认 `<!-- derived: -->` 声明——一份手抄的 TL;DR 汇编,
+  一条都碰不到。R11D 给可复算数字定的修法(**立单一落点 + 让脚本去核对**)在这里原样适用,
+  只是落点从「一张表」变成「三份文档」。*
+  *落地即阻断,不走 R7C→R8A / R8C→R8D / R10B→R11A 那套分期(与 R9B 表格锚点、
+  R11C 可跑性检查同例):守的三份产物是本轮新增的,**积压恒为 0**,
+  不存在「关卡对着自己没造成的积压狂叫」。*
+  **`reading/` 的可校验比例不单独算(R11E 定)**:派生件的引用画像是从 `chapters/`
+  **逐字继承**来的,不是它自己写的。R11E 实测 `reading/` 单独口径 **7 条引用 / OK 1 / 14.3%**,
+  并触发「单文件 UNCHECKED ≥90%」提示——而那 6 条 UNCHECKED 全部是
+  `chapters/r8a` 与 `chapters/r9c` 里**本来就写成散文内联**的锚点
+  (如 `hermes_logging.py:313 @ 863e313` 后面跟的是一句话,不是代码块),
+  被逐字抽进原则层。**对它单独算比例,量的是源章的行文习惯,不是派生层的质量**;
+  提示照打(它不改退出码),但报告按**合并口径**报,并按 CLAUDE.md 原有规定
+  单独报**当轮 notes** 那一个数。*R11E 已逐条回源核对这 6 条锚点全部指对
+  (抽查 4 条:`hermes_logging.py:313`、`gateway/platforms/base.py:742`、
+  `hermes_cli/status.py:683`、`gateway/status.py:1-5`)。*
+  **覆盖面要如实说**:本关卡守的是三份产物、以及它们**引用到的**那些小节
+  (R11E 收工时 134 个)。`chapters/` 里**没被任何派生件引用**的小节改了,本关卡沉默。
+  它把下限从「派生件没人管」抬到「**派生件引用到的源节一改必被拦**」,
+  不是「`chapters/` 全被守住了」。
+  负控见 `data/r11e/probes/reading_layer_negative_control.sh`(**19 条断言**,
+  全程在 `mktemp -d` 的临时副本里做,不动仓库 `chapters/`):自造源章漂移、产物篡改、
+  改源章后盲目重建、坏锚点、产物全删五种形态,并显式断言**绿的时候三类比对数都 >0**。
 - **负结论的成本(R8-fix,review-1 附录 A-1/A-2)**:"全仓没有 X""没有第三个调用方"
   这类**全称否定**,其可信度等于一次 grep 的完备性,**没有任何机制校验它**。
   写下一条负结论时**必须把搜索面写出来**(搜了什么、用什么模式、排除了什么),
@@ -661,6 +740,19 @@ scripts/config_table.py    # R8A 新增:从 DEFAULT_CONFIG / OPTIONAL_ENV_VARS �
                            # 抽取配置项全表(不 import 不执行);用前先读它开头的三条告诫
 scripts/render_capabilities.py   # JSON → 附卷渲染
 scripts/render_main_report.py    # JSON → 主卷能力点章节渲染(--compact 出会话消息版)
+scripts/build_reading_layer.py  # R11E 新增:reading/ 三份派生件的**唯一生产者**。
+                           # 凡引自成品章的文字一律运行时逐字抽取,不经人手;
+                           # --write 写产物 / --restamp 重钉源节 / --stats 报体量与阅读时长
+scripts/verify_reading_layer.py # R11E 新增,**落地即阻断**:重建三份产物与库内逐字比对
+                           # (PRODUCT-STALE)+ 源节 sha256 钉比对(SECTION-DRIFT)+
+                           # 章内锚点解析(ANCHOR-UNRESOLVED)+ 非空绿守卫(EMPTY-GATE)
+reading/                   # R11E 新增的**阅读层**(全部派生自 chapters/,勿手改):
+                           #   01-quickread.md      快读层:21 章 TL;DR 逐字合集
+                           #   02-principles.md     原则层:以**原则**为条目重组,含去重与冲突裁定
+                           #   03-problem-index.md  问题索引:入口是「遇到什么问题」的倒排索引
+data/r11e/principles-src.md     # 原则层的编辑源(人写的判断:合并组、冲突裁定、适用边界)
+data/r11e/problem-index.tsv     # 问题索引的编辑源(问题 → 章 → 小节)
+data/r11e/section-digests.tsv   # 源节钉表(生成,勿手改):被引用小节的 sha256
 notes/                     # 底稿:每轮机制笔记(rN-*,求全求证,带行号证据)
 chapters/                  # 成品章:每轮 rN-<主题>.md(求读,构成 R12 设计蓝图正文)
 reports/round-N-*.md       # 每轮报告(结论 + 台账报数 + 定案 + 下轮建议 + 文末勘误节)

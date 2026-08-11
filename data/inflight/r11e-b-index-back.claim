@@ -1,0 +1,5 @@
+agent: 片 B · 问题索引(第 12–21 章)
+dispatched: R11E 批次一
+signal: RELEASED 片 B 完成信号(任务完成通知,含两个产出文件行数与四条读数)。主线已独立复核:157 行 / 115 问题 / 10 章 / 103 小节 / 坏行 0,全部 section 标题经 Corpus.heading() 解析通过;并独立复算了片 B 报的域分布 —— 片 B 的 33/115 是**不同问题**口径,主线的 53 是**条目行**口径,两个数都对,报告分别标注。
+path: notes/r11e-raw-index-b.md
+path: data/r11e/index-b.tsv

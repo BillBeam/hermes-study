@@ -1,0 +1,135 @@
+chapter	section	sha256	section_lines
+chapters/r1-what-is-hermes-agent.md	1. 从一个场景说起:你对着 Telegram 发了一句话	ea11c66e04a6cebe0500251b1f0f01583df556370be0e9bf2734485f1c351b88	22
+chapters/r1-what-is-hermes-agent.md	2. 全景:七个部件如何拼在一起	105a33b5ceee0624095e4bb23270913b0534bfd25665027966fbda4cb3a3aab1	38
+chapters/r1-what-is-hermes-agent.md	3. 全仓地图:8,530 个文件都归了类	9758ab5538eded4fee2d66ba007f1f1c510ae6a4a3b4d8e95badab8b9fb9220b	65
+chapters/r1-what-is-hermes-agent.md	4. 一个要提前知道的"坑":地图会骗你,代码不会	ee6232854bcda28b15e130571835c60174e4db1d799d82036048fa50ef42af30	20
+chapters/r1-what-is-hermes-agent.md	5. 为什么值得逐条读透(而不是"看个大概")	0eaf8323b9a09788180d9ef8f96d82bb44e451fc0e91d5e4608febaf9a6a2b3a	20
+chapters/r1-what-is-hermes-agent.md	6. 阅读路线	08568e0b715d0d220ebbdf2865a7ed98fc51a33816c91a18ca1cf69f6780c883	21
+chapters/r1-what-is-hermes-agent.md	7. 这本书怎么写、凭什么可信	12e349292d6d7f29b09bc29b7fbc3de3ef4365877d965ffc188f83ba0e1d008a	15
+chapters/r1-what-is-hermes-agent.md	TL;DR(读这一段就有全貌)	99d9004e54b10588aafdf42f6186cbdf2588e71c31efbbfb0ddd0e66ee669123	19
+chapters/r10-client-interface-layer.md	1. 从一个场景说起:你按下 Ctrl+C,然后网关重启了	f0b9dfe996eb9f152f03c31d6f300ab2bbc56c7505a36164788c0b56b336a277	60
+chapters/r10-client-interface-layer.md	2. 全景:一个内核,四条缝	ff7c66148ee1d697475ec0e4c9c3b921c633972334c91a103648e8df95516063	46
+chapters/r10-client-interface-layer.md	3. 逐机制	f9f8b57488eb02ffa2cdb830fec98515f22e4afa24044e20a926352b829548da	84
+chapters/r10-client-interface-layer.md	4. 可迁移的设计原则	2ad8bb6cc05029235c68ce81260ff42ccce8b1367911bbda1ce87a967d37f240	27
+chapters/r10-client-interface-layer.md	5. 地图与代码的出入	605950253dee9d9b65d46719977e1aa68b78e9fb5836c4149245ffd0a8877ce3	16
+chapters/r10-client-interface-layer.md	6. 本章的限度(必须一起读)	a4495f278604132018f32dbd536a1035ee7b831b2c859bbe3c44ccbd941fa4dd	13
+chapters/r10-client-interface-layer.md	TL;DR(快读路径)	62a452bb5758daf4f1c2751fb392c350818eb467437ec5343c0300467fddb285	17
+chapters/r10b-desktop-application.md	1. 从一个场景说起:你在桌面端敲下一句话	090701eb2d34de0852085d5ca54e900eac46d65067e8938c86230153de96fb4a	22
+chapters/r10b-desktop-application.md	2. 全景	98356f3aa20e3a3ff3f4a43dad51811756671262bd2a6e7a3d488526dfa08c9b	37
+chapters/r10b-desktop-application.md	3. 逐机制	8f11348be9550da47591025633dfd22cab2848dac7d2c1e14a26465c26a989d7	156
+chapters/r10b-desktop-application.md	4. 可迁移的设计原则	1cae894aea65f4dc7a349191faf1b6a67d8290efb619db00f609e4646e0d1baa	19
+chapters/r10b-desktop-application.md	5. 方法论:本项目第一次量出 L3 的成本	f6940a154fba7817dd583692604b0643ed73ec50ad805e8763a5f93c051ee23d	18
+chapters/r10b-desktop-application.md	6. 地图与代码的出入	7e6230f514d057edf71913ddc2e3003a68faa4f20507b4525c554f4e4309a50b	16
+chapters/r10b-desktop-application.md	TL;DR(快读路径)	e955cfa169e73ec331cd77913beb4f367eb98c271f7cb17b5c5426f9346941d8	22
+chapters/r11a-ops-and-delivery.md	1. 从一个场景说起:你敲了那行 `curl | bash`	0cbb4a1e36941aaa0e1f292c79a83515af8935dc8806f9d41352f01c51d77f66	39
+chapters/r11a-ops-and-delivery.md	2. 全景	41fcda9cded5c26455eb1f40745ce3acc3593bd7ee30497c7789a9849aa40408	33
+chapters/r11a-ops-and-delivery.md	3. 逐机制	468a18a275c236e2d954a6150f9b3ffc6d3aa8eb9497ab575d9042b44b2c4672	143
+chapters/r11a-ops-and-delivery.md	4. 可迁移的设计原则	3cd513c87cd5d6056032a7193d8ee6c9221b4834de0bdaa042cb1844b44d5b45	19
+chapters/r11a-ops-and-delivery.md	5. 地图与代码的出入	4ab1a281f978280330544cd93cecc19edb10f18226ca7407f4c8a2c3567a7b38	31
+chapters/r11a-ops-and-delivery.md	TL;DR(快读路径)	6def529e8efdae5ec5145ae99bb35e8345b9622161c5905d2846333c8e1b5121	18
+chapters/r11b-the-unwritten-layer.md	1. 从一个场景说起:一条带图的消息进来	371d672976ead5e6ba2fafaac573fc023ededf5e036346d541d2c34400ecd829	21
+chapters/r11b-the-unwritten-layer.md	2. 全景	57db0c3b94af1464291097f425497bc0c75428b42da9b0a84c5f26f0d3108ea2	34
+chapters/r11b-the-unwritten-layer.md	3. 逐机制	89a7e876a811c5904c8a52eaad51befc40d4f6cb17e11ff489e0116f7b166d28	129
+chapters/r11b-the-unwritten-layer.md	4. 可迁移的设计原则	3dce834d155820142a32d1928da4f233cc1ca37b0a89e4bbc304133d4c411a4a	22
+chapters/r11b-the-unwritten-layer.md	5. 地图与代码的出入	ae9076b2fed6078326dfa8189dfc78f101da0085b74297a4360fec15b1144781	21
+chapters/r11b-the-unwritten-layer.md	TL;DR(快读路径)	f7d99da59334438e9850f67ccf845d6638339383bab37620eecb0ad1f89506b1	16
+chapters/r2-turn-loop-and-model-access.md	1. 从一个场景说起:一句话背后的一轮循环	ad78c7b851b0f1b2d7ac02d8dcafe9fb3116f666bb1e5881cfa298464d709239	30
+chapters/r2-turn-loop-and-model-access.md	2. 全景:一个 turn 的生命周期	7c53780d486874156137df87deea5aa7fda25c314a8ae55fceecea37b3cbd00f	31
+chapters/r2-turn-loop-and-model-access.md	3. 逐机制	6f3d602495b9f70dfd93943d228e3ed75696a898aa3a8ebb4ef070bc6484b5f4	623
+chapters/r2-turn-loop-and-model-access.md	4. 可迁移的设计原则(造你自己的 harness 时怎么做)	ff826bdf4ba5601cd0500144bfd3e7c1775c20a26cbb0a7b6851363bdeb84433	19
+chapters/r2-turn-loop-and-model-access.md	5. 地图与代码的出入	741f9834790f56a77f7b86afa76d67fa0d387d426e8c4f7f3a85a646214d601b	26
+chapters/r2-turn-loop-and-model-access.md	TL;DR(快读路径:读这一段就有全貌)	59576a3b9de678e6b3e0b2ee318f7bcf29d6639c8b881a4fb0e13ec5dbe95f57	30
+chapters/r3-tool-infrastructure.md	1. 从一个场景说起:一次工具调用要过多少道关	205ccd49c8926410a72e1a2db7b9460f3aa454c8c5c0bce33197f71e4cc753b7	17
+chapters/r3-tool-infrastructure.md	2. 全景:工具系统的四大块	2d299b0839d6758dea6e8e5b08c1ae20a4517e88236c767625c524f2505ba767	32
+chapters/r3-tool-infrastructure.md	3. 逐机制	f83bacee2a06b9a8869c6b6a204b71104e21491b375a78da0f339f0d6138c09c	265
+chapters/r3-tool-infrastructure.md	4. 可迁移的设计原则(造你自己的工具系统时怎么做)	36db3704cbaed99aa4ef141ed108e25b1af578c830e6547bbdb59c7d69a62373	21
+chapters/r3-tool-infrastructure.md	5. 地图与代码的出入	d64aa98994a4770154b3679a76d0b3a5ad0aa3d10912922a4459954fbe67d2b4	24
+chapters/r3-tool-infrastructure.md	TL;DR(快读路径:读这一段就有全貌)	80a32814f4e290b888ce0210e01784454716aa9e85255aeff2945df06276ad8c	29
+chapters/r4-execution-environments.md	1. 从一个场景说起:一条 `pip install` 命令的一生	d62d0070bf271aafa56444aa68d6d5ccc7b876f929bd95178f24608cbf9ce431	22
+chapters/r4-execution-environments.md	2. 全景:一条命令的执行骨架	0e22c662cd2d9bb3588d69b3958e2f5492d65655a0e41689f51b08fd41757898	30
+chapters/r4-execution-environments.md	3. 逐机制	f3ba130fdc88b58931281d2704c04c2650e0a93a16c5640cb69375d742ba04b3	676
+chapters/r4-execution-environments.md	4. 可迁移的设计原则(造你自己的执行层时怎么做)	42595f867987601241571cec0bffaf4aaeacd1d170287c5f9efb768f6020c10c	20
+chapters/r4-execution-environments.md	5. 地图与代码的出入	08189711cb4aaff267f08ee53d90c26aa5aa74e098e98de08981eccafd985a81	24
+chapters/r4-execution-environments.md	TL;DR(快读路径:读这一段就有全貌)	7d9aae480169ec87111bdf1a4ce159e71aaf82bfab82eea53a0dbf632332883e	31
+chapters/r5-session-state-and-persistence.md	1. 从一个场景说起:一句"继续昨天那个"的一生	971c88e267a5417056e442df4b6a2cffff1f4d9153fb7a644b0b7bd93d55b015	19
+chapters/r5-session-state-and-persistence.md	2. 全景:记忆侧的五块与数据流	ef8cf9378e0e78acff89dc556b3cb8e6b2fab44001460be42e3e978df09e198a	27
+chapters/r5-session-state-and-persistence.md	3. 逐机制	38645bae222b72112e5bc8496f71a5a88782694bf85c649e44773f20ec1d439c	577
+chapters/r5-session-state-and-persistence.md	4. 可迁移的设计原则(造你自己的持久层时怎么做)	e6137bf42319d0344d231d5ddfddc1f2345211a24a16c2d9dfcb40d2ad4e38e8	20
+chapters/r5-session-state-and-persistence.md	5. 地图与代码的出入	a165d410a2ef9bcded6047c9fae7e4e30320e74ce5b525e4ca3e2164415c093c	26
+chapters/r5-session-state-and-persistence.md	TL;DR(快读路径:读这一段就有全貌)	a725811243d258a315975385f787c019c7142b84c1438e0901d48c9507efad6b	34
+chapters/r6-memory-provider-ecosystem.md	1. 从一个场景说起:一个配错的 daemon 卡了 298 秒	a3d3e8c7e6fe18aad462180908493838572c6cd796380a54891f263172644bed	40
+chapters/r6-memory-provider-ecosystem.md	2. 全景:一个插座,八种大脑	7e8b6756ec3a596e3eecdae10607d120ffc236a660874e4bae60fb8d79a4444f	24
+chapters/r6-memory-provider-ecosystem.md	3. 逐机制	8ceead65939b0f83d1ca76f23425297bd01aae5554de9ea53cbcea6858a78c3f	327
+chapters/r6-memory-provider-ecosystem.md	4. 可迁移的设计原则(造你自己的记忆/插件层时怎么做)	8b0cbd753d2d28b41506fddb834e02224ea5b5e8c824dd8da80be74efd9f5ce4	19
+chapters/r6-memory-provider-ecosystem.md	5. 地图与代码的出入	5710577796e4a3bcfb57a1fdd3dcdad6f64c6be8e1b6965d733a376ba1ea0543	77
+chapters/r6-memory-provider-ecosystem.md	TL;DR(快读路径:读这一段就有全貌)	42f6d294d79545d8b552895a287d3953faeffeab25331dc2791df6b3cdc45deb	31
+chapters/r7-gateway-session-core.md	1. 从一个场景说起	accfabd6f80af7d583cc4f42d2937cbd362a08aa2462dd37e4ec44d43e0e4ed6	79
+chapters/r7-gateway-session-core.md	2. 全景	96ca831fee1b1f8a512a6d9e67fc755d61b9d1001ffc9b83f61d4de81558ca4b	37
+chapters/r7-gateway-session-core.md	3. 逐机制	8393bcd7e75ba9447a3584e2316ac945f3d3bc9397e1a99d9b9ca733357a14a1	501
+chapters/r7-gateway-session-core.md	4. 可迁移的设计原则	72cfadad549704ccf458448f6b40323a7c19d98067e963282ea4279b29d0b9da	20
+chapters/r7-gateway-session-core.md	5. 地图与代码的出入(本簇定案摘要)	604be778ad8dbceeb6611e9b4649f318708af6cedc563277d118893f20b1dfae	55
+chapters/r7-gateway-session-core.md	TL;DR(快读路径)	4cacc50c19db98a4ade30a8df4eddbfac30c6755198508ca9450091a6fa22f04	31
+chapters/r7b-platform-integration.md	1. 从一个场景说起:一条消息的旅程,和四种搞砸的方式	a040e2b3e88356cbfd1813a27ad4b3f5e6cabc557ad2e9984ecd4382a9de673f	27
+chapters/r7b-platform-integration.md	2. 全景	c122d3656e5005c1b9b05f2be8491102e71875ccbcb1564ad08b88057626188f	53
+chapters/r7b-platform-integration.md	3. 逐机制	f518342156e0b6920fe936a57c0f100425af285b0f9798793f4ca30230d9f006	593
+chapters/r7b-platform-integration.md	4. 可迁移的设计原则	b9407fd27dac1dff5907a8e274849b56c499b8ab5359c1657023f4bfd67974ec	52
+chapters/r7b-platform-integration.md	5. 地图与代码的出入	01e7712dbc0c738aefc8528276703949cbdacbac702fb26bf6e81d1f809a4a43	118
+chapters/r7b-platform-integration.md	TL;DR(快读路径)	5cbb7f3057611c0ac59ff4187d86487f24a5cb23f71a63c239d0b1768f045e87	27
+chapters/r7c-gateway-periphery-and-scheduling.md	1. 从一个场景说起:一台网关的一天	8c277e71faae9e39616a2edd10a260b94a2085e6fed5871458fe893f2b0b9ea4	47
+chapters/r7c-gateway-periphery-and-scheduling.md	2. 全景	2436bdcc3268cff342d799f81b06538e04277400de3d05e104945cd56786ecdb	62
+chapters/r7c-gateway-periphery-and-scheduling.md	3. 逐机制	60d8fd27b36dc89be27826c1042da773de1535ef4ed00352b59018c8a81dfff9	319
+chapters/r7c-gateway-periphery-and-scheduling.md	4. 可迁移的设计原则	3f0132c18513b3f2d1612f42ac09400802f7ce8890390bdc4e3b788adb437d7a	48
+chapters/r7c-gateway-periphery-and-scheduling.md	5. 地图与代码的出入	7977c1d3ee240e09569f5908ddefb7a968e102382d39a650f062464ff009f088	35
+chapters/r7c-gateway-periphery-and-scheduling.md	TL;DR(快读路径)	d3601217c993611bbc87d9925dcf78e81d6b17cdc70702ed1a9d287ee59e98b1	28
+chapters/r8a-configuration-surface.md	1. 从一个场景说起:我照着文档配了,机器人也好了,面板却说没配	371044408640333f7255c22584682c96861835f4b235e685937bfc0a18323c67	120
+chapters/r8a-configuration-surface.md	2. 全景:两套东西,一个名字	19d885113f48c0e3906d41abb3b5b2ec2458443352d63118c6ca149124588abe	105
+chapters/r8a-configuration-surface.md	3. 逐机制	5f1115293489f9a5629584e9085b017fade350d012d611ee41afa6273897b599	995
+chapters/r8a-configuration-surface.md	4. 可迁移的设计原则	517870cf2e0813088342d1ebcb602cbd253ca3fb1ee21bf5354793b03d932c45	385
+chapters/r8a-configuration-surface.md	5. 地图与代码的出入(本簇定案)	8a9a6c3b2aec683ed6e3549d2551bab89038875f538727beb8c9c0683788bc2c	112
+chapters/r8a-configuration-surface.md	TL;DR(快读路径)	4c6ec8fb58a09f5f80f3dc4aca71e44773461642e6751da7ef768c93135d7c92	22
+chapters/r8b-cli-trunk-and-interaction.md	1. 从一个场景说起:`hermes -p work chat` 敲下去之后	45672c12cc72ae96e677bb9bb8c8887efa2962aaa68b3c6f70d85faea61b251a	77
+chapters/r8b-cli-trunk-and-interaction.md	2. 全景	8b453496139a9872db3e7be039e0f9c0fc78c10ebee145424d5c93fa025eedf6	31
+chapters/r8b-cli-trunk-and-interaction.md	3. 配置键的三种死法	7c15e80682b1c37ec786efe41078c37be6194078991cad24c5aae7c5ccd75669	150
+chapters/r8b-cli-trunk-and-interaction.md	4. 本章真正的主题:一次修复传了一半	b737b0963663afbf38ada58bab47cec5c2e321fe5444c1809972af364d798399	193
+chapters/r8b-cli-trunk-and-interaction.md	5. 主干上另外两个值得学的设计	bac7d37dd049081fd5c396a2f112bd11deff7aa8ba21866add8e1cdd84e8514b	64
+chapters/r8b-cli-trunk-and-interaction.md	6. 可迁移的设计原则	0ffeaea8d57883cddd15db2f1b3b8fd9b0edb9d079cba962c677f04baee6c95e	15
+chapters/r8b-cli-trunk-and-interaction.md	7. 地图与代码的出入(本簇定案)	2df6c39b203ee6e9c71b55ec41c34e1345b0e1683ade0139341fd283e4b0cd4c	9
+chapters/r8b-cli-trunk-and-interaction.md	TL;DR(快读路径)	29806a9d39bf41f8e8b59813875f7dc3a86441aab17627a325a5ee13350f2fc4	10
+chapters/r8c-dashboard-and-web.md	1. 从一个场景说起:你在手机上点了"允许"	c98abafc80fa2a5fbbf70ba00760286813096357f1009f193d202962d2a66b8f	40
+chapters/r8c-dashboard-and-web.md	2. 全景	e002ceb429f32ace5dc2255e54455d349433b70427674d5bfe0247e24de30551	37
+chapters/r8c-dashboard-and-web.md	3. 逐机制	34fa9bcd0f24994c5fc0a9c373d37457a4860b84e6a054fa3f91757fdc1dcada	273
+chapters/r8c-dashboard-and-web.md	4. 可迁移的设计原则	813e69d0e4e0165f5885493994d14ca5fa5fa0d06af3e8dd83f4ea9cad558cd7	25
+chapters/r8c-dashboard-and-web.md	5. 地图与代码的出入	1e23d62235de1d15283b6a60c2065ec60dd1bf149fc7f569918300968d97fbd9	15
+chapters/r8c-dashboard-and-web.md	TL;DR(快读路径)	0f5890ba202b00392efd322b2f4b672b830296e57d6053aa889d407b7c3cabaf	20
+chapters/r8d-self-custody.md	1. 从一个场景说起:你敲下 `hermes update`	86dce418aed3099cac6903f53b4b01559aad13c9d855de74f18c7f7581149dfd	21
+chapters/r8d-self-custody.md	2. 全景	c0611023b16169c974393b06dccef5fdad1a11fbfa2b757a78c908b09c42691d	37
+chapters/r8d-self-custody.md	3. 逐机制	44d973eef8dbf18cf38f4380adcc03ddb84a00ccfac77d733a5968dcd677807d	276
+chapters/r8d-self-custody.md	4. 一条贯穿本章的线:守卫存在,但有一条路不问它	ff0638565df73730abc0b7f904fd93d613c25e9baf35695e3d31144b21c5ea8e	148
+chapters/r8d-self-custody.md	5. 可迁移的设计原则	5c715c2a91d4b85bbcc932b819f39ab4dbaf20da4571d711a1eb2b9dd66bcd79	23
+chapters/r8d-self-custody.md	6. 地图与代码的出入	a3b25b4763bb3997b3358dcd3917bf6ebf020730d15c6ae425bf74aadc979aa3	18
+chapters/r8d-self-custody.md	TL;DR(快读路径)	ee845e1fffaa249a44e83f97031a900c7db4190eb3cf3a8e899553ab29b6301b	22
+chapters/r9a-capability-organization.md	1. 从一个场景说起:你装了一个「查天气」的 skill	26aeeec83d70d4c97710f1ee1cb73e75293f799e91825033bfca313f79b86d6b	31
+chapters/r9a-capability-organization.md	2. 全景	a6c95e9a6c66991bb9438d5cbe45da97d44c61a3e396f7b4f27fd92074f0fb5d	43
+chapters/r9a-capability-organization.md	3. 逐机制	865ef32c93876fe80f476f0e208c1a36fddb307e926e7a326f1fa377427d57bc	296
+chapters/r9a-capability-organization.md	4. 可迁移的设计原则	73264b568cf897033ed13d0d72f75bb0e48055ffb97b96cbd83d733d3632ccde	17
+chapters/r9a-capability-organization.md	5. 地图与代码的出入,以及一个结构性结论	8c8f2bd99af8b85c04534b754d810b5fdeeaa663799835cfb58ea8c0d0ee82d0	106
+chapters/r9a-capability-organization.md	TL;DR(快读路径)	7b1da555e460f51b45a2ace9a6293d5f44b0e67a54aad037d6dbd03bae06d346	19
+chapters/r9b-multimodal-delivery.md	1. 从一个场景说起:一句"帮我把这张图做成视频"	ebf65dfdfd7d56be894d2c9c909a8704b9b5118cda44fcfdd96d1a11393ba8bc	49
+chapters/r9b-multimodal-delivery.md	2. 全景	97caefe159f2887d2c303640adeaa49903463bdc1b8a4c681e4dbbf2890c39ce	48
+chapters/r9b-multimodal-delivery.md	3. 逐机制	0538b1b27cbc8e344f5dc919127081c906daf486812703a9c0105c7512cb3b35	207
+chapters/r9b-multimodal-delivery.md	4. 可迁移的设计原则	a8427bb13345f2b1f2faa3acbabe00bd16474f88ea873a164870118e6ee12ec7	141
+chapters/r9b-multimodal-delivery.md	5. 地图与代码的出入	5af532cfec24f7b47e68771a400b6abefe6287371bff19ccfed8077cf89c84f6	23
+chapters/r9b-multimodal-delivery.md	TL;DR(快读路径)	4744c675cfd29a3c8d807db63e5b9c9d792ff2d641fdcbdd9a1f653540cf0402	18
+chapters/r9c-external-interfaces.md	1. 从一个场景说起:一次分页读邮件	01c0253809ade50c2cab856e11350b53c08df4fae620e4c7632b87afa53ebeb3	67
+chapters/r9c-external-interfaces.md	2. 全景	455a8f367f54057cf16a95a71fc5b7e30048b7cb37d0b18e8f09630d77455429	60
+chapters/r9c-external-interfaces.md	3. 逐机制	dd52d6bbadd76fa72241dd1c9737078c74bc0177ac175582d04569dd3ca7b04f	400
+chapters/r9c-external-interfaces.md	4. 可迁移的设计原则	2b863a8d4946b5003cc560ffdde326904e7a1233866249aa1675b91ffe700a1d	32
+chapters/r9c-external-interfaces.md	5. 地图与代码的出入	8dd8cdac328c3b7f21ec7420917fc80020adbdce9a5dc4f5bba24d70068bb771	11
+chapters/r9c-external-interfaces.md	TL;DR(快读路径)	e89ba1ab732b1ac3106c9cf52ce65a24309af89d88d1e2c7bab1141aefb3891b	21
+chapters/r9d-tool-surface-and-guard-placement.md	1. 从一个场景说起:一次回合里,三件被明令禁止的事都办成了	bcce37b7ffdb19185454ab2af26fc6874860ba6a83ee46b0b5a10a018fc66488	71
+chapters/r9d-tool-surface-and-guard-placement.md	2. 全景	b908529bfcebac3a9e28cccfe766a3dd808635094c1d0604cc153ee2095a419a	44
+chapters/r9d-tool-surface-and-guard-placement.md	3. 逐机制	eac6130a47247c73ad80f47d021cff562bfbad95139c9fcfee1a611989919fd2	370
+chapters/r9d-tool-surface-and-guard-placement.md	3.7 把这个形态数一遍:它是普遍的,还是我挑出来的?	279c99d4e4750bb4671f5d5ca99ce4e75a09fb7365f8a55c1c8288a9eb265ef1	70
+chapters/r9d-tool-surface-and-guard-placement.md	4. 可迁移的设计原则	e78093e8e388ca358ec3f335637bd3ca54ac98c0caf37c5f23bb2cacd413c446	21
+chapters/r9d-tool-surface-and-guard-placement.md	5. 地图与代码的出入	1fe6f0247682453da5505e93760e032f2755944d23bb3f6243e0703836778498	66
+chapters/r9d-tool-surface-and-guard-placement.md	TL;DR(快读路径)	e3b7e586e97d2ee6724adb49b192e319a899c54288efa2ddd147b7aadca29b6b	17
