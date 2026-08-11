@@ -1,0 +1,16 @@
+platform	member	adapter_lineno	host_sites	first_host_site
+dingtalk	REQUIRES_EDIT_FINALIZE	225	2	gateway/stream_consumer.py:297
+dingtalk	SUPPORTS_MESSAGE_EDITING	216	1	gateway/run.py:23795
+feishu	_add_reaction	3141	1	gateway/platforms/base.py:4942
+feishu	_reactions_enabled	3138	1	gateway/platforms/base.py:4946
+feishu	_remove_reaction	3181	1	gateway/platforms/base.py:4943
+feishu	_resolve_channel_prompt	3290	1	gateway/run.py:19174
+feishu	send_exec_approval	2037	1	gateway/run.py:5181
+feishu	send_update_prompt	2143	1	gateway/run.py:20993
+google_chat	dispatch_http_event	1495	1	gateway/platforms/api_server.py:1832
+google_chat	verify_http_event_request	1520	1	gateway/platforms/api_server.py:1831
+matrix	send_choice_picker	2669	1	gateway/slash_commands.py:3463
+matrix	send_exec_approval	2516	1	gateway/run.py:5181
+matrix	send_model_picker	2588	1	gateway/slash_commands.py:1779
+wecom	_is_dm_allowed	900	1	gateway/authz_mixin.py:668
+TOTAL	14

@@ -1,0 +1,7 @@
+platform	n_keys	keys
+dingtalk	8	name,label,kind,version,description,author,requires_env,optional_env
+feishu	8	name,label,kind,version,description,author,requires_env,optional_env
+google_chat	8	name,label,kind,version,description,author,requires_env,optional_env
+matrix	8	name,label,kind,version,description,author,requires_env,optional_env
+wecom	8	name,label,kind,version,description,author,requires_env,optional_env
+UNION	8	author,description,kind,label,name,optional_env,requires_env,version

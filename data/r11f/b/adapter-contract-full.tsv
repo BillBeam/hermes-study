@@ -1,0 +1,421 @@
+platform	member	kind	form	lineno
+dingtalk	REQUIRES_EDIT_FINALIZE	PLUGIN-ONLY	property	225
+dingtalk	SUPPORTS_MESSAGE_EDITING	PLUGIN-ONLY	property	216
+dingtalk	__init__	OVERRIDE	def	233
+dingtalk	_close_streaming_siblings	PLUGIN-ONLY	async def	570
+dingtalk	_compile_mention_patterns	PLUGIN-ONLY	def	471
+dingtalk	_create_and_stream_card	PLUGIN-ONLY	async def	1181
+dingtalk	_dingtalk_allowed_chats	PLUGIN-ONLY	def	457
+dingtalk	_dingtalk_free_response_chats	PLUGIN-ONLY	def	449
+dingtalk	_dingtalk_require_mention	PLUGIN-ONLY	def	440
+dingtalk	_extract_media	PLUGIN-ONLY	def	878
+dingtalk	_extract_text	PLUGIN-ONLY	staticmethod	748
+dingtalk	_fetch_download_url	PLUGIN-ONLY	async def	1505
+dingtalk	_fire_done_reaction	PLUGIN-ONLY	def	600
+dingtalk	_get_access_token	PLUGIN-ONLY	async def	1375
+dingtalk	_get_valid_webhook	PLUGIN-ONLY	def	1165
+dingtalk	_is_user_allowed	PLUGIN-ONLY	def	514
+dingtalk	_load_allowed_users	PLUGIN-ONLY	def	499
+dingtalk	_message_matches_mention_patterns	PLUGIN-ONLY	def	529
+dingtalk	_message_mentions_bot	PLUGIN-ONLY	def	521
+dingtalk	_normalize_markdown	PLUGIN-ONLY	staticmethod	1545
+dingtalk	_on_message	PLUGIN-ONLY	async def	629
+dingtalk	_resolve_media_codes	PLUGIN-ONLY	async def	1458
+dingtalk	_run_stream	PLUGIN-ONLY	async def	353
+dingtalk	_send_emotion	PLUGIN-ONLY	async def	1387
+dingtalk	_should_process_message	PLUGIN-ONLY	def	534
+dingtalk	_spawn_bg	PLUGIN-ONLY	def	562
+dingtalk	_stream_card_content	PLUGIN-ONLY	async def	1348
+dingtalk	connect	IMPL-ABSTRACT	async def	287
+dingtalk	disconnect	IMPL-ABSTRACT	async def	375
+dingtalk	edit_message	OVERRIDE	async def	1301
+dingtalk	get_chat_info	IMPL-ABSTRACT	async def	1158
+dingtalk	send	IMPL-ABSTRACT	async def	985
+dingtalk	send_document	OVERRIDE	async def	1139
+dingtalk	send_image	OVERRIDE	async def	1097
+dingtalk	send_image_file	OVERRIDE	async def	1121
+dingtalk	send_typing	OVERRIDE	async def	1093
+feishu	__init__	OVERRIDE	def	1482
+feishu	_add_reaction	PLUGIN-ONLY	async def	3141
+feishu	_admit	PLUGIN-ONLY	def	4327
+feishu	_allow_group_message	PLUGIN-ONLY	def	4382
+feishu	_apply_settings	PLUGIN-ONLY	def	1646
+feishu	_bot_identity	PLUGIN-ONLY	def	4469
+feishu	_build_create_message_body	PLUGIN-ONLY	staticmethod	5139
+feishu	_build_create_message_request	PLUGIN-ONLY	staticmethod	5157
+feishu	_build_event_handler	PLUGIN-ONLY	def	1677
+feishu	_build_file_upload_body	PLUGIN-ONLY	staticmethod	5185
+feishu	_build_file_upload_request	PLUGIN-ONLY	staticmethod	5199
+feishu	_build_get_application_request	PLUGIN-ONLY	staticmethod	5077
+feishu	_build_get_chat_request	PLUGIN-ONLY	staticmethod	5053
+feishu	_build_get_message_request	PLUGIN-ONLY	staticmethod	5059
+feishu	_build_image_upload_body	PLUGIN-ONLY	staticmethod	5168
+feishu	_build_image_upload_request	PLUGIN-ONLY	staticmethod	5179
+feishu	_build_lark_client	PLUGIN-ONLY	def	4960
+feishu	_build_media_post_payload	PLUGIN-ONLY	def	5207
+feishu	_build_message_resource_request	PLUGIN-ONLY	staticmethod	5065
+feishu	_build_outbound_payload	PLUGIN-ONLY	def	4620
+feishu	_build_post_payload	PLUGIN-ONLY	def	5204
+feishu	_build_reply_message_body	PLUGIN-ONLY	staticmethod	5088
+feishu	_build_reply_message_request	PLUGIN-ONLY	staticmethod	5106
+feishu	_build_resolved_approval_card	PLUGIN-ONLY	staticmethod	2179
+feishu	_build_resolved_update_prompt_card	PLUGIN-ONLY	staticmethod	2198
+feishu	_build_update_message_body	PLUGIN-ONLY	staticmethod	5117
+feishu	_build_update_message_request	PLUGIN-ONLY	staticmethod	5128
+feishu	_build_update_prompt_card	PLUGIN-ONLY	staticmethod	2111
+feishu	_cancel_pending_tasks	PLUGIN-ONLY	async def	1892
+feishu	_check_webhook_rate_limit	PLUGIN-ONLY	def	3666
+feishu	_clear_webhook_anomaly	PLUGIN-ONLY	def	3282
+feishu	_connect_webhook	PLUGIN-ONLY	async def	4941
+feishu	_connect_websocket	PLUGIN-ONLY	async def	4909
+feishu	_connect_with_retry	PLUGIN-ONLY	async def	4884
+feishu	_default_image_media_type	PLUGIN-ONLY	staticmethod	4310
+feishu	_derive_remote_filename	PLUGIN-ONLY	staticmethod	3521
+feishu	_disable_websocket_auto_reconnect	PLUGIN-ONLY	def	1905
+feishu	_dispatch_inbound_event	PLUGIN-ONLY	async def	3384
+feishu	_display_name_from_cached_path	PLUGIN-ONLY	staticmethod	4088
+feishu	_download_feishu_image	PLUGIN-ONLY	async def	3939
+feishu	_download_feishu_message_resource	PLUGIN-ONLY	async def	3970
+feishu	_download_feishu_message_resources	PLUGIN-ONLY	async def	3859
+feishu	_download_remote_document	PLUGIN-ONLY	async def	3475
+feishu	_download_remote_image	PLUGIN-ONLY	async def	3471
+feishu	_drain_pending_inbound_events	PLUGIN-ONLY	def	2504
+feishu	_enqueue_media_event	PLUGIN-ONLY	async def	3423
+feishu	_enqueue_pending_inbound_event	PLUGIN-ONLY	def	2469
+feishu	_enqueue_text_event	PLUGIN-ONLY	async def	3731
+feishu	_extract_message_content	PLUGIN-ONLY	async def	3827
+feishu	_extract_response_field	PLUGIN-ONLY	staticmethod	4852
+feishu	_extract_text_from_raw_content	PLUGIN-ONLY	def	4291
+feishu	_feishu_send_with_retry	PLUGIN-ONLY	async def	4970
+feishu	_fetch_bot_names	PLUGIN-ONLY	async def	4229
+feishu	_fetch_last_message_in_thread	PLUGIN-ONLY	async def	4772
+feishu	_fetch_message_text	PLUGIN-ONLY	async def	4258
+feishu	_finalize_send_result	PLUGIN-ONLY	def	4871
+feishu	_flush_media_batch	PLUGIN-ONLY	async def	3451
+feishu	_flush_media_batch_now	PLUGIN-ONLY	async def	3460
+feishu	_flush_text_batch	PLUGIN-ONLY	async def	3788
+feishu	_flush_text_batch_now	PLUGIN-ONLY	async def	3810
+feishu	_get_audio_duration_ms	PLUGIN-ONLY	staticmethod	4640
+feishu	_get_cached_sender_name	PLUGIN-ONLY	def	4161
+feishu	_get_chat_lock	PLUGIN-ONLY	def	3097
+feishu	_get_response_header	PLUGIN-ONLY	staticmethod	4062
+feishu	_get_sdk_executor	PLUGIN-ONLY	def	1709
+feishu	_guess_document_media_type	PLUGIN-ONLY	staticmethod	4083
+feishu	_guess_extension	PLUGIN-ONLY	staticmethod	4068
+feishu	_guess_media_type_from_filename	PLUGIN-ONLY	staticmethod	4095
+feishu	_guess_remote_extension	PLUGIN-ONLY	staticmethod	3516
+feishu	_handle_approval_card_action	PLUGIN-ONLY	def	2761
+feishu	_handle_card_action_event	PLUGIN-ONLY	async def	3042
+feishu	_handle_message_event_data	PLUGIN-ONLY	async def	2583
+feishu	_handle_message_with_guards	PLUGIN-ONLY	async def	3122
+feishu	_handle_reaction_event	PLUGIN-ONLY	async def	2969
+feishu	_handle_update_prompt_card_action	PLUGIN-ONLY	def	2817
+feishu	_handle_webhook_request	PLUGIN-ONLY	async def	3537
+feishu	_hydrate_bot_identity	PLUGIN-ONLY	async def	4476
+feishu	_is_card_action_duplicate	PLUGIN-ONLY	def	3030
+feishu	_is_duplicate	PLUGIN-ONLY	def	4600
+feishu	_is_interactive_operator_authorized	PLUGIN-ONLY	def	2751
+feishu	_is_webhook_signature_valid	PLUGIN-ONLY	def	3643
+feishu	_load_seen_message_ids	PLUGIN-ONLY	def	4554
+feishu	_load_settings	PLUGIN-ONLY	staticmethod	1545
+feishu	_log_background_failure	PLUGIN-ONLY	staticmethod	4317
+feishu	_loop_accepts_callbacks	PLUGIN-ONLY	staticmethod	2733
+feishu	_map_chat_type	PLUGIN-ONLY	staticmethod	4109
+feishu	_maybe_extract_text_document	PLUGIN-ONLY	async def	3923
+feishu	_media_batch_is_compatible	PLUGIN-ONLY	staticmethod	3415
+feishu	_media_batch_key	PLUGIN-ONLY	def	3404
+feishu	_mentions_self	PLUGIN-ONLY	def	4427
+feishu	_message_mentions_bot	PLUGIN-ONLY	def	4443
+feishu	_namespace_from_mapping	PLUGIN-ONLY	staticmethod	3530
+feishu	_normalize_media_type	PLUGIN-ONLY	staticmethod	4078
+feishu	_on_bot_added_to_chat	PLUGIN-ONLY	def	2619
+feishu	_on_bot_removed_from_chat	PLUGIN-ONLY	def	2626
+feishu	_on_card_action_trigger	PLUGIN-ONLY	def	2695
+feishu	_on_drive_comment_event	PLUGIN-ONLY	def	2639
+feishu	_on_meeting_invited_event	PLUGIN-ONLY	def	2657
+feishu	_on_message_event	PLUGIN-ONLY	def	2449
+feishu	_on_message_read_event	PLUGIN-ONLY	def	2612
+feishu	_on_message_recalled	PLUGIN-ONLY	def	2636
+feishu	_on_p2p_chat_entered	PLUGIN-ONLY	def	2633
+feishu	_on_reaction_event	PLUGIN-ONLY	def	2667
+feishu	_persist_seen_message_ids	PLUGIN-ONLY	def	4590
+feishu	_pop_processing_reaction	PLUGIN-ONLY	def	3218
+feishu	_post_mentions_bot	PLUGIN-ONLY	def	4466
+feishu	_process_inbound_message	PLUGIN-ONLY	async def	3302
+feishu	_reactions_enabled	PLUGIN-ONLY	def	3138
+feishu	_read_binary_response	PLUGIN-ONLY	staticmethod	4053
+feishu	_record_webhook_anomaly	PLUGIN-ONLY	def	3256
+feishu	_release_app_lock	PLUGIN-ONLY	async def	5038
+feishu	_remember_processing_reaction	PLUGIN-ONLY	def	3211
+feishu	_remove_reaction	PLUGIN-ONLY	async def	3181
+feishu	_require_mention_for	PLUGIN-ONLY	def	4374
+feishu	_reschedule_batch_task	PLUGIN-ONLY	staticmethod	3778
+feishu	_reset_batch_buffers	PLUGIN-ONLY	def	1900
+feishu	_resolve_approval	PLUGIN-ONLY	async def	2874
+feishu	_resolve_channel_prompt	PLUGIN-ONLY	def	3290
+feishu	_resolve_media_message_type	PLUGIN-ONLY	staticmethod	3891
+feishu	_resolve_normalized_message_type	PLUGIN-ONLY	def	3901
+feishu	_resolve_outbound_file_routing	PLUGIN-ONLY	staticmethod	5214
+feishu	_resolve_sender_name_from_api	PLUGIN-ONLY	async def	4174
+feishu	_resolve_sender_profile	PLUGIN-ONLY	async def	4128
+feishu	_resolve_source_chat_type	PLUGIN-ONLY	staticmethod	4120
+feishu	_resolve_update_prompt	PLUGIN-ONLY	async def	2928
+feishu	_response_error_result	PLUGIN-ONLY	def	4858
+feishu	_response_succeeded	PLUGIN-ONLY	staticmethod	4848
+feishu	_run_blocking	PLUGIN-ONLY	async def	1733
+feishu	_schedule_media_batch_flush	PLUGIN-ONLY	def	3444
+feishu	_schedule_text_batch_flush	PLUGIN-ONLY	def	3769
+feishu	_send_raw_message	PLUGIN-ONLY	async def	4794
+feishu	_send_uploaded_file_message	PLUGIN-ONLY	async def	4674
+feishu	_should_batch_media_event	PLUGIN-ONLY	def	3398
+feishu	_shutdown_sdk_executor	PLUGIN-ONLY	def	1738
+feishu	_stop_webhook_server	PLUGIN-ONLY	async def	1915
+feishu	_submit_on_loop	PLUGIN-ONLY	def	2737
+feishu	_text_batch_is_compatible	PLUGIN-ONLY	staticmethod	3723
+feishu	_text_batch_key	PLUGIN-ONLY	def	3711
+feishu	_write_update_prompt_response	PLUGIN-ONLY	staticmethod	2213
+feishu	connect	IMPL-ABSTRACT	async def	1754
+feishu	disconnect	IMPL-ABSTRACT	async def	1807
+feishu	edit_message	OVERRIDE	async def	1995
+feishu	format_message	OVERRIDE	def	2441
+feishu	get_chat_info	IMPL-ABSTRACT	async def	2404
+feishu	on_processing_complete	OVERRIDE	async def	3231
+feishu	on_processing_start	OVERRIDE	async def	3221
+feishu	send	IMPL-ABSTRACT	async def	1928
+feishu	send_animation	OVERRIDE	async def	2370
+feishu	send_document	OVERRIDE	async def	2238
+feishu	send_exec_approval	PLUGIN-ONLY	async def	2037
+feishu	send_image	OVERRIDE	async def	2342
+feishu	send_image_file	OVERRIDE	async def	2277
+feishu	send_typing	OVERRIDE	async def	2338
+feishu	send_update_prompt	PLUGIN-ONLY	async def	2143
+feishu	send_video	OVERRIDE	async def	2258
+feishu	send_voice	OVERRIDE	async def	2219
+google_chat	__init__	OVERRIDE	def	647
+google_chat	_acquire_user_chat_api	PLUGIN-ONLY	async def	3046
+google_chat	_bot_id_cache_path	PLUGIN-ONLY	def	917
+google_chat	_build_message_event	PLUGIN-ONLY	async def	1813
+google_chat	_call_with_retry	PLUGIN-ONLY	async def	2529
+google_chat	_chunk_text	PLUGIN-ONLY	def	2362
+google_chat	_consume_typing_card_with_text	PLUGIN-ONLY	async def	2826
+google_chat	_create_message	PLUGIN-ONLY	async def	2575
+google_chat	_dispatch_message	PLUGIN-ONLY	async def	1551
+google_chat	_download_attachment	PLUGIN-ONLY	async def	1939
+google_chat	_extract_message_payload	PLUGIN-ONLY	staticmethod	1255
+google_chat	_handle_setup_files_command	PLUGIN-ONLY	async def	1589
+google_chat	_invalidate_user_creds	PLUGIN-ONLY	def	3093
+google_chat	_is_app_auth_attachment_error	PLUGIN-ONLY	staticmethod	2979
+google_chat	_load_cached_bot_id	PLUGIN-ONLY	def	922
+google_chat	_load_per_user_chat_api	PLUGIN-ONLY	async def	2998
+google_chat	_load_sa_credentials	PLUGIN-ONLY	def	767
+google_chat	_log_background_failure	PLUGIN-ONLY	staticmethod	881
+google_chat	_loop_accepts_callbacks	PLUGIN-ONLY	staticmethod	888
+google_chat	_new_authed_http	PLUGIN-ONLY	def	2519
+google_chat	_on_pubsub_message	PLUGIN-ONLY	def	1366
+google_chat	_patch_message	PLUGIN-ONLY	async def	2337
+google_chat	_post_attachment_fallback	PLUGIN-ONLY	async def	3259
+google_chat	_resolve_bot_user_id	PLUGIN-ONLY	async def	943
+google_chat	_resolve_thread_id	PLUGIN-ONLY	def	2482
+google_chat	_run_supervisor	PLUGIN-ONLY	async def	1180
+google_chat	_save_cached_bot_id	PLUGIN-ONLY	def	932
+google_chat	_send_file	PLUGIN-ONLY	async def	3109
+google_chat	_submit_on_loop	PLUGIN-ONLY	def	891
+google_chat	_validate_config	PLUGIN-ONLY	def	840
+google_chat	connect	IMPL-ABSTRACT	async def	985
+google_chat	delete_message	OVERRIDE	async def	2300
+google_chat	disconnect	IMPL-ABSTRACT	async def	1152
+google_chat	dispatch_http_event	PLUGIN-ONLY	async def	1495
+google_chat	edit_message	OVERRIDE	async def	2255
+google_chat	format_message	OVERRIDE	classmethod	2403
+google_chat	get_chat_info	IMPL-ABSTRACT	async def	3304
+google_chat	on_processing_complete	OVERRIDE	async def	2766
+google_chat	send	IMPL-ABSTRACT	async def	2057
+google_chat	send_animation	OVERRIDE	async def	2948
+google_chat	send_card	PLUGIN-ONLY	async def	2159
+google_chat	send_clarify	OVERRIDE	async def	2188
+google_chat	send_document	OVERRIDE	async def	2904
+google_chat	send_image	OVERRIDE	async def	2858
+google_chat	send_image_file	OVERRIDE	async def	2890
+google_chat	send_typing	OVERRIDE	async def	2627
+google_chat	send_video	OVERRIDE	async def	2934
+google_chat	send_voice	OVERRIDE	async def	2920
+google_chat	stop_typing	OVERRIDE	async def	2729
+google_chat	verify_http_event_request	PLUGIN-ONLY	def	1520
+matrix	__init__	OVERRIDE	def	1059
+matrix	_apply_relation_metadata	PLUGIN-ONLY	def	4661
+matrix	_background_read_receipt	PLUGIN-ONLY	def	4166
+matrix	_build_text_message_content	PLUGIN-ONLY	def	4643
+matrix	_cache_room_identity	PLUGIN-ONLY	def	4492
+matrix	_dispatch_sync	PLUGIN-ONLY	async def	2972
+matrix	_download_external_media_with_cap	PLUGIN-ONLY	async def	2274
+matrix	_enqueue_text_event	PLUGIN-ONLY	def	4113
+matrix	_expire_matrix_approval_prompt	PLUGIN-ONLY	async def	4040
+matrix	_expire_matrix_model_picker_prompt	PLUGIN-ONLY	async def	4056
+matrix	_extract_outbound_mentions	PLUGIN-ONLY	def	4686
+matrix	_extract_server_ed25519	PLUGIN-ONLY	staticmethod	1310
+matrix	_flush_text_batch	PLUGIN-ONLY	async def	4138
+matrix	_get_display_name	PLUGIN-ONLY	async def	4810
+matrix	_get_room_canonical_alias	PLUGIN-ONLY	async def	4459
+matrix	_get_room_member_count	PLUGIN-ONLY	async def	4421
+matrix	_get_room_name	PLUGIN-ONLY	async def	4446
+matrix	_get_room_topic	PLUGIN-ONLY	async def	4472
+matrix	_handle_media_message	PLUGIN-ONLY	async def	3408
+matrix	_handle_text_message	PLUGIN-ONLY	async def	3336
+matrix	_has_outbound_room_mention	PLUGIN-ONLY	def	4698
+matrix	_inject_outbound_mention_links	PLUGIN-ONLY	def	4703
+matrix	_is_allowed_matrix_room	PLUGIN-ONLY	def	3054
+matrix	_is_allowed_matrix_room_event	PLUGIN-ONLY	async def	3058
+matrix	_is_bot_mentioned	PLUGIN-ONLY	def	4747
+matrix	_is_dm_room	PLUGIN-ONLY	async def	4566
+matrix	_is_duplicate_event	PLUGIN-ONLY	def	1252
+matrix	_is_self_sender	PLUGIN-ONLY	def	2994
+matrix	_is_system_or_bridge_sender	PLUGIN-ONLY	staticmethod	3014
+matrix	_join_room_by_id	PLUGIN-ONLY	async def	3654
+matrix	_markdown_to_html	PLUGIN-ONLY	def	4834
+matrix	_markdown_to_html_fallback	PLUGIN-ONLY	staticmethod	4878
+matrix	_matches_ignored_user_pattern	PLUGIN-ONLY	def	3050
+matrix	_matrix_prompt_expired	PLUGIN-ONLY	def	3983
+matrix	_migrate_legacy_crypto_pickle	PLUGIN-ONLY	async def	1378
+matrix	_mxc_to_http	PLUGIN-ONLY	def	4827
+matrix	_on_invite	PLUGIN-ONLY	async def	3612
+matrix	_on_reaction	PLUGIN-ONLY	async def	3839
+matrix	_on_room_message	PLUGIN-ONLY	async def	3077
+matrix	_parse_require_mention	PLUGIN-ONLY	staticmethod	1266
+matrix	_parse_thread_require_mention	PLUGIN-ONLY	staticmethod	1285
+matrix	_protect_outbound_mention_regions	PLUGIN-ONLY	def	4720
+matrix	_record_dm_room	PLUGIN-ONLY	async def	4598
+matrix	_redact_bot_approval_reactions	PLUGIN-ONLY	async def	4071
+matrix	_redact_bot_model_picker_reactions	PLUGIN-ONLY	async def	4081
+matrix	_redact_reaction	PLUGIN-ONLY	async def	3762
+matrix	_refresh_dm_cache	PLUGIN-ONLY	async def	4570
+matrix	_repickle_crypto_sessions	PLUGIN-ONLY	async def	1444
+matrix	_reset_crypto_store_if_device_changed	PLUGIN-ONLY	async def	1347
+matrix	_resolve_message_context	PLUGIN-ONLY	async def	3218
+matrix	_resolve_room_identity	PLUGIN-ONLY	async def	4505
+matrix	_reverify_keys_after_upload	PLUGIN-ONLY	async def	1317
+matrix	_room_server_name	PLUGIN-ONLY	staticmethod	4486
+matrix	_sanitize_link_url	PLUGIN-ONLY	staticmethod	4869
+matrix	_schedule_invite_join	PLUGIN-ONLY	def	3685
+matrix	_schedule_pending_invite_joins	PLUGIN-ONLY	def	3715
+matrix	_schedule_reaction_redaction	PLUGIN-ONLY	def	3771
+matrix	_send_invalid_reaction_feedback	PLUGIN-ONLY	async def	4029
+matrix	_send_local_file	PLUGIN-ONLY	async def	2831
+matrix	_send_reaction	PLUGIN-ONLY	async def	3731
+matrix	_send_simple_message	PLUGIN-ONLY	async def	4374
+matrix	_serialize_history_event	PLUGIN-ONLY	def	4321
+matrix	_state_event_value	PLUGIN-ONLY	staticmethod	4401
+matrix	_strip_mention	PLUGIN-ONLY	def	4780
+matrix	_sync_loop	PLUGIN-ONLY	async def	2891
+matrix	_text_batch_key	PLUGIN-ONLY	def	4098
+matrix	_upload_and_send	PLUGIN-ONLY	async def	2739
+matrix	_validate_matrix_prompt_reactor	PLUGIN-ONLY	async def	3987
+matrix	_verify_device_keys_on_server	PLUGIN-ONLY	async def	1499
+matrix	connect	IMPL-ABSTRACT	async def	1583
+matrix	create_room	PLUGIN-ONLY	async def	4232
+matrix	disconnect	IMPL-ABSTRACT	async def	2016
+matrix	edit_message	OVERRIDE	async def	2201
+matrix	fetch_history	PLUGIN-ONLY	async def	4284
+matrix	format_message	OVERRIDE	def	2729
+matrix	get_chat_info	IMPL-ABSTRACT	async def	2123
+matrix	get_diagnostics	PLUGIN-ONLY	def	2129
+matrix	invite_user	PLUGIN-ONLY	async def	4272
+matrix	on_processing_complete	OVERRIDE	async def	3811
+matrix	on_processing_start	OVERRIDE	async def	3800
+matrix	redact_message	PLUGIN-ONLY	async def	4207
+matrix	send	IMPL-ABSTRACT	async def	2059
+matrix	send_choice_picker	PLUGIN-ONLY	async def	2669
+matrix	send_document	OVERRIDE	async def	2433
+matrix	send_exec_approval	PLUGIN-ONLY	async def	2516
+matrix	send_image	OVERRIDE	async def	2233
+matrix	send_image_file	OVERRIDE	async def	2384
+matrix	send_model_picker	PLUGIN-ONLY	async def	2588
+matrix	send_multiple_images	OVERRIDE	async def	2397
+matrix	send_read_receipt	PLUGIN-ONLY	async def	4177
+matrix	send_typing	OVERRIDE	async def	2182
+matrix	send_video	OVERRIDE	async def	2497
+matrix	send_voice	OVERRIDE	async def	2447
+matrix	set_presence	PLUGIN-ONLY	async def	4347
+matrix	stop_typing	OVERRIDE	async def	2192
+wecom	__init__	OVERRIDE	def	176
+wecom	_apply_file_size_limits	PLUGIN-ONLY	staticmethod	1016
+wecom	_cache_media	PLUGIN-ONLY	async def	781
+wecom	_cleanup_ws	PLUGIN-ONLY	async def	302
+wecom	_decode_base64	PLUGIN-ONLY	staticmethod	832
+wecom	_decrypt_file_bytes	PLUGIN-ONLY	staticmethod	1094
+wecom	_derive_message_type	PLUGIN-ONLY	staticmethod	876
+wecom	_detect_image_ext	PLUGIN-ONLY	staticmethod	837
+wecom	_detect_wecom_media_type	PLUGIN-ONLY	staticmethod	1005
+wecom	_dispatch_payload	PLUGIN-ONLY	async def	426
+wecom	_download_remote_bytes	PLUGIN-ONLY	async def	1123
+wecom	_enqueue_text_event	PLUGIN-ONLY	def	614
+wecom	_extract_media	PLUGIN-ONLY	async def	734
+wecom	_extract_text	PLUGIN-ONLY	staticmethod	684
+wecom	_fail_pending_responses	PLUGIN-ONLY	def	445
+wecom	_flush_text_batch	PLUGIN-ONLY	async def	644
+wecom	_guess_extension	PLUGIN-ONLY	staticmethod	853
+wecom	_guess_filename	PLUGIN-ONLY	staticmethod	863
+wecom	_guess_mime_type	PLUGIN-ONLY	staticmethod	986
+wecom	_heartbeat_loop	PLUGIN-ONLY	async def	406
+wecom	_is_dm_allowed	PLUGIN-ONLY	def	900
+wecom	_is_dm_intake_allowed	PLUGIN-ONLY	def	909
+wecom	_is_group_allowed	PLUGIN-ONLY	def	923
+wecom	_listen_loop	PLUGIN-ONLY	async def	365
+wecom	_load_outbound_media	PLUGIN-ONLY	async def	1178
+wecom	_looks_like_url	PLUGIN-ONLY	staticmethod	1174
+wecom	_mime_for_ext	PLUGIN-ONLY	staticmethod	849
+wecom	_new_req_id	PLUGIN-ONLY	staticmethod	500
+wecom	_normalize_content_type	PLUGIN-ONLY	staticmethod	995
+wecom	_on_message	PLUGIN-ONLY	async def	523
+wecom	_open_connection	PLUGIN-ONLY	async def	312
+wecom	_open_dm_opted_in	PLUGIN-ONLY	def	895
+wecom	_parse_json	PLUGIN-ONLY	staticmethod	511
+wecom	_payload_req_id	PLUGIN-ONLY	staticmethod	504
+wecom	_prepare_outbound_media	PLUGIN-ONLY	async def	1213
+wecom	_raise_for_wecom_error	PLUGIN-ONLY	classmethod	1088
+wecom	_read_events	PLUGIN-ONLY	async def	392
+wecom	_remember_chat_req_id	PLUGIN-ONLY	def	958
+wecom	_remember_reply_req_id	PLUGIN-ONLY	def	949
+wecom	_reply_req_id_for_message	PLUGIN-ONLY	def	975
+wecom	_resolve_group_cfg	PLUGIN-ONLY	def	937
+wecom	_response_error	PLUGIN-ONLY	staticmethod	1080
+wecom	_send_followup_markdown	PLUGIN-ONLY	async def	1326
+wecom	_send_json	PLUGIN-ONLY	async def	452
+wecom	_send_media_message	PLUGIN-ONLY	async def	1287
+wecom	_send_media_source	PLUGIN-ONLY	async def	1339
+wecom	_send_reply_markdown	PLUGIN-ONLY	async def	1299
+wecom	_send_reply_media_message	PLUGIN-ONLY	async def	1310
+wecom	_send_reply_request	PLUGIN-ONLY	async def	473
+wecom	_send_request	PLUGIN-ONLY	async def	458
+wecom	_text_batch_key	PLUGIN-ONLY	def	604
+wecom	_upload_media_bytes	PLUGIN-ONLY	async def	1229
+wecom	_wait_for_handshake	PLUGIN-ONLY	async def	341
+wecom	connect	IMPL-ABSTRACT	async def	225
+wecom	disconnect	IMPL-ABSTRACT	async def	271
+wecom	enforces_own_access_policy	OVERRIDE	property	891
+wecom	get_chat_info	IMPL-ABSTRACT	async def	1561
+wecom	send	IMPL-ABSTRACT	async def	1422
+wecom	send_document	OVERRIDE	async def	1507
+wecom	send_image	OVERRIDE	async def	1468
+wecom	send_image_file	OVERRIDE	async def	1491
+wecom	send_typing	OVERRIDE	async def	1557
+wecom	send_video	OVERRIDE	async def	1541
+wecom	send_voice	OVERRIDE	async def	1525
+wecom_callback	__init__	OVERRIDE	def	76
+wecom_callback	_build_event	PLUGIN-ONLY	def	366
+wecom_callback	_cleanup	PLUGIN-ONLY	async def	196
+wecom_callback	_crypt_for_app	PLUGIN-ONLY	def	402
+wecom_callback	_decrypt_request	PLUGIN-ONLY	def	357
+wecom_callback	_get_access_token	PLUGIN-ONLY	async def	421
+wecom_callback	_get_app_by_name	PLUGIN-ONLY	def	409
+wecom_callback	_handle_callback	PLUGIN-ONLY	async def	291
+wecom_callback	_handle_health	PLUGIN-ONLY	async def	273
+wecom_callback	_handle_verify	PLUGIN-ONLY	async def	276
+wecom_callback	_normalize_apps	PLUGIN-ONLY	staticmethod	104
+wecom_callback	_poll_loop	PLUGIN-ONLY	async def	342
+wecom_callback	_refresh_access_token	PLUGIN-ONLY	async def	428
+wecom_callback	_resolve_app_for_chat	PLUGIN-ONLY	def	255
+wecom_callback	_user_app_key	PLUGIN-ONLY	staticmethod	100
+wecom_callback	connect	IMPL-ABSTRACT	async def	125
+wecom_callback	disconnect	IMPL-ABSTRACT	async def	183
+wecom_callback	get_chat_info	IMPL-ABSTRACT	async def	266
+wecom_callback	send	IMPL-ABSTRACT	async def	210
