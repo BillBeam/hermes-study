@@ -1,6 +1,6 @@
 agent: 片 C · 移交条目归属与处置
 dispatched: R11E 批次一
-signal: OPEN
+signal: RELEASED 片 C 完成信号(任务完成通知,含 114 条候选面与五种 verdict 分布)。主线已独立复核:(a) 抽查 3 条转 R12 的确为「要改 chapters/ 正文」;(b) 独立复跑「判据一命中 0」——唯一命中是本轮自己新写的制度条,故「本轮结清 0」是轮次性质而非执行力;(c) 25 条存疑逐条裁定,见 notes/r11e-90-handover-rulings.md;(d) 片 C 指出主线更正探针搜索面只扫 *.md 属实,已扩到 .md/.txt/.py/.tsv 并加负向前瞻,结论不变;(e) 修了片 C 两处证据:一条引用钉到 @ a7707bc,一条普查加 --exclude(主线定案表落库使其读数 0→25)。
 path: notes/r11e-raw-handover.md
 path: data/r11e/handover-candidates.tsv
 path: data/r11e/probes/handover_*.py

@@ -17,8 +17,12 @@ CLAUDE.md 要求:凡引用仓库历史的统计数字,须给出**可重跑计数
 
 ## 口径
 
-  - **语料**:本仓库 `*.md`,即 `chapters/ notes/ reports/ reviews/ reading/ data/` 与仓库根
-    (含 `CLAUDE.md` 自己)。本脚本**排除 `reading/` 与本轮 R11E 自己的产物**再报一次,
+  - **语料**:本仓库 `*.md` / `*.txt` / `*.py` / `*.tsv`(排除 `.git/`)。
+    **第一版只扫 `*.md`,是片 C 独立复查时指出的缺口**:`data/r11c/f-pre-binding-inventory-staleness.txt`
+    里有 10 处 `15/17`,全部是同一条 `H-R11B-C-a` 表格行的重复副本(片 F 的普查按命中文件重复整表),
+    **结论不变,但当时那条负结论的搜索面确实不完备**——负结论的可信度等于一次搜索的完备性,
+    这正是 CLAUDE.md 拿来当反例的形状。**不含**无扩展名文件、`*.json`、`*.sh`、未纳入版本控制的文件。
+  - 本脚本**排除 `reading/` 与本轮 R11E 自己的产物**再报一次,
     因为「写一份点名清单就会改变下一次的读数」是本项目已经栽过的坑
     (CLAUDE.md「搜过没有类测量必须报两个读数」)。
   - **命中**:字面量 `15/17` 或 `15 / 17`。
@@ -34,17 +38,31 @@ import sys
 from pathlib import Path
 
 STUDY = Path(__file__).resolve().parents[3]
-PATTERN = re.compile(r"15\s*/\s*17")
+# 负向前瞻是必须的(片 C 指出):没有它,`data/r11c/d-anchor-resolution-fix2-left.tsv` 里
+# **13 处** `15/171 个候选够长` 会被当成命中 —— 那是 171,不是 17。
+PATTERN = re.compile(r"15\s*/\s*17(?!\d)")
 # 本轮自己的产物:它们会因为**报告了这件事**而命中,那是污染不是证据。
-SELF = ("reading/", "data/r11e/", "reports/round-11e-", "notes/r11e-")
+# 本轮承载清单:凡**因为报告这件事**而含 15/17 的文件,都要剔除再报一次。
+# 第一版漏了 `scripts/build_reading_layer.py` 与 `CLAUDE.md` —— 它们承载的正是这次更正的
+# 说明文字(「这个数在本仓库里找不到出处」),于是检测器把一句**否定**当成了出处,
+# 判 [BAD]。这与 R11C 记下的「短语被从它的否定里摘出来」是同一物种,
+# 只不过那次是词根表,这次是我自己的正则。
+SELF = ("reading/", "data/r11e/", "reports/round-11e-", "notes/r11e-",
+        "scripts/build_reading_layer.py", "CLAUDE.md")
+
+
+EXTS = ("*.md", "*.txt", "*.py", "*.tsv")
 
 
 def md_files():
-    for p in sorted(STUDY.rglob("*.md")):
-        rel = p.relative_to(STUDY).as_posix()
-        if rel.startswith(".git/"):
-            continue
-        yield rel, p
+    seen = set()
+    for pat in EXTS:
+        for p in sorted(STUDY.rglob(pat)):
+            rel = p.relative_to(STUDY).as_posix()
+            if rel.startswith(".git/") or rel in seen:
+                continue
+            seen.add(rel)
+            yield rel, p
 
 
 def scan():
@@ -57,7 +75,7 @@ def scan():
         for i, line in enumerate(text.split("\n"), 1):
             if PATTERN.search(line):
                 raw.append((rel, i, line.strip()[:110]))
-                if not rel.startswith(SELF) and rel != "CLAUDE.md":
+                if not rel.startswith(SELF):
                     filtered.append((rel, i, line.strip()[:110]))
     return raw, filtered
 
@@ -69,7 +87,7 @@ def main():
     n_files = sum(1 for _ in md_files())
 
     raw, filtered = scan()
-    print(f"语料:{n_files} 份 *.md;仓库可达提交总数(分母):{total_commits}")
+    print(f"语料:{n_files} 份 *.md/*.txt/*.py/*.tsv;仓库可达提交总数(分母):{total_commits}")
     print(f"字面量 15/17 命中:朴素读数 {len(raw)} 处 / 剔除本轮产物与 CLAUDE.md 后 {len(filtered)} 处")
     for rel, i, line in filtered:
         print(f"  {rel}:{i}  {line}")
