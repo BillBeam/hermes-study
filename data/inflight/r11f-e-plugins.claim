@@ -3,3 +3,4 @@ dispatched: 2026-08-11
 signal: OPEN
 path: notes/r11f-raw-e-*.md
 path: data/r11f/e/*
+path: data/r11f/probes/e_*.py
