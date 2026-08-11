@@ -107,11 +107,12 @@
 |---|---|---|---|
 | `H-R11B-B1-e` | 转戊 | 片 B1 12 个 + 片 B2 26 个 = **38 个**文件的台账 `status` 仍是 `R7B-deep-read` 等旧值,没反映 R11B 的重读 | `notes/r11d-raw-handover-disposition.md:254` 的 `H-R11B-B1-e` |
 
-## 3. 本轮新铸的号(2 个,均带轮次标识)
+## 3. 本轮新铸的号(3 个,均带轮次标识)
 
 | 号 | 现象 | 去向(条件式) | 锚点 |
 |---|---|---|---|
 | `H-R11E-M-a` | `H-R11B-D-a` 与 `H-R11D-M-c` 是**同一实体**(同一份 `notes/r6-60`、同样 3 处第三方包锚点、同一条修法),两个号各自在账上活着,任一处被标结清,另一处**因号已闭而不会再被发现**——正是 R11B 案号纪律要防的形态 | 甲(改引用关卡的那一轮),并案后只留本号 | `notes/r11d-raw-handover-disposition.md:399` 的 `H-R11B-D-a` |
+| `H-R11E-M-c` | `scripts/run_tests.sh` 不打印聚合 skipped 行,每一轮都要自己写一次解析,而两轮写出了两个口径(R11D 报 **132**,R11E 报 **239**;R11E 已直接复核单文件 `pytest -q` 给出 `11 skipped` 与自己的解析一致,而 R11D 的方法未落库、无从复跑) | 乙,或任一改 `scripts/` 的轮次:把 `data/r11e/probes/test_totals_r11e.py` 收进 `scripts/` | `data/r11e/probes/test_totals_r11e.py:1` 的 `R11E · 从 run_tests.sh 完整日志汇总 passed / failed / skipped` |
 | `H-R11E-M-b` | 问题索引的粒度只到 H3,而 `chapters/r8a-configuration-surface.md` 的 `4. 可迁移的设计原则` 是一个 **385 行、无任何 H3 子节**的 H2,索引只能把读者送到它门口(本轮 3 条索引指向它) | R12 装订轮:切 H3 后这 3 行可直接改指 | `chapters/r8a-configuration-surface.md:1253` 的 `## 4. 可迁移的设计原则` |
 
 ## 4. 如实申报:本文件没做的

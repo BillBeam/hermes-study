@@ -284,12 +284,13 @@ P01 / P04 因此各虚高一章。改为数不同的章,并在两数不等时**�
   就永远停在「查不了」。* 本轮已补出 `data/r11e/dispatch-brief.md`。
   「证据块不得依赖另一个块产生的文件」这条**本身**尚未入册,转丁。
 
-### 6.3 本轮新铸 2 号
+### 6.3 本轮新铸 3 号
 
 | 号 | 现象 | 去向(条件式) |
 |---|---|---|
 | `H-R11E-M-a` | `H-R11B-D-a` 与 `H-R11D-M-c` 是**同一实体**(同一份 `notes/r6-60`、同样 3 处第三方包锚点、同一条修法),两个号各自在账上活着,任一处被标结清另一处**因号已闭而不会再被发现** | 甲,并案后只留本号 |
 | `H-R11E-M-b` | 索引粒度只到 H3,而 `chapters/r8a-configuration-surface.md:1253` 的 `## 4. 可迁移的设计原则` 是一个 **385 行、无任何 H3 子节**的 H2,索引只能把读者送到门口(3 条索引指向它) | R12 装订轮:切 H3 后这 3 行可直接改指 |
+| `H-R11E-M-c` | `scripts/run_tests.sh` 不打印聚合 skipped 行,每轮各写一次解析,两轮写出两个口径(R11D **132** / R11E **239**) | 乙,或任一改 `scripts/` 的轮次:把汇总解析收进 `scripts/` |
 
 ---
 
@@ -300,8 +301,8 @@ P01 / P04 因此各虚高一章。改为数不同的章,并在两数不等时**�
 | 关卡 | 读数 | 退出码 |
 |---|---|---|
 | `verify_reading_layer.py`(**本轮新立**) | `sections=134 products=3 links=542 failures=0` | 0 |
-| `verify_citations.py` | `citations=488 OK=389 UNCHECKED=99`;**0 MISMATCH / 0 BLOCK-DRIFT**;`table_anchors=78 OK=48`,**0 TABLE-DRIFT / 0 TABLE-OUT-OF-RANGE** | 0 |
-| `verify_evidence_commands.py` | `paired=19 unpaired=0 differing=0 timedout=0`;可跑性 `runfail=0` | 0 |
+| `verify_citations.py` | `citations=491 OK=389 UNCHECKED=102`;**0 MISMATCH / 0 BLOCK-DRIFT**;`table_anchors=81 OK=51`,**0 TABLE-DRIFT / 0 TABLE-OUT-OF-RANGE** | 0 |
+| `verify_evidence_commands.py` | `paired=25 unpaired=0 differing=0 timedout=0`;可跑性 `runfail=0` | 0 |
 | `verify_chapter_order.py` | `chapters=21 重号=0 未编号=0`;正文章号一致 **543**(并入 `reading/` 前是 1) | 0 |
 | `verify_derived_numbers.py` | `declared=18 OK=18 STALE=0` | 0 |
 | `verify_ledger.py` | `OK baseline=863e31318 files=8530 total_lines=2608452` | 0 |
@@ -316,9 +317,9 @@ P01 / P04 因此各虚高一章。改为数不同的章,并在两数不等时**�
   原则层;**对派生件单独算比例,量的是源章的行文习惯,不是派生层的质量**。已抽查 4 条
   回源核对全部指对(`hermes_logging.py:313`、`gateway/platforms/base.py:742`、
   `hermes_cli/status.py:683`、`gateway/status.py:1-5`)。口径已入册 CLAUDE.md。
-- 合并口径:`OK/488 = 79.7%`
+- 合并口径:`OK/491 = 79.2%`
 
-**表格锚点声明率单独报,不并入可校验比例**:`table_anchors=78 OK=48`(61.5%)。
+**表格锚点声明率单独报,不并入可校验比例**:`table_anchors=81 OK=51`(63.0%)。
 
 ### 7.2 `chapters/` 逐文件零改动(验收项 5)
 
@@ -412,14 +413,118 @@ cd /home/user/hermes-study && awk -F'\t' 'NR>1{sub(/\r$/,"",$6); if($6=="R1-inve
 
 ## 8. 测试(验收项 8)
 
-*(本节读数在收工前补入,见 §12 勘误节前的最终数据块。)*
+**跑的是全量套件**:2,630 个测试文件,`HERMES_DISABLE_LAZY_INSTALLS=1`,共享 venv 87 包。
+
+| 读数 | 值 | 口径 |
+|---|---:|---|
+| passed | **25,637** | 逐文件进度行 `N✓` 求和 |
+| failed | **75** | 分布在 **31** 个文件 |
+| **skipped** | **239** | 分布在 **70** 个文件(整文件跳过 27 / 部分跳过 43) |
+| 零执行文件 | **12** | 收集期失败,一个用例都没跑 |
+| 整文件跳过掩盖的用例 | **96** | 27 个文件,`passed=0 且 skipped>0` |
+| 零执行掩盖的用例 | **≥118** | 按 `def test_` 计,是**下限**(`parametrize` 会更多) |
+
+**本轮不改基线一个字节**,所以 75 个失败与 12 个零执行全部是环境或纪律造成的,没有一条是代码缺陷。
+
+### 8.1 失败面与 R11D **逐个文件**相同,故引用 R11D 的九类诊断
+
+R11D 已把 43 份文件(31 有失败 + 12 零执行)逐个归入九类成因。本轮**先证明失败面相同再引用**
+——**31 和 31 可以是两个不同的 31**:
+
+```verify
+python3 data/r11e/probes/test_failure_delta.py /home/user/hermes-study/data/r11e/tests-full-tail.log
+```
+
+```text
+本轮:有失败的文件 31 份 / 失败用例 75 个 / 零执行文件 12 份
+R11D:有失败的文件 31 份 / 失败用例 75 个 / 零执行 12 份
+零执行 12 份**逐个文件相同**(集合相等,不只是总数相等)。
+OK
+```
+
+九类成因(引自 R11D §6,本轮未复算每一类的根因证据,如实标注为**引用**而非独立复核):
+无 IPv6 **2** / 以 root 运行 **4** / 离线无 models.dev 目录 **2** / SQLite 版本措辞 **1** /
+可选依赖直接 import 失败 **23** / **惰性安装封印直接触发 7** / 无凭据 **2** /
+系统工具缺失 **1** / 容器执行限制 **1**。
+
+**第 6 类是本项目纪律自己造成的**:`CLAUDE.md` 要求凡执行基线代码一律带
+`HERMES_DISABLE_LAZY_INSTALLS=1`,于是这 7 份报出来的错不是「缺包」而是「封印不让装」。
+**没有去掉封印重跑来区分「因封印而 failed」与「去掉封印也 failed」**——去掉封印会让被测代码
+联网装包并改变本轮 venv,那是边界禁止的。**这是一个有意接受的观测盲区**,与 R11D 同样处置。
+
+### 8.2 ★ skipped 与 R11D 不同:239 vs 132,两个口径分别标注
+
+**passed 与 failed 与 R11D 逐个数相同(25,637 / 75),唯独 skipped 不同:本轮 239,R11D 报 132。**
+按验收项 11,**不得表述为「读数相同」,也不得挑一个报**:
+
+- **本轮口径**:逐文件进度行括号里的 `Ns` 求和。格式有两种——`(57✓ 5s, 3.1s)`(部分跳过)与
+  **`(11s, 1.1s)`(整文件跳过,没有 `N✓` 段)**。解析器落库为
+  `data/r11e/probes/test_totals_r11e.py`。
+- **已直接复核**(不靠间接推断):单独重跑 `tests/agent/test_pet_generate.py`,
+  `pytest -q` 输出 `11 skipped in 0.11s`,与本轮解析给它的 11 一致。
+- **R11D 的 132 无法复现**:R11D 没有把它的汇总方法落库,报告只写了「132(分布在 39 个文件)」。
+  本轮 70 个含 skip 的文件里有 **27 个是整文件跳过**(合计 96 个用例),它们正是
+  `(11s, …)` 这种**没有 `N✓` 段**的形态——一个按 `N✓ Ms` 取数的解析器会整类漏掉。
+  **这只是最可能的解释,不是核实过的结论**:R11D 的方法不在库里,无从复跑。
+- **这本身是 P08 的一个实例**:运行器**不打印聚合 skipped 行**,于是每一轮都得自己写一次解析,
+  而两轮写出了两个口径。已铸 `H-R11E-M-c`(见 §11):把汇总解析收进 `scripts/`,让各轮共用一个口径。
+
+### 8.3 整文件跳过逐个点名(验收项 8 明令)
+
+27 个文件 `passed=0 且 skipped>0`,合计掩盖 **96** 个用例。它们与「零执行」一样,
+**在一个只看 passed 的读者眼里是不存在的**——这正是验收要求点名的理由。
+
+| 掩盖用例 | 文件 |
+|---:|---|
+| 11 | `tests/agent/test_pet_generate.py` |
+| 8 | `tests/test_hermes_state_readonly_preflight.py` |
+| 7 | `tests/run_agent/test_interactive_interrupt.py` |
+| 7 | `tests/stress/test_atypical_scenarios.py` |
+| 7 | `tests/stress/test_concurrency_reclaim_race.py` |
+| 7 | `tests/test_minisweagent_path.py` |
+| 6 | `tests/stress/test_subprocess_e2e.py` |
+| 5 | `tests/stress/test_benchmarks.py` |
+| 5 | `tests/stress/test_concurrency_mixed.py` |
+| 5 | `tests/stress/test_property_fuzzing.py` |
+| 4 | `tests/stress/test_concurrency.py` |
+| 4 | `tests/stress/test_concurrency_parent_gate.py` |
+| 3 | `tests/test_iron_proxy_e2e.py` |
+| 2 | `tests/gateway/test_plugin_platform_interface.py` |
+| 2 | `tests/run_agent/test_deepseek_v4_thinking_live.py` |
+| 2 | `tests/tools/test_tts_streaming_e2e.py` |
+| 1 | `tests/gateway/test_discord_voice_mixer.py` |
+| 1 | `tests/gateway/test_matrix_voice.py` |
+| 1 | `tests/hermes_cli/test_subparser_routing_fallback.py` |
+| 1 | `tests/monitoring/test_otlp_exporter.py` |
+| 1 | `tests/plugins/memory/test_holographic_retrieval.py` |
+| 1 | `tests/plugins/test_holographic_vector_storage.py` |
+| 1 | `tests/run_agent/test_sequential_chats_live.py` |
+| 1 | `tests/test_telegram_polling_progress_ptb.py` |
+| 1 | `tests/tools/test_send_message_tool.py` |
+| 1 | `tests/tools/test_tts_streaming.py` |
+| 1 | `tests/tools/test_voice_thinking_sound.py` |
+
+**`tests/stress/` 占了 7 个文件 / 39 个用例**——压力测试整族默认不跑。
+它们不在 `failed` 里、也不在零执行里,只在 `skipped` 里;**一份只报 passed/failed 的报告
+会让读者以为并发与压力面被覆盖过了。**
+
+### 8.4 零执行 12 个文件逐个点名
+
+与 R11D **逐个文件相同**(§8.1 已机械证明),掩盖 **≥118** 个 `def test_`:
+`tests/acp/` **8 个**(`test_server` 30 / `test_tools` 23 / `test_events` 7 / `test_mcp_e2e` 7 /
+`test_named_provider_catalogs` 6 / `test_permissions` 5 / `test_entry` 4 / `test_ping_suppression` 3)、
+`tests/acp_adapter/` **3 个**(`test_acp_images` 4 / `test_acp_mcp_discovery` 4 / `test_acp_commands` 3)、
+以及 `tests/gateway/test_teams.py`(22,**模块级 assert** 把「缺可选依赖」从 skip 变成整文件零执行)。
+根因是 `acp` extra 不在 `[dev]` 里——与 `CLAUDE.md` 已记的 `aiohttp` 那条同形。
 
 ---
 
 ## 9. 环境与边界
 
-- **venv 包数**:开工 **87**(`dist-info` 计数与 `pip list` 去表头计数**两个口径同为 87**),
-  收工读数见 §8。**期间零安装**——三份派工书均写明「不许安装任何包(pip / apt / npm /
+- **venv 包数**:开工 **87** / 收工 **87**(每次都用两个口径量:`dist-info` 目录计数与
+  `pip list` 去表头计数——**两个口径给出同一个值,这是两次测量而不是一次**)。
+  **期间零安装,直接断言而非间接推断**:最新的 `dist-info` 时间戳全部是 `Aug 11 03:16`,
+  即建 venv 那一刻;此后没有任何一个包被写入。**期间零安装**——三份派工书均写明「不许安装任何包(pip / apt / npm /
   任何全局工具链)」,理由也写进去了:venv 包数是报告要报的数,而它同时是被测代码
   和子代理都能改的东西。
 - **基线**:`/home/user/hermes-agent` 全程 `git status --porcelain` 为 **0 行**,
@@ -492,5 +597,6 @@ cd /home/user/hermes-study && awk -F'\t' 'NR>1{sub(/\r$/,"",$6); if($6=="R1-inve
 | `H-R11E-M-a` | 两个号指同一实体(第三方包锚点被报 MISSING-FILE) | 甲:改引用关卡的那一轮 |
 | `H-R11E-M-b` | `chapters/r8a-configuration-surface.md:1253` 的 `## 4. 可迁移的设计原则` 是 385 行无 H3 的 H2,索引只能指到门口 | R12 装订轮 |
 | 25 条重指 | 见 §6.1 五个条件式收件人 | 甲 9 / 乙 6 / 丙 6 / 丁 3 / 戊 1 |
+| `H-R11E-M-c` | `scripts/run_tests.sh` **不打印聚合 skipped 行**,于是每一轮都要自己写一次解析,而两轮写出了两个口径(R11D 报 132,本轮 239)。这是 P08「同一份知识多个副本」的一个实例,而副本在**工具的输出格式**这一侧 | 乙 或任一改 `scripts/` 的轮次:把 `data/r11e/probes/test_totals_r11e.py` 收进 `scripts/`,让各轮共用一个口径 |
 | 域分布不均 | `安全、权限与边界` 43 问题(第二名 30),对检索不利 | R12 或任一轮:考虑二级标签;**不建议现在拆域**——词表是两片共用的合并前提 |
 | 派工口径 | 派工书未规定覆盖率口径归一,于是三个都对的数需要额外解释 | 丁:下一次改 CLAUDE.md 证据规则时,把「同一指标须先定口径再派工」写进派工书模板 |
