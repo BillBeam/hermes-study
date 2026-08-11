@@ -1,5 +1,5 @@
 agent: 片 A · 问题索引(第 1–11 章)
 dispatched: R11E 批次一
-signal: OPEN
+signal: RELEASED 片 A 完成信号(任务完成通知,含两个产出文件行数与覆盖读数)。主线已独立复核:181 行 / 118 问题 / 11 章 / 152 小节 / 坏行 0,全部 section 标题经 Corpus.heading() 解析通过;并独立复算了「承载机制却未指向 = 0」——合并后全 21 章 313 个 H2/H3 中未指向 58 个,逐个归类为 21 空容器 + 20 延伸目录 + 9 TL;DR(已由快读层承载)+ 5 场景时刻(父节 §1 已指向)+ 3 容器节(全部 H3 子节均已指向)。
 path: notes/r11e-raw-index-a.md
 path: data/r11e/index-a.tsv
