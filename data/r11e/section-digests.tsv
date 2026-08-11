@@ -1,7 +1,7 @@
 chapter	section	sha256	section_lines
 chapters/r1-what-is-hermes-agent.md	1. 从一个场景说起:你对着 Telegram 发了一句话	ea11c66e04a6cebe0500251b1f0f01583df556370be0e9bf2734485f1c351b88	22
 chapters/r1-what-is-hermes-agent.md	2. 全景:七个部件如何拼在一起	105a33b5ceee0624095e4bb23270913b0534bfd25665027966fbda4cb3a3aab1	38
-chapters/r1-what-is-hermes-agent.md	3. 全仓地图:8,530 个文件都归了类	9758ab5538eded4fee2d66ba007f1f1c510ae6a4a3b4d8e95badab8b9fb9220b	65
+chapters/r1-what-is-hermes-agent.md	3. 全仓地图:8,530 个文件都归了类	c6154b051ecdfa9ad1f11cd39626c6ac9c0d709609dff1743ebde0787e776821	65
 chapters/r1-what-is-hermes-agent.md	4. 一个要提前知道的"坑":地图会骗你,代码不会	ee6232854bcda28b15e130571835c60174e4db1d799d82036048fa50ef42af30	20
 chapters/r1-what-is-hermes-agent.md	5. 为什么值得逐条读透(而不是"看个大概")	0eaf8323b9a09788180d9ef8f96d82bb44e451fc0e91d5e4608febaf9a6a2b3a	20
 chapters/r1-what-is-hermes-agent.md	6. 阅读路线	08568e0b715d0d220ebbdf2865a7ed98fc51a33816c91a18ca1cf69f6780c883	21
