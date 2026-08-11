@@ -420,8 +420,18 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   *落地即阻断,不走 R7C→R8A / R8C→R8D / R10B→R11A 那套分期(与 R9B 表格锚点、
   R11C 可跑性检查同例):守的三份产物是本轮新增的,**积压恒为 0**,
   不存在「关卡对着自己没造成的积压狂叫」。*
+  **`reading/` 的可校验比例不单独算(R11E 定)**:派生件的引用画像是从 `chapters/`
+  **逐字继承**来的,不是它自己写的。R11E 实测 `reading/` 单独口径 **7 条引用 / OK 1 / 14.3%**,
+  并触发「单文件 UNCHECKED ≥90%」提示——而那 6 条 UNCHECKED 全部是
+  `chapters/r8a` 与 `chapters/r9c` 里**本来就写成散文内联**的锚点
+  (如 `hermes_logging.py:313 @ 863e313` 后面跟的是一句话,不是代码块),
+  被逐字抽进原则层。**对它单独算比例,量的是源章的行文习惯,不是派生层的质量**;
+  提示照打(它不改退出码),但报告按**合并口径**报,并按 CLAUDE.md 原有规定
+  单独报**当轮 notes** 那一个数。*R11E 已逐条回源核对这 6 条锚点全部指对
+  (抽查 4 条:`hermes_logging.py:313`、`gateway/platforms/base.py:742`、
+  `hermes_cli/status.py:683`、`gateway/status.py:1-5`)。*
   **覆盖面要如实说**:本关卡守的是三份产物、以及它们**引用到的**那些小节
-  (R11E 落地时 22 个)。`chapters/` 里**没被任何派生件引用**的小节改了,本关卡沉默。
+  (R11E 收工时 134 个)。`chapters/` 里**没被任何派生件引用**的小节改了,本关卡沉默。
   它把下限从「派生件没人管」抬到「**派生件引用到的源节一改必被拦**」,
   不是「`chapters/` 全被守住了」。
   负控见 `data/r11e/probes/reading_layer_negative_control.sh`(**19 条断言**,
