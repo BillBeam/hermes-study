@@ -34,10 +34,10 @@ chapters/r11b-the-unwritten-layer.md	4. 可迁移的设计原则	3dce834d1558201
 chapters/r11b-the-unwritten-layer.md	5. 地图与代码的出入	ae9076b2fed6078326dfa8189dfc78f101da0085b74297a4360fec15b1144781	21
 chapters/r11b-the-unwritten-layer.md	TL;DR(快读路径)	f7d99da59334438e9850f67ccf845d6638339383bab37620eecb0ad1f89506b1	16
 chapters/r11f-plugin-surface.md	1. 从一个场景说起:一个声明了钩子的插件,什么都没发生	34c5ee93a6d91a25a287cc11c460025032232870b0e5510e61f58bb4f5223788	53
-chapters/r11f-plugin-surface.md	2. 全景:一个插件从磁盘到生效	29025106e9895e40b7a1e435a00e44fecb2ee23410d1fb7e818fa0b215f91313	41
-chapters/r11f-plugin-surface.md	3. 逐机制	8f80ce234c2d927c2934b8d58339d98229f68ba4a1de6627570abd09a0bf0b43	176
+chapters/r11f-plugin-surface.md	2. 全景:一个插件从磁盘到生效	82fb97891e8ec4de44ea3a5c78bcac36cfe9ab853c36168434fc8bc1de8befb3	42
+chapters/r11f-plugin-surface.md	3. 逐机制	bf5461b443d53ff948ac9b4a0225804e3095a95ec0b25cfac630b777265eaf8b	329
 chapters/r11f-plugin-surface.md	4. 可迁移的设计原则(造你自己的插件系统时怎么做)	a92ebb5a2b73b1fb9724dad2be0be191b70a5d6a01bbf4b53ccfde385a37d8ed	28
-chapters/r11f-plugin-surface.md	TL;DR(快读路径:读这一段就有全貌)	11a0443321c621e92fa1b708c21221e0fc6fdf5e783dcf4cce59078bf227f811	23
+chapters/r11f-plugin-surface.md	TL;DR(快读路径:读这一段就有全貌)	51b59d045848c3943a98fcce23b0698c7c2d46ca6b68a6fca6a6cd8e2e5bc804	24
 chapters/r2-turn-loop-and-model-access.md	1. 从一个场景说起:一句话背后的一轮循环	ad78c7b851b0f1b2d7ac02d8dcafe9fb3116f666bb1e5881cfa298464d709239	30
 chapters/r2-turn-loop-and-model-access.md	2. 全景:一个 turn 的生命周期	7c53780d486874156137df87deea5aa7fda25c314a8ae55fceecea37b3cbd00f	31
 chapters/r2-turn-loop-and-model-access.md	3. 逐机制	6f3d602495b9f70dfd93943d228e3ed75696a898aa3a8ebb4ef070bc6484b5f4	623

@@ -206,11 +206,11 @@ R11D 只造了**校验腿**,没有写入腿 —— 于是台账一变,作者要�
 复算。不存历史状态文件、不猜正文里哪个数是旧值。
 
 ```verify
-cd /home/user/hermes-study && python3 scripts/verify_derived_numbers.py --sync --since main 2>&1 | head -2
+cd /home/user/hermes-study && python3 scripts/verify_derived_numbers.py --sync --since 5861435 2>&1 | head -2
 ```
 
 ```text
-synced=0  skipped=0  (旧真值复算自 main)
+synced=0  skipped=0  (旧真值复算自 5861435)
 ```
 
 *(此处 `synced=0` 是**幂等性**读数:同步已在上一条提交完成,重跑不再改动。
@@ -532,3 +532,39 @@ R11E 留下 114 条候选 + 五个条件式收件人。**先核触发条件,再�
 *执行模型与依据:本轮由主线 + 六个并发子代理完成,子代理仅承担 §3 的六片底稿;
 制度裁定、台账治理、移交定案、成品章、阅读层、全部关卡与逐片复核均由主线亲做。
 每片的复核方式逐条记在 `data/inflight/r11f-*.claim` 的 `RELEASED` 行里。*
+
+---
+
+## 勘误(R11F-fix 追加,正文不静默改写)
+
+按 `CLAUDE.md`「历史产出的改法」:`reports/` 正文不静默改写,修正以本节呈现。
+唯二的就地改动是**为了让关卡跑得过**的那一处引用,已在 E-1 逐处点名。
+
+**E-1 · §5.1 的 ```verify 块由 `--since main` 改为 `--since 5861435`(就地改,此处点名)。**
+`main` 是**分支名**,不是提交。在本仓库它解析到 `Initial commit`(树里只有 `README.md`),
+`git show main:data/ledger.tsv` 取不到那份文件,于是该块重跑产出的是一段
+`CalledProcessError` traceback,`verify_evidence_commands.py` 判 `EVIDENCE-DIFF`。
+这是 `CLAUDE.md`「**量『之前』的命令不许钉在会移动的引用上**」的又一次重演。
+改动限于该 ```verify 块里的 rev 与紧跟的 ```text 块里的同一个词
+(`main` → `5861435`,即 R11E 合并点 = R11F 开工点),**结论不变**:
+重跑仍是 `synced=0 skipped=0`(幂等)。`scripts/verify_derived_numbers.py` 同时改为
+取不到台账时报清楚、不抛栈。同一形状在 `notes/r11f-90-handover-rulings.md`
+还有一处(`git diff main...HEAD`),按 `notes/` 的规矩就地改正并在该文件里写明。
+
+**E-2 · §11 的关卡范围记述漏了 `reading/`,读数据此偏小(正文不改,读数见新报告)。**
+§11 表里两行写的是「定稿全量 = `chapters/` + 当轮 `notes/` + 本报告」,
+而 `CLAUDE.md` 的强制范围是 **`chapters/` 全部 + `reading/` 全部 + 本轮 `notes/` 与 `reports/`**
+(`reading/` 于 R11E 并入)。少掉的 3 个文件是 `reading/01-quickread.md` /
+`02-principles.md` / `03-problem-index.md`。因此 §11 记的 `citations=726 OK=589`(**81.1%**)
+测的是一个**比强制范围小**的语料;`reading/02-principles.md` 那 6 条引用恰好全是 UNCHECKED,
+所以这次遗漏还把比例朝"更好看"的方向抬了 0.6 个百分点。
+**按统一口径重新取得的全部读数见 `reports/round-11f-fix-delivery-issues.md` §4**;
+范围本身已收进 `scripts/mandatory_scope.py` 这个单一落点,两道关卡改用 `--round N` 展开。
+
+**E-3 · §5.2 那份「`chapters/` 完整 diff」已不再是 `chapters/` 的全部差异。**
+R11F-fix 按交付问题第 3 项改写了 `chapters/r11f-plugin-surface.md` 的 §3.4
+(以及与之矛盾的 TL;DR 一句和全景图一条边):原文把「只读端点触发执行」与
+「`shell=True` + `/bin/bash`」拼在一起,而基线里这是**两条不同的路径**
+——只读端点跑的是 `check`(argv,不经 shell),`install` 的整串 bash 要走
+`POST /api/memory/providers/{name}/setup`。完整 diff 见
+`reports/round-11f-fix-delivery-issues.md` §3.3。本簇 ■/▲ 计数**不受影响**。

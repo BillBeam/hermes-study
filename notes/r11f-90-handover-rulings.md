@@ -36,8 +36,17 @@ R11E 的五个收件人各自由一个**可核实的动作**定义。本轮逐�
 
 甲、乙的否定是**机械可核**的:
 
+> **R11F-fix 就地更正(判据不变,只换了参照点)。** 本块原写
+> `git diff --name-only main...HEAD -- …` 与 `ls scripts/verify_handover_*.py`,
+> **两处都钉在会移动的引用上**——`main` 是分支名,`HEAD` 随每一次提交走,`ls` 读的是当前工作树。
+> 在新容器里重跑,`main` 解析到的是本仓库的 `Initial commit`(树里只有 `README.md`),
+> 于是第一条读数由 `0` 变成 `2`,`verify_evidence_commands.py` 判 `EVIDENCE-DIFF`。
+> **这正是 CLAUDE.md「量『之前』的命令不许钉在会移动的引用上」那一条**,R11C 已记过五次。
+> **原结论不撤**(甲、乙本轮确实未发生),改的只是把两端钉死到本轮的两个提交:
+> 开工点 `5861435`(R11E 合并点)与收官点 `bdb82d5`,并把第二条从读工作树改为读 `bdb82d5` 的树。
+
 ```verify
-cd /home/user/hermes-study && git diff --name-only main...HEAD -- scripts/verify_citations.py scripts/verify_evidence_commands.py | wc -l && ls scripts/verify_handover_*.py 2>/dev/null | wc -l
+cd /home/user/hermes-study && git diff --name-only 5861435 bdb82d5 -- scripts/verify_citations.py scripts/verify_evidence_commands.py | wc -l && (git ls-tree --name-only bdb82d5 scripts/ | grep -c verify_handover_ || true)
 ```
 
 ```text

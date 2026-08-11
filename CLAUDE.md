@@ -45,11 +45,20 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   **每轮 commit 前必须运行的范围(R8-fix 扩面,原为"本轮 notes + chapters"):**
 
   ```bash
-  python3 scripts/verify_citations.py /home/user/hermes-agent \
-      chapters/*.md reading/*.md notes/rN-*.md reports/round-N-*.md
+  python3 scripts/verify_citations.py /home/user/hermes-agent --round N
   ```
 
   即 **`chapters/` 全部** + **`reading/` 全部** + **本轮的 `notes/` 与 `reports/`**。
+  **`--round N` 是这段范围的唯一取法(R11F-fix 立,结清本轮第 4 项)**:范围定义在
+  `scripts/mandatory_scope.py` 的 `SEGMENTS` 里一份,两道关卡都从那里取,关卡把解析结果
+  (`scope=… files=N (chapters=… reading=… notes=… reports=…)`)**印在读数上面**,
+  于是一份报告里的引用读数**自带它的取数范围**。任一段解析出 0 个文件即 `EMPTY-SCOPE` 阻断。
+  *为什么不再手敲 glob:范围原本只存在于作者当时敲进终端的那一行里,既不在关卡输出里、
+  也不在任何检查面上。R11F 收官报告 §11 把它记成「`chapters/` + 当轮 `notes/` + 本报告」
+  ——**`reading/` 那一段掉了**,关卡照样绿、报告照样报数(`citations=726` **81.1%**),
+  没有任何东西指出少跑了一段;按统一口径重取是 `citations=733` **80.5%**。
+  这与 R10B「白名单外的锚点连分母都进不去」是同一物种:**少掉的那一段不会让关卡变红,
+  只会让分母变小**。手敲清单仍然可用(调试、单文件复核),但**报告里的读数必须用 `--round`**。*
   *`reading/` 于 R11E 并入(实测有 1 处基线锚点随 `chapters/r7` 的 TL;DR 被逐字带进快读层):
   派生件虽由脚本生成、源正确则派生正确,但它带着基线锚点进了语料,
   而**语料里带锚点却不在检查面上的东西,正是本项目反复栽的那一类**。*
@@ -98,9 +107,13 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   而它的扩展名白名单是有限的。**不在白名单上的锚点不会记 UNCHECKED——它根本不被当成锚点**,
   既不校验、也不计数,**比 UNCHECKED 更隐蔽**:UNCHECKED 至少出现在分母里,
   它连分母都进不去。白名单现为
-  `py mdx md yaml yml toml c h sh json tsx ts mjs js nix rs txt`(见
-  `scripts/verify_citations.py:169`:`CITE_EXTS = "py\|mdx\|md\|yaml\|yml\|toml\|c\|h\|sh\|json\|tsx\|ts\|mjs\|js\|nix\|rs\|txt"`),
+  `py mdx md yaml yml toml c h sh json tsx ts mjs js nix rs txt ps1 css tsv`(见
+  `scripts/verify_citations.py:179`:`CITE_EXTS = "py`…),
   路径另允许前导点(`.github/...` 此前被解析成 `github/...`,永远解析不到)。
+  *(R11F-fix 就地更正:本条原写行号 `:169`、且列表停在 `txt` —— `ps1` / `css` / `tsv`
+  三个是 **R11D `df6d450`** 加进代码的,本条没跟着更新,行号也随之漂了 10 行。
+  **CLAUDE.md 自己不在任何关卡的扫描面上**,所以这处漂移无人会报 —— 与本轮第 4 项
+  是同一物种,记在 `reports/round-11f-fix-delivery-issues.md` §5。)*
   **写锚点前先确认扩展名在表上;要加新扩展名,连同一次全语料前后对比一起加。**
   *为什么不干脆放宽成"任意扩展名":`sqlite.org:443` 和 `路径:行号` 是同一个形状。
   实测全语料有 **49 处** host:port 长成这样(`127.0.0.1:18789` 31 处、`sqlite.org:443` 4 处、
@@ -368,12 +381,12 @@ python3 scripts/verify_ledger.py /home/user/hermes-agent data/ledger.tsv
   **每轮 commit 前必须跑到退出码 0** 的强制范围,与 `verify_citations.py` 同口径:
 
   ```bash
-  python3 scripts/verify_evidence_commands.py \
-      chapters/*.md reading/*.md notes/rN-*.md reports/round-N-*.md
+  python3 scripts/verify_evidence_commands.py --round N
   ```
 
   即 **`chapters/` 全部** + **`reading/` 全部** + **本轮的 `notes/` 与 `reports/`**,并在报告里报
-  `paired / unpaired / differing` 三个数。
+  `paired / unpaired / differing` 三个数。**范围与 `verify_citations.py` 共用
+  `scripts/mandatory_scope.py` 这一个落点**(R11F-fix 立),两道关卡不可能再各跑各的。
   *强制范围为什么不含历史轮次的 `notes/`(R11A 定,实测):历史底稿里的取证命令有相当一部分
   **在新容器里原理上就跑不出原值**——它们指向上一轮会话的临时目录(如 `/home/user/r10b-ts/`)、
   或指向重建后包数不同的 venv。把它们纳入强制范围,等于要求每一轮为**环境漂移**返工,
@@ -754,6 +767,18 @@ scripts/verify_derived_numbers.py # R11D 新增(结清 H-R11C-E-c / H-R11C-F-b):
                            # 可复算数,脚本从 data/ledger.tsv 复算并要求逐字出现。
                            # 不嗅探(511 既是 L1 过期值、也正好是 r9b 章的行数);
                            # 代价如实说:没写声明的手抄件发现不了
+                           # R11F 增:写入腿 `--sync --since <rev>`(新旧两值都由复算产生)
+                           # R11F-fix 重做两条腿的判据(结清本轮第 1、2 项):
+                           #   两腿共用 number_tokens() —— 整数字 token 比对,`12,586` 是一个
+                           #   token 而不含 `2,586`;锚点行号与围栏块内的行整段排除。
+                           #   校验腿改**保序绑定**:多键声明里键↔取值的对应关系可判、可打印
+                           #   (--explain),整表重排判 ORDER 阻断(旧判据只问"这个数在不在")。
+                           #   写入腿改**按 token 跨度落笔**,并修好恒不触发的「同声明撞值」守卫。
+                           #   负控:data/r11f-fix/probes/derived_{write,verify}_negative_control.py
+scripts/mandatory_scope.py # R11F-fix 新增:CLAUDE.md「每轮必跑范围」的**单一落点**。
+                           # verify_citations.py / verify_evidence_commands.py 的 `--round N`
+                           # 都从这里展开,并把 scope= 行印在读数上面;任一段 0 文件即
+                           # EMPTY-SCOPE 阻断。负控 data/r11f-fix/probes/gate_scope_negative_control.py
 data/chapter-order.tsv     # R11D 新增:全书章序的单一落点(章号/文件/轮次/主题)
 scripts/verify_report_headline.py # R8-fix 新增:报告首句 ≤20 字口径的脚本化判定
                            # (剥标签与强调、中文标点计入;纯数据附卷豁免、历史例外显式列名)

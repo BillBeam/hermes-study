@@ -139,6 +139,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from mandatory_scope import format_scope, resolve, take_round_args  # noqa: E402
+
 WINDOW = 40  # how far to search for the real location when a citation misses
 STUDY_ROOT = Path(__file__).resolve().parent.parent  # this study repo
 
@@ -903,8 +906,21 @@ def check_note(repo: Path, note: Path, fix: bool = False):
 def main() -> None:
     argv = [a for a in sys.argv[1:] if a != "--fix"]
     fix = "--fix" in sys.argv
-    if len(argv) < 2:
-        raise SystemExit(__doc__)
+    # `--round <N>` 从 scripts/mandatory_scope.py 展开 CLAUDE.md 的强制范围。
+    # 手敲文件清单仍然照旧可用 —— 但报告里的读数请用 --round 取,理由见那份模块的开头:
+    # R11F 的 81.1% 少跑了 reading/ 那一段,而关卡当时无从指出这件事。
+    rounds, argv = take_round_args(argv)
+    scope_line = None
+    if rounds:
+        if not argv:
+            raise SystemExit(__doc__)
+        scope_files, breakdown = resolve(rounds)
+        scope_line = format_scope(rounds, breakdown)
+        targets = [str(p) for p in scope_files]
+    else:
+        if len(argv) < 2:
+            raise SystemExit(__doc__)
+        targets = argv[1:]
     repo = Path(argv[0])
     if not repo.is_dir():
         raise SystemExit(f"baseline repo not a directory: {repo}")
@@ -912,7 +928,7 @@ def main() -> None:
     tally = {}
     problems = []
     per_file = {}  # path -> {status: count}
-    for arg in argv[1:]:
+    for arg in targets:
         note = Path(arg)
         if not note.is_file():
             print(f"skip (not a file): {note}")
@@ -963,8 +979,10 @@ def main() -> None:
         print("      (提示不影响退出码。)")
 
     total = sum(tally.values())
+    # 取数范围与读数印在一起:一份报告里的引用读数从此自带它的分母是怎么来的。
+    print(f"\n{scope_line}" if scope_line else f"\nscope=explicit  files={len(targets)}")
     print(
-        f"\ncitations={total}  "
+        f"citations={total}  "
         + "  ".join(f"{k}={v}" for k, v in sorted(tally.items()))
     )
     checkable = total - tally.get("FIXED", 0)

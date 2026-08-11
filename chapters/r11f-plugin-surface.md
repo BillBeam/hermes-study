@@ -15,9 +15,10 @@
 清单声明那一种**没有任何校验**——10 份清单写的 `hooks:` 键,加载器压根不读它;
 命名约定那一种**会过期而无人知**——一份手写的文件镜像清单漏掉了两个后来才拆出的模块。
 
-**第二个结论**:`plugin.yaml` 不只是数据,**它是一个可执行面**。清单里的
-`install` / `check` 字段是 shell 命令,会被真的执行;触发它的是一个**只读的 GET 端点**,
-而且**不看插件有没有被启用**。
+**第二个结论**:`plugin.yaml` 不只是数据,**它是一个可执行面**,而且是**两条路各执行一半**:
+一个**只读的 GET 端点**会对每一个**被发现的**(不看有没有被启用)provider 跑清单里的 `check`
+——argv 形式、不经 shell;清单里的 `install` 则要走一次 `POST …/setup`,那一条才是
+`shell=True` + `/bin/bash` 的整串执行。混成一句"清单会被执行"会同时高估和低估只读那条路。
 
 **第三个结论**:同一个 harness 里,"接入一个平台"有**两条互不知情的路径**——
 网关侧的插件适配器,和模型工具侧的发送工具。它们可以对同一个平台给出不同的答案。
@@ -100,7 +101,8 @@ flowchart TD
     J --> K2["provider 池<br/>注册进进程内 dict"]
     J --> K3["HTTP 路由<br/>挂进 dashboard"]
     J --> K4["钩子<br/>生命周期回调"]
-    C -.->|"清单里的 install/check<br/>是 shell 命令"| X["被只读端点触发执行"]
+    C -.->|"清单里的 check:"| X1["只读 GET /api/memory<br/>argv 执行,不经 shell"]
+    C -.->|"清单里的 install:"| X2["POST …/setup<br/>整串交给 /bin/bash"]
 ```
 
 三件事值得先说清楚:
@@ -236,28 +238,181 @@ Telegram 把命令表**投影**成 handler;Slack 用一条正则统一分发。�
 
 ### 3.4 清单不是数据,是可执行面
 
-回到第 1 节那份 byterover 清单。`external_dependencies` 里的 `install` 字段是这么一行:
+回到第 1 节那份 byterover 清单。`external_dependencies` 下面挂着两个字段,它们都会被当成命令:
 
 `plugins/memory/byterover/plugin.yaml:6 @ 863e313`
 
 ```
     install: "curl -fsSL https://byterover.dev/install.sh | sh"
+    check: "brv --version"
 ```
 
-这不是描述,**它会被执行**。消费侧用 `shlex.split` 跑 `check`,用 `shell=True` +
-`/bin/bash` 跑 `install`。
+这不是描述,**它们会被执行**。但**两个字段走的是两条不同的路**——触发它们的端点不同,
+执行的方式也不同。混成一句"清单会被执行"会同时犯两个错:高估只读那条路(它并不解释 shell),
+又低估它(它确实执行了一个由插件目录自带的程序)。所以这一节分开讲。
 
-关键在**触发条件**,片 F 实跑测得三条:
+**先约定两个词。** `shlex.split` 是 Python 标准库把一行命令按 shell 的引号规则切成
+**参数数组(argv)**的函数;切完直接交给 `subprocess.run`,`|`、`;`、`$(…)` 这些
+**只是普通字符**,没有 shell 去解释它们。反过来 `shell=True` 是把**整串原文**交给一个
+真正的 shell 去解释,管道、重定向、命令替换全部生效。下面这两条路径,分别落在这两种方式上。
 
-- 触发它的是 **`GET /api/memory` 这类只读端点**——一个语义上"只是查询"的请求;
-- 它对**每一个被发现的 provider** 都跑,**不看 `plugins.enabled`**——没启用的插件也算;
-- "这个目录是不是一个 memory provider",判据是**嗅探 `__init__.py` 前 8 KiB 的文本**。
+#### 路径一 · 只读端点触发的是 `check`,以 argv 形式执行
 
-三条叠起来:**往插件目录放一个文件,就能让一个只读请求执行任意 shell**。
-这里不展开利用面(那属于代码缺陷复核轮的工作),但作为**设计教训**它很清楚:
+`GET /api/memory` 是仪表盘拉"当前记忆状态"用的端点,语义上纯查询。它的返回体里有一项
+`providers`:
+
+`hermes_cli/web_server.py:12754 @ 863e313`
+
+```
+    return {
+        "active": active,
+        "providers": _discover_memory_provider_statuses(),
+```
+
+`_discover_memory_provider_statuses()` 对**每一个被发现的** provider 各取一次 setup 信息
+——注意这个循环走的是 `discovered`,而不是配置里的 `plugins.enabled`:
+
+`hermes_cli/web_server.py:5938 @ 863e313`
+
+```
+    for name in sorted(discovered):
+        row = discovered[name]
+        provider = None if row["missing"] else _load_memory_provider(name)
+        setup = _memory_provider_setup_info(name)
+```
+
+setup 信息里有一项叫 `dependencies_installed`(依赖装没装)。**这个问题是跑一遍 `check` 去问的**:
+
+`hermes_cli/web_server.py:5393 @ 863e313`
+
+```
+        try:
+            completed = _run_setup_command(
+                shlex.split(check_cmd),
+                display=check_cmd,
+                timeout=20,
+            )
+```
+
+而 `_run_setup_command` 这一路的 `shell` 参数取默认值假,于是 `executable` 为 `None`:
+
+`hermes_cli/web_server.py:5362 @ 863e313`
+
+```
+    return subprocess.run(
+        command,
+        shell=shell,
+        executable="/bin/bash" if shell else None,
+```
+
+**所以只读端点这条路的准确说法是**:执行清单里 `check` 那一行**点名的那个程序**,
+参数按 argv 传,20 秒超时,**不经 shell**。同一段里 `install` 字段只被**读**了一下,
+用来决定"连 `check` 都没写时该不该判为未安装",它在这条路上**不执行**:
+
+`hermes_cli/web_server.py:5388 @ 863e313`
+
+```
+        install_cmd = str(dep.get("install") or "").strip()
+        if not check_cmd:
+            if install_cmd:
+                external_ok = False
+            continue
+```
+
+#### 路径二 · `POST /api/memory/providers/{name}/setup` 触发的是 `install`,整串交给 `/bin/bash`
+
+`hermes_cli/web_server.py:6059 @ 863e313`
+
+```
+@app.post("/api/memory/providers/{name}/setup")
+```
+
+`hermes_cli/web_server.py:6078 @ 863e313`
+
+```
+    return _install_memory_provider_setup(name)
+```
+
+它转手交给那个专门装外部依赖的函数:
+
+`hermes_cli/web_server.py:5588 @ 863e313`
+
+```
+    results.extend(
+        _install_memory_provider_external_dependencies(setup["external_dependencies"])
+    )
+```
+
+这个函数**也先跑 `check`**(同样是 `shlex.split` + argv),但多了一步:`check` 返回 0
+就当作"已装好",`continue` 掉,`install` 不跑(`hermes_cli/web_server.py:5495`:`if check.returncode == 0:`)。
+只有 `check` 失败或缺失,才轮到 `install`,而它是这么跑的:
+
+`hermes_cli/web_server.py:5519 @ 863e313`
+
+```
+        if install_cmd:
+            try:
+                install = _run_setup_command(
+                    install_cmd,
+                    display=install_cmd,
+                    shell=True,
+                    timeout=300,
+                )
+```
+
+`shell=True` 于是 `executable="/bin/bash"`(上面那段 `_run_setup_command` 的第三行),
+超时 300 秒。byterover 那一行里的 `curl … | sh` 是一个**管道**,它要成立,正需要这条路。
+
+装完还会**再跑一次 `check` 验收**,仍是 argv 形式:
+
+`hermes_cli/web_server.py:5549 @ 863e313`
+
+```
+            if check_cmd and install.returncode == 0:
+                try:
+                    post_check = _run_setup_command(
+                        shlex.split(check_cmd),
+                        display=check_cmd,
+                        timeout=20,
+                    )
+```
+
+所以这条路上 `check` 最多跑两次(装之前一次、装之后一次),`install` 最多一次。
+**在 `hermes_cli/web_server.py` 这个文件里**(搜索面 = 该文件全文,模式
+`shell=True` 与 `shlex.split`,无排除):`shell=True` **只有 `:5524` 这一处**,
+`shlex.split` **恰好三处** —— `:5395` 只读端点那次、`:5480` 写侧装之前那次、
+`:5552` 写侧装之后那次。**执行清单命令的地方,一处不多、一处不少。**
+
+#### 两条路并排
+
+| | 路径一 | 路径二 |
+|---|---|---|
+| 端点 | `GET /api/memory`(只读) | `POST /api/memory/providers/{name}/setup`(写) |
+| 跑哪个字段 | 只跑 `check` | 先 `check`,失败才跑 `install` |
+| 执行方式 | `shlex.split` → argv,**无 shell** | `install` 整串 → `shell=True` + `/bin/bash` |
+| 超时 | 20 秒 | `check` 20 秒 / `install` 300 秒 |
+| 作用范围 | **每一个被发现的** provider | 请求点名的那一个 |
+| 锚点 | `hermes_cli/web_server.py:5395`:`shlex.split(check_cmd),` | `hermes_cli/web_server.py:5524`:`shell=True,` |
+
+还有第三条腿把路径一的门槛压得很低:"这个目录算不算一个 memory provider",判据是
+**嗅探 `__init__.py` 前 8 KiB 的文本**里有没有出现两个字符串之一:
+
+`plugins/memory/__init__.py:84 @ 863e313`
+
+```
+        source = init_file.read_text(errors="replace", encoding="utf-8")[:8192]
+        return "register_memory_provider" in source or "MemoryProvider" in source
+```
+
+叠起来,准确的结论要按路径分开写:**在插件目录里放一个带 `__init__.py` 的目录,
+就能让一次只读的 `GET /api/memory` 以网关进程的身份执行一个由该目录自带清单点名的程序**
+(argv 形式,不解释 shell 元字符);**而"整串交给 `/bin/bash`"要走那次 `POST …/setup`**。
+两者门槛不同、后果形状也不同——这里不展开利用面(那属于代码缺陷复核轮的工作),
+但作为**设计教训**,它清楚的那一半不受影响:
 
 > 一个字段一旦会被 `exec`,承载它的文件就不再是配置,而是代码;
 > 而"发现"是比"启用"宽得多的一个集合。**把执行挂在发现上,等于取消了启用这道开关。**
+> 至于挂上去的是 argv 还是整串 shell,决定的是后果有多大,不是这道开关还在不在。
 
 ### 3.5 多 provider 池:同一形态,两个域给出不同答案
 
